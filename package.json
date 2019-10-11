@@ -4,7 +4,7 @@
   "description": "Jostraca",
   "main": "jostraca.js",
   "scripts": {
-    "test": "node jostraca.js",
+    "test": "lab -v -t 100 -L",
     "prettier": "prettier --write --no-semi --single-quote *.js lib/*.js test/*.js",
     "clean-npm": "rm -rf node_modules package-lock.json",
     "repo-tag": "REPO_VERSION=`node -e \"console.log(require('./package').version)\"` && echo TAG: v$REPO_VERSION && git commit -a -m v$REPO_VERSION && git push && git tag v$REPO_VERSION && git push --tags;",
@@ -24,6 +24,8 @@
   },
   "homepage": "https://github.com/jostraca/jostraca#readme",
   "devDependencies": {
+    "@hapi/code": "^6.0.0",
+    "@hapi/lab": "^20.4.0",
     "prettier": "^1.18.2"
   }
 }
