@@ -2,7 +2,6 @@
 
 const Pkg = require('./package.json')
 
-
 module.exports = make_jostraca
 
 function make_jostraca() {
@@ -13,9 +12,8 @@ function Jostraca() {
   var self = {}
 
   self.toString = function() {
-    return 'jostraca@'+Pkg.version
+    return 'jostraca@' + Pkg.version
   }
-  
-  
+
   return self
 }
