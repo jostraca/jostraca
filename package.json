@@ -1,8 +1,11 @@
 {
   "name": "jostraca",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Jostraca",
   "main": "jostraca.js",
+  "bin": {
+    "jostraca": "./bin/jostraca-exec.js"
+  },
   "scripts": {
     "test": "lab -v -t 100 -L",
     "prettier": "prettier --write --no-semi --single-quote *.js lib/*.js test/*.js",
