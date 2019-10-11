@@ -1,0 +1,22 @@
+{
+  "name": "jostraca",
+  "version": "0.0.1",
+  "description": "Jostraca",
+  "main": "jostraca.js",
+  "scripts": {
+    "test": "node jostraca.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jostraca/jostraca.git"
+  },
+  "keywords": [
+    "jostraca"
+  ],
+  "author": "Richard Rodger",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jostraca/jostraca/issues"
+  },
+  "homepage": "https://github.com/jostraca/jostraca#readme"
+}
