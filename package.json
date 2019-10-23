@@ -2,14 +2,23 @@
   "name": "jostraca",
   "version": "0.0.4",
   "description": "Jostraca",
-  "main": "jostraca.js",
+  "main": "lib/index.js",
   "bin": {
-    "jostraca": "./bin/jostraca-exec.js"
+    "jostraca": "./bin/run"
   },
   "scripts": {
-    "test": "lab -v -t 100 -L",
-    "prettier": "prettier --write --no-semi --single-quote *.js lib/*.js test/*.js",
-    "clean-npm": "rm -rf node_modules package-lock.json",
+    "postpack": "rm -f oclif.manifest.json",
+    "posttest": "tslint -p test -t stylish",
+    "prepack": "rm -rf lib && tsc -b && oclif-dev manifest && oclif-dev readme",
+    "test-mocha": "nyc --extension .ts mocha --forbid-only \"test/**/*.test.ts\"",
+    "version": "oclif-dev readme && git add README.md",
+    "compile": "tsc jostraca.ts",
+    "test": "lab --sourcemaps --transform node_modules/lab-transform-typescript -P lab-test -v -t 50",
+    "prettier": "prettier --write --no-semi --single-quote *.ts *.js src/**/*.ts src/**/*.js test/**/*.ts test/**/*.js",
+    "tsc:w": "tsc -w -d",
+    "tsc": "tsc -d",
+    "coveralls": "lab -s -P test -r lcov | coveralls",
+    "clean": "rm -rf node_modules yarn.lock package-lock.json",
     "repo-tag": "REPO_VERSION=`node -e \"console.log(require('./package').version)\"` && echo TAG: v$REPO_VERSION && git commit -a -m v$REPO_VERSION && git push && git tag v$REPO_VERSION && git push --tags;",
     "repo-publish": "npm run clean-npm && npm i --registry=http://registry.npmjs.org && npm run prettier && npm test && npm run repo-tag && npm publish --access public --registry=http://registry.npmjs.org"
   },
@@ -32,9 +41,40 @@
     "url": "https://github.com/jostraca/jostraca/issues"
   },
   "homepage": "https://github.com/jostraca/jostraca#readme",
+  "dependencies": {
+    "@oclif/command": "^1.5.19",
+    "@oclif/config": "^1.13.3",
+    "@oclif/plugin-help": "^2.2.1",
+    "jsonic": "^0.3.1",
+    "tslib": "^1.10.0"
+  },
   "devDependencies": {
     "@hapi/code": "^6.0.0",
     "@hapi/lab": "^20.4.0",
-    "prettier": "^1.18.2"
-  }
+    "@oclif/dev-cli": "^1.22.2",
+    "@oclif/test": "^1.2.5",
+    "@oclif/tslint": "^3.1.1",
+    "@types/chai": "^4.2.3",
+    "@types/mocha": "^5.2.7",
+    "@types/node": "^12.11.2",
+    "chai": "^4.2.0",
+    "globby": "^10.0.1",
+    "lab-transform-typescript": "^3.0.1",
+    "mocha": "^6.2.2",
+    "mock-fs": "^4.10.2",
+    "nyc": "^14.1.1",
+    "prettier": "^1.18.2",
+    "ts-node": "^8.4.1",
+    "tslint": "^5.20.0",
+    "tslint-config-prettier": "^1.18.0",
+    "typescript": "^3.6.4"
+  },
+  "oclif": {
+    "commands": "./lib/commands",
+    "bin": "jostraca",
+    "plugins": [
+      "@oclif/plugin-help"
+    ]
+  },
+  "types": "lib/index.d.ts"
 }
