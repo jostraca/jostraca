@@ -4,7 +4,6 @@ const Mock = require('mock-fs')
 import { expect, test } from '@oclif/test'
 
 describe('generate', () => {
-
   /*
   var files: {[repo: string]: string[]} = {
     foo: [
@@ -46,9 +45,10 @@ describe('generate', () => {
   */
 
   test
-    .command(['generate', '-c', __dirname+'/../case-0/system/jostraca'])
+    .command(['generate', '-c', __dirname + '/../case-0/system/jostraca'])
     .it('all', ctx => {
-      expect(Fs.readFileSync(__dirname+'/../case-0/foo/aaa.txt').toString())
-        .equals('AAA foo\nX 1\n\n')
+      expect(
+        Fs.readFileSync(__dirname + '/../case-0/foo/aaa.txt').toString()
+      ).equals('AAA foo\nX 1\n\n')
     })
 })

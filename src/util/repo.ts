@@ -3,7 +3,6 @@
 import Fs = require('fs')
 import Path = require('path')
 
-
 //import { Jsonic } from 'jsonic'
 const Jsonic = require('jsonic')
 const Ejs = require('ejs')
@@ -55,13 +54,13 @@ const intern = {
 
     // console.log('JOSTRACA GENERATE group', group, groups)
     // console.log('JOSTRACA GENERATE tm', templates)
-    
+
     for (let rI = 0; rI < group.repos.length; rI++) {
       let repo = group.repos[rI]
 
       // inherit props from 'all' group
       let all_repo: Repo = all_group.repos[repo.name]
-      let props = intern.deep(all_repo.props,repo.props)
+      let props = intern.deep(all_repo.props, repo.props)
 
       for (let template of templates) {
         let path =
@@ -85,9 +84,9 @@ const intern = {
         let out = intern.render_template(template, ctxt, text)
 
         // console.log('JOSTRACA GENERATE out', repo, template.path, path, out)
-        
+
         let folder_part = Path.dirname(path)
-        Fs.mkdirSync(folder_part, {recursive:true})
+        Fs.mkdirSync(folder_part, { recursive: true })
         Fs.writeFileSync(path, out)
       }
     }
@@ -96,8 +95,7 @@ const intern = {
     text = text || ''
     ctxt.slots = {}
 
-    let jostraca_slot_re =
-      /.*?JOSTRACA-SLOT-START:([\S]+)[^\r\n]*[\r\n]?([\s\S]*?)[\r\n]?[^\r\n]*JOSTRACA-SLOT-END:\1.*/
+    let jostraca_slot_re = /.*?JOSTRACA-SLOT-START:([\S]+)[^\r\n]*[\r\n]?([\s\S]*?)[\r\n]?[^\r\n]*JOSTRACA-SLOT-END:\1.*/
     let m: RegExpMatchArray | null = null
     let last = 0
     let index: number
@@ -124,7 +122,7 @@ const intern = {
     return found
 
     function walk(folder: string, found: Template[]) {
-      let files = Fs.readdirSync(folder).filter(file_name=>{
+      let files = Fs.readdirSync(folder).filter(file_name => {
         return !file_name.endsWith('~')
       })
       for (let file of files) {
@@ -159,7 +157,9 @@ const intern = {
 
     files = files.filter((entry: string) => {
       let entrystat = Fs.lstatSync(folder + '/' + entry)
-      return entrystat.isFile() && !entry.startsWith('.') && !entry.endsWith('~')
+      return (
+        entrystat.isFile() && !entry.startsWith('.') && !entry.endsWith('~')
+      )
     })
 
     let groups: { [group: string]: GroupSpec } = {}
@@ -210,7 +210,7 @@ const intern = {
   deep(...rest: any[]): any {
     rest = rest.reverse()
     rest.unshift({})
-    return LodashDefaultsDeep.apply(null,rest)
+    return LodashDefaultsDeep.apply(null, rest)
   }
 }
 
