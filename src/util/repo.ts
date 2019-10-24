@@ -1,10 +1,13 @@
 // Copyright © 2019 Richard Rodger and other contributors, MIT License.
 
-const Fs = require('fs')
+import Fs = require('fs')
+import Path = require('path')
+
 
 //import { Jsonic } from 'jsonic'
 const Jsonic = require('jsonic')
 const Ejs = require('ejs')
+const LodashDefaultsDeep = require('lodash.defaultsdeep')
 
 interface Repo {
   name: string
@@ -36,7 +39,7 @@ interface GenerateSpec {
 
 interface GroupSpec {
   name: string
-  repos: Repo[]
+  repos: MapRepo
 }
 
 const intern = {
@@ -44,17 +47,21 @@ const intern = {
     let groups: { [group: string]: GroupSpec } = intern.load_repo_groups(
       spec.basefolder + '/repos'
     )
+    let all_group = groups.all
     let group = groups[spec.group]
-
-    // console.log('group', spec.group, group)
 
     let template_folder = spec.basefolder + '/templates'
     let templates = intern.load_templates(template_folder)
-    // console.log('templates', templates)
 
-    for(let rI = 0; rI < group.repos.length; rI++ ) {
+    // console.log('JOSTRACA GENERATE group', group, groups)
+    // console.log('JOSTRACA GENERATE tm', templates)
+    
+    for (let rI = 0; rI < group.repos.length; rI++) {
       let repo = group.repos[rI]
-      // console.log('repo', repo)
+
+      // inherit props from 'all' group
+      let all_repo: Repo = all_group.repos[repo.name]
+      let props = intern.deep(all_repo.props,repo.props)
 
       for (let template of templates) {
         let path =
@@ -63,24 +70,25 @@ const intern = {
           repo.name +
           '/' +
           template.path.substring(template_folder.length + 1)
-        // console.log('REPO PATH',path)
-
 
         let text = ''
 
-        if(Fs.existsSync(path)) {
+        if (Fs.existsSync(path)) {
           text = Fs.readFileSync(path).toString()
         }
 
-
         let ctxt: TemplateContext = {
           name: repo.name,
-          props: repo.props
+          props
         }
 
         let out = intern.render_template(template, ctxt, text)
-        // console.log('out', out)
-        Fs.writeFileSync(path,out)
+
+        // console.log('JOSTRACA GENERATE out', repo, template.path, path, out)
+        
+        let folder_part = Path.dirname(path)
+        Fs.mkdirSync(folder_part, {recursive:true})
+        Fs.writeFileSync(path, out)
       }
     }
   },
@@ -88,21 +96,21 @@ const intern = {
     text = text || ''
     ctxt.slots = {}
 
-    // console.log(text)
-
-    let jostraca_slot_re = /.*?JOSTRACA-SLOT-START:([\S]+)[^\r\n]*[\r\n]?([\s\S]*?)[\r\n]?[^\r\n]*JOSTRACA-SLOT-END:\1.*/
+    let jostraca_slot_re =
+      /.*?JOSTRACA-SLOT-START:([\S]+)[^\r\n]*[\r\n]?([\s\S]*?)[\r\n]?[^\r\n]*JOSTRACA-SLOT-END:\1.*/
     let m: RegExpMatchArray | null = null
     let last = 0
     let index: number
     while ((m = jostraca_slot_re.exec(text.substring(last)))) {
-      // console.log(m,m.index)
       let slot_full = m[0]
       let slot_name = m[1]
-      let slot_text = m[2]
 
-      ctxt.slots[slot_name] = slot_text
+      // Need to preserve slot markers on re-insert
+      ctxt.slots[slot_name] = slot_full
 
       index = m.index!
+
+      // keep looking from end of last match
       last = last + index + slot_full.length
     }
 
@@ -116,7 +124,9 @@ const intern = {
     return found
 
     function walk(folder: string, found: Template[]) {
-      let files = Fs.readdirSync(folder)
+      let files = Fs.readdirSync(folder).filter(file_name=>{
+        return !file_name.endsWith('~')
+      })
       for (let file of files) {
         let path = folder + '/' + file
         let entrystat = Fs.lstatSync(path)
@@ -138,7 +148,7 @@ const intern = {
   },
   parse_templates(templates: Template[]) {
     for (let template of templates) {
-      let ejs_render = Ejs.compile(template.text)
+      let ejs_render = Ejs.compile(template.text, {})
       template.render = function(ctxt) {
         return ejs_render(ctxt)
       }
@@ -149,7 +159,7 @@ const intern = {
 
     files = files.filter((entry: string) => {
       let entrystat = Fs.lstatSync(folder + '/' + entry)
-      return entrystat.isFile() && !entry.startsWith('.')
+      return entrystat.isFile() && !entry.startsWith('.') && !entry.endsWith('~')
     })
 
     let groups: { [group: string]: GroupSpec } = {}
@@ -194,7 +204,18 @@ const intern = {
       .filter(repo => null !== repo)
 
     return repos as Repo[]
+  },
+
+  // NOTE: treats arrays as if objects where indexes are keys - this is desired
+  deep(...rest: any[]): any {
+    rest = rest.reverse()
+    rest.unshift({})
+    return LodashDefaultsDeep.apply(null,rest)
   }
 }
 
-export { intern }
+function generate(spec: GenerateSpec) {
+  return intern.generate(spec)
+}
+
+export { generate, intern }

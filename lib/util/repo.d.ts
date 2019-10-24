@@ -3,6 +3,9 @@ interface Repo {
     order: number;
     props: object;
 }
+declare type MapRepo = Repo[] & {
+    [key: string]: Repo;
+};
 interface Template {
     name: string;
     path: string;
@@ -24,7 +27,7 @@ interface GenerateSpec {
 }
 interface GroupSpec {
     name: string;
-    repos: Repo[];
+    repos: MapRepo;
 }
 declare const intern: {
     generate(spec: GenerateSpec): void;
@@ -35,5 +38,7 @@ declare const intern: {
         [group: string]: GroupSpec;
     };
     parse_repo_list(text: string): Repo[];
+    deep(...rest: any[]): any;
 };
-export { intern };
+declare function generate(spec: GenerateSpec): void;
+export { generate, intern };

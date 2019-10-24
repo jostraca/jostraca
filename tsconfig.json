@@ -7,9 +7,8 @@
     "rootDir": "src",
     "strict": true,
     "target": "es2017",
-    "noEmitOnError": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true
+    "strictNullChecks": true,
+    "noImplicitAny": true
   },
   "include": [
     "src/**/*"

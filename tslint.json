@@ -4,6 +4,7 @@
     "binary-expression-operand-order": false,
     "ban-comma-operator": false,
     "prefer-method-signature": false,
-    "prefer-for-of": false
+    "prefer-for-of": false,
+    "ordered-imports": false
   }
 }
