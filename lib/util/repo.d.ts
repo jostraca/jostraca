@@ -15,6 +15,7 @@ interface Template {
 }
 interface TemplateContext {
     name: string;
+    year: number;
     props: object;
     slots?: {
         [key: string]: string;

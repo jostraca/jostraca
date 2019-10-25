@@ -26,6 +26,7 @@ interface Template {
 
 interface TemplateContext {
   name: string
+  year: number
   props: object
   slots?: { [key: string]: string }
 }
@@ -59,10 +60,13 @@ const intern = {
       let repo = group.repos[rI]
 
       // inherit props from 'all' group
-      let all_repo: Repo = all_group.repos[repo.name]
+      let all_repo: Repo = all_group.repos[repo.name] || {}
       let props = intern.deep(all_repo.props, repo.props)
-
+      let skip = false
+      
       for (let template of templates) {
+        skip = false
+        
         let path =
           spec.repofolder +
           '/' +
@@ -70,24 +74,42 @@ const intern = {
           '/' +
           template.path.substring(template_folder.length + 1)
 
-        let text = ''
+        while( path !== (path = path.replace('%NAME%',repo.name)) ) {}
+        
+        let excludes: string[] =
+          ('string' === typeof(props.exclude$) ? [props.exclude$] :
+           props.exclude$ as string[]) || []
 
-        if (Fs.existsSync(path)) {
-          text = Fs.readFileSync(path).toString()
+        for(let exclude of excludes) {
+          skip = skip || -1 !== path.indexOf(exclude)
         }
 
-        let ctxt: TemplateContext = {
-          name: repo.name,
-          props
+        if(!skip) {
+          let text = ''
+
+          if (Fs.existsSync(path)) {
+            text = Fs.readFileSync(path).toString()
+          }
+          
+          let ctxt: TemplateContext = {
+            name: repo.name,
+            year: (new Date().getFullYear()),
+            props
+          }
+          
+          let out = intern.render_template(template, ctxt, text)
+          
+          // console.log('JOSTRACA GENERATE out', repo, template.path, path, out)
+
+          let folder_part = Path.dirname(path)
+          Fs.mkdirSync(folder_part, { recursive: true })
+          Fs.writeFileSync(path, out)
+
+          console.log('SAVE: '+path)
         }
-
-        let out = intern.render_template(template, ctxt, text)
-
-        // console.log('JOSTRACA GENERATE out', repo, template.path, path, out)
-
-        let folder_part = Path.dirname(path)
-        Fs.mkdirSync(folder_part, { recursive: true })
-        Fs.writeFileSync(path, out)
+        else {
+          console.log('skip: '+path)
+        }
       }
     }
   },
@@ -158,15 +180,33 @@ const intern = {
     files = files.filter((entry: string) => {
       let entrystat = Fs.lstatSync(folder + '/' + entry)
       return (
-        entrystat.isFile() && !entry.startsWith('.') && !entry.endsWith('~')
+        // entrystat.isFile() &&
+        !entry.startsWith('.') && !entry.endsWith('~')
       )
     })
 
     let groups: { [group: string]: GroupSpec } = {}
 
     for (let groupname of files) {
-      // let groupname = files[i]
-      let grouptext = Fs.readFileSync(folder + '/' + groupname).toString()
+      let group_def_loc = folder + '/' + groupname
+      let is_folder = Fs.lstatSync(group_def_loc).isDirectory()
+      let grouptext = ''
+
+      // location is a folder, expect groupname.list file
+      if(is_folder) {
+        grouptext = Fs.readFileSync(group_def_loc+'/'+groupname+'.list').toString()
+      }
+
+      // location is a file
+      else if(Fs.existsSync(group_def_loc) ) {
+        grouptext = Fs.readFileSync(group_def_loc).toString()
+      }
+
+      // try .list suffix
+      else {
+        grouptext = Fs.readFileSync(group_def_loc+'.list').toString()
+      }
+      
       let repolist: MapRepo = intern.parse_repo_list(grouptext) as MapRepo
 
       // index by repo name also
