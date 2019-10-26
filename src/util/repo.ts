@@ -27,6 +27,8 @@ interface Template {
 interface TemplateContext {
   name: string
   year: number
+  prefix: string
+  suffix: string
   props: object
   slots?: { [key: string]: string }
 }
@@ -90,9 +92,20 @@ const intern = {
           if (Fs.existsSync(path)) {
             text = Fs.readFileSync(path).toString()
           }
+
+          let repo_name_prefix = ''
+          let repo_name_suffix = ''
+          let m = repo.name.match(/^(.*)-([^-]*?)$/)
+
+          if(m) {
+            repo_name_prefix = m[1]
+            repo_name_suffix = m[2]
+          }
           
           let ctxt: TemplateContext = {
             name: repo.name,
+            prefix: repo_name_prefix,
+            suffix: repo_name_suffix,
             year: (new Date().getFullYear()),
             props
           }
