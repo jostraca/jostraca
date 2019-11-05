@@ -55,9 +55,6 @@ const intern = {
     let template_folder = spec.basefolder + '/templates'
     let templates = intern.load_templates(template_folder)
 
-    // console.log('JOSTRACA GENERATE group', group, groups)
-    // console.log('JOSTRACA GENERATE tm', templates)
-
     for (let rI = 0; rI < group.repos.length; rI++) {
       let repo = group.repos[rI]
 
@@ -65,10 +62,10 @@ const intern = {
       let all_repo: Repo = all_group.repos[repo.name] || {}
       let props = intern.deep(all_repo.props, repo.props)
       let skip = false
-      
+
       for (let template of templates) {
         skip = false
-        
+
         let path =
           spec.repofolder +
           '/' +
@@ -76,17 +73,18 @@ const intern = {
           '/' +
           template.path.substring(template_folder.length + 1)
 
-        while( path !== (path = path.replace('%NAME%',repo.name)) ) {}
-        
-        let excludes: string[] =
-          ('string' === typeof(props.exclude$) ? [props.exclude$] :
-           props.exclude$ as string[]) || []
+        while (path !== (path = path.replace('%NAME%', repo.name))) {}
 
-        for(let exclude of excludes) {
+        let excludes: string[] =
+          ('string' === typeof props.exclude$
+            ? [props.exclude$]
+            : (props.exclude$ as string[])) || []
+
+        for (let exclude of excludes) {
           skip = skip || -1 !== path.indexOf(exclude)
         }
 
-        if(!skip) {
+        if (!skip) {
           let text = ''
 
           if (Fs.existsSync(path)) {
@@ -97,31 +95,28 @@ const intern = {
           let repo_name_suffix = ''
           let m = repo.name.match(/^(.*)-([^-]*?)$/)
 
-          if(m) {
+          if (m) {
             repo_name_prefix = m[1]
             repo_name_suffix = m[2]
           }
-          
+
           let ctxt: TemplateContext = {
             name: repo.name,
             prefix: repo_name_prefix,
             suffix: repo_name_suffix,
-            year: (new Date().getFullYear()),
+            year: new Date().getFullYear(),
             props
           }
-          
+
           let out = intern.render_template(template, ctxt, text)
-          
-          // console.log('JOSTRACA GENERATE out', repo, template.path, path, out)
 
           let folder_part = Path.dirname(path)
           Fs.mkdirSync(folder_part, { recursive: true })
           Fs.writeFileSync(path, out)
 
-          console.log('SAVE: '+path)
-        }
-        else {
-          console.log('skip: '+path)
+          console_log('SAVE: ' + path)
+        } else {
+          console_log('skip: ' + path)
         }
       }
     }
@@ -191,7 +186,7 @@ const intern = {
     let files = Fs.readdirSync(folder)
 
     files = files.filter((entry: string) => {
-      let entrystat = Fs.lstatSync(folder + '/' + entry)
+      // let entrystat = Fs.lstatSync(folder + '/' + entry)
       return (
         // entrystat.isFile() &&
         !entry.startsWith('.') && !entry.endsWith('~')
@@ -206,20 +201,23 @@ const intern = {
       let grouptext = ''
 
       // location is a folder, expect groupname.list file
-      if(is_folder) {
-        grouptext = Fs.readFileSync(group_def_loc+'/'+groupname+'.list').toString()
+      if (is_folder) {
+        let groupfile = group_def_loc + '/' + groupname + '.list'
+        if (Fs.existsSync(groupfile)) {
+          grouptext = Fs.readFileSync(groupfile).toString()
+        }
       }
 
       // location is a file
-      else if(Fs.existsSync(group_def_loc) ) {
+      else if (Fs.existsSync(group_def_loc)) {
         grouptext = Fs.readFileSync(group_def_loc).toString()
       }
 
       // try .list suffix
       else {
-        grouptext = Fs.readFileSync(group_def_loc+'.list').toString()
+        grouptext = Fs.readFileSync(group_def_loc + '.list').toString()
       }
-      
+
       let repolist: MapRepo = intern.parse_repo_list(grouptext) as MapRepo
 
       // index by repo name also
@@ -265,6 +263,10 @@ const intern = {
     rest.unshift({})
     return LodashDefaultsDeep.apply(null, rest)
   }
+}
+
+function console_log(...rest: any[]) {
+  console.log(...rest)
 }
 
 function generate(spec: GenerateSpec) {
