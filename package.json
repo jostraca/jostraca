@@ -1,6 +1,6 @@
 {
   "name": "jostraca",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Jostraca",
   "main": "lib/index.js",
   "bin": {
@@ -27,7 +27,9 @@
     "LICENSE",
     "README.md",
     "jostraca.js",
-    "bin/jostraca-exec.js"
+    "jostraca.ts",
+    "lib",
+    "bin"
   ],
   "repository": {
     "type": "git",
