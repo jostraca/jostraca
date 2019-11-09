@@ -14,17 +14,14 @@ export default class Generate extends Command {
   static examples = [
     `$ jostraca generate`,
     `$ jostraca generate [group]`,
-    `$ jostraca generate [group] [repo]`,
+    `$ jostraca generate [group] [repo]`
   ]
 
   static flags = {
     config: flags.string({ char: 'c', description: 'config folder' })
   }
 
-  static args = [
-    { name: 'group' },
-    { name: 'repo' }
-  ]
+  static args = [{ name: 'group' }, { name: 'repo' }]
 
   async run() {
     const { args, flags } = this.parse(Generate)

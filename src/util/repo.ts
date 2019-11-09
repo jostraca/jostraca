@@ -61,7 +61,7 @@ const intern = {
     let template_folder = spec.basefolder + '/templates'
     let templates = intern.load_templates(template_folder)
 
-    let repos = group.repos.filter(repo=>{
+    let repos = group.repos.filter(repo => {
       return '' === spec.repo || repo.name === spec.repo
     })
 
@@ -122,7 +122,7 @@ const intern = {
           }
 
           let out = intern.render_template(template, ctxt, text)
-          
+
           let folder_part = Path.dirname(path)
           Fs.mkdirSync(folder_part, { recursive: true })
           Fs.writeFileSync(path, out)
@@ -162,10 +162,10 @@ const intern = {
     m = jostraca_inject_re.exec(text)
     //console.log('INJECT MATCH',m)
 
-    if(m) {
-      out = text.replace(m[0],m[1]+m[2]+render_text+m[3])
+    if (m) {
+      out = text.replace(m[0], m[1] + m[2] + render_text + m[3])
     }
-    
+
     return out
   },
   load_templates(folder: string) {
@@ -206,11 +206,17 @@ const intern = {
     }
   },
   load_repo_spec(spec: GenerateSpec, repo: Repo): RepoSpec {
-    let pkg = require(spec.repofolder+'/'+repo.name+'/package.json')
-    let version = pkg.version
-    let repospec: RepoSpec = {
-      version: version
+    let version = ''
+    let pkg_path = spec.repofolder + '/' + repo.name + '/package.json'
+    if (Fs.existsSync(pkg_path)) {
+      let pkg = require(pkg_path)
+      version = pkg.version
     }
+
+    let repospec: RepoSpec = {
+      version
+    }
+
     return repospec
   },
   load_repo_groups(folder: string) {
