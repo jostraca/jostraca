@@ -280,25 +280,26 @@ d x:{y:1},z:'q'
 
     var out = found[0].render({ qaz: 'WSX' })
     expect(out).equal('AAA WSX BBB')
-  }),
-    it('intern.render_template', () => {
-      var text0 = 'AAA <%=name%> BBB <%=props.qaz%> CCC'
-      var tm0_render = Ejs.compile(text0)
-      var tm0 = {
-        name: 'tm0',
-        render: function(ctxt) {
-          return tm0_render(ctxt)
-        }
+  })
+
+  it('intern.render_template', () => {
+    var text0 = 'AAA <%=name%> BBB <%=props.qaz%> CCC'
+    var tm0_render = Ejs.compile(text0)
+    var tm0 = {
+      name: 'tm0',
+      render: function(ctxt) {
+        return tm0_render(ctxt)
       }
+    }
 
-      var out = Repo.intern.render_template(tm0, {
-        name: 'tm0',
-        props: { qaz: 'wsx' }
-      })
-      //console.log(out)
-      expect(out).equal('AAA tm0 BBB wsx CCC')
+    var out = Repo.intern.render_template(tm0, {
+      name: 'tm0',
+      props: { qaz: 'wsx' }
+    })
+    //console.log(out)
+    expect(out).equal('AAA tm0 BBB wsx CCC')
 
-      var text1_src = `
+    var text1_src = `
 DDD-old
 tm01-old
 # JOSTRACA-SLOT-START:zed #
@@ -309,7 +310,7 @@ wsx-old
 FFF
 `
 
-      var text1_tm = `
+    var text1_tm = `
 DDD
 <%=name%>
 <%=slots.zed%>
@@ -317,23 +318,23 @@ EEE
 <%=props.qaz%>
 FFF
 `
-      var tm1_render = Ejs.compile(text1_tm)
-      var tm1 = {
-        name: 'tm1',
-        render: function(ctxt) {
-          return tm1_render(ctxt)
-        }
+    var tm1_render = Ejs.compile(text1_tm)
+    var tm1 = {
+      name: 'tm1',
+      render: function(ctxt) {
+        return tm1_render(ctxt)
       }
+    }
 
-      var out = Repo.intern.render_template(
-        tm1,
-        { name: 'tm01', props: { qaz: 'wsx' } },
-        text1_src
-      )
-      //console.log(out)
+    var out = Repo.intern.render_template(
+      tm1,
+      { name: 'tm01', props: { qaz: 'wsx' } },
+      text1_src
+    )
+    //console.log(out)
 
-      //expect(out).equal('\nDDD\ntm01\nedc\nEEE\nwsx\nFFF\n')
-      expect(out).equal(`
+    //expect(out).equal('\nDDD\ntm01\nedc\nEEE\nwsx\nFFF\n')
+    expect(out).equal(`
 DDD
 tm01
 # JOSTRACA-SLOT-START:zed #
@@ -343,7 +344,7 @@ EEE
 wsx
 FFF
 `)
-    })
+  })
 
   it('intern.generate', () => {
     Mock({
@@ -367,7 +368,7 @@ bar x:6,y:7
               ccc: {
                 ddd: 'dolor <%=name%> sit <%=props.x%> amet <%=props.y%>',
                 eee:
-                  'A <%=name%> B <%=props.x%> C <%=props.y%>' +
+                'A <%=name%> B <%=props.x%> C <%=props.y%>' +
                   ' D <%=slots.zed%> E'
               }
             }
@@ -382,7 +383,7 @@ bar x:6,y:7
             iii: 'EEE0',
             ddd: 'old0',
             eee:
-              'A NAME B X C Y' +
+            'A NAME B X C Y' +
               ' D JOSTRACA-SLOT-START:zed\n foozed \nJOSTRACA-SLOT-END:zed E0'
           }
         },
@@ -395,7 +396,7 @@ bar x:6,y:7
             iii: 'EEE1',
             ddd: 'old1',
             eee:
-              'A NAME B X C Y' +
+            'A NAME B X C Y' +
               ' D JOSTRACA-SLOT-START:zed\n barzed \nJOSTRACA-SLOT-END:zed E1'
           }
         },
@@ -405,6 +406,7 @@ bar x:6,y:7
 
     Repo.intern.generate({
       group: 'all',
+      repo: '',
       basefolder: 'work/system/jostraca',
       repofolder: 'work'
     })
@@ -482,6 +484,7 @@ bar x:6,y:7
     
     Repo.generate({
       group: 'red',
+      repo: '',
       basefolder: 'work/system/jostraca',
       repofolder: 'work'
     })
@@ -519,4 +522,58 @@ bar x:6,y:7
       },
     })
   })
+
+
+  it('intern.inject', () => {
+
+    var text1_src = `
+{
+  "name": "foo",
+  "JOSTRACA-INJECT-START": "",
+  "replace": "this"
+  "JOSTRACA-INJECT-END": "",
+  "deps": {
+    "bar": "zed"
+  }
+}
+`
+
+    var text1_tm = `
+  "qaz": "<%-name%>",
+  "wsx": "<%-props.wsx%>",
+  "edc": "qwe",
+`
+    var tm1_render = Ejs.compile(text1_tm)
+    var tm1 = {
+      name: 'tm1',
+      render: function(ctxt) {
+        return tm1_render(ctxt)
+      }
+    }
+
+    var out = Repo.intern.render_template(
+      tm1,
+      { name: 'tm01', props: { wsx: 'asd' } },
+      text1_src
+    )
+    //console.log(out)
+
+
+    expect(out).equal(`
+{
+  "name": "foo",
+  "JOSTRACA-INJECT-START": "",
+
+  "qaz": "tm01",
+  "wsx": "asd",
+  "edc": "qwe",
+  "JOSTRACA-INJECT-END": "",
+  "deps": {
+    "bar": "zed"
+  }
+}
+`)
+  })
+
+    
 })

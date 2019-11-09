@@ -15,6 +15,7 @@ interface Template {
 }
 interface TemplateContext {
     name: string;
+    version: string;
     year: number;
     prefix: string;
     suffix: string;
@@ -25,6 +26,7 @@ interface TemplateContext {
 }
 interface GenerateSpec {
     group: string;
+    repo: string;
     basefolder: string;
     repofolder: string;
 }
@@ -32,11 +34,15 @@ interface GroupSpec {
     name: string;
     repos: MapRepo;
 }
+interface RepoSpec {
+    version: string;
+}
 declare const intern: {
     generate(spec: GenerateSpec): void;
     render_template(tm: Template, ctxt: TemplateContext, text: string): any;
     load_templates(folder: string): Template[];
     parse_templates(templates: Template[]): void;
+    load_repo_spec(spec: GenerateSpec, repo: Repo): RepoSpec;
     load_repo_groups(folder: string): {
         [group: string]: GroupSpec;
     };

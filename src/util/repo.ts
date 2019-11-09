@@ -26,6 +26,7 @@ interface Template {
 
 interface TemplateContext {
   name: string
+  version: string
   year: number
   prefix: string
   suffix: string
@@ -35,6 +36,7 @@ interface TemplateContext {
 
 interface GenerateSpec {
   group: string
+  repo: string
   basefolder: string
   repofolder: string
 }
@@ -42,6 +44,10 @@ interface GenerateSpec {
 interface GroupSpec {
   name: string
   repos: MapRepo
+}
+
+interface RepoSpec {
+  version: string
 }
 
 const intern = {
@@ -55,8 +61,14 @@ const intern = {
     let template_folder = spec.basefolder + '/templates'
     let templates = intern.load_templates(template_folder)
 
-    for (let rI = 0; rI < group.repos.length; rI++) {
-      let repo = group.repos[rI]
+    let repos = group.repos.filter(repo=>{
+      return '' === spec.repo || repo.name === spec.repo
+    })
+
+    for (let rI = 0; rI < repos.length; rI++) {
+      let repo = repos[rI]
+
+      let repospec = intern.load_repo_spec(spec, repo)
 
       // inherit props from 'all' group
       let all_repo: Repo = all_group.repos[repo.name] || {}
@@ -102,6 +114,7 @@ const intern = {
 
           let ctxt: TemplateContext = {
             name: repo.name,
+            version: repospec.version,
             prefix: repo_name_prefix,
             suffix: repo_name_suffix,
             year: new Date().getFullYear(),
@@ -109,7 +122,7 @@ const intern = {
           }
 
           let out = intern.render_template(template, ctxt, text)
-
+          
           let folder_part = Path.dirname(path)
           Fs.mkdirSync(folder_part, { recursive: true })
           Fs.writeFileSync(path, out)
@@ -142,7 +155,17 @@ const intern = {
       last = last + index + slot_full.length
     }
 
-    let out = tm.render!(ctxt)
+    let render_text = tm.render!(ctxt)
+    let out = render_text
+
+    let jostraca_inject_re = /(.*?JOSTRACA-INJECT-START.*?)([\r\n])[\s\S]*?([^\r\n]*JOSTRACA-INJECT-END.*)/
+    m = jostraca_inject_re.exec(text)
+    //console.log('INJECT MATCH',m)
+
+    if(m) {
+      out = text.replace(m[0],m[1]+m[2]+render_text+m[3])
+    }
+    
     return out
   },
   load_templates(folder: string) {
@@ -181,6 +204,14 @@ const intern = {
         return ejs_render(ctxt)
       }
     }
+  },
+  load_repo_spec(spec: GenerateSpec, repo: Repo): RepoSpec {
+    let pkg = require(spec.repofolder+'/'+repo.name+'/package.json')
+    let version = pkg.version
+    let repospec: RepoSpec = {
+      version: version
+    }
+    return repospec
   },
   load_repo_groups(folder: string) {
     let files = Fs.readdirSync(folder)

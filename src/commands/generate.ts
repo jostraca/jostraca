@@ -11,24 +11,33 @@ let config = {
 export default class Generate extends Command {
   static description = 'Generate repo files'
 
-  static examples = [`$ jostraca generate`, `$ jostraca generate [group]`]
+  static examples = [
+    `$ jostraca generate`,
+    `$ jostraca generate [group]`,
+    `$ jostraca generate [group] [repo]`,
+  ]
 
   static flags = {
     config: flags.string({ char: 'c', description: 'config folder' })
   }
 
-  static args = [{ name: 'group' }]
+  static args = [
+    { name: 'group' },
+    { name: 'repo' }
+  ]
 
   async run() {
     const { args, flags } = this.parse(Generate)
 
     const group = args.group || 'all'
+    const repo = args.repo || ''
     const basefolder = Path.resolve(flags.config || config.basefolder)
     const systemfolder = Path.dirname(basefolder)
     const repofolder = Path.dirname(systemfolder)
 
     const spec = {
       group,
+      repo,
       basefolder,
       repofolder
     }
