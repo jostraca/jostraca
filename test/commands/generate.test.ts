@@ -50,5 +50,24 @@ describe('generate', () => {
       expect(
         Fs.readFileSync(__dirname + '/../case-0/foo/aaa.txt').toString()
       ).equals('AAA foo\nX 1\n\n')
+
+      expect(
+        Fs.readFileSync(__dirname + '/../case-0/foo/bbb.yml').toString()
+      ).equals(
+`foo: 1
+spec:
+  bar:
+    - a
+    - b
+# JOSTRACA-SLOT-START:qaz
+  qaz:
+    - d
+      - e
+# JOSTRACA-SLOT-END:qaz
+  zed:
+    - c
+`
+      )
+      
     })
 })

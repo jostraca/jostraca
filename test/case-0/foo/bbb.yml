@@ -1,0 +1,12 @@
+foo: 1
+spec:
+  bar:
+    - a
+    - b
+# JOSTRACA-SLOT-START:qaz
+  qaz:
+    - d
+      - e
+# JOSTRACA-SLOT-END:qaz
+  zed:
+    - c
