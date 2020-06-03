@@ -7,7 +7,7 @@ function make_jostraca() {
 }
 function Jostraca() {
   var self = {}
-  self.toString = function() {
+  self.toString = function () {
     return 'jostraca@' + Pkg.version
   }
   self['seneca'] = Seneca()

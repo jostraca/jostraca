@@ -157,28 +157,28 @@ d x:{y:1},z:'q'
         kind: '',
         name: 'Dockerfile',
         text: 'Dockerfile-Ap',
-        parent_folders: ['docker', 'prod'],
+        parent_folders: ['prod', 'docker'],
       },
       {
         path: 'test-a/docker/prod/Makefile',
         kind: '',
         name: 'Makefile',
         text: 'Makefile-Ap',
-        parent_folders: ['docker', 'prod'],
+        parent_folders: ['prod', 'docker'],
       },
       {
         path: 'test-a/docker/stage/Dockerfile',
         kind: '',
         name: 'Dockerfile',
         text: 'Dockerfile-As',
-        parent_folders: ['docker', 'stage'],
+        parent_folders: ['stage', 'docker'],
       },
       {
         path: 'test-a/docker/stage/Makefile',
         kind: '',
         name: 'Makefile',
         text: 'Makefile-As',
-        parent_folders: ['docker', 'stage'],
+        parent_folders: ['stage', 'docker'],
       },
       {
         path: 'test-a/srv/name-kind.dev.js',
@@ -512,7 +512,7 @@ bar x:6,y:7
         'ggg/hhh': 'WWW0',
         'ccc/iii': 'EEE0',
         'ccc/ddd': 'dolor foo sit 1 amet 3 parent_folders=ccc',
-        'ccc/eee/jjj': 'A foo B 1 C 3 D \nJOSTRACA-SLOT-START:zed\n foozed \nJOSTRACA-SLOT-END:zed\n E parent_folders=ccc,eee'
+        'ccc/eee/jjj': 'A foo B 1 C 3 D \nJOSTRACA-SLOT-START:zed\n foozed \nJOSTRACA-SLOT-END:zed\n E parent_folders=eee,ccc'
       },
       bar: {
         aaa: 'lorem',
@@ -521,14 +521,14 @@ bar x:6,y:7
         'ggg/hhh': 'WWW1',
         'ccc/iii': 'EEE1',
         'ccc/ddd': 'dolor bar sit 2 amet  parent_folders=ccc',
-        'ccc/eee/jjj': 'A bar B 2 C  D \nJOSTRACA-SLOT-START:zed\n barzed \nJOSTRACA-SLOT-END:zed\n E parent_folders=ccc,eee'
+        'ccc/eee/jjj': 'A bar B 2 C  D \nJOSTRACA-SLOT-START:zed\n barzed \nJOSTRACA-SLOT-END:zed\n E parent_folders=eee,ccc'
       },
       qaz:
       {
         aaa: 'lorem',
         bbb: 'ipsum qaz',
         'ccc/ddd': 'dolor qaz sit  amet 2 parent_folders=ccc',
-        'ccc/eee/jjj': 'A qaz B  C 2 D \n\n E parent_folders=ccc,eee'
+        'ccc/eee/jjj': 'A qaz B  C 2 D \n\n E parent_folders=eee,ccc'
       }
     })
 
@@ -562,7 +562,7 @@ bar x:6,y:7
         'ggg/hhh': 'WWW0',
         'ccc/iii': 'EEE0',
         'ccc/ddd': 'dolor foo sit 1 amet 5 parent_folders=ccc',
-        'ccc/eee/jjj': 'A foo B 1 C 5 D \nJOSTRACA-SLOT-START:zed\n foozed \nJOSTRACA-SLOT-END:zed\n E parent_folders=ccc,eee'
+        'ccc/eee/jjj': 'A foo B 1 C 5 D \nJOSTRACA-SLOT-START:zed\n foozed \nJOSTRACA-SLOT-END:zed\n E parent_folders=eee,ccc'
       },
       bar: {
         aaa: 'lorem',
@@ -571,7 +571,7 @@ bar x:6,y:7
         'ggg/hhh': 'WWW1',
         'ccc/iii': 'EEE1',
         'ccc/ddd': 'dolor bar sit 6 amet 7 parent_folders=ccc',
-        'ccc/eee/jjj': 'A bar B 6 C 7 D \nJOSTRACA-SLOT-START:zed\n barzed \nJOSTRACA-SLOT-END:zed\n E parent_folders=ccc,eee'
+        'ccc/eee/jjj': 'A bar B 6 C 7 D \nJOSTRACA-SLOT-START:zed\n barzed \nJOSTRACA-SLOT-END:zed\n E parent_folders=eee,ccc'
       },
     })
   })

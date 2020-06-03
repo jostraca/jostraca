@@ -46,7 +46,7 @@ describe('generate', () => {
 
   test
     .command(['generate', '-c', __dirname + '/../case-0/system/jostraca'])
-    .it('all', ctx => {
+    .it('all', (ctx) => {
       expect(
         Fs.readFileSync(__dirname + '/../case-0/foo/aaa.txt').toString()
       ).equals('AAA foo\nX 1\n\n')

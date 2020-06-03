@@ -5,7 +5,7 @@ import { generate } from '../util/repo'
 
 // TODO: better resolver needed
 let config = {
-  basefolder: process.cwd() + '/jostraca'
+  basefolder: process.cwd() + '/jostraca',
 }
 
 export default class Generate extends Command {
@@ -14,11 +14,11 @@ export default class Generate extends Command {
   static examples = [
     `$ jostraca generate`,
     `$ jostraca generate [group]`,
-    `$ jostraca generate [group] [repo]`
+    `$ jostraca generate [group] [repo]`,
   ]
 
   static flags = {
-    config: flags.string({ char: 'c', description: 'config folder' })
+    config: flags.string({ char: 'c', description: 'config folder' }),
   }
 
   static args = [{ name: 'group' }, { name: 'repo' }]
@@ -36,7 +36,7 @@ export default class Generate extends Command {
       group,
       repo,
       basefolder,
-      repofolder
+      repofolder,
     }
 
     // console.log('JOSTRACA GENERATE', spec)
