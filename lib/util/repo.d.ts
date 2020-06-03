@@ -9,6 +9,7 @@ declare type MapRepo = Repo[] & {
 interface Template {
     name: string;
     path: string;
+    parent_folders: string[];
     text: string;
     kind: string;
     render?: (ctxt: any) => any;
@@ -19,6 +20,7 @@ interface TemplateContext {
     year: number;
     prefix: string;
     suffix: string;
+    parent_folders: string[];
     props: object;
     slots?: {
         [key: string]: string;

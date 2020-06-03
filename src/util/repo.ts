@@ -19,6 +19,7 @@ type MapRepo = Repo[] & { [key: string]: Repo }
 interface Template {
   name: string
   path: string
+  parent_folders: string[]
   text: string
   kind: string
   render?: (ctxt: any) => any
@@ -30,6 +31,7 @@ interface TemplateContext {
   year: number
   prefix: string
   suffix: string
+  parent_folders: string[]
   props: object
   slots?: { [key: string]: string }
 }
@@ -85,7 +87,7 @@ const intern = {
           '/' +
           template.path.substring(template_folder.length + 1)
 
-        while (path !== (path = path.replace('%NAME%', repo.name))) {}
+        while (path !== (path = path.replace('%NAME%', repo.name))) { }
 
         let excludes: string[] =
           ('string' === typeof props.exclude$
@@ -118,6 +120,7 @@ const intern = {
             prefix: repo_name_prefix,
             suffix: repo_name_suffix,
             year: new Date().getFullYear(),
+            parent_folders: template.parent_folders,
             props
           }
 
@@ -138,11 +141,15 @@ const intern = {
     text = text || ''
     ctxt.slots = {}
 
-    let jostraca_slot_re = /.*?JOSTRACA-SLOT-START:([\S]+)[^\r\n]*[\r\n]?([\s\S]*?)[\r\n]?[^\r\n]*JOSTRACA-SLOT-END:\1.*/
+    // NOTE: slot *MUST* have newline prefix and suffix
+    // This supports syntax comments in source code
+
+    let jostraca_slot_re = /[^\r\n]*?JOSTRACA-SLOT-START:([\S]+)[^\r\n]*[\r\n]?([\s\S]*?)[\r\n]?[^\r\n]*JOSTRACA-SLOT-END:\1[^\r\n]*/
     let m: RegExpMatchArray | null = null
     let last = 0
     let index: number
     while ((m = jostraca_slot_re.exec(text.substring(last)))) {
+      //console.log(m)
       let slot_full = m[0]
       let slot_name = m[1]
 
@@ -170,11 +177,11 @@ const intern = {
   },
   load_templates(folder: string) {
     let found: Template[] = []
-    walk(folder, found)
+    walk(folder, [], found)
     intern.parse_templates(found)
     return found
 
-    function walk(folder: string, found: Template[]) {
+    function walk(folder: string, parent_folders: string[], found: Template[]) {
       let files = Fs.readdirSync(folder).filter(file_name => {
         return !file_name.endsWith('~')
       })
@@ -187,12 +194,17 @@ const intern = {
 
           found.push({
             path,
+            parent_folders,
             kind,
             name: file,
             text: Fs.readFileSync(path).toString()
           })
         } else {
-          walk(path, found)
+          // NOTE: parent folders ordered by ancestor ascending,
+          // and thus opposite to folder path order. This is more
+          // useful for immediate parent folder name conventions
+          let child_parents: string[] = [file].concat(parent_folders)
+          walk(path, child_parents, found)
         }
       }
     }

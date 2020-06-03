@@ -54,7 +54,7 @@ describe('generate', () => {
       expect(
         Fs.readFileSync(__dirname + '/../case-0/foo/bbb.yml').toString()
       ).equals(
-`foo: 1
+        `foo: 1
 spec:
   bar:
     - a
@@ -68,6 +68,5 @@ spec:
     - c
 `
       )
-      
     })
 })
