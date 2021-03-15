@@ -27,6 +27,7 @@ interface Template {
 
 interface TemplateContext {
   name: string
+  fullname: string
   version: string
   year: number
   prefix: string
@@ -49,7 +50,9 @@ interface GroupSpec {
 }
 
 interface RepoSpec {
-  version: string
+  version: string,
+  name: string,
+  pkg: any
 }
 
 const intern = {
@@ -87,7 +90,7 @@ const intern = {
           '/' +
           template.path.substring(template_folder.length + 1)
 
-        while (path !== (path = path.replace('%NAME%', repo.name))) {}
+        while (path !== (path = path.replace('%NAME%', repo.name))) { }
 
         let excludes: string[] =
           ('string' === typeof props.exclude$
@@ -116,6 +119,7 @@ const intern = {
 
           let ctxt: TemplateContext = {
             name: repo.name,
+            fullname: repospec.name,
             version: repospec.version,
             prefix: repo_name_prefix,
             suffix: repo_name_suffix,
@@ -150,8 +154,13 @@ const intern = {
     let index: number
     while ((m = jostraca_slot_re.exec(text.substring(last)))) {
       //console.log(m)
+
       let slot_full = m[0]
       let slot_name = m[1]
+
+      // special cases 
+      slot_name = slot_name.replace(/(\*\/|-->)$/, '')
+
 
       // Need to preserve slot markers on re-insert
       ctxt.slots[slot_name] = slot_full
@@ -212,21 +221,26 @@ const intern = {
   parse_templates(templates: Template[]) {
     for (let template of templates) {
       let ejs_render = Ejs.compile(template.text, {})
-      template.render = function (ctxt) {
+      template.render = function(ctxt) {
         return ejs_render(ctxt)
       }
     }
   },
   load_repo_spec(spec: GenerateSpec, repo: Repo): RepoSpec {
     let version = ''
+    let name = ''
+    let pkg = null
     let pkg_path = spec.repofolder + '/' + repo.name + '/package.json'
     if (Fs.existsSync(pkg_path)) {
       let pkg = require(pkg_path)
       version = pkg.version
+      name = pkg.name
     }
 
     let repospec: RepoSpec = {
       version,
+      name,
+      pkg
     }
 
     return repospec

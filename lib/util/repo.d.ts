@@ -16,6 +16,7 @@ interface Template {
 }
 interface TemplateContext {
     name: string;
+    fullname: string;
     version: string;
     year: number;
     prefix: string;
@@ -38,6 +39,8 @@ interface GroupSpec {
 }
 interface RepoSpec {
     version: string;
+    name: string;
+    pkg: any;
 }
 declare const intern: {
     generate(spec: GenerateSpec): void;
