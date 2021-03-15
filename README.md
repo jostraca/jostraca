@@ -1,6 +1,8 @@
 # jostraca
 Jostraca
 
+# NOTE: This is a very alpha rewrite - not documented! Probably best not to use for a while yet.
+
 
 ## Development
 
