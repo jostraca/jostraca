@@ -1,8 +1,0 @@
-foo: 1
-spec:
-  bar:
-    - a
-    - b
-<%=slots.qaz%>
-  zed:
-    - c
