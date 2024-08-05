@@ -5,7 +5,7 @@ type JostracaOptions = {
 type Component = (props: any, children?: any) => void;
 declare function Jostraca(): {
     cmp: (component: Function) => Component;
-    each: (fnarr: Function[]) => void;
+    each: (subject: any, apply?: any) => any;
     generate: (opts: JostracaOptions, root: Function) => void;
     Project: Component;
     Code: Component;

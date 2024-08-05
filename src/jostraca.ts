@@ -86,10 +86,25 @@ function Jostraca() {
   }
 
 
-  function each(fnarr: Function[]) {
-    if (fnarr) {
-      for (let fn of fnarr) {
-        fn()
+  function each(subject: any, apply?: any) {
+    if (null == apply) {
+      if (Array.isArray(subject)) {
+        for (let fn of subject) {
+          fn()
+        }
+      }
+    }
+    else {
+      if (Array.isArray(subject)) {
+        return subject.map(apply)
+      }
+      else {
+        const entries: any = Object.entries(subject)
+        if (entries[0] && entries[0][1] && 'string' === typeof entries[0][1].name) {
+          entries.sort((a: any, b: any) => a.name < b.name ? 1 : b.name < a.name ? -1 : 0)
+        }
+        return entries.map((n: any, ...args: any[]) =>
+          apply(n[1], [0], ...args))
       }
     }
   }
@@ -195,11 +210,11 @@ function Jostraca() {
     props.ctx$.node.kind = 'file'
     props.ctx$.node.name = props.name
 
-    Code('// FILE START: ' + props.name + '\n')
+    // Code('// FILE START: ' + props.name + '\n')
 
     each(children)
 
-    Code('// FILE END: ' + props.name + '\n')
+    // Code('// FILE END: ' + props.name + '\n')
   })
 
 

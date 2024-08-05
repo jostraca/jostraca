@@ -31,9 +31,9 @@ const __1 = require("../");
         }));
         // console.dir(vol.toJSON(), { depth: null })
         (0, code_1.expect)(vol.toJSON()).equal({
-            '/top/js/foo.js': '// FILE START: foo.js\n// custom-foo\n// FILE END: foo.js\n',
-            '/top/js/bar.js': '// FILE START: bar.js\n// custom-bar\n// FILE END: bar.js\n',
-            '/top/go/zed.go': '// FILE START: zed.go\n// custom-zed\n// FILE END: zed.go\n'
+            '/top/js/foo.js': '// custom-foo\n',
+            '/top/js/bar.js': '// custom-bar\n',
+            '/top/go/zed.go': '// custom-zed\n'
         });
     });
 });
