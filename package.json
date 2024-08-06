@@ -1,6 +1,6 @@
 {
   "name": "jostraca",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "main": "dist/jostraca.js",
   "type": "commonjs",
   "types": "dist/jostraca.d.ts",
@@ -34,7 +34,7 @@
   ],
   "devDependencies": {
     "@hapi/code": "^9.0.3",
-    "@types/node": "22.0.0",
+    "@types/node": "22.1.0",
     "esbuild": "^0.23.0",
     "memfs": "^4.11.1",
     "typescript": "^5.5.4"

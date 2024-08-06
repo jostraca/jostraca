@@ -23,9 +23,11 @@ type Node = {
 type Component = (props: any, children?: any) => void
 
 
-function Jostraca() {
+const GLOBAL = (global as any)
 
-  const GLOBAL = (global as any)
+
+
+function Jostraca() {
   GLOBAL.jostraca = new AsyncLocalStorage()
 
 
@@ -38,6 +40,9 @@ function Jostraca() {
 
       const ctx$ = GLOBAL.jostraca.getStore()
       const node = ctx$.node
+
+      // console.log('JOSTRACA TOP')
+      // console.dir(node, { depth: null })
 
       build(
         node,
@@ -53,65 +58,7 @@ function Jostraca() {
   }
 
 
-  function cmp(component: Function): Component {
-    const cf = (props: any, children?: any) => {
-      props = props || {}
-      if (null == props || 'object' !== typeof props) {
-        props = { arg: props }
-      }
-      props.ctx$ = GLOBAL.jostraca.getStore()
-      children = 'function' === typeof children ? [children] : children
-
-      let node = {
-        kind: 'content',
-        children: []
-      }
-
-      const parent = props.ctx$.node = (props.ctx$.node || node)
-      const siblings = props.ctx$.children = (props.ctx$.children || [])
-      siblings.push(node)
-
-      props.ctx$.children = node.children
-      props.ctx$.node = node
-
-      let out = component(props, children)
-
-      props.ctx$.children = siblings
-      props.ctx$.node = parent
-
-      return out
-    }
-    Object.defineProperty(cf, 'name', { value: component.name })
-    return cf
-  }
-
-
-  function each(subject: any, apply?: any) {
-    if (null == apply) {
-      if (Array.isArray(subject)) {
-        for (let fn of subject) {
-          fn()
-        }
-      }
-    }
-    else {
-      if (Array.isArray(subject)) {
-        return subject.map(apply)
-      }
-      else {
-        const entries: any = Object.entries(subject)
-        if (entries[0] && entries[0][1] && 'string' === typeof entries[0][1].name) {
-          entries.sort((a: any, b: any) => a.name < b.name ? 1 : b.name < a.name ? -1 : 0)
-        }
-        return entries.map((n: any, ...args: any[]) =>
-          apply(n[1], [0], ...args))
-      }
-    }
-  }
-
-
   function build(topnode: Node, ctx: any) {
-    // console.dir(topnode, { depth: null })
     step(topnode, ctx)
   }
 
@@ -186,68 +133,130 @@ function Jostraca() {
 
     content: {
       before(node: Node, ctx: any) {
-        const ccontent = ctx.current.content = node
-        ctx.current.file.content.push(ccontent.content)
+        const content = ctx.current.content = node
+        ctx.current.file.content.push(content.content)
       },
 
       after(_node: Node, _ctx: any) {
-
       },
     },
 
 
+    none: {
+      before(_node: Node, ctx: any) {
+      },
+
+      after(_node: Node, _ctx: any) {
+      },
+    },
+
   }
-
-
-
-  const Code = cmp(function Code(props: any) {
-    let src = props.arg
-    props.ctx$.node.content = src
-  })
-
-
-  const File = cmp(function File(props: any, children: any) {
-    props.ctx$.node.kind = 'file'
-    props.ctx$.node.name = props.name
-
-    // Code('// FILE START: ' + props.name + '\n')
-
-    each(children)
-
-    // Code('// FILE END: ' + props.name + '\n')
-  })
-
-
-  const Project: Component = cmp(function Project(props: any, children: any) {
-    props.ctx$.node.kind = 'project'
-    props.ctx$.node.name = props.name
-
-    each(children)
-  })
-
-
-  const Folder = cmp(function Folder(props: any, children: any) {
-    props.ctx$.node.kind = 'folder'
-    props.ctx$.node.name = props.name
-
-    each(children)
-  })
-
 
 
   return {
-    cmp,
-    each,
     generate,
-
-    Project,
-    Code,
-    File,
-    Folder,
   }
-
-
 }
+
+
+const Code = cmp(function Code(props: any) {
+  props.ctx$.node.kind = 'content'
+  let src = props.arg
+  props.ctx$.node.content = src
+})
+
+
+const File = cmp(function File(props: any, children: any) {
+  props.ctx$.node.kind = 'file'
+  props.ctx$.node.name = props.name
+
+  // Code('// FILE START: ' + props.name + '\n')
+
+  each(children)
+
+  // Code('// FILE END: ' + props.name + '\n')
+})
+
+
+const Project: Component = cmp(function Project(props: any, children: any) {
+  props.ctx$.node.kind = 'project'
+  props.ctx$.node.name = props.name
+
+  each(children)
+})
+
+
+const Folder = cmp(function Folder(props: any, children: any) {
+  props.ctx$.node.kind = 'folder'
+  props.ctx$.node.name = props.name
+
+  each(children)
+})
+
+
+function cmp(component: Function): Component {
+  const cf = (props: any, children?: any) => {
+    props = props || {}
+    if (null == props || 'object' !== typeof props) {
+      props = { arg: props }
+    }
+    props.ctx$ = GLOBAL.jostraca.getStore()
+    children = 'function' === typeof children ? [children] : children
+
+    let node = {
+      kind: 'none',
+      children: []
+    }
+
+    const parent = props.ctx$.node = (props.ctx$.node || node)
+    const siblings = props.ctx$.children = (props.ctx$.children || [])
+    siblings.push(node)
+
+    props.ctx$.children = node.children
+    props.ctx$.node = node
+
+    let out = component(props, children)
+
+    props.ctx$.children = siblings
+    props.ctx$.node = parent
+
+    return out
+  }
+  Object.defineProperty(cf, 'name', { value: component.name })
+  return cf
+}
+
+
+function each(subject: any, apply?: any) {
+  if (null == apply) {
+    if (Array.isArray(subject)) {
+      for (let fn of subject) {
+        fn()
+      }
+    }
+  }
+  else {
+    if (Array.isArray(subject)) {
+      return subject.map(apply)
+    }
+    else {
+      const entries: any = Object.entries(subject)
+      if (entries[0] && entries[0][1] && 'string' === typeof entries[0][1].name) {
+        entries.sort((a: any, b: any) => a.name < b.name ? 1 : b.name < a.name ? -1 : 0)
+      }
+      return entries.map((n: any, ...args: any[]) =>
+        apply(n[1], [0], ...args))
+    }
+  }
+}
+
+
+function select(key: any, map: Record<string, Function>) {
+  const fn = map && map[key]
+  return fn ? fn() : undefined
+}
+
+
 
 
 export type {
@@ -258,4 +267,13 @@ export type {
 
 export {
   Jostraca,
+  cmp,
+
+  each,
+  select,
+
+  Project,
+  Code,
+  File,
+  Folder,
 }

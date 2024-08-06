@@ -6,7 +6,11 @@ import { memfs } from 'memfs'
 
 
 import {
-  Jostraca
+  Jostraca,
+  Project,
+  Folder,
+  File,
+  Code
 } from '../'
 
 
@@ -19,14 +23,7 @@ describe('jostraca', () => {
     const jostraca = Jostraca()
     expect(jostraca).exist()
 
-    const { Project, Folder, File, Code } = jostraca
-
-    // console.log('QQQ', Project, jostraca)
-
     const { fs, vol } = memfs({})
-
-    // console.log('MEMFS', fs, vol)
-    // return;
 
     jostraca.generate(
       { fs, folder: '/top' },

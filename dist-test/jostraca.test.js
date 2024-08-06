@@ -9,23 +9,19 @@ const __1 = require("../");
         (0, code_1.expect)(__1.Jostraca).exist();
         const jostraca = (0, __1.Jostraca)();
         (0, code_1.expect)(jostraca).exist();
-        const { Project, Folder, File, Code } = jostraca;
-        // console.log('QQQ', Project, jostraca)
         const { fs, vol } = (0, memfs_1.memfs)({});
-        // console.log('MEMFS', fs, vol)
-        // return;
-        jostraca.generate({ fs, folder: '/top' }, () => Project({}, () => {
-            Folder({ name: 'js' }, () => {
-                File({ name: 'foo.js' }, () => {
-                    Code('// custom-foo\n');
+        jostraca.generate({ fs, folder: '/top' }, () => (0, __1.Project)({}, () => {
+            (0, __1.Folder)({ name: 'js' }, () => {
+                (0, __1.File)({ name: 'foo.js' }, () => {
+                    (0, __1.Code)('// custom-foo\n');
                 });
-                File({ name: 'bar.js' }, () => {
-                    Code('// custom-bar\n');
+                (0, __1.File)({ name: 'bar.js' }, () => {
+                    (0, __1.Code)('// custom-bar\n');
                 });
             });
-            Folder({ name: 'go' }, () => {
-                File({ name: 'zed.go' }, () => {
-                    Code('// custom-zed\n');
+            (0, __1.Folder)({ name: 'go' }, () => {
+                (0, __1.File)({ name: 'zed.go' }, () => {
+                    (0, __1.Code)('// custom-zed\n');
                 });
             });
         }));

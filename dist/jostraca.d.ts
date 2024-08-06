@@ -4,13 +4,14 @@ type JostracaOptions = {
 };
 type Component = (props: any, children?: any) => void;
 declare function Jostraca(): {
-    cmp: (component: Function) => Component;
-    each: (subject: any, apply?: any) => any;
     generate: (opts: JostracaOptions, root: Function) => void;
-    Project: Component;
-    Code: Component;
-    File: Component;
-    Folder: Component;
 };
+declare const Code: Component;
+declare const File: Component;
+declare const Project: Component;
+declare const Folder: Component;
+declare function cmp(component: Function): Component;
+declare function each(subject: any, apply?: any): any;
+declare function select(key: any, map: Record<string, Function>): any;
 export type { JostracaOptions, Component, };
-export { Jostraca, };
+export { Jostraca, cmp, each, select, Project, Code, File, Folder, };
