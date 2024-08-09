@@ -258,6 +258,34 @@ function select(key: any, map: Record<string, Function>) {
 
 
 
+function get(root: any, path: string | string[]): any {
+  path = 'string' === typeof path ? path.split('.') : path
+  let node = root
+  for (let i = 0; i < path.length && null != node; i++) {
+    node = node[path[i]]
+  }
+  return node
+}
+
+
+function camelify(input: any[] | string) {
+  let parts = 'string' == typeof input ? input.split('-') : input.map(n => '' + n)
+  return parts
+    .map((p: string) => ('' === p ? '' : (p[0].toUpperCase() + p.substring(1))))
+    .join('')
+}
+
+
+function snakeify(input: any[] | string) {
+  let parts = 'string' == typeof input ? input.split(/([A-Z])/) : input.map(n => '' + n)
+  return parts
+    .filter((p: string) => '' !== p)
+    .reduce((a: any[], n: string, i: number) =>
+      ((0 === i % 2 ? a.push(n.toLowerCase()) : a[(i / 2) | 0] += n), a), [])
+    .join('-')
+}
+
+
 
 export type {
   JostracaOptions,
@@ -271,6 +299,9 @@ export {
 
   each,
   select,
+  get,
+  camelify,
+  snakeify,
 
   Project,
   Code,

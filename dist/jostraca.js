@@ -29,6 +29,9 @@ exports.Jostraca = Jostraca;
 exports.cmp = cmp;
 exports.each = each;
 exports.select = select;
+exports.get = get;
+exports.camelify = camelify;
+exports.snakeify = snakeify;
 const Fs = __importStar(require("node:fs"));
 const node_async_hooks_1 = require("node:async_hooks");
 const GLOBAL = global;
@@ -199,5 +202,26 @@ function each(subject, apply) {
 function select(key, map) {
     const fn = map && map[key];
     return fn ? fn() : undefined;
+}
+function get(root, path) {
+    path = 'string' === typeof path ? path.split('.') : path;
+    let node = root;
+    for (let i = 0; i < path.length && null != node; i++) {
+        node = node[path[i]];
+    }
+    return node;
+}
+function camelify(input) {
+    let parts = 'string' == typeof input ? input.split('-') : input.map(n => '' + n);
+    return parts
+        .map((p) => ('' === p ? '' : (p[0].toUpperCase() + p.substring(1))))
+        .join('');
+}
+function snakeify(input) {
+    let parts = 'string' == typeof input ? input.split(/([A-Z])/) : input.map(n => '' + n);
+    return parts
+        .filter((p) => '' !== p)
+        .reduce((a, n, i) => ((0 === i % 2 ? a.push(n.toLowerCase()) : a[(i / 2) | 0] += n), a), [])
+        .join('-');
 }
 //# sourceMappingURL=jostraca.js.map
