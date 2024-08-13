@@ -10,7 +10,8 @@ import {
   Project,
   Folder,
   File,
-  Code
+  Code,
+  Copy,
 } from '../'
 
 
@@ -56,6 +57,38 @@ describe('jostraca', () => {
       '/top/js/foo.js': '// custom-foo\n',
       '/top/js/bar.js': '// custom-bar\n',
       '/top/go/zed.go': '// custom-zed\n'
+    })
+  })
+
+
+  test('copy', async () => {
+    const { fs, vol } = memfs({
+      '/tm/bar.txt': '// BAR TXT\n'
+    })
+
+    const jostraca = Jostraca()
+
+    jostraca.generate(
+      { fs, folder: '/top' },
+      () => Project({}, () => {
+
+        Folder({ name: 'js' }, () => {
+
+          File({ name: 'foo.js' }, () => {
+            Code('// custom-foo\n')
+          })
+
+          Copy({ from: '/tm/bar.txt', name: 'bar.txt' })
+        })
+      })
+    )
+
+    // console.dir(vol.toJSON(), { depth: null })
+
+    expect(vol.toJSON()).equal({
+      '/tm/bar.txt': '// BAR TXT\n',
+      '/top/js/foo.js': '// custom-foo\n',
+      '/top/js/bar.txt': '// BAR TXT\n',
     })
   })
 

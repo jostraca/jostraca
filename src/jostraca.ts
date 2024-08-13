@@ -34,6 +34,7 @@ function Jostraca() {
   function generate(opts: JostracaOptions, root: Function) {
     const fs = opts.fs || Fs
     GLOBAL.jostraca.run({
+      fs,
       content: null,
     }, () => {
       root()
@@ -143,7 +144,7 @@ function Jostraca() {
 
 
     none: {
-      before(_node: Node, ctx: any) {
+      before(_node: Node, _ctx: any) {
       },
 
       after(_node: Node, _ctx: any) {
@@ -176,6 +177,16 @@ const File = cmp(function File(props: any, children: any) {
 
   // Code('// FILE END: ' + props.name + '\n')
 })
+
+
+const Copy = cmp(function Copy(props: any, children: any) {
+  props.ctx$.node.kind = 'file'
+  props.ctx$.node.name = props.name
+
+  const content = props.ctx$.fs.readFileSync(props.from).toString()
+  Code(content)
+})
+
 
 
 const Project: Component = cmp(function Project(props: any, children: any) {
@@ -307,4 +318,5 @@ export {
   Code,
   File,
   Folder,
+  Copy,
 }

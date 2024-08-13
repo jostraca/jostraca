@@ -24,7 +24,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Folder = exports.File = exports.Code = exports.Project = void 0;
+exports.Copy = exports.Folder = exports.File = exports.Code = exports.Project = void 0;
 exports.Jostraca = Jostraca;
 exports.cmp = cmp;
 exports.each = each;
@@ -40,6 +40,7 @@ function Jostraca() {
     function generate(opts, root) {
         const fs = opts.fs || Fs;
         GLOBAL.jostraca.run({
+            fs,
             content: null,
         }, () => {
             root();
@@ -117,7 +118,7 @@ function Jostraca() {
             },
         },
         none: {
-            before(_node, ctx) {
+            before(_node, _ctx) {
             },
             after(_node, _ctx) {
             },
@@ -141,6 +142,13 @@ const File = cmp(function File(props, children) {
     // Code('// FILE END: ' + props.name + '\n')
 });
 exports.File = File;
+const Copy = cmp(function Copy(props, children) {
+    props.ctx$.node.kind = 'file';
+    props.ctx$.node.name = props.name;
+    const content = props.ctx$.fs.readFileSync(props.from).toString();
+    Code(content);
+});
+exports.Copy = Copy;
 const Project = cmp(function Project(props, children) {
     props.ctx$.node.kind = 'project';
     props.ctx$.node.name = props.name;
