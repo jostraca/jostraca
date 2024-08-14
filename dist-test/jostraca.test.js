@@ -52,5 +52,26 @@ const __1 = require("../");
             '/top/js/bar.txt': '// BAR TXT\n',
         });
     });
+    (0, node_test_1.test)('each', () => {
+        (0, code_1.expect)((0, __1.each)()).equal([]);
+        (0, code_1.expect)((0, __1.each)(null)).equal([]);
+        (0, code_1.expect)((0, __1.each)(1)).equal([]);
+        (0, code_1.expect)((0, __1.each)([1])).equal([1]);
+        (0, code_1.expect)((0, __1.each)(['b', 'a'])).equal(['a', 'b']);
+        (0, code_1.expect)((0, __1.each)([1], (x) => 2 * x)).equal([2]);
+        (0, code_1.expect)((0, __1.each)({})).equal([]);
+        (0, code_1.expect)((0, __1.each)({ a: 1 })).equal([{ name: 'a', 'key$': 'a', 'val$': 1 }]);
+        (0, code_1.expect)((0, __1.each)({ b: 22, c: 11, a: 33 })).equal([
+            { name: 'a', 'key$': 'a', 'val$': 33 },
+            { name: 'b', 'key$': 'b', 'val$': 22 },
+            { name: 'c', 'key$': 'c', 'val$': 11 },
+        ]);
+        (0, code_1.expect)((0, __1.each)({ b: 22, c: 11, a: 33 }, (v, n, i) => n + '-' + i + '-' + JSON.stringify(v)))
+            .equal([
+            'a-0-{"name":"a","key$":"a","val$":33}',
+            'b-1-{"name":"b","key$":"b","val$":22}',
+            'c-2-{"name":"c","key$":"c","val$":11}'
+        ]);
+    });
 });
 //# sourceMappingURL=jostraca.test.js.map

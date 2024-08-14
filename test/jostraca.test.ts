@@ -12,6 +12,8 @@ import {
   File,
   Code,
   Copy,
+
+  each,
 } from '../'
 
 
@@ -92,5 +94,31 @@ describe('jostraca', () => {
     })
   })
 
+
+  test('each', () => {
+    expect(each()).equal([])
+    expect(each(null)).equal([])
+    expect(each(1)).equal([])
+    expect(each([1])).equal([1])
+    expect(each(['b', 'a'])).equal(['a', 'b'])
+    expect(each([1], (x: any) => 2 * x)).equal([2])
+
+    expect(each({})).equal([])
+    expect(each({ a: 1 })).equal([{ name: 'a', 'key$': 'a', 'val$': 1 }])
+    expect(each({ b: 22, c: 11, a: 33 })).equal([
+      { name: 'a', 'key$': 'a', 'val$': 33 },
+      { name: 'b', 'key$': 'b', 'val$': 22 },
+      { name: 'c', 'key$': 'c', 'val$': 11 },
+    ])
+
+    expect(each({ b: 22, c: 11, a: 33 }, (v: any, n: string, i: number) =>
+      n + '-' + i + '-' + JSON.stringify(v)))
+      .equal([
+        'a-0-{"name":"a","key$":"a","val$":33}',
+        'b-1-{"name":"b","key$":"b","val$":22}',
+        'c-2-{"name":"c","key$":"c","val$":11}'
+      ])
+
+  })
 })
 

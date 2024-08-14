@@ -188,24 +188,37 @@ function cmp(component) {
 }
 function each(subject, apply) {
     if (null == apply) {
+        let out = [];
         if (Array.isArray(subject)) {
             for (let fn of subject) {
-                fn();
+                out.push('function' === typeof fn ? fn() : fn);
             }
+            return out.sort();
+        }
+        else if (null == subject || 'object' !== typeof subject) {
+            return [];
         }
     }
-    else {
-        if (Array.isArray(subject)) {
-            return subject.map(apply);
+    else if (Array.isArray(subject)) {
+        return subject.map(apply);
+    }
+    if (null == subject || 'object' !== typeof subject) {
+        return [];
+    }
+    const entries = Object.entries(subject).map((n, _) => (_ = typeof n[1],
+        (null != n[1] && 'object' === _) ? (n[1].key$ = n[0]) :
+            (n[1] = { name: n[0], key$: n[0], val$: n[1] }), n));
+    // console.log('ENTRIES', entries)
+    if (1 < entries.length) {
+        if (entries[0] && entries[0][1] && 'string' === typeof entries[0][1].name) {
+            entries.sort((a, b) => a[1].name < b[1].name ? -1 : b[1].name < a[1].name ? 1 : 0);
         }
-        else {
-            const entries = Object.entries(subject);
-            if (entries[0] && entries[0][1] && 'string' === typeof entries[0][1].name) {
-                entries.sort((a, b) => a.name < b.name ? 1 : b.name < a.name ? -1 : 0);
-            }
-            return entries.map((n, ...args) => apply(n[1], [0], ...args));
+        else if (entries[0] && entries[0][1] && 'string' === typeof entries[0][1].key$) {
+            entries.sort((a, b) => a[1].key$ < b[1].key$ ? -1 : b[1].key$ < a[1].key$ ? 1 : 0);
         }
     }
+    apply = 'function' === typeof apply ? apply : (x) => x;
+    return entries.map((n, ...args) => apply(n[1], n[0], ...args));
 }
 function select(key, map) {
     const fn = map && map[key];

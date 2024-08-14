@@ -12,7 +12,7 @@ declare const Copy: Component;
 declare const Project: Component;
 declare const Folder: Component;
 declare function cmp(component: Function): Component;
-declare function each(subject: any, apply?: any): any;
+declare function each(subject?: any, apply?: any): any;
 declare function select(key: any, map: Record<string, Function>): any;
 declare function get(root: any, path: string | string[]): any;
 declare function camelify(input: any[] | string): string;
