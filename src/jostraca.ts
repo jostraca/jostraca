@@ -5,6 +5,11 @@ import * as Fs from 'node:fs'
 import { AsyncLocalStorage } from 'node:async_hooks'
 
 
+import { util as JostracaUtil } from '@jsonic/jsonic-next'
+
+const { deep } = JostracaUtil
+
+
 type JostracaOptions = {
   folder: string
   fs: any
@@ -292,6 +297,73 @@ function select(key: any, map: Record<string, Function>) {
 
 
 
+function getx(root: any, path: string | string[]): any {
+  path = ('string' === typeof path ? path.split(/[.\s\r\n\t]/) : path).filter(part => '' != part)
+  let node = root
+  let parents = []
+
+  partloop:
+  for (let i = 0; i < path.length && null != node; i++) {
+    let part = String(path[i]).trim()
+    let m = part.match(/^([^<=>~^]*)([<=>~^])(.*)$/)
+
+    // console.log('GETX', i, part, m)
+
+    if (m) {
+      part = m[1]
+      let op = m[2]
+      let arg = m[3]
+
+      if ('=' === op && 'null' === arg) {
+        parents.push(node)
+        node = {} // virtual node so that ^ works consistently
+        continue partloop
+      }
+      else if ('^' === op && '' === part && '' !== arg) {
+        node = parents[parents.length - Number(arg)]
+        continue partloop
+      }
+
+      let val = node[part]
+
+      if (null == val) return undefined
+
+      val = Array.isArray(val) ? val.length :
+        'object' === typeof val ? Object.keys(val).filter(k => !k.includes('$')).length :
+          val
+
+      // console.log('GETX OP', i, part, op, val)
+
+      switch (op) {
+        case '<':
+          if (!(val < arg)) return undefined
+          break
+        case '>':
+          if (!(val > arg)) return undefined
+          break
+        case '=':
+          if (!(val == arg)) return undefined
+          break
+        case '~':
+          if (!(String(val).match(RegExp(arg)))) return undefined
+          break
+        case '^':
+          node = parents[parents.length - Number(arg)]
+          continue partloop
+        default:
+          return undefined
+      }
+    }
+
+    // console.log('GETX PASS', i, part)
+
+    parents.push(node)
+    node = node[part]
+  }
+  return node
+}
+
+
 function get(root: any, path: string | string[]): any {
   path = 'string' === typeof path ? path.split('.') : path
   let node = root
@@ -320,6 +392,52 @@ function snakeify(input: any[] | string) {
 }
 
 
+// Map child objects to new child objects
+function cmap(o: any, p: any) {
+  return Object
+    .entries(o)
+    .reduce((r: any, n: any, _: any) => (_ = Object
+      .entries(p)
+      .reduce((s: any, m: any) => (cmap.FILTER === s ? s : (s[m[0]] = (
+        // transfom(val,key,current,parentkey,parent)
+        'function' === typeof m[1] ? m[1](n[1][m[0]], {
+          skey: m[0], self: n[1], key: n[0], parent: o
+        }) : m[1]
+      ), (cmap.FILTER === s[m[0]] ? cmap.FILTER : s))), {})
+      , (cmap.FILTER === _ ? 0 : r[n[0]] = _), r), {})
+}
+
+cmap.COPY = (x: any) => x
+// keep self if x is truthy, or function returning truthy-new-value or [truthy,new-value]
+cmap.FILTER = (x: any) => 'function' === typeof x ? ((y: any, p: any, _: any) =>
+  (_ = x(y, p), Array.isArray(_) ? !_[0] ? _[1] : cmap.FILTER : _)) : (x ? x : cmap.FILTER)
+cmap.KEY = (_: any, p: any) => p.key
+
+
+// Map child objects to a list of child objects
+function vmap(o: any, p: any) {
+  return Object
+    .entries(o)
+    .reduce((r: any, n: any, _: any) => (_ = Object
+      .entries(p)
+      .reduce((s: any, m: any) => (vmap.FILTER === s ? s : (s[m[0]] = (
+        // transfom(val,key,current,parentkey,parent)
+        // 'function' === typeof m[1] ? m[1](n[1][m[0]], m[0], n[1], n[0], o) : m[1]
+        'function' === typeof m[1] ? m[1](n[1][m[0]], {
+          skey: m[0], self: n[1], key: n[0], parent: o
+        }) : m[1]
+      ), (vmap.FILTER === s[m[0]] ? vmap.FILTER : s))), {})
+      , (vmap.FILTER === _ ? 0 : r.push(_)), r), [])
+
+}
+vmap.COPY = (x: any) => x
+vmap.FILTER = (x: any) => 'function' === typeof x ? ((y: any, p: any, _: any) =>
+  (_ = x(y, p), Array.isArray(_) ? !_[0] ? _[1] : vmap.FILTER : _)) : (x ? x : vmap.FILTER)
+vmap.KEY = (_: any, p: any) => p.key
+
+
+
+
 
 export type {
   JostracaOptions,
@@ -334,8 +452,11 @@ export {
   each,
   select,
   get,
+  getx,
   camelify,
   snakeify,
+  cmap,
+  vmap,
 
   Project,
   Code,

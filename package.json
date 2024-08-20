@@ -38,5 +38,8 @@
     "esbuild": "^0.23.0",
     "memfs": "^4.11.1",
     "typescript": "^5.5.4"
+  },
+  "dependencies": {
+    "@jsonic/jsonic-next": "^2.12.1"
   }
 }
