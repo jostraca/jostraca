@@ -305,7 +305,7 @@ function getx(root: any, path: string | string[]): any {
   partloop:
   for (let i = 0; i < path.length && null != node; i++) {
     let part = String(path[i]).trim()
-    let m = part.match(/^([^<=>~^]*)([<=>~^])(.*)$/)
+    let m = part.match(/^([^<=>~^?!]*)([<=>~^?!]+)(.*)$/)
 
     // console.log('GETX', i, part, m)
 
@@ -313,6 +313,8 @@ function getx(root: any, path: string | string[]): any {
       part = m[1]
       let op = m[2]
       let arg = m[3]
+
+      let val = '' === part ? node : node[part]
 
       if ('=' === op && 'null' === arg) {
         parents.push(node)
@@ -323,8 +325,21 @@ function getx(root: any, path: string | string[]): any {
         node = parents[parents.length - Number(arg)]
         continue partloop
       }
+      else if ('?' === op[0]) {
+        arg = (1 < op.length ? op.substring(1) : '') + arg
+        node = Array.isArray(val) ?
+          each(val).filter((n: any) => (
+            // console.log('FG', n, arg, getx(n, arg)),
+            null != getx(n, arg))) :
+          each(val).filter((n: any) => (
+            // console.log('FG', n, arg, getx(n, arg)),
+            null != getx(n, arg)))
+            .reduce((a: any, n: any) => (a[n.key$] = n, delete n.key$, a), {})
 
-      let val = node[part]
+        // console.log('FILTER', val, arg, node)
+
+        continue partloop
+      }
 
       if (null == val) return undefined
 
@@ -332,17 +347,26 @@ function getx(root: any, path: string | string[]): any {
         'object' === typeof val ? Object.keys(val).filter(k => !k.includes('$')).length :
           val
 
-      // console.log('GETX OP', i, part, op, val)
+      // console.log('GETX OP', i, part, op, val, arg)
 
       switch (op) {
         case '<':
           if (!(val < arg)) return undefined
           break
+        case '<=':
+          if (!(val <= arg)) return undefined
+          break
         case '>':
           if (!(val > arg)) return undefined
           break
+        case '>=':
+          if (!(val >= arg)) return undefined
+          break
         case '=':
           if (!(val == arg)) return undefined
+          break
+        case '!=':
+          if (!(val != arg)) return undefined
           break
         case '~':
           if (!(String(val).match(RegExp(arg)))) return undefined
@@ -358,7 +382,7 @@ function getx(root: any, path: string | string[]): any {
     // console.log('GETX PASS', i, part)
 
     parents.push(node)
-    node = node[part]
+    node = '' === part ? node : node[part]
   }
   return node
 }

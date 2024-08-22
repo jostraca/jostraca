@@ -73,5 +73,33 @@ const __1 = require("../");
             'c-2-{"name":"c","key$":"c","val$":11}'
         ]);
     });
+    (0, node_test_1.test)('getx', () => {
+        (0, code_1.expect)((0, __1.getx)({ x: { y: 1 } }, 'x.y')).equal(1);
+        (0, code_1.expect)((0, __1.getx)({ x: { y: { z: 1 } } }, 'x.y.z')).equal(1);
+        (0, code_1.expect)((0, __1.getx)({ x: { y: { z: 1 } } }, 'x.y')).equal({ z: 1 });
+        (0, code_1.expect)((0, __1.getx)({ x: { y: { z: 1 } } }, 'x.z')).equal(undefined);
+        (0, code_1.expect)((0, __1.getx)({ x: { y: 1 } }, 'x y=1')).equal(1);
+        (0, code_1.expect)((0, __1.getx)({ x: { y: 1 } }, 'x y!=1')).equal(undefined);
+        (0, code_1.expect)((0, __1.getx)({ x: 3 }, '')).equal({ x: 3 });
+        (0, code_1.expect)((0, __1.getx)({ x: { y: 3 } }, 'x=1')).equal({ y: 3 });
+        (0, code_1.expect)((0, __1.getx)({ x: { y: 3 } }, 'x=2')).equal(undefined);
+        (0, code_1.expect)((0, __1.getx)({ x: { y: 3, z: 4 } }, 'x=2')).equal({ y: 3, z: 4 });
+        (0, code_1.expect)((0, __1.getx)({ x: { y: 3, z: 4 } }, 'x=1')).equal(undefined);
+        (0, code_1.expect)((0, __1.getx)({ x: 3 }, '=1')).equal({ x: 3 });
+        (0, code_1.expect)((0, __1.getx)({ x: 3, y: 4 }, '=1')).equal(undefined);
+        (0, code_1.expect)((0, __1.getx)({ x: 3, y: 4 }, '=2')).equal({ x: 3, y: 4 });
+        (0, code_1.expect)((0, __1.getx)({ x: 1 }, 'x=1')).equal(1);
+        (0, code_1.expect)((0, __1.getx)({ x: 1 }, 'x!=1')).equal(undefined);
+        (0, code_1.expect)((0, __1.getx)({ x: [{ y: 1 }, { y: 2 }, { y: 2 }] }, 'x?y=2'))
+            .equal([{ y: 2 }, { y: 2 }]);
+        (0, code_1.expect)((0, __1.getx)({ x: [{ y: 1 }, { y: 2 }, { y: 2 }] }, 'x?y!=2'))
+            .equal([{ y: 1 }]);
+        (0, code_1.expect)((0, __1.getx)({ x: { m: { y: 1 }, n: { y: 2 }, k: { y: 2 } } }, 'x?y=2'))
+            .equal({ n: { y: 2 }, k: { y: 2 } });
+        (0, code_1.expect)((0, __1.getx)({ x: [{ y: 11 }, { y: 22, z: 33 }] }, 'x?=1'))
+            .equal([{ y: 11 }]);
+        (0, code_1.expect)((0, __1.getx)({ x: { m: { y: 1 }, n: { y: 2, z: 3 } } }, 'x?=1'))
+            .equal({ m: { y: 1 } });
+    });
 });
 //# sourceMappingURL=jostraca.test.js.map

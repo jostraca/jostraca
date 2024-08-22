@@ -235,12 +235,13 @@ function getx(root, path) {
     let parents = [];
     partloop: for (let i = 0; i < path.length && null != node; i++) {
         let part = String(path[i]).trim();
-        let m = part.match(/^([^<=>~^]*)([<=>~^])(.*)$/);
+        let m = part.match(/^([^<=>~^?!]*)([<=>~^?!]+)(.*)$/);
         // console.log('GETX', i, part, m)
         if (m) {
             part = m[1];
             let op = m[2];
             let arg = m[3];
+            let val = '' === part ? node : node[part];
             if ('=' === op && 'null' === arg) {
                 parents.push(node);
                 node = {}; // virtual node so that ^ works consistently
@@ -250,24 +251,48 @@ function getx(root, path) {
                 node = parents[parents.length - Number(arg)];
                 continue partloop;
             }
-            let val = node[part];
+            else if ('?' === op[0]) {
+                arg = (1 < op.length ? op.substring(1) : '') + arg;
+                node = Array.isArray(val) ?
+                    each(val).filter((n) => (
+                    // console.log('FG', n, arg, getx(n, arg)),
+                    null != getx(n, arg))) :
+                    each(val).filter((n) => (
+                    // console.log('FG', n, arg, getx(n, arg)),
+                    null != getx(n, arg)))
+                        .reduce((a, n) => (a[n.key$] = n, delete n.key$, a), {});
+                // console.log('FILTER', val, arg, node)
+                continue partloop;
+            }
             if (null == val)
                 return undefined;
             val = Array.isArray(val) ? val.length :
                 'object' === typeof val ? Object.keys(val).filter(k => !k.includes('$')).length :
                     val;
-            // console.log('GETX OP', i, part, op, val)
+            // console.log('GETX OP', i, part, op, val, arg)
             switch (op) {
                 case '<':
                     if (!(val < arg))
+                        return undefined;
+                    break;
+                case '<=':
+                    if (!(val <= arg))
                         return undefined;
                     break;
                 case '>':
                     if (!(val > arg))
                         return undefined;
                     break;
+                case '>=':
+                    if (!(val >= arg))
+                        return undefined;
+                    break;
                 case '=':
                     if (!(val == arg))
+                        return undefined;
+                    break;
+                case '!=':
+                    if (!(val != arg))
                         return undefined;
                     break;
                 case '~':
@@ -283,7 +308,7 @@ function getx(root, path) {
         }
         // console.log('GETX PASS', i, part)
         parents.push(node);
-        node = node[part];
+        node = '' === part ? node : node[part];
     }
     return node;
 }
