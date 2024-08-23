@@ -48,19 +48,23 @@ function Jostraca() {
             fs,
             content: null,
         }, () => {
-            root();
-            const ctx$ = GLOBAL.jostraca.getStore();
-            const node = ctx$.node;
-            // console.log('JOSTRACA TOP')
-            // console.dir(node, { depth: null })
-            build(node, {
-                fs,
-                current: {
-                    folder: {
-                        parent: opts.folder
+            try {
+                root();
+                const ctx$ = GLOBAL.jostraca.getStore();
+                const node = ctx$.node;
+                build(node, {
+                    fs,
+                    current: {
+                        folder: {
+                            parent: opts.folder
+                        }
                     }
-                }
-            });
+                });
+            }
+            catch (err) {
+                console.log('JOSTRACA ERROR:', err);
+                throw err;
+            }
         });
     }
     function build(topnode, ctx) {
@@ -213,7 +217,6 @@ function each(subject, apply) {
     const entries = Object.entries(subject).map((n, _) => (_ = typeof n[1],
         (null != n[1] && 'object' === _) ? (n[1].key$ = n[0]) :
             (n[1] = { name: n[0], key$: n[0], val$: n[1] }), n));
-    // console.log('ENTRIES', entries)
     if (1 < entries.length) {
         if (entries[0] && entries[0][1] && 'string' === typeof entries[0][1].name) {
             entries.sort((a, b) => a[1].name < b[1].name ? -1 : b[1].name < a[1].name ? 1 : 0);
@@ -236,7 +239,6 @@ function getx(root, path) {
     partloop: for (let i = 0; i < path.length && null != node; i++) {
         let part = String(path[i]).trim();
         let m = part.match(/^([^<=>~^?!]*)([<=>~^?!]+)(.*)$/);
-        // console.log('GETX', i, part, m)
         if (m) {
             part = m[1];
             let op = m[2];
@@ -254,14 +256,9 @@ function getx(root, path) {
             else if ('?' === op[0]) {
                 arg = (1 < op.length ? op.substring(1) : '') + arg;
                 node = Array.isArray(val) ?
-                    each(val).filter((n) => (
-                    // console.log('FG', n, arg, getx(n, arg)),
-                    null != getx(n, arg))) :
-                    each(val).filter((n) => (
-                    // console.log('FG', n, arg, getx(n, arg)),
-                    null != getx(n, arg)))
+                    each(val).filter((n) => (null != getx(n, arg))) :
+                    each(val).filter((n) => (null != getx(n, arg)))
                         .reduce((a, n) => (a[n.key$] = n, delete n.key$, a), {});
-                // console.log('FILTER', val, arg, node)
                 continue partloop;
             }
             if (null == val)
@@ -269,7 +266,6 @@ function getx(root, path) {
             val = Array.isArray(val) ? val.length :
                 'object' === typeof val ? Object.keys(val).filter(k => !k.includes('$')).length :
                     val;
-            // console.log('GETX OP', i, part, op, val, arg)
             switch (op) {
                 case '<':
                     if (!(val < arg))
@@ -306,7 +302,6 @@ function getx(root, path) {
                     return undefined;
             }
         }
-        // console.log('GETX PASS', i, part)
         parents.push(node);
         node = '' === part ? node : node[part];
     }
