@@ -396,6 +396,14 @@ function camelify(input: any[] | string) {
     .join('')
 }
 
+function kebabify(input: any[] | string) {
+  let parts = 'string' == typeof input ? input.split(/([A-Z])/) : input.map(n => '' + n)
+  return parts
+    .filter((p: string) => '' !== p)
+    .reduce((a: any[], n: string, i: number) =>
+      ((0 === i % 2 ? a.push(n.toLowerCase()) : a[(i / 2) | 0] += n), a), [])
+    .join('-')
+}
 
 function snakeify(input: any[] | string) {
   let parts = 'string' == typeof input ? input.split(/([A-Z])/) : input.map(n => '' + n)
@@ -403,7 +411,7 @@ function snakeify(input: any[] | string) {
     .filter((p: string) => '' !== p)
     .reduce((a: any[], n: string, i: number) =>
       ((0 === i % 2 ? a.push(n.toLowerCase()) : a[(i / 2) | 0] += n), a), [])
-    .join('-')
+    .join('_')
 }
 
 
