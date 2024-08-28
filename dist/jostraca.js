@@ -32,9 +32,11 @@ exports.select = select;
 exports.get = get;
 exports.getx = getx;
 exports.camelify = camelify;
-exports.snakeify = snakeify;
+exports.snakify = snakify;
+exports.kebabify = kebabify;
 exports.cmap = cmap;
 exports.vmap = vmap;
+exports.names = names;
 const Fs = __importStar(require("node:fs"));
 const node_async_hooks_1 = require("node:async_hooks");
 const jsonic_next_1 = require("@jsonic/jsonic-next");
@@ -44,10 +46,13 @@ function Jostraca() {
     GLOBAL.jostraca = new node_async_hooks_1.AsyncLocalStorage();
     function generate(opts, root) {
         const fs = opts.fs || Fs;
-        GLOBAL.jostraca.run({
+        const meta = opts.meta || {};
+        const ctx$ = {
             fs,
             content: null,
-        }, () => {
+            meta,
+        };
+        GLOBAL.jostraca.run(ctx$, () => {
             try {
                 root();
                 const ctx$ = GLOBAL.jostraca.getStore();
@@ -321,12 +326,27 @@ function camelify(input) {
         .map((p) => ('' === p ? '' : (p[0].toUpperCase() + p.substring(1))))
         .join('');
 }
-function snakeify(input) {
+function kebabify(input) {
     let parts = 'string' == typeof input ? input.split(/([A-Z])/) : input.map(n => '' + n);
     return parts
         .filter((p) => '' !== p)
         .reduce((a, n, i) => ((0 === i % 2 ? a.push(n.toLowerCase()) : a[(i / 2) | 0] += n), a), [])
         .join('-');
+}
+function snakify(input) {
+    let parts = 'string' == typeof input ? input.split(/([A-Z])/) : input.map(n => '' + n);
+    return parts
+        .filter((p) => '' !== p)
+        .reduce((a, n, i) => ((0 === i % 2 ? a.push(n.toLowerCase()) : a[(i / 2) | 0] += n), a), [])
+        .join('_');
+}
+function names(base, name, prop = 'name') {
+    base.name$ = name;
+    base[prop.toLowerCase()] = name.toLowerCase();
+    base[camelify(prop)] = camelify(name);
+    base[snakify(prop)] = snakify(name);
+    base[kebabify(prop)] = kebabify(name);
+    base[prop.toUpperCase()] = name.toUpperCase();
 }
 // Map child objects to new child objects
 function cmap(o, p) {

@@ -13,6 +13,7 @@ const { deep } = JostracaUtil
 type JostracaOptions = {
   folder: string
   fs: any
+  meta: any
 }
 
 
@@ -38,10 +39,15 @@ function Jostraca() {
 
   function generate(opts: JostracaOptions, root: Function) {
     const fs = opts.fs || Fs
-    GLOBAL.jostraca.run({
+    const meta = opts.meta || {}
+
+    const ctx$ = {
       fs,
       content: null,
-    }, () => {
+      meta,
+    }
+
+    GLOBAL.jostraca.run(ctx$, () => {
       try {
         root()
 
@@ -397,7 +403,7 @@ function camelify(input: any[] | string) {
 }
 
 
-function snakeify(input: any[] | string) {
+function kebabify(input: any[] | string) {
   let parts = 'string' == typeof input ? input.split(/([A-Z])/) : input.map(n => '' + n)
   return parts
     .filter((p: string) => '' !== p)
@@ -405,6 +411,27 @@ function snakeify(input: any[] | string) {
       ((0 === i % 2 ? a.push(n.toLowerCase()) : a[(i / 2) | 0] += n), a), [])
     .join('-')
 }
+
+
+function snakify(input: any[] | string) {
+  let parts = 'string' == typeof input ? input.split(/([A-Z])/) : input.map(n => '' + n)
+  return parts
+    .filter((p: string) => '' !== p)
+    .reduce((a: any[], n: string, i: number) =>
+      ((0 === i % 2 ? a.push(n.toLowerCase()) : a[(i / 2) | 0] += n), a), [])
+    .join('_')
+}
+
+
+function names(base: any, name: string, prop = 'name') {
+  base.name$ = name
+  base[prop.toLowerCase()] = name.toLowerCase()
+  base[camelify(prop)] = camelify(name)
+  base[snakify(prop)] = snakify(name)
+  base[kebabify(prop)] = kebabify(name)
+  base[prop.toUpperCase()] = name.toUpperCase()
+}
+
 
 
 // Map child objects to new child objects
@@ -469,9 +496,11 @@ export {
   get,
   getx,
   camelify,
-  snakeify,
+  snakify,
+  kebabify,
   cmap,
   vmap,
+  names,
 
   Project,
   Code,

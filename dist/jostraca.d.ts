@@ -1,6 +1,7 @@
 type JostracaOptions = {
     folder: string;
     fs: any;
+    meta: any;
 };
 type Component = (props: any, children?: any) => void;
 declare function Jostraca(): {
@@ -17,7 +18,9 @@ declare function select(key: any, map: Record<string, Function>): any;
 declare function getx(root: any, path: string | string[]): any;
 declare function get(root: any, path: string | string[]): any;
 declare function camelify(input: any[] | string): string;
-declare function snakeify(input: any[] | string): string;
+declare function kebabify(input: any[] | string): string;
+declare function snakify(input: any[] | string): string;
+declare function names(base: any, name: string, prop?: string): void;
 declare function cmap(o: any, p: any): any;
 declare namespace cmap {
     var COPY: (x: any) => any;
@@ -31,4 +34,4 @@ declare namespace vmap {
     var KEY: (_: any, p: any) => any;
 }
 export type { JostracaOptions, Component, };
-export { Jostraca, cmp, each, select, get, getx, camelify, snakeify, cmap, vmap, Project, Code, File, Folder, Copy, };
+export { Jostraca, cmp, each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, Project, Code, File, Folder, Copy, };
