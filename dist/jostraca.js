@@ -47,8 +47,10 @@ function Jostraca() {
     function generate(opts, root) {
         const fs = opts.fs || Fs;
         const meta = opts.meta || {};
+        const folder = opts.folder || '.';
         const ctx$ = {
             fs,
+            folder,
             content: null,
             meta,
         };
@@ -61,7 +63,7 @@ function Jostraca() {
                     fs,
                     current: {
                         folder: {
-                            parent: opts.folder
+                            parent: folder
                         }
                     }
                 });
