@@ -4,6 +4,9 @@ import * as Fs from 'node:fs'
 
 import { AsyncLocalStorage } from 'node:async_hooks'
 
+import { Copy } from './cmp/Copy'
+
+import { CopyOp } from './op/CopyOp'
 
 import { util as JostracaUtil } from '@jsonic/jsonic-next'
 
@@ -159,6 +162,9 @@ function Jostraca() {
     },
 
 
+    copy: CopyOp,
+
+
     none: {
       before(_node: Node, _ctx: any) {
       },
@@ -193,16 +199,6 @@ const File = cmp(function File(props: any, children: any) {
 
   // Code('// FILE END: ' + props.name + '\n')
 })
-
-
-const Copy = cmp(function Copy(props: any, children: any) {
-  props.ctx$.node.kind = 'file'
-  props.ctx$.node.name = props.name
-
-  const content = props.ctx$.fs.readFileSync(props.from).toString()
-  Code(content)
-})
-
 
 
 const Project: Component = cmp(function Project(props: any, children: any) {

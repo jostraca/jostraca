@@ -39,6 +39,9 @@ exports.vmap = vmap;
 exports.names = names;
 const Fs = __importStar(require("node:fs"));
 const node_async_hooks_1 = require("node:async_hooks");
+const Copy_1 = require("./cmp/Copy");
+Object.defineProperty(exports, "Copy", { enumerable: true, get: function () { return Copy_1.Copy; } });
+const CopyOp_1 = require("./op/CopyOp");
 const jsonic_next_1 = require("@jsonic/jsonic-next");
 const { deep } = jsonic_next_1.util;
 const GLOBAL = global;
@@ -133,6 +136,7 @@ function Jostraca() {
             after(_node, _ctx) {
             },
         },
+        copy: CopyOp_1.CopyOp,
         none: {
             before(_node, _ctx) {
             },
@@ -158,13 +162,6 @@ const File = cmp(function File(props, children) {
     // Code('// FILE END: ' + props.name + '\n')
 });
 exports.File = File;
-const Copy = cmp(function Copy(props, children) {
-    props.ctx$.node.kind = 'file';
-    props.ctx$.node.name = props.name;
-    const content = props.ctx$.fs.readFileSync(props.from).toString();
-    Code(content);
-});
-exports.Copy = Copy;
 const Project = cmp(function Project(props, children) {
     props.ctx$.node.kind = 'project';
     props.ctx$.node.name = props.name;

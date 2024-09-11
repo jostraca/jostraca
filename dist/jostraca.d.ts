@@ -1,3 +1,4 @@
+import { Copy } from './cmp/Copy';
 type JostracaOptions = {
     folder: string;
     fs: any;
@@ -9,7 +10,6 @@ declare function Jostraca(): {
 };
 declare const Code: Component;
 declare const File: Component;
-declare const Copy: Component;
 declare const Project: Component;
 declare const Folder: Component;
 declare function cmp(component: Function): Component;
