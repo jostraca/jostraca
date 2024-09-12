@@ -14,9 +14,9 @@ const { deep } = JostracaUtil
 
 
 type JostracaOptions = {
-  folder: string
-  fs: any
-  meta: any
+  folder?: string
+  fs?: any
+  meta?: any
 }
 
 
@@ -25,7 +25,16 @@ type Node = {
   children?: Node[]
   name?: string
   path?: string
+  from?: string
   content?: any[]
+}
+
+
+type OpStep = (node: Node, ctx$: any, buildctx: any) => void
+
+type OpDef = {
+  before: OpStep,
+  after: OpStep,
 }
 
 
@@ -54,13 +63,15 @@ function Jostraca() {
 
     GLOBAL.jostraca.run(ctx$, () => {
       try {
+        // console.log('START ROOT')
         root()
+        // console.log('END ROOT')
 
         const ctx$ = GLOBAL.jostraca.getStore()
-        const node = ctx$.node
 
+        // console.log('START BUILD')
         build(
-          node,
+          ctx$,
           {
             fs,
             current: {
@@ -69,6 +80,7 @@ function Jostraca() {
               }
             }
           })
+        // console.log('END BUILD')
       }
       catch (err: any) {
         console.log('JOSTRACA ERROR:', err)
@@ -78,86 +90,86 @@ function Jostraca() {
   }
 
 
-  function build(topnode: Node, ctx: any) {
-    step(topnode, ctx)
+  function build(ctx$: any, buildctx: any) {
+    const topnode = ctx$.node
+    step(topnode, ctx$, buildctx)
   }
 
 
-  function step(node: Node, ctx: any) {
+  function step(node: Node, ctx$: any, buildctx: any) {
     const op = opmap[node.kind]
     if (null == op) {
       throw new Error('missing op: ' + node.kind)
     }
 
-    op.before(node, ctx)
+    op.before(node, ctx$, buildctx)
 
     if (node.children) {
       for (let childnode of node.children) {
-        step(childnode, ctx)
+        step(childnode, ctx$, buildctx)
       }
     }
 
-    op.after(node, ctx)
+    op.after(node, ctx$, buildctx)
   }
 
 
-
-  const opmap: any = {
+  const opmap: Record<string, OpDef> = {
 
     project: {
-      before(node: Node, ctx: any) {
-        const cproject: any = ctx.current.project = (ctx.current.project || {})
+      before(node: Node, _ctx$: any, buildctx: any) {
+        const cproject: any = buildctx.current.project = (buildctx.current.project || {})
         cproject.node = node
       },
 
-      after(_node: Node, _ctx: any) {
+      after(_node: Node, _ctx$: any, _buildctx: any) {
 
       },
     },
 
 
     folder: {
-      before(node: Node, ctx: any) {
-        const cfolder = ctx.current.folder = (ctx.current.folder || {})
+      before(node: Node, _ctx$: any, buildctx: any) {
+        const cfolder = buildctx.current.folder = (buildctx.current.folder || {})
 
         cfolder.node = node
-        cfolder.path = (cfolder.path || [ctx.current.folder.parent])
+        cfolder.path = (cfolder.path || [buildctx.current.folder.parent])
         cfolder.path.push(node.name)
 
         let fullpath = cfolder.path.join('/')
-        ctx.fs.mkdirSync(fullpath, { recursive: true })
+        buildctx.fs.mkdirSync(fullpath, { recursive: true })
       },
 
 
-      after(_node: Node, ctx: any) {
-        const cfolder = ctx.current.folder
+      after(_node: Node, _ctx$: any, buildctx: any) {
+        const cfolder = buildctx.current.folder
         cfolder.path.length = cfolder.path.length - 1
       },
     },
 
 
     file: {
-      before(node: Node, ctx: any) {
-        const cfile = ctx.current.file = node
-        cfile.path = ctx.current.folder.path.join('/') + '/' + node.name
+      before(node: Node, _ctx$: any, buildctx: any) {
+        const cfile = buildctx.current.file = node
+        cfile.path = buildctx.current.folder.path.join('/') + '/' + node.name
         cfile.content = []
       },
 
-      after(_node: Node, ctx: any) {
-        const cfile = ctx.current.file
+      after(_node: Node, _ctx$: any, buildctx: any) {
+        const cfile = buildctx.current.file
         const content = cfile.content.join('')
-        ctx.fs.writeFileSync(cfile.path, content)
+        buildctx.fs.writeFileSync(cfile.path, content)
       },
     },
 
 
     content: {
-      before(node: Node, ctx: any) {
-        const content = ctx.current.content = node
-        ctx.current.file.content.push(content.content)
+      before(node: Node, _ctx$: any, buildctx: any) {
+        const content = buildctx.current.content = node
+        buildctx.current.file.content.push(content.content)
       },
 
-      after(_node: Node, _ctx: any) {
+      after(_node: Node, _ctx$: any, buildctx: any) {
       },
     },
 
@@ -166,10 +178,10 @@ function Jostraca() {
 
 
     none: {
-      before(_node: Node, _ctx: any) {
+      before(_node: Node, _ctx$: any, buildctx: any) {
       },
 
-      after(_node: Node, _ctx: any) {
+      after(_node: Node, _ctx$: any, buildctx: any) {
       },
     },
 
@@ -482,6 +494,7 @@ vmap.KEY = (_: any, p: any) => p.key
 export type {
   JostracaOptions,
   Component,
+  Node,
 }
 
 

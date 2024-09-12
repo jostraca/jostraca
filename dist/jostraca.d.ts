@@ -1,8 +1,16 @@
 import { Copy } from './cmp/Copy';
 type JostracaOptions = {
-    folder: string;
-    fs: any;
-    meta: any;
+    folder?: string;
+    fs?: any;
+    meta?: any;
+};
+type Node = {
+    kind: string;
+    children?: Node[];
+    name?: string;
+    path?: string;
+    from?: string;
+    content?: any[];
 };
 type Component = (props: any, children?: any) => void;
 declare function Jostraca(): {
@@ -33,5 +41,5 @@ declare namespace vmap {
     var FILTER: (x: any) => any;
     var KEY: (_: any, p: any) => any;
 }
-export type { JostracaOptions, Component, };
+export type { JostracaOptions, Component, Node, };
 export { Jostraca, cmp, each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, Project, Code, File, Folder, Copy, };

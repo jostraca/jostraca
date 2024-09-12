@@ -1,6 +1,6 @@
 {
   "name": "jostraca",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "main": "dist/jostraca.js",
   "type": "commonjs",
   "types": "dist/jostraca.d.ts",
@@ -34,10 +34,10 @@
   ],
   "devDependencies": {
     "@hapi/code": "^9.0.3",
-    "@types/node": "22.5.1",
+    "@types/node": "22.5.4",
     "esbuild": "^0.23.1",
     "memfs": "^4.11.1",
-    "typescript": "^5.5.4"
+    "typescript": "^5.6.2"
   },
   "dependencies": {
     "@jsonic/jsonic-next": "^2.12.1"

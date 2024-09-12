@@ -59,10 +59,12 @@ function Jostraca() {
         };
         GLOBAL.jostraca.run(ctx$, () => {
             try {
+                // console.log('START ROOT')
                 root();
+                // console.log('END ROOT')
                 const ctx$ = GLOBAL.jostraca.getStore();
-                const node = ctx$.node;
-                build(node, {
+                // console.log('START BUILD')
+                build(ctx$, {
                     fs,
                     current: {
                         folder: {
@@ -70,6 +72,7 @@ function Jostraca() {
                         }
                     }
                 });
+                // console.log('END BUILD')
             }
             catch (err) {
                 console.log('JOSTRACA ERROR:', err);
@@ -77,70 +80,71 @@ function Jostraca() {
             }
         });
     }
-    function build(topnode, ctx) {
-        step(topnode, ctx);
+    function build(ctx$, buildctx) {
+        const topnode = ctx$.node;
+        step(topnode, ctx$, buildctx);
     }
-    function step(node, ctx) {
+    function step(node, ctx$, buildctx) {
         const op = opmap[node.kind];
         if (null == op) {
             throw new Error('missing op: ' + node.kind);
         }
-        op.before(node, ctx);
+        op.before(node, ctx$, buildctx);
         if (node.children) {
             for (let childnode of node.children) {
-                step(childnode, ctx);
+                step(childnode, ctx$, buildctx);
             }
         }
-        op.after(node, ctx);
+        op.after(node, ctx$, buildctx);
     }
     const opmap = {
         project: {
-            before(node, ctx) {
-                const cproject = ctx.current.project = (ctx.current.project || {});
+            before(node, _ctx$, buildctx) {
+                const cproject = buildctx.current.project = (buildctx.current.project || {});
                 cproject.node = node;
             },
-            after(_node, _ctx) {
+            after(_node, _ctx$, _buildctx) {
             },
         },
         folder: {
-            before(node, ctx) {
-                const cfolder = ctx.current.folder = (ctx.current.folder || {});
+            before(node, _ctx$, buildctx) {
+                const cfolder = buildctx.current.folder = (buildctx.current.folder || {});
                 cfolder.node = node;
-                cfolder.path = (cfolder.path || [ctx.current.folder.parent]);
+                cfolder.path = (cfolder.path || [buildctx.current.folder.parent]);
                 cfolder.path.push(node.name);
                 let fullpath = cfolder.path.join('/');
-                ctx.fs.mkdirSync(fullpath, { recursive: true });
+                buildctx.fs.mkdirSync(fullpath, { recursive: true });
             },
-            after(_node, ctx) {
-                const cfolder = ctx.current.folder;
+            after(_node, _ctx$, buildctx) {
+                const cfolder = buildctx.current.folder;
                 cfolder.path.length = cfolder.path.length - 1;
             },
         },
         file: {
-            before(node, ctx) {
-                const cfile = ctx.current.file = node;
-                cfile.path = ctx.current.folder.path.join('/') + '/' + node.name;
+            before(node, _ctx$, buildctx) {
+                const cfile = buildctx.current.file = node;
+                cfile.path = buildctx.current.folder.path.join('/') + '/' + node.name;
                 cfile.content = [];
             },
-            after(_node, ctx) {
-                const cfile = ctx.current.file;
+            after(_node, _ctx$, buildctx) {
+                const cfile = buildctx.current.file;
                 const content = cfile.content.join('');
-                ctx.fs.writeFileSync(cfile.path, content);
+                buildctx.fs.writeFileSync(cfile.path, content);
             },
         },
         content: {
-            before(node, ctx) {
-                const content = ctx.current.content = node;
-                ctx.current.file.content.push(content.content);
+            before(node, _ctx$, buildctx) {
+                const content = buildctx.current.content = node;
+                buildctx.current.file.content.push(content.content);
             },
-            after(_node, _ctx) {
+            after(_node, _ctx$, buildctx) {
             },
         },
         copy: CopyOp_1.CopyOp,
         none: {
-            before(_node, _ctx) {
+            before(_node, _ctx$, buildctx) {
             },
-            after(_node, _ctx) {
+            after(_node, _ctx$, buildctx) {
             },
         },
     };
