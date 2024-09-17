@@ -1,2 +1,2 @@
-declare const Copy: import("../jostraca").Component;
+declare const Copy: import("../utility").Component;
 export { Copy };

@@ -6,12 +6,17 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CopyOp = void 0;
 const node_path_1 = __importDefault(require("node:path"));
 const jostraca_1 = require("../jostraca");
+const FileOp_1 = require("./FileOp");
 const CopyOp = {
     before(node, ctx$, buildctx) {
+        const fs = buildctx.fs;
+        // TODO: do these need null checks here?
         const name = node.name;
         const from = node.from;
-        // console.log('COPY START', node)
-        if (from && name) {
+        const fromStat = fs.statSync(from);
+        if (fromStat.isFile()) {
+            FileOp_1.FileOp.before(node, ctx$, buildctx);
+            const topath = buildctx.current.file.path;
             const state = {
                 fileCount: 0,
                 folderCount: 0,
@@ -19,11 +24,42 @@ const CopyOp = {
                 ctx$,
                 buildctx,
             };
-            walk(state, from, name);
-            // console.log('COPY END', state)
+            const spec = { name, frompath: from, topath };
+            let content = processTemplate(state, fs.readFileSync(from).toString(), spec);
+            buildctx.current.file.content.push(content);
+            node.after = node.after || {};
+            node.after.kind = 'file';
+        }
+        else if (fromStat.isDirectory()) {
+            if (null != from && '' != from) {
+                node.after = node.after || {};
+                node.after.kind = 'copy';
+            }
+        }
+        else {
+            throw new Error('Unable to process file: ' + from);
         }
     },
-    after(_node, _ctx$, buildctx) {
+    after(node, ctx$, buildctx) {
+        const kind = node.after.kind;
+        const frompath = node.from;
+        const topath = buildctx.current.folder.path.join('/');
+        if ('file' === kind) {
+            FileOp_1.FileOp.after(node, ctx$, buildctx);
+        }
+        else if ('copy' === kind) {
+            const state = {
+                fileCount: 0,
+                folderCount: 0,
+                tmCount: 0,
+                ctx$,
+                buildctx,
+            };
+            walk(state, frompath, topath);
+        }
+        else {
+            throw new Error('Unknown kind=' + kind + ' for file: ' + frompath);
+        }
     },
 };
 exports.CopyOp = CopyOp;
@@ -42,19 +78,37 @@ function walk(state, from, to) {
         else if (isTemplate(name)) {
             const src = fs.readFileSync(frompath, 'utf8');
             const out = genTemplate(state, src, { name, frompath, topath });
-            // console.log('writeFileSync', frompath, topath)
-            fs.mkdirSync(node_path_1.default.dirname(topath), { recursive: true });
-            fs.writeFileSync(topath, out, 'utf8');
+            // fs.mkdirSync(Path.dirname(topath), { recursive: true })
+            // fs.writeFileSync(topath, out, 'utf8')
+            writeFileSync(buildctx, topath, out);
             state.fileCount++;
             state.tmCount++;
         }
         else {
-            // console.log('copyFileSync', frompath, topath)
-            fs.mkdirSync(node_path_1.default.dirname(topath), { recursive: true });
-            fs.copyFileSync(frompath, topath);
+            // fs.mkdirSync(Path.dirname(topath), { recursive: true })
+            // fs.copyFileSync(frompath, topath)
+            copyFileSync(buildctx, frompath, topath);
             state.fileCount++;
         }
     }
+}
+function writeFileSync(buildctx, path, content) {
+    const fs = buildctx.fs;
+    // TODO: check excludes
+    fs.mkdirSync(node_path_1.default.dirname(path), { recursive: true });
+    fs.writeFileSync(path, content, 'utf8');
+}
+function copyFileSync(buildctx, frompath, topath) {
+    const fs = buildctx.fs;
+    // TODO: check excludes
+    fs.mkdirSync(node_path_1.default.dirname(topath), { recursive: true });
+    fs.copyFileSync(frompath, topath, 'utf8');
+}
+function processTemplate(state, src, spec) {
+    if (isTemplate(spec.name)) {
+        return genTemplate(state, src, spec);
+    }
+    return src;
 }
 function isTemplate(name) {
     return name.match(/\.(ts|js|json|txt|xml|toml|yml|yaml|py|php|rb|go|java|c|cpp|cs|sh|bat)$/i);

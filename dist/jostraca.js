@@ -24,26 +24,38 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Copy = exports.Folder = exports.File = exports.Code = exports.Project = void 0;
+exports.Copy = exports.Folder = exports.File = exports.Content = exports.Project = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.select = exports.each = void 0;
 exports.Jostraca = Jostraca;
 exports.cmp = cmp;
-exports.each = each;
-exports.select = select;
-exports.get = get;
-exports.getx = getx;
-exports.camelify = camelify;
-exports.snakify = snakify;
-exports.kebabify = kebabify;
-exports.cmap = cmap;
-exports.vmap = vmap;
-exports.names = names;
 const Fs = __importStar(require("node:fs"));
 const node_async_hooks_1 = require("node:async_hooks");
+const utility_1 = require("./utility");
+Object.defineProperty(exports, "each", { enumerable: true, get: function () { return utility_1.each; } });
+Object.defineProperty(exports, "select", { enumerable: true, get: function () { return utility_1.select; } });
+Object.defineProperty(exports, "get", { enumerable: true, get: function () { return utility_1.get; } });
+Object.defineProperty(exports, "getx", { enumerable: true, get: function () { return utility_1.getx; } });
+Object.defineProperty(exports, "camelify", { enumerable: true, get: function () { return utility_1.camelify; } });
+Object.defineProperty(exports, "snakify", { enumerable: true, get: function () { return utility_1.snakify; } });
+Object.defineProperty(exports, "kebabify", { enumerable: true, get: function () { return utility_1.kebabify; } });
+Object.defineProperty(exports, "cmap", { enumerable: true, get: function () { return utility_1.cmap; } });
+Object.defineProperty(exports, "vmap", { enumerable: true, get: function () { return utility_1.vmap; } });
+Object.defineProperty(exports, "names", { enumerable: true, get: function () { return utility_1.names; } });
+const Content_1 = require("./cmp/Content");
+Object.defineProperty(exports, "Content", { enumerable: true, get: function () { return Content_1.Content; } });
 const Copy_1 = require("./cmp/Copy");
 Object.defineProperty(exports, "Copy", { enumerable: true, get: function () { return Copy_1.Copy; } });
+const File_1 = require("./cmp/File");
+Object.defineProperty(exports, "File", { enumerable: true, get: function () { return File_1.File; } });
+const Folder_1 = require("./cmp/Folder");
+Object.defineProperty(exports, "Folder", { enumerable: true, get: function () { return Folder_1.Folder; } });
+const Project_1 = require("./cmp/Project");
+Object.defineProperty(exports, "Project", { enumerable: true, get: function () { return Project_1.Project; } });
 const CopyOp_1 = require("./op/CopyOp");
-const jsonic_next_1 = require("@jsonic/jsonic-next");
-const { deep } = jsonic_next_1.util;
+const ProjectOp_1 = require("./op/ProjectOp");
+const FolderOp_1 = require("./op/FolderOp");
+const FileOp_1 = require("./op/FileOp");
+const ContentOp_1 = require("./op/ContentOp");
+const NoneOp_1 = require("./op/NoneOp");
 const GLOBAL = global;
 function Jostraca() {
     GLOBAL.jostraca = new node_async_hooks_1.AsyncLocalStorage();
@@ -52,18 +64,16 @@ function Jostraca() {
         const meta = opts.meta || {};
         const folder = opts.folder || '.';
         const ctx$ = {
-            fs,
             folder,
             content: null,
             meta,
         };
         GLOBAL.jostraca.run(ctx$, () => {
             try {
-                // console.log('START ROOT')
+                // Define phase
                 root();
-                // console.log('END ROOT')
                 const ctx$ = GLOBAL.jostraca.getStore();
-                // console.log('START BUILD')
+                // Build phase
                 build(ctx$, {
                     fs,
                     current: {
@@ -72,7 +82,6 @@ function Jostraca() {
                         }
                     }
                 });
-                // console.log('END BUILD')
             }
             catch (err) {
                 console.log('JOSTRACA ERROR:', err);
@@ -85,99 +94,40 @@ function Jostraca() {
         step(topnode, ctx$, buildctx);
     }
     function step(node, ctx$, buildctx) {
-        const op = opmap[node.kind];
-        if (null == op) {
-            throw new Error('missing op: ' + node.kind);
-        }
-        op.before(node, ctx$, buildctx);
-        if (node.children) {
-            for (let childnode of node.children) {
-                step(childnode, ctx$, buildctx);
+        try {
+            const op = opmap[node.kind];
+            if (null == op) {
+                throw new Error('missing op: ' + node.kind);
             }
+            op.before(node, ctx$, buildctx);
+            if (node.children) {
+                for (let childnode of node.children) {
+                    step(childnode, ctx$, buildctx);
+                }
+            }
+            op.after(node, ctx$, buildctx);
         }
-        op.after(node, ctx$, buildctx);
+        catch (err) {
+            if (err.jostraca) {
+                throw err;
+            }
+            err.jostraca = true;
+            err.step = node.kind;
+            throw err;
+        }
     }
     const opmap = {
-        project: {
-            before(node, _ctx$, buildctx) {
-                const cproject = buildctx.current.project = (buildctx.current.project || {});
-                cproject.node = node;
-            },
-            after(_node, _ctx$, _buildctx) {
-            },
-        },
-        folder: {
-            before(node, _ctx$, buildctx) {
-                const cfolder = buildctx.current.folder = (buildctx.current.folder || {});
-                cfolder.node = node;
-                cfolder.path = (cfolder.path || [buildctx.current.folder.parent]);
-                cfolder.path.push(node.name);
-                let fullpath = cfolder.path.join('/');
-                buildctx.fs.mkdirSync(fullpath, { recursive: true });
-            },
-            after(_node, _ctx$, buildctx) {
-                const cfolder = buildctx.current.folder;
-                cfolder.path.length = cfolder.path.length - 1;
-            },
-        },
-        file: {
-            before(node, _ctx$, buildctx) {
-                const cfile = buildctx.current.file = node;
-                cfile.path = buildctx.current.folder.path.join('/') + '/' + node.name;
-                cfile.content = [];
-            },
-            after(_node, _ctx$, buildctx) {
-                const cfile = buildctx.current.file;
-                const content = cfile.content.join('');
-                buildctx.fs.writeFileSync(cfile.path, content);
-            },
-        },
-        content: {
-            before(node, _ctx$, buildctx) {
-                const content = buildctx.current.content = node;
-                buildctx.current.file.content.push(content.content);
-            },
-            after(_node, _ctx$, buildctx) {
-            },
-        },
+        project: ProjectOp_1.ProjectOp,
+        folder: FolderOp_1.FolderOp,
+        file: FileOp_1.FileOp,
+        content: ContentOp_1.ContentOp,
         copy: CopyOp_1.CopyOp,
-        none: {
-            before(_node, _ctx$, buildctx) {
-            },
-            after(_node, _ctx$, buildctx) {
-            },
-        },
+        none: NoneOp_1.NoneOp,
     };
     return {
         generate,
     };
 }
-const Code = cmp(function Code(props) {
-    props.ctx$.node.kind = 'content';
-    let src = props.arg;
-    props.ctx$.node.content = src;
-});
-exports.Code = Code;
-const File = cmp(function File(props, children) {
-    props.ctx$.node.kind = 'file';
-    props.ctx$.node.name = props.name;
-    // Code('// FILE START: ' + props.name + '\n')
-    each(children);
-    // Code('// FILE END: ' + props.name + '\n')
-});
-exports.File = File;
-const Project = cmp(function Project(props, children) {
-    props.ctx$.node.kind = 'project';
-    props.ctx$.node.name = props.name;
-    each(children);
-});
-exports.Project = Project;
-const Folder = cmp(function Folder(props, children) {
-    props.ctx$.node.kind = 'folder';
-    props.ctx$.node.name = props.name;
-    each(children);
-});
-exports.Folder = Folder;
 function cmp(component) {
     const cf = (props, children) => {
         props = props || {};
@@ -203,186 +153,4 @@ function cmp(component) {
     Object.defineProperty(cf, 'name', { value: component.name });
     return cf;
 }
-function each(subject, apply) {
-    if (null == apply) {
-        let out = [];
-        if (Array.isArray(subject)) {
-            for (let fn of subject) {
-                out.push('function' === typeof fn ? fn() : fn);
-            }
-            return out.sort();
-        }
-        else if (null == subject || 'object' !== typeof subject) {
-            return [];
-        }
-    }
-    else if (Array.isArray(subject)) {
-        return subject.map(apply);
-    }
-    if (null == subject || 'object' !== typeof subject) {
-        return [];
-    }
-    const entries = Object.entries(subject).map((n, _) => (_ = typeof n[1],
-        (null != n[1] && 'object' === _) ? (n[1].key$ = n[0]) :
-            (n[1] = { name: n[0], key$: n[0], val$: n[1] }), n));
-    if (1 < entries.length) {
-        if (entries[0] && entries[0][1] && 'string' === typeof entries[0][1].name) {
-            entries.sort((a, b) => a[1].name < b[1].name ? -1 : b[1].name < a[1].name ? 1 : 0);
-        }
-        else if (entries[0] && entries[0][1] && 'string' === typeof entries[0][1].key$) {
-            entries.sort((a, b) => a[1].key$ < b[1].key$ ? -1 : b[1].key$ < a[1].key$ ? 1 : 0);
-        }
-    }
-    apply = 'function' === typeof apply ? apply : (x) => x;
-    return entries.map((n, ...args) => apply(n[1], n[0], ...args));
-}
-function select(key, map) {
-    const fn = map && map[key];
-    return fn ? fn() : undefined;
-}
-function getx(root, path) {
-    path = ('string' === typeof path ? path.split(/[.\s\r\n\t]/) : path).filter(part => '' != part);
-    let node = root;
-    let parents = [];
-    partloop: for (let i = 0; i < path.length && null != node; i++) {
-        let part = String(path[i]).trim();
-        let m = part.match(/^([^<=>~^?!]*)([<=>~^?!]+)(.*)$/);
-        if (m) {
-            part = m[1];
-            let op = m[2];
-            let arg = m[3];
-            let val = '' === part ? node : node[part];
-            if ('=' === op && 'null' === arg) {
-                parents.push(node);
-                node = {}; // virtual node so that ^ works consistently
-                continue partloop;
-            }
-            else if ('^' === op && '' === part && '' !== arg) {
-                node = parents[parents.length - Number(arg)];
-                continue partloop;
-            }
-            else if ('?' === op[0]) {
-                arg = (1 < op.length ? op.substring(1) : '') + arg;
-                node = Array.isArray(val) ?
-                    each(val).filter((n) => (null != getx(n, arg))) :
-                    each(val).filter((n) => (null != getx(n, arg)))
-                        .reduce((a, n) => (a[n.key$] = n, delete n.key$, a), {});
-                continue partloop;
-            }
-            if (null == val)
-                return undefined;
-            val = Array.isArray(val) ? val.length :
-                'object' === typeof val ? Object.keys(val).filter(k => !k.includes('$')).length :
-                    val;
-            switch (op) {
-                case '<':
-                    if (!(val < arg))
-                        return undefined;
-                    break;
-                case '<=':
-                    if (!(val <= arg))
-                        return undefined;
-                    break;
-                case '>':
-                    if (!(val > arg))
-                        return undefined;
-                    break;
-                case '>=':
-                    if (!(val >= arg))
-                        return undefined;
-                    break;
-                case '=':
-                    if (!(val == arg))
-                        return undefined;
-                    break;
-                case '!=':
-                    if (!(val != arg))
-                        return undefined;
-                    break;
-                case '~':
-                    if (!(String(val).match(RegExp(arg))))
-                        return undefined;
-                    break;
-                case '^':
-                    node = parents[parents.length - Number(arg)];
-                    continue partloop;
-                default:
-                    return undefined;
-            }
-        }
-        parents.push(node);
-        node = '' === part ? node : node[part];
-    }
-    return node;
-}
-function get(root, path) {
-    path = 'string' === typeof path ? path.split('.') : path;
-    let node = root;
-    for (let i = 0; i < path.length && null != node; i++) {
-        node = node[path[i]];
-    }
-    return node;
-}
-function camelify(input) {
-    let parts = 'string' == typeof input ? input.split('-') : input.map(n => '' + n);
-    return parts
-        .map((p) => ('' === p ? '' : (p[0].toUpperCase() + p.substring(1))))
-        .join('');
-}
-function kebabify(input) {
-    let parts = 'string' == typeof input ? input.split(/([A-Z])/) : input.map(n => '' + n);
-    return parts
-        .filter((p) => '' !== p)
-        .reduce((a, n, i) => ((0 === i % 2 ? a.push(n.toLowerCase()) : a[(i / 2) | 0] += n), a), [])
-        .join('-');
-}
-function snakify(input) {
-    let parts = 'string' == typeof input ? input.split(/([A-Z])/) : input.map(n => '' + n);
-    return parts
-        .filter((p) => '' !== p)
-        .reduce((a, n, i) => ((0 === i % 2 ? a.push(n.toLowerCase()) : a[(i / 2) | 0] += n), a), [])
-        .join('_');
-}
-function names(base, name, prop = 'name') {
-    base.name$ = name;
-    base[prop.toLowerCase()] = name.toLowerCase();
-    base[camelify(prop)] = camelify(name);
-    base[snakify(prop)] = snakify(name);
-    base[kebabify(prop)] = kebabify(name);
-    base[prop.toUpperCase()] = name.toUpperCase();
-}
-// Map child objects to new child objects
-function cmap(o, p) {
-    return Object
-        .entries(o)
-        .reduce((r, n, _) => (_ = Object
-        .entries(p)
-        .reduce((s, m) => (cmap.FILTER === s ? s : (s[m[0]] = (
-    // transfom(val,key,current,parentkey,parent)
-    'function' === typeof m[1] ? m[1](n[1][m[0]], {
-        skey: m[0], self: n[1], key: n[0], parent: o
-    }) : m[1]), (cmap.FILTER === s[m[0]] ? cmap.FILTER : s))), {})
-        , (cmap.FILTER === _ ? 0 : r[n[0]] = _), r), {});
-}
-cmap.COPY = (x) => x;
-// keep self if x is truthy, or function returning truthy-new-value or [truthy,new-value]
-cmap.FILTER = (x) => 'function' === typeof x ? ((y, p, _) => (_ = x(y, p), Array.isArray(_) ? !_[0] ? _[1] : cmap.FILTER : _)) : (x ? x : cmap.FILTER);
-cmap.KEY = (_, p) => p.key;
-// Map child objects to a list of child objects
-function vmap(o, p) {
-    return Object
-        .entries(o)
-        .reduce((r, n, _) => (_ = Object
-        .entries(p)
-        .reduce((s, m) => (vmap.FILTER === s ? s : (s[m[0]] = (
-    // transfom(val,key,current,parentkey,parent)
-    // 'function' === typeof m[1] ? m[1](n[1][m[0]], m[0], n[1], n[0], o) : m[1]
-    'function' === typeof m[1] ? m[1](n[1][m[0]], {
-        skey: m[0], self: n[1], key: n[0], parent: o
-    }) : m[1]), (vmap.FILTER === s[m[0]] ? vmap.FILTER : s))), {})
-        , (vmap.FILTER === _ ? 0 : r.push(_)), r), []);
-}
-vmap.COPY = (x) => x;
-vmap.FILTER = (x) => 'function' === typeof x ? ((y, p, _) => (_ = x(y, p), Array.isArray(_) ? !_[0] ? _[1] : vmap.FILTER : _)) : (x ? x : vmap.FILTER);
-vmap.KEY = (_, p) => p.key;
 //# sourceMappingURL=jostraca.js.map

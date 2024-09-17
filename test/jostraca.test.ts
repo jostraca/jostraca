@@ -10,9 +10,10 @@ import {
   Project,
   Folder,
   File,
-  Code,
+  Content,
   Copy,
 
+  cmp,
   each,
   getx,
 } from '../'
@@ -36,25 +37,23 @@ describe('jostraca', () => {
         Folder({ name: 'js' }, () => {
 
           File({ name: 'foo.js' }, () => {
-            Code('// custom-foo\n')
+            Content('// custom-foo\n')
           })
 
           File({ name: 'bar.js' }, () => {
-            Code('// custom-bar\n')
+            Content('// custom-bar\n')
           })
         })
 
         Folder({ name: 'go' }, () => {
 
           File({ name: 'zed.go' }, () => {
-            Code('// custom-zed\n')
+            Content('// custom-zed\n')
           })
         })
 
       })
     )
-
-    // console.dir(vol.toJSON(), { depth: null })
 
     expect(vol.toJSON()).equal({
       '/top/js/foo.js': '// custom-foo\n',
@@ -66,32 +65,46 @@ describe('jostraca', () => {
 
   test('copy', async () => {
     const { fs, vol } = memfs({
-      '/tm/bar.txt': '// BAR TXT\n'
+      '/tm/bar.txt': '// BAR $$x.z$$ TXT\n',
+      '/tm/sub/a.txt': '// SUB-A $$x.y$$ TXT\n',
+      '/tm/sub/b.txt': '// SUB-B $$x.y$$ TXT\n',
+      '/tm/sub/c/d.txt': '// SUB-C-D $$x.y$$ $$x.z$$ TXT\n',
     })
 
     const jostraca = Jostraca()
 
     jostraca.generate(
       { fs, folder: '/top' },
-      () => Project({}, () => {
+      cmp((props: any) => {
+        props.ctx$.model = {
+          x: { y: 'Y', z: 'Z' }
+        }
+        Project({}, () => {
 
-        Folder({ name: 'js' }, () => {
+          Folder({ name: 'js' }, () => {
 
-          File({ name: 'foo.js' }, () => {
-            Code('// custom-foo\n')
+            File({ name: 'foo.js' }, () => {
+              Content('// custom-foo\n')
+            })
+
+            Copy({ from: '/tm/bar.txt', name: 'bar.txt' })
+            Copy({ from: '/tm/sub' })
           })
-
-          Copy({ from: '/tm/bar.txt', name: 'bar.txt' })
         })
       })
     )
 
-    // console.dir(vol.toJSON(), { depth: null })
-
     expect(vol.toJSON()).equal({
-      '/tm/bar.txt': '// BAR TXT\n',
+      '/tm/bar.txt': '// BAR $$x.z$$ TXT\n',
+      '/tm/sub/a.txt': '// SUB-A $$x.y$$ TXT\n',
+      '/tm/sub/b.txt': '// SUB-B $$x.y$$ TXT\n',
+      '/tm/sub/c/d.txt': '// SUB-C-D $$x.y$$ $$x.z$$ TXT\n',
+
       '/top/js/foo.js': '// custom-foo\n',
-      '/top/js/bar.txt': '// BAR TXT\n',
+      '/top/js/bar.txt': '// BAR Z TXT\n',
+      '/top/js/a.txt': '// SUB-A Y TXT\n',
+      '/top/js/b.txt': '// SUB-B Y TXT\n',
+      '/top/js/c/d.txt': '// SUB-C-D Y Z TXT\n',
     })
   })
 

@@ -13,19 +13,18 @@ const __1 = require("../");
         jostraca.generate({ fs, folder: '/top' }, () => (0, __1.Project)({}, () => {
             (0, __1.Folder)({ name: 'js' }, () => {
                 (0, __1.File)({ name: 'foo.js' }, () => {
-                    (0, __1.Code)('// custom-foo\n');
+                    (0, __1.Content)('// custom-foo\n');
                 });
                 (0, __1.File)({ name: 'bar.js' }, () => {
-                    (0, __1.Code)('// custom-bar\n');
+                    (0, __1.Content)('// custom-bar\n');
                 });
             });
             (0, __1.Folder)({ name: 'go' }, () => {
                 (0, __1.File)({ name: 'zed.go' }, () => {
-                    (0, __1.Code)('// custom-zed\n');
+                    (0, __1.Content)('// custom-zed\n');
                 });
             });
         }));
-        // console.dir(vol.toJSON(), { depth: null })
         (0, code_1.expect)(vol.toJSON()).equal({
             '/top/js/foo.js': '// custom-foo\n',
             '/top/js/bar.js': '// custom-bar\n',
@@ -34,22 +33,36 @@ const __1 = require("../");
     });
     (0, node_test_1.test)('copy', async () => {
         const { fs, vol } = (0, memfs_1.memfs)({
-            '/tm/bar.txt': '// BAR TXT\n'
+            '/tm/bar.txt': '// BAR $$x.z$$ TXT\n',
+            '/tm/sub/a.txt': '// SUB-A $$x.y$$ TXT\n',
+            '/tm/sub/b.txt': '// SUB-B $$x.y$$ TXT\n',
+            '/tm/sub/c/d.txt': '// SUB-C-D $$x.y$$ $$x.z$$ TXT\n',
         });
         const jostraca = (0, __1.Jostraca)();
-        jostraca.generate({ fs, folder: '/top' }, () => (0, __1.Project)({}, () => {
-            (0, __1.Folder)({ name: 'js' }, () => {
-                (0, __1.File)({ name: 'foo.js' }, () => {
-                    (0, __1.Code)('// custom-foo\n');
+        jostraca.generate({ fs, folder: '/top' }, (0, __1.cmp)((props) => {
+            props.ctx$.model = {
+                x: { y: 'Y', z: 'Z' }
+            };
+            (0, __1.Project)({}, () => {
+                (0, __1.Folder)({ name: 'js' }, () => {
+                    (0, __1.File)({ name: 'foo.js' }, () => {
+                        (0, __1.Content)('// custom-foo\n');
+                    });
+                    (0, __1.Copy)({ from: '/tm/bar.txt', name: 'bar.txt' });
+                    (0, __1.Copy)({ from: '/tm/sub' });
                 });
-                (0, __1.Copy)({ from: '/tm/bar.txt', name: 'bar.txt' });
             });
         }));
-        // console.dir(vol.toJSON(), { depth: null })
         (0, code_1.expect)(vol.toJSON()).equal({
-            '/tm/bar.txt': '// BAR TXT\n',
+            '/tm/bar.txt': '// BAR $$x.z$$ TXT\n',
+            '/tm/sub/a.txt': '// SUB-A $$x.y$$ TXT\n',
+            '/tm/sub/b.txt': '// SUB-B $$x.y$$ TXT\n',
+            '/tm/sub/c/d.txt': '// SUB-C-D $$x.y$$ $$x.z$$ TXT\n',
             '/top/js/foo.js': '// custom-foo\n',
-            '/top/js/bar.txt': '// BAR TXT\n',
+            '/top/js/bar.txt': '// BAR Z TXT\n',
+            '/top/js/a.txt': '// SUB-A Y TXT\n',
+            '/top/js/b.txt': '// SUB-B Y TXT\n',
+            '/top/js/c/d.txt': '// SUB-C-D Y Z TXT\n',
         });
     });
     (0, node_test_1.test)('each', () => {

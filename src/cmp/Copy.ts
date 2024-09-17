@@ -1,30 +1,15 @@
 
+import type { Node } from '../utility'
 
-import { cmp, Code } from '../jostraca'
+import { cmp } from '../jostraca'
 
 
-const Copy = cmp(function Copy(props: any, children: any) {
-  const fs = props.ctx$.fs
-  const name = props.name
-  const from = props.from
+const Copy = cmp(function Copy(props: any, _children: any) {
+  const node: Node = props.ctx$.node
 
-  const fromStat = fs.statSync(from)
-
-  if (fromStat.isFile()) {
-    props.ctx$.node.kind = 'file'
-    props.ctx$.node.name = props.name
-    const content = fs.readFileSync(from).toString()
-    Code(content)
-  }
-  else if (fromStat.isDirectory()) {
-    props.ctx$.node.kind = 'copy'
-    props.ctx$.node.name = props.name
-    props.ctx$.node.from = from
-  }
-  else {
-    throw new Error('Copy: invalid from: ' + from)
-  }
-
+  node.kind = 'copy'
+  node.name = props.name
+  node.from = props.from
 })
 
 
@@ -32,3 +17,4 @@ const Copy = cmp(function Copy(props: any, children: any) {
 export {
   Copy
 }
+
