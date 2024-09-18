@@ -7,11 +7,12 @@ type Node = {
     kind: string;
     children?: Node[];
     name?: string;
-    path?: string;
+    path: string[];
     from?: string;
     content?: any[];
     folder?: string;
     after?: any;
+    exclude?: boolean;
 };
 type OpStep = (node: Node, ctx$: any, buildctx: any) => void;
 type OpDef = {

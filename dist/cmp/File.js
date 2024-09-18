@@ -6,6 +6,7 @@ const File = (0, jostraca_1.cmp)(function File(props, children) {
     const node = props.ctx$.node;
     node.kind = 'file';
     node.name = props.name;
+    node.exclude = null == props.exclude ? node.exclude : !!props.exclude;
     (0, jostraca_1.each)(children);
 });
 exports.File = File;

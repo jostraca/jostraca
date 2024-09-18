@@ -9,6 +9,7 @@ const File = cmp(function File(props: any, children: any) {
 
   node.kind = 'file'
   node.name = props.name
+  node.exclude = null == props.exclude ? node.exclude : !!props.exclude
 
   each(children)
 })

@@ -13,7 +13,7 @@ const ProjectOp = {
         buildctx.current.project = { node };
         buildctx.current.folder = {
             node,
-            path: node_path_1.default.dirname(node.folder).split(node_path_1.default.sep)
+            path: node_path_1.default.dirname(node.folder).split(node_path_1.default.sep),
         };
     },
     after(_node, _ctx$, _buildctx) { },

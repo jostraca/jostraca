@@ -10,10 +10,11 @@ const ProjectOp = {
     node.folder = (node.folder ||
       ctx$.folder + '/__project__' || // Fake current folder, so Folder cmp will work
       '.') as string
+
     buildctx.current.project = { node }
     buildctx.current.folder = {
       node,
-      path: Path.dirname(node.folder).split(Path.sep)
+      path: Path.dirname(node.folder).split(Path.sep),
     }
   },
 

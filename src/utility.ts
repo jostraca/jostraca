@@ -12,11 +12,12 @@ type Node = {
   kind: string
   children?: Node[]
   name?: string
-  path?: string
+  path: string[]
   from?: string
   content?: any[]
   folder?: string
   after?: any
+  exclude?: boolean
 }
 
 

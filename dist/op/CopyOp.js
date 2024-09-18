@@ -44,6 +44,10 @@ const CopyOp = {
         const kind = node.after.kind;
         const frompath = node.from;
         const topath = buildctx.current.folder.path.join('/');
+        let exclude = node.exclude;
+        if (ctx$.info && true === exclude) {
+            return;
+        }
         if ('file' === kind) {
             FileOp_1.FileOp.after(node, ctx$, buildctx);
         }
@@ -55,7 +59,9 @@ const CopyOp = {
                 ctx$,
                 buildctx,
             };
-            walk(state, frompath, topath);
+            // TODO: node.path is wrong
+            // change prop.name to prop.to and account for subfolders
+            walk(state, node.path, frompath, topath);
         }
         else {
             throw new Error('Unknown kind=' + kind + ' for file: ' + frompath);
@@ -63,7 +69,7 @@ const CopyOp = {
     },
 };
 exports.CopyOp = CopyOp;
-function walk(state, from, to) {
+function walk(state, nodepath, from, to) {
     const buildctx = state.buildctx;
     const fs = buildctx.fs;
     const entries = fs.readdirSync(from);
@@ -73,24 +79,40 @@ function walk(state, from, to) {
         const stat = fs.statSync(frompath);
         if (stat.isDirectory()) {
             state.folderCount++;
-            walk(state, frompath, topath);
+            walk(state, nodepath.concat(name), frompath, topath);
         }
         else if (isTemplate(name)) {
+            if (excludeFile(state, nodepath, topath)) {
+                continue;
+            }
             const src = fs.readFileSync(frompath, 'utf8');
             const out = genTemplate(state, src, { name, frompath, topath });
-            // fs.mkdirSync(Path.dirname(topath), { recursive: true })
-            // fs.writeFileSync(topath, out, 'utf8')
             writeFileSync(buildctx, topath, out);
             state.fileCount++;
             state.tmCount++;
         }
         else {
-            // fs.mkdirSync(Path.dirname(topath), { recursive: true })
-            // fs.copyFileSync(frompath, topath)
+            if (excludeFile(state, nodepath, topath)) {
+                continue;
+            }
             copyFileSync(buildctx, frompath, topath);
             state.fileCount++;
         }
     }
+}
+function excludeFile(state, nodepath, frompath) {
+    let exclude = false;
+    if (state.ctx$.info) {
+        const stat = state.buildctx.fs.statSync(frompath, { throwIfNoEntry: false });
+        if (stat && stat.mtimeMs > state.ctx$.info.last) {
+            exclude = true;
+        }
+        console.log('COPYSTAT', frompath, stat?.mtimeMs, state.ctx$.info.last, exclude);
+    }
+    if (exclude && state.ctx$.info) {
+        state.ctx$.info.exclude.push(nodepath.join('/')); // NOT Path.sep - has to be canonical
+    }
+    return exclude;
 }
 function writeFileSync(buildctx, path, content) {
     const fs = buildctx.fs;
@@ -102,7 +124,7 @@ function copyFileSync(buildctx, frompath, topath) {
     const fs = buildctx.fs;
     // TODO: check excludes
     fs.mkdirSync(node_path_1.default.dirname(topath), { recursive: true });
-    fs.copyFileSync(frompath, topath, 'utf8');
+    fs.copyFileSync(frompath, topath);
 }
 function processTemplate(state, src, spec) {
     if (isTemplate(spec.name)) {
@@ -111,7 +133,8 @@ function processTemplate(state, src, spec) {
     return src;
 }
 function isTemplate(name) {
-    return name.match(/\.(ts|js|json|txt|xml|toml|yml|yaml|py|php|rb|go|java|c|cpp|cs|sh|bat)$/i);
+    // TODO: need a better way; alsp should be configurable
+    return !name.match(/\.(gif|jpe?g|png|ico|bmp|tiff)$/i);
 }
 // NOTE: $$foo.bar$$ format used as explicit start and end markers mean regex can be used
 // unambiguously ($fooa would not match `foo`)

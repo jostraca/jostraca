@@ -67,12 +67,14 @@ function Jostraca() {
             folder,
             content: null,
             meta,
+            fs,
         };
         GLOBAL.jostraca.run(ctx$, () => {
             try {
                 // Define phase
                 root();
                 const ctx$ = GLOBAL.jostraca.getStore();
+                console.dir(ctx$.node, { depth: null });
                 // Build phase
                 build(ctx$, {
                     fs,
@@ -138,13 +140,18 @@ function cmp(component) {
         children = 'function' === typeof children ? [children] : children;
         let node = {
             kind: 'none',
-            children: []
+            children: [],
+            path: [],
         };
         const parent = props.ctx$.node = (props.ctx$.node || node);
         const siblings = props.ctx$.children = (props.ctx$.children || []);
         siblings.push(node);
         props.ctx$.children = node.children;
         props.ctx$.node = node;
+        node.path = parent.path.slice(0);
+        if ('string' === typeof props.name) {
+            node.path.push(props.name);
+        }
         let out = component(props, children);
         props.ctx$.children = siblings;
         props.ctx$.node = parent;
