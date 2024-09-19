@@ -52,13 +52,14 @@ const CopyOp = {
 
 
   after(node: Node, ctx$: any, buildctx: any) {
+    const info = buildctx.info
     const kind = node.after.kind
 
     const frompath = node.from as string
     const topath = buildctx.current.folder.path.join('/')
 
     let exclude = node.exclude
-    if (ctx$.info && true === exclude) {
+    if (info && true === exclude) {
       return
     }
 
@@ -102,7 +103,7 @@ function walk(state: any, nodepath: string[], from: string, to: string) {
       walk(state, nodepath.concat(name), frompath, topath)
     }
     else if (isTemplate(name)) {
-      if (excludeFile(state, nodepath, topath)) { continue }
+      if (excludeFile(state, nodepath, name, topath)) { continue }
       const src = fs.readFileSync(frompath, 'utf8')
       const out = genTemplate(state, src, { name, frompath, topath })
       writeFileSync(buildctx, topath, out)
@@ -110,7 +111,7 @@ function walk(state: any, nodepath: string[], from: string, to: string) {
       state.tmCount++
     }
     else {
-      if (excludeFile(state, nodepath, topath)) { continue }
+      if (excludeFile(state, nodepath, name, topath)) { continue }
       copyFileSync(buildctx, frompath, topath)
       state.fileCount++
     }
@@ -118,25 +119,47 @@ function walk(state: any, nodepath: string[], from: string, to: string) {
 }
 
 
-function excludeFile(state: any, nodepath: string[], frompath: string) {
+function excludeFile(state: any, nodepath: string[], name: string, frompath: string) {
+  const { fs, info } = state.buildctx
   let exclude = false
-  if (state.ctx$.info) {
-    const stat = state.buildctx.fs.statSync(frompath, { throwIfNoEntry: false })
-    if (stat && stat.mtimeMs > state.ctx$.info.last) {
-      exclude = true
+
+  // NOT Path.sep - needs to be canonical
+  const rpath = nodepath.concat(name).join('/')
+
+  if (info) {
+    exclude = info.exclude.includes(rpath)
+    let stat, timedelta
+    if (!exclude) {
+      stat = fs.statSync(frompath, { throwIfNoEntry: false })
+      if (stat) {
+        timedelta = stat.mtimeMs - info.last
+        if (stat && (timedelta > 0 && timedelta < stat.mtimeMs)) {
+          exclude = true
+        }
+      }
     }
-    console.log('COPYSTAT', frompath, stat?.mtimeMs, state.ctx$.info.last, exclude)
+
+    // if ('sdk.js' === name) {
+    // console.log('COPYSTAT', rpath, frompath,
+    //   timedelta,
+    //   info.exclude.includes(rpath),
+    //   stat?.mtimeMs - info.last,
+    //   stat?.mtimeMs, info.last, exclude)
+    // }
   }
 
-  if (exclude && state.ctx$.info) {
-    state.ctx$.info.exclude.push(nodepath.join('/')) // NOT Path.sep - has to be canonical
+  if (exclude && info && !info.exclude.includes(rpath)) {
+    // NOT Path.sep - has to be canonical
+    info.exclude.push(rpath)
   }
 
+  // console.log('COPY-EXCLUDE', rpath, exclude)
   return exclude
 }
 
 
 function writeFileSync(buildctx: any, path: string, content: string) {
+  // console.log('WF', path)
   const fs = buildctx.fs
   // TODO: check excludes
   fs.mkdirSync(Path.dirname(path), { recursive: true })

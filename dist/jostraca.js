@@ -23,11 +23,15 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Copy = exports.Folder = exports.File = exports.Content = exports.Project = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.select = exports.each = void 0;
 exports.Jostraca = Jostraca;
 exports.cmp = cmp;
 const Fs = __importStar(require("node:fs"));
+const node_path_1 = __importDefault(require("node:path"));
 const node_async_hooks_1 = require("node:async_hooks");
 const utility_1 = require("./utility");
 Object.defineProperty(exports, "each", { enumerable: true, get: function () { return utility_1.each; } });
@@ -59,7 +63,7 @@ const NoneOp_1 = require("./op/NoneOp");
 const GLOBAL = global;
 function Jostraca() {
     GLOBAL.jostraca = new node_async_hooks_1.AsyncLocalStorage();
-    function generate(opts, root) {
+    async function generate(opts, root) {
         const fs = opts.fs || Fs;
         const meta = opts.meta || {};
         const folder = opts.folder || '.';
@@ -69,21 +73,24 @@ function Jostraca() {
             meta,
             fs,
         };
-        GLOBAL.jostraca.run(ctx$, () => {
+        return GLOBAL.jostraca.run(ctx$, async () => {
             try {
                 // Define phase
                 root();
                 const ctx$ = GLOBAL.jostraca.getStore();
-                console.dir(ctx$.node, { depth: null });
+                // console.dir(ctx$.node, { depth: null })
                 // Build phase
-                build(ctx$, {
+                const buildctx = {
                     fs,
+                    folder,
                     current: {
                         folder: {
                             parent: folder
                         }
                     }
-                });
+                };
+                await build(ctx$, buildctx);
+                return buildctx;
             }
             catch (err) {
                 console.log('JOSTRACA ERROR:', err);
@@ -91,23 +98,47 @@ function Jostraca() {
             }
         });
     }
-    function build(ctx$, buildctx) {
+    async function build(ctx$, buildctx) {
         const topnode = ctx$.node;
-        step(topnode, ctx$, buildctx);
+        let info = { exclude: [], last: -1 };
+        const infopath = node_path_1.default.join(buildctx.folder, '.jostraca', 'info.json');
+        try {
+            info = JSON.parse(ctx$.fs.readFileSync(infopath, 'utf8'));
+        }
+        catch (err) {
+            // console.log(err)
+            // TODO: file not foound ignored, handle others!
+        }
+        buildctx.info = info;
+        // console.log('B-INFO', buildctx.info)
+        await step(topnode, ctx$, buildctx);
+        try {
+            const info = {
+                last: Date.now(),
+                exclude: buildctx.info.exclude,
+            };
+            ctx$.fs.mkdirSync(node_path_1.default.dirname(infopath), { recursive: true });
+            ctx$.fs.writeFileSync(infopath, JSON.stringify(info, null, 2));
+        }
+        catch (err) {
+            console.log(err);
+            // TODO: file not foound ignored, handle others!
+        }
+        return { node: topnode, ctx$, buildctx };
     }
-    function step(node, ctx$, buildctx) {
+    async function step(node, ctx$, buildctx) {
         try {
             const op = opmap[node.kind];
             if (null == op) {
                 throw new Error('missing op: ' + node.kind);
             }
-            op.before(node, ctx$, buildctx);
+            await op.before(node, ctx$, buildctx);
             if (node.children) {
                 for (let childnode of node.children) {
-                    step(childnode, ctx$, buildctx);
+                    await step(childnode, ctx$, buildctx);
                 }
             }
-            op.after(node, ctx$, buildctx);
+            await op.after(node, ctx$, buildctx);
         }
         catch (err) {
             if (err.jostraca) {
@@ -151,6 +182,8 @@ function cmp(component) {
         node.path = parent.path.slice(0);
         if ('string' === typeof props.name) {
             node.path.push(props.name);
+            // console.log('CMP-PATH', component.name, node.path)
+            // console.trace()
         }
         let out = component(props, children);
         props.ctx$.children = siblings;

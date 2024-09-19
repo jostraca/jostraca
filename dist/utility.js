@@ -54,12 +54,23 @@ function getx(root, path) {
     let parents = [];
     partloop: for (let i = 0; i < path.length && null != node; i++) {
         let part = String(path[i]).trim();
+        if ('*' === part) {
+            // console.log('STAR', each(node), path.slice(i + 1))
+            return getx(each(node), path.slice(i + 1));
+        }
         let m = part.match(/^([^<=>~^?!]*)([<=>~^?!]+)(.*)$/);
         if (m) {
             part = m[1];
             let op = m[2];
             let arg = m[3];
             let val = '' === part ? node : node[part];
+            const argtype = typeof arg;
+            arg =
+                'true' === arg ? true :
+                    'false' === arg ? false :
+                        'string' === argtype ?
+                            (arg.match(/^"[^"]+"$/) ? arg.substring(1, arg.length - 1) : arg) : arg;
+            // console.log('GETX-M', val, part, op, arg)
             if ('=' === op && 'null' === arg) {
                 parents.push(node);
                 node = {}; // virtual node so that ^ works consistently
@@ -70,6 +81,7 @@ function getx(root, path) {
                 continue partloop;
             }
             else if ('?' === op[0]) {
+                // no property name
                 arg = (1 < op.length ? op.substring(1) : '') + arg;
                 node = Array.isArray(val) ?
                     each(val).filter((n) => (null != getx(n, arg))) :
@@ -79,6 +91,7 @@ function getx(root, path) {
             }
             if (null == val)
                 return undefined;
+            // const valtype = typeof val
             val = Array.isArray(val) ? val.length :
                 'object' === typeof val ? Object.keys(val).filter(k => !k.includes('$')).length :
                     val;
@@ -101,6 +114,10 @@ function getx(root, path) {
                     break;
                 case '=':
                     if (!(val == arg))
+                        return undefined;
+                    break;
+                case '==':
+                    if (!(val === arg))
                         return undefined;
                     break;
                 case '!=':

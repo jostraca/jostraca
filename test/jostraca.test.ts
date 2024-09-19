@@ -30,9 +30,9 @@ describe('jostraca', () => {
 
     const { fs, vol } = memfs({})
 
-    jostraca.generate(
+    const info = await jostraca.generate(
       { fs, folder: '/top' },
-      () => Project({}, () => {
+      () => Project({ folder: 'sdk' }, () => {
 
         Folder({ name: 'js' }, () => {
 
@@ -55,10 +55,15 @@ describe('jostraca', () => {
       })
     )
 
-    expect(vol.toJSON()).equal({
-      '/top/js/foo.js': '// custom-foo\n',
-      '/top/js/bar.js': '// custom-bar\n',
-      '/top/go/zed.go': '// custom-zed\n'
+    // console.log('INFO', info)
+    const voljson: any = vol.toJSON()
+
+    expect(JSON.parse(voljson['/top/.jostraca/info.json']).exclude).equal([])
+    expect(voljson).equal({
+      '/top/.jostraca/info.json': voljson['/top/.jostraca/info.json'],
+      '/top/sdk/js/foo.js': '// custom-foo\n',
+      '/top/sdk/js/bar.js': '// custom-bar\n',
+      '/top/sdk/go/zed.go': '// custom-zed\n'
     })
   })
 
@@ -73,13 +78,13 @@ describe('jostraca', () => {
 
     const jostraca = Jostraca()
 
-    jostraca.generate(
+    const info = await jostraca.generate(
       { fs, folder: '/top' },
       cmp((props: any) => {
         props.ctx$.model = {
           x: { y: 'Y', z: 'Z' }
         }
-        Project({}, () => {
+        Project({ folder: 'sdk' }, () => {
 
           Folder({ name: 'js' }, () => {
 
@@ -94,17 +99,22 @@ describe('jostraca', () => {
       })
     )
 
-    expect(vol.toJSON()).equal({
+    const voljson: any = vol.toJSON()
+
+    expect(JSON.parse(voljson['/top/.jostraca/info.json']).exclude).equal([])
+    expect(voljson).equal({
+      '/top/.jostraca/info.json': voljson['/top/.jostraca/info.json'],
+
       '/tm/bar.txt': '// BAR $$x.z$$ TXT\n',
       '/tm/sub/a.txt': '// SUB-A $$x.y$$ TXT\n',
       '/tm/sub/b.txt': '// SUB-B $$x.y$$ TXT\n',
       '/tm/sub/c/d.txt': '// SUB-C-D $$x.y$$ $$x.z$$ TXT\n',
 
-      '/top/js/foo.js': '// custom-foo\n',
-      '/top/js/bar.txt': '// BAR Z TXT\n',
-      '/top/js/a.txt': '// SUB-A Y TXT\n',
-      '/top/js/b.txt': '// SUB-B Y TXT\n',
-      '/top/js/c/d.txt': '// SUB-C-D Y Z TXT\n',
+      '/top/sdk/js/foo.js': '// custom-foo\n',
+      '/top/sdk/js/bar.txt': '// BAR Z TXT\n',
+      '/top/sdk/js/a.txt': '// SUB-A Y TXT\n',
+      '/top/sdk/js/b.txt': '// SUB-B Y TXT\n',
+      '/top/sdk/js/c/d.txt': '// SUB-C-D Y Z TXT\n',
     })
   })
 
@@ -172,6 +182,19 @@ describe('jostraca', () => {
     expect(getx({ x: { m: { y: 1 }, n: { y: 2, z: 3 } } }, 'x?=1'))
       .equal({ m: { y: 1 } })
 
+    /*
+    expect(getx({ m: { y: 1 }, n: { y: 2 }, k: { y: 2 } }, 'y=2'))
+      .equal({ n: { y: 2 }, k: { y: 2 } })
+
+    expect(getx([{ y: 1 }, { y: 2 }, { y: 2 }], 'y=2'))
+      .equal([{ y: 2 }, { y: 2 }])
+
+    expect(getx([{ y: 1 }, { y: 2 }, { y: 2 }], '0'))
+      .equal({ y: 1 })
+
+    expect(getx([{ y: 1 }, { y: 2 }, { y: 2 }], 'y=2 0'))
+      .equal({ y: 2 })
+      */
   })
 })
 

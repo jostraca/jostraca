@@ -7,14 +7,16 @@ exports.ProjectOp = void 0;
 const node_path_1 = __importDefault(require("node:path"));
 const ProjectOp = {
     before(node, ctx$, buildctx) {
-        node.folder = (node.folder ||
-            ctx$.folder + '/__project__' || // Fake current folder, so Folder cmp will work
-            '.');
+        // console.log('PROJECT-B', node.folder, ctx$.folder)
+        node.folder = null == node.folder || '' === node.folder ? '.' : node.folder;
+        node.folder = node_path_1.default.isAbsolute(node.folder) ? node.folder : node_path_1.default.join(ctx$.folder, node.folder);
+        // console.log('PROJECT-B folder', node.folder)
         buildctx.current.project = { node };
         buildctx.current.folder = {
             node,
-            path: node_path_1.default.dirname(node.folder).split(node_path_1.default.sep),
+            path: node.folder.split(node_path_1.default.sep),
         };
+        buildctx.fs.mkdirSync(node.folder, { recursive: true });
     },
     after(_node, _ctx$, _buildctx) { },
 };

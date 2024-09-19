@@ -10,6 +10,7 @@ const Copy = cmp(function Copy(props: any, _children: any) {
   node.kind = 'copy'
   node.name = props.name
   node.from = props.from
+  node.exclude = null == props.exclude ? node.exclude : !!props.exclude
 })
 
 

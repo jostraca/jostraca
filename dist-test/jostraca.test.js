@@ -10,7 +10,7 @@ const __1 = require("../");
         const jostraca = (0, __1.Jostraca)();
         (0, code_1.expect)(jostraca).exist();
         const { fs, vol } = (0, memfs_1.memfs)({});
-        jostraca.generate({ fs, folder: '/top' }, () => (0, __1.Project)({}, () => {
+        const info = await jostraca.generate({ fs, folder: '/top' }, () => (0, __1.Project)({ folder: 'sdk' }, () => {
             (0, __1.Folder)({ name: 'js' }, () => {
                 (0, __1.File)({ name: 'foo.js' }, () => {
                     (0, __1.Content)('// custom-foo\n');
@@ -25,10 +25,14 @@ const __1 = require("../");
                 });
             });
         }));
-        (0, code_1.expect)(vol.toJSON()).equal({
-            '/top/js/foo.js': '// custom-foo\n',
-            '/top/js/bar.js': '// custom-bar\n',
-            '/top/go/zed.go': '// custom-zed\n'
+        // console.log('INFO', info)
+        const voljson = vol.toJSON();
+        (0, code_1.expect)(JSON.parse(voljson['/top/.jostraca/info.json']).exclude).equal([]);
+        (0, code_1.expect)(voljson).equal({
+            '/top/.jostraca/info.json': voljson['/top/.jostraca/info.json'],
+            '/top/sdk/js/foo.js': '// custom-foo\n',
+            '/top/sdk/js/bar.js': '// custom-bar\n',
+            '/top/sdk/go/zed.go': '// custom-zed\n'
         });
     });
     (0, node_test_1.test)('copy', async () => {
@@ -39,11 +43,11 @@ const __1 = require("../");
             '/tm/sub/c/d.txt': '// SUB-C-D $$x.y$$ $$x.z$$ TXT\n',
         });
         const jostraca = (0, __1.Jostraca)();
-        jostraca.generate({ fs, folder: '/top' }, (0, __1.cmp)((props) => {
+        const info = await jostraca.generate({ fs, folder: '/top' }, (0, __1.cmp)((props) => {
             props.ctx$.model = {
                 x: { y: 'Y', z: 'Z' }
             };
-            (0, __1.Project)({}, () => {
+            (0, __1.Project)({ folder: 'sdk' }, () => {
                 (0, __1.Folder)({ name: 'js' }, () => {
                     (0, __1.File)({ name: 'foo.js' }, () => {
                         (0, __1.Content)('// custom-foo\n');
@@ -53,16 +57,19 @@ const __1 = require("../");
                 });
             });
         }));
-        (0, code_1.expect)(vol.toJSON()).equal({
+        const voljson = vol.toJSON();
+        (0, code_1.expect)(JSON.parse(voljson['/top/.jostraca/info.json']).exclude).equal([]);
+        (0, code_1.expect)(voljson).equal({
+            '/top/.jostraca/info.json': voljson['/top/.jostraca/info.json'],
             '/tm/bar.txt': '// BAR $$x.z$$ TXT\n',
             '/tm/sub/a.txt': '// SUB-A $$x.y$$ TXT\n',
             '/tm/sub/b.txt': '// SUB-B $$x.y$$ TXT\n',
             '/tm/sub/c/d.txt': '// SUB-C-D $$x.y$$ $$x.z$$ TXT\n',
-            '/top/js/foo.js': '// custom-foo\n',
-            '/top/js/bar.txt': '// BAR Z TXT\n',
-            '/top/js/a.txt': '// SUB-A Y TXT\n',
-            '/top/js/b.txt': '// SUB-B Y TXT\n',
-            '/top/js/c/d.txt': '// SUB-C-D Y Z TXT\n',
+            '/top/sdk/js/foo.js': '// custom-foo\n',
+            '/top/sdk/js/bar.txt': '// BAR Z TXT\n',
+            '/top/sdk/js/a.txt': '// SUB-A Y TXT\n',
+            '/top/sdk/js/b.txt': '// SUB-B Y TXT\n',
+            '/top/sdk/js/c/d.txt': '// SUB-C-D Y Z TXT\n',
         });
     });
     (0, node_test_1.test)('each', () => {
@@ -113,6 +120,19 @@ const __1 = require("../");
             .equal([{ y: 11 }]);
         (0, code_1.expect)((0, __1.getx)({ x: { m: { y: 1 }, n: { y: 2, z: 3 } } }, 'x?=1'))
             .equal({ m: { y: 1 } });
+        /*
+        expect(getx({ m: { y: 1 }, n: { y: 2 }, k: { y: 2 } }, 'y=2'))
+          .equal({ n: { y: 2 }, k: { y: 2 } })
+    
+        expect(getx([{ y: 1 }, { y: 2 }, { y: 2 }], 'y=2'))
+          .equal([{ y: 2 }, { y: 2 }])
+    
+        expect(getx([{ y: 1 }, { y: 2 }, { y: 2 }], '0'))
+          .equal({ y: 1 })
+    
+        expect(getx([{ y: 1 }, { y: 2 }, { y: 2 }], 'y=2 0'))
+          .equal({ y: 2 })
+          */
     });
 });
 //# sourceMappingURL=jostraca.test.js.map

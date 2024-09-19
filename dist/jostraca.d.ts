@@ -6,7 +6,7 @@ import { File } from './cmp/File';
 import { Folder } from './cmp/Folder';
 import { Project } from './cmp/Project';
 declare function Jostraca(): {
-    generate: (opts: JostracaOptions, root: Function) => void;
+    generate: (opts: JostracaOptions, root: Function) => Promise<any>;
 };
 declare function cmp(component: Function): Component;
 export type { JostracaOptions, Component, Node, };

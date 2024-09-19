@@ -1,6 +1,7 @@
 /* Copyright (c) 2024 Richard Rodger, MIT License */
 
 import * as Fs from 'node:fs'
+import Path from 'node:path'
 
 import { AsyncLocalStorage } from 'node:async_hooks'
 
@@ -50,7 +51,7 @@ function Jostraca() {
   GLOBAL.jostraca = new AsyncLocalStorage()
 
 
-  function generate(opts: JostracaOptions, root: Function) {
+  async function generate(opts: JostracaOptions, root: Function) {
     const fs = opts.fs || Fs
     const meta = opts.meta || {}
     const folder = opts.folder || '.'
@@ -62,24 +63,28 @@ function Jostraca() {
       fs,
     }
 
-    GLOBAL.jostraca.run(ctx$, () => {
+    return GLOBAL.jostraca.run(ctx$, async () => {
       try {
         // Define phase
         root()
 
         const ctx$ = GLOBAL.jostraca.getStore()
 
-        console.dir(ctx$.node, { depth: null })
+        // console.dir(ctx$.node, { depth: null })
 
         // Build phase
-        build(ctx$, {
+
+        const buildctx = {
           fs,
+          folder,
           current: {
             folder: {
               parent: folder
             }
           }
-        })
+        }
+        await build(ctx$, buildctx)
+        return buildctx
       }
       catch (err: any) {
         console.log('JOSTRACA ERROR:', err)
@@ -89,28 +94,61 @@ function Jostraca() {
   }
 
 
-  function build(ctx$: any, buildctx: any) {
+  async function build(ctx$: any, buildctx: any) {
     const topnode = ctx$.node
-    step(topnode, ctx$, buildctx)
+
+    let info = { exclude: [], last: -1 }
+    const infopath = Path.join(buildctx.folder, '.jostraca', 'info.json')
+
+    try {
+      info = JSON.parse(ctx$.fs.readFileSync(
+        infopath, 'utf8'))
+    }
+    catch (err: any) {
+      // console.log(err)
+      // TODO: file not foound ignored, handle others!
+    }
+
+    buildctx.info = info
+    // console.log('B-INFO', buildctx.info)
+
+    await step(topnode, ctx$, buildctx)
+
+
+    try {
+      const info = {
+        last: Date.now(),
+        exclude: buildctx.info.exclude,
+      }
+      ctx$.fs.mkdirSync(Path.dirname(infopath), { recursive: true })
+      ctx$.fs.writeFileSync(infopath, JSON.stringify(info, null, 2))
+    }
+    catch (err: any) {
+      console.log(err)
+      // TODO: file not foound ignored, handle others!
+    }
+
+
+    return { node: topnode, ctx$, buildctx }
   }
 
 
-  function step(node: Node, ctx$: any, buildctx: any) {
+  async function step(node: Node, ctx$: any, buildctx: any) {
     try {
       const op = opmap[node.kind]
       if (null == op) {
         throw new Error('missing op: ' + node.kind)
       }
 
-      op.before(node, ctx$, buildctx)
+      await op.before(node, ctx$, buildctx)
 
       if (node.children) {
         for (let childnode of node.children) {
-          step(childnode, ctx$, buildctx)
+          await step(childnode, ctx$, buildctx)
         }
       }
 
-      op.after(node, ctx$, buildctx)
+      await op.after(node, ctx$, buildctx)
     }
     catch (err: any) {
       if (err.jostraca) {
@@ -164,6 +202,8 @@ function cmp(component: Function): Component {
     node.path = parent.path.slice(0)
     if ('string' === typeof props.name) {
       node.path.push(props.name)
+      // console.log('CMP-PATH', component.name, node.path)
+      // console.trace()
     }
 
     let out = component(props, children)
