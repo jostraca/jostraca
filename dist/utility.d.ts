@@ -40,5 +40,6 @@ declare namespace vmap {
     var FILTER: (x: any) => any;
     var KEY: (_: any, p: any) => any;
 }
+declare const BINARY_EXT: string[];
 export type { JostracaOptions, Node, OpStep, OpDef, Component, };
-export { each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, };
+export { each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, BINARY_EXT, };

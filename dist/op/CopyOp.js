@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CopyOp = void 0;
 const node_path_1 = __importDefault(require("node:path"));
 const jostraca_1 = require("../jostraca");
+const utility_1 = require("../utility");
 const FileOp_1 = require("./FileOp");
 const CopyOp = {
     before(node, ctx$, buildctx) {
@@ -101,7 +102,7 @@ function walk(state, nodepath, from, to) {
         }
     }
 }
-function excludeFile(state, nodepath, name, frompath) {
+function excludeFile(state, nodepath, name, topath) {
     const { fs, info } = state.buildctx;
     let exclude = false;
     // NOT Path.sep - needs to be canonical
@@ -110,11 +111,12 @@ function excludeFile(state, nodepath, name, frompath) {
         exclude = info.exclude.includes(rpath);
         let stat, timedelta;
         if (!exclude) {
-            stat = fs.statSync(frompath, { throwIfNoEntry: false });
+            stat = fs.statSync(topath, { throwIfNoEntry: false });
             if (stat) {
                 timedelta = stat.mtimeMs - info.last;
                 if (stat && (timedelta > 0 && timedelta < stat.mtimeMs)) {
                     exclude = true;
+                    console.log('COPYOP-STAT', rpath, timedelta, exclude, stat?.mtimeMs, info.last);
                 }
             }
         }
@@ -138,13 +140,15 @@ function writeFileSync(buildctx, path, content) {
     const fs = buildctx.fs;
     // TODO: check excludes
     fs.mkdirSync(node_path_1.default.dirname(path), { recursive: true });
-    fs.writeFileSync(path, content, 'utf8');
+    fs.writeFileSync(path, content, 'utf8', { flush: true });
 }
 function copyFileSync(buildctx, frompath, topath) {
     const fs = buildctx.fs;
+    const isBinary = utility_1.BINARY_EXT.includes(node_path_1.default.extname(frompath));
     // TODO: check excludes
     fs.mkdirSync(node_path_1.default.dirname(topath), { recursive: true });
-    fs.copyFileSync(frompath, topath);
+    const contents = fs.readFileSync(frompath, isBinary ? undefined : 'utf8');
+    fs.writeFileSync(topath, contents, { flush: true });
 }
 function processTemplate(state, src, spec) {
     if (isTemplate(spec.name)) {

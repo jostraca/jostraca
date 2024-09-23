@@ -113,12 +113,12 @@ function Jostraca() {
         // console.log('B-INFO', buildctx.info)
         await step(topnode, ctx$, buildctx);
         try {
+            ctx$.fs.mkdirSync(node_path_1.default.dirname(infopath), { recursive: true });
             const info = {
                 last: Date.now(),
                 exclude: buildctx.info.exclude,
             };
-            ctx$.fs.mkdirSync(node_path_1.default.dirname(infopath), { recursive: true });
-            ctx$.fs.writeFileSync(infopath, JSON.stringify(info, null, 2));
+            ctx$.fs.writeFileSync(infopath, JSON.stringify(info, null, 2), { flush: true });
         }
         catch (err) {
             console.log(err);

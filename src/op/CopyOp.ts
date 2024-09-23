@@ -5,6 +5,8 @@ import type { Node } from '../jostraca'
 
 import { getx } from '../jostraca'
 
+import { BINARY_EXT } from '../utility'
+
 import { FileOp } from './FileOp'
 
 
@@ -119,7 +121,7 @@ function walk(state: any, nodepath: string[], from: string, to: string) {
 }
 
 
-function excludeFile(state: any, nodepath: string[], name: string, frompath: string) {
+function excludeFile(state: any, nodepath: string[], name: string, topath: string) {
   const { fs, info } = state.buildctx
   let exclude = false
 
@@ -130,11 +132,12 @@ function excludeFile(state: any, nodepath: string[], name: string, frompath: str
     exclude = info.exclude.includes(rpath)
     let stat, timedelta
     if (!exclude) {
-      stat = fs.statSync(frompath, { throwIfNoEntry: false })
+      stat = fs.statSync(topath, { throwIfNoEntry: false })
       if (stat) {
         timedelta = stat.mtimeMs - info.last
         if (stat && (timedelta > 0 && timedelta < stat.mtimeMs)) {
           exclude = true
+          console.log('COPYOP-STAT', rpath, timedelta, exclude, stat?.mtimeMs, info.last)
         }
       }
     }
@@ -163,15 +166,19 @@ function writeFileSync(buildctx: any, path: string, content: string) {
   const fs = buildctx.fs
   // TODO: check excludes
   fs.mkdirSync(Path.dirname(path), { recursive: true })
-  fs.writeFileSync(path, content, 'utf8')
+  fs.writeFileSync(path, content, 'utf8', { flush: true })
 }
 
 
 function copyFileSync(buildctx: any, frompath: string, topath: string) {
   const fs = buildctx.fs
+
+  const isBinary = BINARY_EXT.includes(Path.extname(frompath))
+
   // TODO: check excludes
   fs.mkdirSync(Path.dirname(topath), { recursive: true })
-  fs.copyFileSync(frompath, topath)
+  const contents = fs.readFileSync(frompath, isBinary ? undefined : 'utf8')
+  fs.writeFileSync(topath, contents, { flush: true })
 }
 
 

@@ -116,12 +116,12 @@ function Jostraca() {
 
 
     try {
+      ctx$.fs.mkdirSync(Path.dirname(infopath), { recursive: true })
       const info = {
         last: Date.now(),
         exclude: buildctx.info.exclude,
       }
-      ctx$.fs.mkdirSync(Path.dirname(infopath), { recursive: true })
-      ctx$.fs.writeFileSync(infopath, JSON.stringify(info, null, 2))
+      ctx$.fs.writeFileSync(infopath, JSON.stringify(info, null, 2), { flush: true })
     }
     catch (err: any) {
       console.log(err)
@@ -248,3 +248,4 @@ export {
   Folder,
   Copy,
 }
+

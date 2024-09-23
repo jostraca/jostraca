@@ -23,14 +23,14 @@ const FileOp = {
                     let timedelta = stat.mtimeMs - info.last;
                     if ((timedelta > 0 && timedelta < stat.mtimeMs)) {
                         exclude = true;
+                        console.log('FILEOP-STAT', rpath, timedelta, exclude, stat?.mtimeMs, info.last);
                     }
-                    // console.log('STAT', rpath, timedelta, exclude, stat?.mtimeMs, info.last)
                 }
             }
         }
         // console.log('FILE-a write', rpath, exclude) // , content.substring(0, 111))
         if (!exclude) {
-            fs.writeFileSync(cfile.filepath, content);
+            fs.writeFileSync(cfile.filepath, content, { flush: true });
         }
         else {
             if (!info.exclude.includes(rpath)) {
