@@ -23,7 +23,7 @@ const FileOp = {
                     let timedelta = stat.mtimeMs - info.last;
                     if ((timedelta > 0 && timedelta < stat.mtimeMs)) {
                         exclude = true;
-                        console.log('FILEOP-STAT', rpath, timedelta, exclude, stat?.mtimeMs, info.last);
+                        // console.log('FILEOP-STAT', rpath, timedelta, exclude, stat?.mtimeMs, info.last)
                     }
                 }
             }

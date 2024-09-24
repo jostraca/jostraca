@@ -137,7 +137,7 @@ function excludeFile(state: any, nodepath: string[], name: string, topath: strin
         timedelta = stat.mtimeMs - info.last
         if (stat && (timedelta > 0 && timedelta < stat.mtimeMs)) {
           exclude = true
-          console.log('COPYOP-STAT', rpath, timedelta, exclude, stat?.mtimeMs, info.last)
+          // console.log('COPYOP-STAT', rpath, timedelta, exclude, stat?.mtimeMs, info.last)
         }
       }
     }
