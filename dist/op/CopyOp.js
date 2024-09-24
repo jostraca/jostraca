@@ -93,7 +93,7 @@ function walk(state, nodepath, from, to) {
             state.fileCount++;
             state.tmCount++;
         }
-        else {
+        else if (!ignored(state, nodepath, name, topath)) {
             if (excludeFile(state, nodepath, name, topath)) {
                 continue;
             }
@@ -101,6 +101,9 @@ function walk(state, nodepath, from, to) {
             state.fileCount++;
         }
     }
+}
+function ignored(state, nodepath, name, topath) {
+    return !name.match(/(~|-jostraca-off)$/);
 }
 function excludeFile(state, nodepath, name, topath) {
     const { fs, info } = state.buildctx;

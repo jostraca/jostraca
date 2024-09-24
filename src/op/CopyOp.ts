@@ -112,12 +112,17 @@ function walk(state: any, nodepath: string[], from: string, to: string) {
       state.fileCount++
       state.tmCount++
     }
-    else {
+    else if (!ignored(state, nodepath, name, topath)) {
       if (excludeFile(state, nodepath, name, topath)) { continue }
       copyFileSync(buildctx, frompath, topath)
       state.fileCount++
     }
   }
+}
+
+
+function ignored(state: any, nodepath: string[], name: string, topath: string) {
+  return !name.match(/(~|-jostraca-off)$/)
 }
 
 

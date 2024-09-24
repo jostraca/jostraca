@@ -38,6 +38,7 @@ const __1 = require("../");
     (0, node_test_1.test)('copy', async () => {
         const { fs, vol } = (0, memfs_1.memfs)({
             '/tm/bar.txt': '// BAR $$x.z$$ TXT\n',
+            '/tm/bar.txt~': '// BAR TXT\n',
             '/tm/sub/a.txt': '// SUB-A $$x.y$$ TXT\n',
             '/tm/sub/b.txt': '// SUB-B $$x.y$$ TXT\n',
             '/tm/sub/c/d.txt': '// SUB-C-D $$x.y$$ $$x.z$$ TXT\n',
@@ -62,6 +63,7 @@ const __1 = require("../");
         (0, code_1.expect)(voljson).equal({
             '/top/.jostraca/info.json': voljson['/top/.jostraca/info.json'],
             '/tm/bar.txt': '// BAR $$x.z$$ TXT\n',
+            '/tm/bar.txt~': '// BAR TXT\n',
             '/tm/sub/a.txt': '// SUB-A $$x.y$$ TXT\n',
             '/tm/sub/b.txt': '// SUB-B $$x.y$$ TXT\n',
             '/tm/sub/c/d.txt': '// SUB-C-D $$x.y$$ $$x.z$$ TXT\n',
