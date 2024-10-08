@@ -31,6 +31,8 @@ import {
 import { Content } from './cmp/Content'
 import { Copy } from './cmp/Copy'
 import { File } from './cmp/File'
+import { Inject } from './cmp/Inject'
+import { Fragment } from './cmp/Fragment'
 import { Folder } from './cmp/Folder'
 import { Project } from './cmp/Project'
 
@@ -38,6 +40,8 @@ import { CopyOp } from './op/CopyOp'
 import { ProjectOp } from './op/ProjectOp'
 import { FolderOp } from './op/FolderOp'
 import { FileOp } from './op/FileOp'
+import { InjectOp } from './op/InjectOp'
+import { FragmentOp } from './op/FragmentOp'
 import { ContentOp } from './op/ContentOp'
 import { NoneOp } from './op/NoneOp'
 
@@ -165,6 +169,8 @@ function Jostraca() {
     project: ProjectOp,
     folder: FolderOp,
     file: FileOp,
+    inject: InjectOp,
+    fragment: FragmentOp,
     content: ContentOp,
     copy: CopyOp,
     none: NoneOp,
@@ -190,6 +196,7 @@ function cmp(component: Function): Component {
       kind: 'none',
       children: [],
       path: [],
+      meta: {},
     }
 
     const parent = props.ctx$.node = (props.ctx$.node || node)
@@ -245,6 +252,8 @@ export {
   Project,
   Content,
   File,
+  Inject,
+  Fragment,
   Folder,
   Copy,
 }

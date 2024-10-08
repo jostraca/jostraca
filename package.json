@@ -1,6 +1,6 @@
 {
   "name": "jostraca",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "main": "dist/jostraca.js",
   "type": "commonjs",
   "types": "dist/jostraca.d.ts",
@@ -30,13 +30,15 @@
   "files": [
     "src",
     "dist",
+    "gen",
     "LICENSE"
   ],
   "devDependencies": {
     "@hapi/code": "^9.0.3",
-    "@types/node": "22.6.1",
+    "@types/node": "22.7.5",
     "esbuild": "^0.24.0",
-    "memfs": "^4.12.0",
+    "memfs": "^4.13.0",
+    "oxc-parser": "^0.31.0",
     "typescript": "^5.6.2"
   },
   "dependencies": {

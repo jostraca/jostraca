@@ -27,7 +27,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Copy = exports.Folder = exports.File = exports.Content = exports.Project = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.select = exports.each = void 0;
+exports.Copy = exports.Folder = exports.Fragment = exports.Inject = exports.File = exports.Content = exports.Project = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.select = exports.each = void 0;
 exports.Jostraca = Jostraca;
 exports.cmp = cmp;
 const Fs = __importStar(require("node:fs"));
@@ -50,6 +50,10 @@ const Copy_1 = require("./cmp/Copy");
 Object.defineProperty(exports, "Copy", { enumerable: true, get: function () { return Copy_1.Copy; } });
 const File_1 = require("./cmp/File");
 Object.defineProperty(exports, "File", { enumerable: true, get: function () { return File_1.File; } });
+const Inject_1 = require("./cmp/Inject");
+Object.defineProperty(exports, "Inject", { enumerable: true, get: function () { return Inject_1.Inject; } });
+const Fragment_1 = require("./cmp/Fragment");
+Object.defineProperty(exports, "Fragment", { enumerable: true, get: function () { return Fragment_1.Fragment; } });
 const Folder_1 = require("./cmp/Folder");
 Object.defineProperty(exports, "Folder", { enumerable: true, get: function () { return Folder_1.Folder; } });
 const Project_1 = require("./cmp/Project");
@@ -58,6 +62,8 @@ const CopyOp_1 = require("./op/CopyOp");
 const ProjectOp_1 = require("./op/ProjectOp");
 const FolderOp_1 = require("./op/FolderOp");
 const FileOp_1 = require("./op/FileOp");
+const InjectOp_1 = require("./op/InjectOp");
+const FragmentOp_1 = require("./op/FragmentOp");
 const ContentOp_1 = require("./op/ContentOp");
 const NoneOp_1 = require("./op/NoneOp");
 const GLOBAL = global;
@@ -153,6 +159,8 @@ function Jostraca() {
         project: ProjectOp_1.ProjectOp,
         folder: FolderOp_1.FolderOp,
         file: FileOp_1.FileOp,
+        inject: InjectOp_1.InjectOp,
+        fragment: FragmentOp_1.FragmentOp,
         content: ContentOp_1.ContentOp,
         copy: CopyOp_1.CopyOp,
         none: NoneOp_1.NoneOp,
@@ -173,6 +181,7 @@ function cmp(component) {
             kind: 'none',
             children: [],
             path: [],
+            meta: {},
         };
         const parent = props.ctx$.node = (props.ctx$.node || node);
         const siblings = props.ctx$.children = (props.ctx$.children || []);

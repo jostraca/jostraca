@@ -18,6 +18,7 @@ type Node = {
   folder?: string
   after?: any
   exclude?: boolean
+  meta: any
 }
 
 
@@ -87,27 +88,59 @@ function select(key: any, map: Record<string, Function>) {
 
 
 function getx(root: any, path: string | string[]): any {
-  path = ('string' === typeof path ? path.split(/[.\s\r\n\t]/) : path).filter(part => '' != part)
-  let node = root
-  let parents = []
+  if (null == root || 'object' !== typeof root) {
+    return undefined
+  }
 
-  partloop:
-  for (let i = 0; i < path.length && null != node; i++) {
-    let part = String(path[i]).trim()
+  let tokens
 
-    if ('*' === part) {
-      // console.log('STAR', each(node), path.slice(i + 1))
-      return getx(each(node), path.slice(i + 1))
+  if (Array.isArray(path)) {
+    tokens = path.map(p => '' + p)
+  }
+  else if ('string' === typeof path) {
+
+    //         A   B               C        D   E
+    let tre = /\s*("(\\.|[^"\\])*"|[\w\d_]+|\s+|[^\w\d_]+)\s*/g
+    // A: prefixing space and/or comma
+    // B: quoted string
+    // C: atom
+    // D: space
+    // E: operator
+
+    tokens = []
+    let t = null
+    while (t = tre.exec(path)) {
+      if (!t[1].match(/\s+|\./)) {
+        let token = t[1]
+        token = token.match(/^"[^"]+"$/) ? token.substring(1, token.length - 1) : token
+        tokens.push(token)
+      }
     }
+  }
+  else {
+    return undefined
+  }
 
-    let m = part.match(/^([^<=>~^?!]*)([<=>~^?!]+)(.*)$/)
+  // console.log('GETX', JSON.stringify(root).replace(/["\n]/g, ''))
+  // console.log('TOKENS', tokens)
 
-    if (m) {
-      part = m[1]
-      let op = m[2]
-      let arg: any = m[3]
+  let node = root
+  let out = undefined
+  let ancestry = false
 
-      let val = '' === part ? node : node[part]
+  for (let i = 0; i < tokens.length && undefined !== node; i++) {
+    let t0 = tokens[i]
+    let t1 = tokens[i + 1]
+
+    // let what = ''
+    // console.log('PART-S  ', ancestry ? ':' : ' ', i, t0 + '|' + t1 + '|' + tokens.slice(i + 2),
+    //   ' N=', JSON.stringify(node || '').replace(/["\n]/g, ''),
+    //   ' O=', JSON.stringify(out || '').replace(/["\n]/g, ''))
+
+    if (t1 && t1.match(/=|!=/)) {
+      // what = 'O'
+      let val = node[t0]
+      let arg: any = tokens[i + 2]
 
       const argtype = typeof arg
       arg =
@@ -116,76 +149,109 @@ function getx(root: any, path: string | string[]): any {
             'string' === argtype ?
               (arg.match(/^"[^"]+"$/) ? arg.substring(1, arg.length - 1) : arg) : arg
 
-      // console.log('GETX-M', val, part, op, arg)
-
-      if ('=' === op && 'null' === arg) {
-        parents.push(node)
-        node = {} // virtual node so that ^ works consistently
-        continue partloop
-      }
-      else if ('^' === op && '' === part && '' !== arg) {
-        node = parents[parents.length - Number(arg)]
-        continue partloop
-      }
-      else if ('?' === op[0]) {
-        // no property name
-        arg = (1 < op.length ? op.substring(1) : '') + arg
-
-        node = Array.isArray(val) ?
-          each(val).filter((n: any) => (
-            null != getx(n, arg))) :
-          each(val).filter((n: any) => (
-            null != getx(n, arg)))
-            .reduce((a: any, n: any) => (a[n.key$] = n, delete n.key$, a), {})
-
-        continue partloop
-      }
-
-      if (null == val) return undefined
-
-      // const valtype = typeof val
-
-      val = Array.isArray(val) ? val.length :
-        'object' === typeof val ? Object.keys(val).filter(k => !k.includes('$')).length :
-          val
-
-      switch (op) {
+      let pass = false
+      switch (t1) {
         case '<':
-          if (!(val < arg)) return undefined
-          break
+          if (val < arg) pass = true; break;
         case '<=':
-          if (!(val <= arg)) return undefined
-          break
+          if (val <= arg) pass = true; break;
         case '>':
-          if (!(val > arg)) return undefined
-          break
+          if (val > arg) pass = true; break;
         case '>=':
-          if (!(val >= arg)) return undefined
-          break
+          if (val >= arg) pass = true; break;
         case '=':
-          if (!(val == arg)) return undefined
-          break
+          if (val == arg) pass = true; break;
         case '==':
-          if (!(val === arg)) return undefined
-          break
+          if (val === arg) pass = true; break;
         case '!=':
-          if (!(val != arg)) return undefined
-          break
+          if (val != arg) pass = true; break;
         case '~':
-          if (!(String(val).match(RegExp(arg)))) return undefined
-          break
-        case '^':
-          node = parents[parents.length - Number(arg)]
-          continue partloop
-        default:
-          return undefined
+          if (String(val).match(RegExp(arg))) pass = true; break;
       }
+
+      if (pass) {
+        i += 2
+      }
+      else {
+        node = undefined
+      }
+
+      out = (ancestry && undefined !== node) ? out : node
     }
 
-    parents.push(node)
-    node = '' === part ? node : node[part]
+    // Retain ancestry in result - getx({a:{b:1}},'a:b'}) === {a:{b:1}}
+    else if (':' === t1) {
+      // what = 'D'
+      if ('=' !== tokens[i + 2]) {
+        out = !ancestry ? node : out
+        node = node[t0]
+
+        if (undefined === node) {
+          out = undefined
+        }
+      }
+      ancestry = true
+      i++
+    }
+
+    else if ('?' === t0) {
+      // what = '?'
+
+      let ftokens = tokens.slice(i + 1)
+      // console.log('FTOKENS A', ftokens)
+
+      // Two adjacent values marks the end of the filter
+      // TODO: not great, find a better way
+      let j = 0
+      for (; j < ftokens.length; j++) {
+        if (ftokens[j] && ftokens[j].match(/[\w\d_]+/) &&
+          ftokens[j + 1] && ftokens[j + 1].match(/[\w\d_]+/)
+        ) {
+          j++
+          break
+        }
+      }
+      ftokens.length = j
+
+      // console.log('FTOKENS B', ftokens)
+
+      out = each(node)
+        .filter((child: any) => undefined != getx(child, ftokens))
+
+      if (null !== node && 'object' === typeof node && !Array.isArray(node)) {
+        out = out.reduce((a: any, n: any) => (a[n.key$] = n, delete n.key$, a), {})
+      }
+
+      node = out
+      i += ftokens.length
+    }
+    else if (null != t1) {
+      // what = 'N'
+      // console.log('NNN', dot, t0, out, node)
+      // out = (dot && undefined !== node) ? out : node
+
+      node = node[t0]
+
+      if (ancestry) {
+        ancestry = false
+        out = undefined !== node ? out : undefined
+        node = out
+      }
+    }
+    else {
+      // what = 'M'
+      node = node[t0]
+      out = (ancestry && undefined !== node) ? out : node
+    }
+
+    // console.log('PART-E', what,
+    //   ancestry ? ':' : ' ', i, t0 + '|' + t1 + '|' + tokens.slice(i + 2),
+    //   ' N=', JSON.stringify(node || '').replace(/["\n]/g, ''),
+    //   ' O=', JSON.stringify(out || '').replace(/["\n]/g, ''))
+
   }
-  return node
+
+  return out
 }
 
 
@@ -286,10 +352,10 @@ vmap.KEY = (_: any, p: any) => p.key
 
 /*
   MIT License
-
+ 
   Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
   Copyright (c) Paul Miller (https://paulmillr.com)
-
+ 
   Thank You!
 */
 const BINARY_EXT = [

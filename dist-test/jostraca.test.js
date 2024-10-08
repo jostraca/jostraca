@@ -74,6 +74,28 @@ const __1 = require("../");
             '/top/sdk/js/c/d.txt': '// SUB-C-D Y Z TXT\n',
         });
     });
+    (0, node_test_1.test)('fragment', async () => {
+        const { fs, vol } = (0, memfs_1.memfs)({
+            '/tmp/foo.txt': 'FOO\n',
+        });
+        const jostraca = (0, __1.Jostraca)();
+        const info = await jostraca.generate({ fs, folder: '/top' }, (0, __1.cmp)((props) => {
+            props.ctx$.model = {};
+            (0, __1.Project)({ folder: 'sdk' }, () => {
+                (0, __1.File)({ name: 'foo.js' }, () => {
+                    (0, __1.Content)('// custom-foo\n');
+                    (0, __1.Fragment)({ from: '/tmp/foo.txt' });
+                    (0, __1.Content)('// END\n');
+                });
+            });
+        }));
+        const voljson = vol.toJSON();
+        (0, code_1.expect)(voljson).equal({
+            '/top/.jostraca/info.json': voljson['/top/.jostraca/info.json'],
+            '/tmp/foo.txt': 'FOO\n',
+            '/top/sdk/foo.js': '// custom-foo\nFOO\n// END\n',
+        });
+    });
     (0, node_test_1.test)('each', () => {
         (0, code_1.expect)((0, __1.each)()).equal([]);
         (0, code_1.expect)((0, __1.each)(null)).equal([]);
@@ -96,21 +118,60 @@ const __1 = require("../");
         ]);
     });
     (0, node_test_1.test)('getx', () => {
-        (0, code_1.expect)((0, __1.getx)({ x: { y: 1 } }, 'x.y')).equal(1);
-        (0, code_1.expect)((0, __1.getx)({ x: { y: { z: 1 } } }, 'x.y.z')).equal(1);
-        (0, code_1.expect)((0, __1.getx)({ x: { y: { z: 1 } } }, 'x.y')).equal({ z: 1 });
-        (0, code_1.expect)((0, __1.getx)({ x: { y: { z: 1 } } }, 'x.z')).equal(undefined);
-        (0, code_1.expect)((0, __1.getx)({ x: { y: 1 } }, 'x y=1')).equal(1);
+        (0, code_1.expect)((0, __1.getx)(undefined, undefined)).equal(undefined);
+        (0, code_1.expect)((0, __1.getx)(undefined, 'x')).equal(undefined);
+        (0, code_1.expect)((0, __1.getx)({}, undefined)).equal(undefined);
+        (0, code_1.expect)((0, __1.getx)(null, null)).equal(undefined);
+        (0, code_1.expect)((0, __1.getx)(null, 'x')).equal(undefined);
+        (0, code_1.expect)((0, __1.getx)({}, null)).equal(undefined);
+        (0, code_1.expect)((0, __1.getx)({}, '')).equal(undefined);
+        (0, code_1.expect)((0, __1.getx)({}, 'x')).equal(undefined);
+        (0, code_1.expect)((0, __1.getx)({ a: 1 }, 'a')).equal(1);
+        (0, code_1.expect)((0, __1.getx)({ a: 1 }, 'x')).equal(undefined);
+        (0, code_1.expect)((0, __1.getx)({ a: { b: 1 } }, 'a b')).equal(1);
+        (0, code_1.expect)((0, __1.getx)({ a: { b: 1 } }, 'a x')).equal(undefined);
+        (0, code_1.expect)((0, __1.getx)({ a: { b: 1 } }, 'x b')).equal(undefined);
+        (0, code_1.expect)((0, __1.getx)({ a: { b: 1 } }, 'a.b')).equal(1);
+        (0, code_1.expect)((0, __1.getx)({ a: { b: 1 } }, 'a.x')).equal(undefined);
+        (0, code_1.expect)((0, __1.getx)({ a: { b: 1 } }, 'x.b')).equal(undefined);
+        (0, code_1.expect)((0, __1.getx)({ a: { b: { c: 1 } } }, 'a b c')).equal(1);
+        (0, code_1.expect)((0, __1.getx)({ a: { b: { c: { d: 1 } } } }, 'a b c d')).equal(1);
+        (0, code_1.expect)((0, __1.getx)({ a: { b: { c: 1 } } }, 'a.b.c')).equal(1);
+        (0, code_1.expect)((0, __1.getx)({ a: { b: { c: { d: 1 } } } }, 'a.b.c.d')).equal(1);
+        (0, code_1.expect)((0, __1.getx)({ a: { b: 1 } }, 'a:b')).equal({ a: { b: 1 } });
+        (0, code_1.expect)((0, __1.getx)({ a: { x: 1 } }, 'a:b')).equal(undefined);
+        (0, code_1.expect)((0, __1.getx)({ a: { b: { c: 1 } } }, 'a:b:c')).equal({ a: { b: { c: 1 } } });
+        (0, code_1.expect)((0, __1.getx)({ a: { b: { x: 1 } } }, 'a:b:c')).equal(undefined);
+        (0, code_1.expect)((0, __1.getx)({ a: { x: { c: 1 } } }, 'a:b:c')).equal(undefined);
+        (0, code_1.expect)((0, __1.getx)({ x: { b: { c: 1 } } }, 'a:b:c')).equal(undefined);
+        (0, code_1.expect)((0, __1.getx)({ a: { b: { c: { d: 1 } } } }, 'a:b:c:d')).equal({ a: { b: { c: { d: 1 } } } });
+        (0, code_1.expect)((0, __1.getx)({ a: 1 }, 'a=1')).equal({ a: 1 });
+        (0, code_1.expect)((0, __1.getx)({ a: { b: 1 } }, 'a:b=1')).equal({ a: { b: 1 } });
+        (0, code_1.expect)((0, __1.getx)({ a: { b: { c: 1 } } }, 'a:b:c=1')).equal({ a: { b: { c: 1 } } });
+        (0, code_1.expect)((0, __1.getx)({ a: { b: { c: 1 } } }, 'a b c=1')).equal({ c: 1 });
+        (0, code_1.expect)((0, __1.getx)({ a: { b: { c: 1 } } }, 'a b:c=1')).equal({ b: { c: 1 } });
+        (0, code_1.expect)((0, __1.getx)({ a: { b: { c: { d: 1 } } } }, 'a b:c:d=1')).equal({ b: { c: { d: 1 } } });
+        (0, code_1.expect)((0, __1.getx)({ a: { b: { c: 1 } } }, 'a:b a')).equal({ b: { c: 1 } });
+        (0, code_1.expect)((0, __1.getx)({ a: { b: { c: 1 } } }, 'a:b a b')).equal({ c: 1 });
+        (0, code_1.expect)((0, __1.getx)({ a: { b: { c: 1 } } }, 'a:b a b c')).equal(1);
+        (0, code_1.expect)((0, __1.getx)({ a: { b: { c: 1 } } }, 'a:b a b c=1')).equal({ c: 1 });
+        (0, code_1.expect)((0, __1.getx)({ a: 1, b: 2 }, 'a=1 b')).equal(2);
+        (0, code_1.expect)((0, __1.getx)({ a: { b: { c: 1 }, d: { c: 2 } } }, 'a?c=1')).equal({ b: { c: 1 } });
+        (0, code_1.expect)((0, __1.getx)({ a: [{ c: 1 }, { c: 2 }] }, 'a?c=1')).equal([{ c: 1 }]);
+        (0, code_1.expect)((0, __1.getx)([{ c: 1 }, { c: 2 }], '?c=1')).equal([{ c: 1 }]);
+        (0, code_1.expect)((0, __1.getx)({ a: { b: { c: { e: 1 } }, d: { c: { e: 2 } } } }, 'a?c:e=1'))
+            .equal({ b: { c: { e: 1 } } });
+        // TODO: fix filter end detection
+        // expect(getx({ a: { b: { c: { e: 1 } }, d: { c: { e: 2 } } } }, 'a?c.e=1'))
+        //  .equal({ b: { c: { e: 1 } } })
+        (0, code_1.expect)((0, __1.getx)({ x: [{ y: 1 }, { y: 2 }, { y: 2 }] }, 'x?y=2'))
+            .equal([{ y: 2 }, { y: 2 }]);
+        (0, code_1.expect)((0, __1.getx)({ x: { y: 1 } }, 'x:y x')).equal({ y: 1 });
+        (0, code_1.expect)((0, __1.getx)({ x: { y: 1 } }, 'x:y x y')).equal(1);
+        (0, code_1.expect)((0, __1.getx)({ x: { y: 1 } }, 'x y=1 y')).equal(1);
         (0, code_1.expect)((0, __1.getx)({ x: { y: 1 } }, 'x y!=1')).equal(undefined);
-        (0, code_1.expect)((0, __1.getx)({ x: 3 }, '')).equal({ x: 3 });
-        (0, code_1.expect)((0, __1.getx)({ x: { y: 3 } }, 'x=1')).equal({ y: 3 });
-        (0, code_1.expect)((0, __1.getx)({ x: { y: 3 } }, 'x=2')).equal(undefined);
-        (0, code_1.expect)((0, __1.getx)({ x: { y: 3, z: 4 } }, 'x=2')).equal({ y: 3, z: 4 });
-        (0, code_1.expect)((0, __1.getx)({ x: { y: 3, z: 4 } }, 'x=1')).equal(undefined);
-        (0, code_1.expect)((0, __1.getx)({ x: 3 }, '=1')).equal({ x: 3 });
-        (0, code_1.expect)((0, __1.getx)({ x: 3, y: 4 }, '=1')).equal(undefined);
-        (0, code_1.expect)((0, __1.getx)({ x: 3, y: 4 }, '=2')).equal({ x: 3, y: 4 });
-        (0, code_1.expect)((0, __1.getx)({ x: 1 }, 'x=1')).equal(1);
+        (0, code_1.expect)((0, __1.getx)({ x: 3 }, '')).equal(undefined);
+        (0, code_1.expect)((0, __1.getx)({ x: 1 }, 'x=1 x')).equal(1);
         (0, code_1.expect)((0, __1.getx)({ x: 1 }, 'x!=1')).equal(undefined);
         (0, code_1.expect)((0, __1.getx)({ x: [{ y: 1 }, { y: 2 }, { y: 2 }] }, 'x?y=2'))
             .equal([{ y: 2 }, { y: 2 }]);
@@ -118,23 +179,23 @@ const __1 = require("../");
             .equal([{ y: 1 }]);
         (0, code_1.expect)((0, __1.getx)({ x: { m: { y: 1 }, n: { y: 2 }, k: { y: 2 } } }, 'x?y=2'))
             .equal({ n: { y: 2 }, k: { y: 2 } });
-        (0, code_1.expect)((0, __1.getx)({ x: [{ y: 11 }, { y: 22, z: 33 }] }, 'x?=1'))
-            .equal([{ y: 11 }]);
-        (0, code_1.expect)((0, __1.getx)({ x: { m: { y: 1 }, n: { y: 2, z: 3 } } }, 'x?=1'))
-            .equal({ m: { y: 1 } });
-        /*
-        expect(getx({ m: { y: 1 }, n: { y: 2 }, k: { y: 2 } }, 'y=2'))
-          .equal({ n: { y: 2 }, k: { y: 2 } })
-    
-        expect(getx([{ y: 1 }, { y: 2 }, { y: 2 }], 'y=2'))
-          .equal([{ y: 2 }, { y: 2 }])
-    
-        expect(getx([{ y: 1 }, { y: 2 }, { y: 2 }], '0'))
-          .equal({ y: 1 })
-    
-        expect(getx([{ y: 1 }, { y: 2 }, { y: 2 }], 'y=2 0'))
-          .equal({ y: 2 })
-          */
+        (0, code_1.expect)((0, __1.getx)({ m: { y: 1 }, n: { y: 2 }, k: { y: 2 } }, '?y=2'))
+            .equal({ n: { y: 2 }, k: { y: 2 } });
+        (0, code_1.expect)((0, __1.getx)([{ y: 1 }, { y: 2 }, { y: 2 }], '?y=2'))
+            .equal([{ y: 2 }, { y: 2 }]);
+        (0, code_1.expect)((0, __1.getx)([11, 22, 33], '0')).equal(11);
+        (0, code_1.expect)((0, __1.getx)([11, 22, 33], '1')).equal(22);
+        (0, code_1.expect)((0, __1.getx)([11, 22, 33], '2')).equal(33);
+        (0, code_1.expect)((0, __1.getx)({ a: [11, 22, 33] }, 'a 0')).equal(11);
+        (0, code_1.expect)((0, __1.getx)([[11, 22, 33]], '0 1')).equal(22);
+        (0, code_1.expect)((0, __1.getx)([[{ a: 11 }, { a: 22 }, { a: 33 }]], '0 1 a')).equal(22);
+        (0, code_1.expect)((0, __1.getx)([[{ a: 11 }, { a: 22 }, { a: 33 }]], '0?a=11')).equal([{ a: 11 }]);
+        (0, code_1.expect)((0, __1.getx)([{ y: 1 }, { y: 2 }, { y: 2 }], '0'))
+            .equal({ y: 1 });
+        (0, code_1.expect)((0, __1.getx)([{ y: 1 }, { y: 2 }, { y: 2 }], '?y=2'))
+            .equal([{ y: 2 }, { y: 2 }]);
+        (0, code_1.expect)((0, __1.getx)([{ y: 1 }, { y: 2 }, { y: 2 }], '?y=2 0'))
+            .equal({ y: 2 });
     });
 });
 //# sourceMappingURL=jostraca.test.js.map

@@ -13,6 +13,7 @@ type Node = {
     folder?: string;
     after?: any;
     exclude?: boolean;
+    meta: any;
 };
 type OpStep = (node: Node, ctx$: any, buildctx: any) => void;
 type OpDef = {

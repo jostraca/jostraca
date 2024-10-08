@@ -10,6 +10,7 @@ import {
   Project,
   Folder,
   File,
+  Fragment,
   Content,
   Copy,
 
@@ -121,6 +122,41 @@ describe('jostraca', () => {
   })
 
 
+  test('fragment', async () => {
+    const { fs, vol } = memfs({
+      '/tmp/foo.txt': 'FOO\n',
+    })
+
+    const jostraca = Jostraca()
+
+    const info = await jostraca.generate(
+      { fs, folder: '/top' },
+      cmp((props: any) => {
+        props.ctx$.model = {}
+
+        Project({ folder: 'sdk' }, () => {
+
+          File({ name: 'foo.js' }, () => {
+            Content('// custom-foo\n')
+            Fragment({ from: '/tmp/foo.txt' })
+            Content('// END\n')
+          })
+        })
+      })
+    )
+
+    const voljson: any = vol.toJSON()
+
+    expect(voljson).equal({
+      '/top/.jostraca/info.json': voljson['/top/.jostraca/info.json'],
+
+      '/tmp/foo.txt': 'FOO\n',
+
+      '/top/sdk/foo.js': '// custom-foo\nFOO\n// END\n',
+    })
+  })
+
+
   test('each', () => {
     expect(each()).equal([])
     expect(each(null)).equal([])
@@ -148,26 +184,80 @@ describe('jostraca', () => {
 
 
   test('getx', () => {
-    expect(getx({ x: { y: 1 } }, 'x.y')).equal(1)
-    expect(getx({ x: { y: { z: 1 } } }, 'x.y.z')).equal(1)
-    expect(getx({ x: { y: { z: 1 } } }, 'x.y')).equal({ z: 1 })
-    expect(getx({ x: { y: { z: 1 } } }, 'x.z')).equal(undefined)
+    expect(getx(undefined, undefined as unknown as string)).equal(undefined)
+    expect(getx(undefined, 'x')).equal(undefined)
+    expect(getx({}, undefined as unknown as string)).equal(undefined)
+    expect(getx(null, null as unknown as string)).equal(undefined)
+    expect(getx(null, 'x')).equal(undefined)
+    expect(getx({}, null as unknown as string)).equal(undefined)
+    expect(getx({}, '')).equal(undefined)
+    expect(getx({}, 'x')).equal(undefined)
 
-    expect(getx({ x: { y: 1 } }, 'x y=1')).equal(1)
+    expect(getx({ a: 1 }, 'a')).equal(1)
+    expect(getx({ a: 1 }, 'x')).equal(undefined)
+
+    expect(getx({ a: { b: 1 } }, 'a b')).equal(1)
+    expect(getx({ a: { b: 1 } }, 'a x')).equal(undefined)
+    expect(getx({ a: { b: 1 } }, 'x b')).equal(undefined)
+    expect(getx({ a: { b: 1 } }, 'a.b')).equal(1)
+    expect(getx({ a: { b: 1 } }, 'a.x')).equal(undefined)
+    expect(getx({ a: { b: 1 } }, 'x.b')).equal(undefined)
+
+    expect(getx({ a: { b: { c: 1 } } }, 'a b c')).equal(1)
+    expect(getx({ a: { b: { c: { d: 1 } } } }, 'a b c d')).equal(1)
+
+    expect(getx({ a: { b: { c: 1 } } }, 'a.b.c')).equal(1)
+    expect(getx({ a: { b: { c: { d: 1 } } } }, 'a.b.c.d')).equal(1)
+
+    expect(getx({ a: { b: 1 } }, 'a:b')).equal({ a: { b: 1 } })
+    expect(getx({ a: { x: 1 } }, 'a:b')).equal(undefined)
+
+    expect(getx({ a: { b: { c: 1 } } }, 'a:b:c')).equal({ a: { b: { c: 1 } } })
+    expect(getx({ a: { b: { x: 1 } } }, 'a:b:c')).equal(undefined)
+    expect(getx({ a: { x: { c: 1 } } }, 'a:b:c')).equal(undefined)
+    expect(getx({ x: { b: { c: 1 } } }, 'a:b:c')).equal(undefined)
+
+    expect(getx({ a: { b: { c: { d: 1 } } } }, 'a:b:c:d')).equal({ a: { b: { c: { d: 1 } } } })
+
+    expect(getx({ a: 1 }, 'a=1')).equal({ a: 1 })
+
+    expect(getx({ a: { b: 1 } }, 'a:b=1')).equal({ a: { b: 1 } })
+    expect(getx({ a: { b: { c: 1 } } }, 'a:b:c=1')).equal({ a: { b: { c: 1 } } })
+    expect(getx({ a: { b: { c: 1 } } }, 'a b c=1')).equal({ c: 1 })
+    expect(getx({ a: { b: { c: 1 } } }, 'a b:c=1')).equal({ b: { c: 1 } })
+    expect(getx({ a: { b: { c: { d: 1 } } } }, 'a b:c:d=1')).equal({ b: { c: { d: 1 } } })
+
+    expect(getx({ a: { b: { c: 1 } } }, 'a:b a')).equal({ b: { c: 1 } })
+    expect(getx({ a: { b: { c: 1 } } }, 'a:b a b')).equal({ c: 1 })
+    expect(getx({ a: { b: { c: 1 } } }, 'a:b a b c')).equal(1)
+
+    expect(getx({ a: { b: { c: 1 } } }, 'a:b a b c=1')).equal({ c: 1 })
+
+    expect(getx({ a: 1, b: 2 }, 'a=1 b')).equal(2)
+    expect(getx({ a: { b: { c: 1 }, d: { c: 2 } } }, 'a?c=1')).equal({ b: { c: 1 } })
+    expect(getx({ a: [{ c: 1 }, { c: 2 }] }, 'a?c=1')).equal([{ c: 1 }])
+    expect(getx([{ c: 1 }, { c: 2 }], '?c=1')).equal([{ c: 1 }])
+
+    expect(getx({ a: { b: { c: { e: 1 } }, d: { c: { e: 2 } } } }, 'a?c:e=1'))
+      .equal({ b: { c: { e: 1 } } })
+
+    // TODO: fix filter end detection
+    // expect(getx({ a: { b: { c: { e: 1 } }, d: { c: { e: 2 } } } }, 'a?c.e=1'))
+    //  .equal({ b: { c: { e: 1 } } })
+
+
+    expect(getx({ x: [{ y: 1 }, { y: 2 }, { y: 2 }] }, 'x?y=2'))
+      .equal([{ y: 2 }, { y: 2 }])
+
+    expect(getx({ x: { y: 1 } }, 'x:y x')).equal({ y: 1 })
+    expect(getx({ x: { y: 1 } }, 'x:y x y')).equal(1)
+
+    expect(getx({ x: { y: 1 } }, 'x y=1 y')).equal(1)
     expect(getx({ x: { y: 1 } }, 'x y!=1')).equal(undefined)
 
-    expect(getx({ x: 3 }, '')).equal({ x: 3 })
+    expect(getx({ x: 3 }, '')).equal(undefined)
 
-    expect(getx({ x: { y: 3 } }, 'x=1')).equal({ y: 3 })
-    expect(getx({ x: { y: 3 } }, 'x=2')).equal(undefined)
-    expect(getx({ x: { y: 3, z: 4 } }, 'x=2')).equal({ y: 3, z: 4 })
-    expect(getx({ x: { y: 3, z: 4 } }, 'x=1')).equal(undefined)
-
-    expect(getx({ x: 3 }, '=1')).equal({ x: 3 })
-    expect(getx({ x: 3, y: 4 }, '=1')).equal(undefined)
-    expect(getx({ x: 3, y: 4 }, '=2')).equal({ x: 3, y: 4 })
-
-    expect(getx({ x: 1 }, 'x=1')).equal(1)
+    expect(getx({ x: 1 }, 'x=1 x')).equal(1)
     expect(getx({ x: 1 }, 'x!=1')).equal(undefined)
 
     expect(getx({ x: [{ y: 1 }, { y: 2 }, { y: 2 }] }, 'x?y=2'))
@@ -178,25 +268,31 @@ describe('jostraca', () => {
     expect(getx({ x: { m: { y: 1 }, n: { y: 2 }, k: { y: 2 } } }, 'x?y=2'))
       .equal({ n: { y: 2 }, k: { y: 2 } })
 
-    expect(getx({ x: [{ y: 11 }, { y: 22, z: 33 }] }, 'x?=1'))
-      .equal([{ y: 11 }])
-
-    expect(getx({ x: { m: { y: 1 }, n: { y: 2, z: 3 } } }, 'x?=1'))
-      .equal({ m: { y: 1 } })
-
-    /*
-    expect(getx({ m: { y: 1 }, n: { y: 2 }, k: { y: 2 } }, 'y=2'))
+    expect(getx({ m: { y: 1 }, n: { y: 2 }, k: { y: 2 } }, '?y=2'))
       .equal({ n: { y: 2 }, k: { y: 2 } })
 
-    expect(getx([{ y: 1 }, { y: 2 }, { y: 2 }], 'y=2'))
+    expect(getx([{ y: 1 }, { y: 2 }, { y: 2 }], '?y=2'))
       .equal([{ y: 2 }, { y: 2 }])
+
+
+    expect(getx([11, 22, 33], '0')).equal(11)
+    expect(getx([11, 22, 33], '1')).equal(22)
+    expect(getx([11, 22, 33], '2')).equal(33)
+    expect(getx({ a: [11, 22, 33] }, 'a 0')).equal(11)
+    expect(getx([[11, 22, 33]], '0 1')).equal(22)
+    expect(getx([[{ a: 11 }, { a: 22 }, { a: 33 }]], '0 1 a')).equal(22)
+    expect(getx([[{ a: 11 }, { a: 22 }, { a: 33 }]], '0?a=11')).equal([{ a: 11 }])
+
 
     expect(getx([{ y: 1 }, { y: 2 }, { y: 2 }], '0'))
       .equal({ y: 1 })
 
-    expect(getx([{ y: 1 }, { y: 2 }, { y: 2 }], 'y=2 0'))
+    expect(getx([{ y: 1 }, { y: 2 }, { y: 2 }], '?y=2'))
+      .equal([{ y: 2 }, { y: 2 }])
+
+    expect(getx([{ y: 1 }, { y: 2 }, { y: 2 }], '?y=2 0'))
       .equal({ y: 2 })
-      */
+
   })
 })
 
