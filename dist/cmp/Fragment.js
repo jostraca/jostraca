@@ -6,6 +6,7 @@ const Fragment = (0, jostraca_1.cmp)(function Fragment(props, _children) {
     const node = props.ctx$.node;
     node.kind = 'fragment';
     node.from = props.from;
+    node.indent = props.indent;
 });
 exports.Fragment = Fragment;
 //# sourceMappingURL=Fragment.js.map

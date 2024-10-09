@@ -125,6 +125,7 @@ describe('jostraca', () => {
   test('fragment', async () => {
     const { fs, vol } = memfs({
       '/tmp/foo.txt': 'FOO\n',
+      '/tmp/bar.txt': 'BAR\n',
     })
 
     const jostraca = Jostraca()
@@ -139,6 +140,7 @@ describe('jostraca', () => {
           File({ name: 'foo.js' }, () => {
             Content('// custom-foo\n')
             Fragment({ from: '/tmp/foo.txt' })
+            Fragment({ from: '/tmp/bar.txt', indent: '  ' })
             Content('// END\n')
           })
         })
@@ -151,8 +153,9 @@ describe('jostraca', () => {
       '/top/.jostraca/info.json': voljson['/top/.jostraca/info.json'],
 
       '/tmp/foo.txt': 'FOO\n',
+      '/tmp/bar.txt': 'BAR\n',
 
-      '/top/sdk/foo.js': '// custom-foo\nFOO\n// END\n',
+      '/top/sdk/foo.js': '// custom-foo\nFOO\n  BAR\n// END\n',
     })
   })
 

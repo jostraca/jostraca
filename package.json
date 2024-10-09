@@ -1,6 +1,6 @@
 {
   "name": "jostraca",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "main": "dist/jostraca.js",
   "type": "commonjs",
   "types": "dist/jostraca.d.ts",
@@ -39,7 +39,7 @@
     "esbuild": "^0.24.0",
     "memfs": "^4.13.0",
     "oxc-parser": "^0.31.0",
-    "typescript": "^5.6.2"
+    "typescript": "^5.6.3"
   },
   "dependencies": {
     "@jsonic/jsonic-next": "^2.12.1"

@@ -13,7 +13,12 @@ const FragmentOp = {
   after(node: Node, _ctx$: any, buildctx: any) {
     const { fs } = buildctx
     const frompath = node.from as string
-    const src = fs.readFileSync(frompath, 'utf8')
+    let src = fs.readFileSync(frompath, 'utf8')
+
+    if ('string' === typeof node.indent) {
+      src = src.replace(/([^\n]+\n)/g, node.indent + '$1')
+    }
+
     buildctx.current.file.content.push(src)
   },
 

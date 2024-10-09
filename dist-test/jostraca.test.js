@@ -77,6 +77,7 @@ const __1 = require("../");
     (0, node_test_1.test)('fragment', async () => {
         const { fs, vol } = (0, memfs_1.memfs)({
             '/tmp/foo.txt': 'FOO\n',
+            '/tmp/bar.txt': 'BAR\n',
         });
         const jostraca = (0, __1.Jostraca)();
         const info = await jostraca.generate({ fs, folder: '/top' }, (0, __1.cmp)((props) => {
@@ -85,6 +86,7 @@ const __1 = require("../");
                 (0, __1.File)({ name: 'foo.js' }, () => {
                     (0, __1.Content)('// custom-foo\n');
                     (0, __1.Fragment)({ from: '/tmp/foo.txt' });
+                    (0, __1.Fragment)({ from: '/tmp/bar.txt', indent: '  ' });
                     (0, __1.Content)('// END\n');
                 });
             });
@@ -93,7 +95,8 @@ const __1 = require("../");
         (0, code_1.expect)(voljson).equal({
             '/top/.jostraca/info.json': voljson['/top/.jostraca/info.json'],
             '/tmp/foo.txt': 'FOO\n',
-            '/top/sdk/foo.js': '// custom-foo\nFOO\n// END\n',
+            '/tmp/bar.txt': 'BAR\n',
+            '/top/sdk/foo.js': '// custom-foo\nFOO\n  BAR\n// END\n',
         });
     });
     (0, node_test_1.test)('each', () => {

@@ -6,6 +6,7 @@ type JostracaOptions = {
 type Node = {
     kind: string;
     children?: Node[];
+    meta: any;
     name?: string;
     path: string[];
     from?: string;
@@ -13,7 +14,7 @@ type Node = {
     folder?: string;
     after?: any;
     exclude?: boolean;
-    meta: any;
+    indent?: string;
 };
 type OpStep = (node: Node, ctx$: any, buildctx: any) => void;
 type OpDef = {
