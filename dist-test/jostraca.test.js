@@ -27,9 +27,9 @@ const __1 = require("../");
         }));
         // console.log('INFO', info)
         const voljson = vol.toJSON();
-        (0, code_1.expect)(JSON.parse(voljson['/top/.jostraca/info.json']).exclude).equal([]);
+        (0, code_1.expect)(JSON.parse(voljson['/top/.jostraca/jostraca.json.log']).exclude).equal([]);
         (0, code_1.expect)(voljson).equal({
-            '/top/.jostraca/info.json': voljson['/top/.jostraca/info.json'],
+            '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
             '/top/sdk/js/foo.js': '// custom-foo\n',
             '/top/sdk/js/bar.js': '// custom-bar\n',
             '/top/sdk/go/zed.go': '// custom-zed\n'
@@ -59,9 +59,9 @@ const __1 = require("../");
             });
         }));
         const voljson = vol.toJSON();
-        (0, code_1.expect)(JSON.parse(voljson['/top/.jostraca/info.json']).exclude).equal([]);
+        (0, code_1.expect)(JSON.parse(voljson['/top/.jostraca/jostraca.json.log']).exclude).equal([]);
         (0, code_1.expect)(voljson).equal({
-            '/top/.jostraca/info.json': voljson['/top/.jostraca/info.json'],
+            '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
             '/tm/bar.txt': '// BAR $$x.z$$ TXT\n',
             '/tm/bar.txt~': '// BAR TXT\n',
             '/tm/sub/a.txt': '// SUB-A $$x.y$$ TXT\n',
@@ -93,7 +93,7 @@ const __1 = require("../");
         }));
         const voljson = vol.toJSON();
         (0, code_1.expect)(voljson).equal({
-            '/top/.jostraca/info.json': voljson['/top/.jostraca/info.json'],
+            '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
             '/tmp/foo.txt': 'FOO\n',
             '/tmp/bar.txt': 'BAR\n',
             '/top/sdk/foo.js': '// custom-foo\nFOO\n  BAR\n// END\n',
@@ -103,21 +103,27 @@ const __1 = require("../");
         (0, code_1.expect)((0, __1.each)()).equal([]);
         (0, code_1.expect)((0, __1.each)(null)).equal([]);
         (0, code_1.expect)((0, __1.each)(1)).equal([]);
-        (0, code_1.expect)((0, __1.each)([1])).equal([1]);
-        (0, code_1.expect)((0, __1.each)(['b', 'a'])).equal(['a', 'b']);
-        (0, code_1.expect)((0, __1.each)([1], (x) => 2 * x)).equal([2]);
+        (0, code_1.expect)((0, __1.each)([11])).equal([{ val$: 11, index$: 0 }]);
+        (0, code_1.expect)((0, __1.each)([11], { oval: false })).equal([11]);
+        (0, code_1.expect)((0, __1.each)([11, 22])).equal([{ val$: 11, index$: 0 }, { val$: 22, index$: 1 }]);
+        (0, code_1.expect)((0, __1.each)([11, 22], { oval: false })).equal([11, 22]);
+        (0, code_1.expect)((0, __1.each)(['b', 'a'], { oval: false, sort: true })).equal(['a', 'b']);
+        (0, code_1.expect)((0, __1.each)(['b', 'a'], { sort: true }))
+            .equal([{ val$: 'a', index$: 0 }, { val$: 'b', index$: 1 }]);
+        (0, code_1.expect)((0, __1.each)([1], { oval: false }, (x) => 2 * x)).equal([2]);
+        (0, code_1.expect)((0, __1.each)([1], (x) => 2 * x.val$)).equal([2]);
         (0, code_1.expect)((0, __1.each)({})).equal([]);
-        (0, code_1.expect)((0, __1.each)({ a: 1 })).equal([{ name: 'a', 'key$': 'a', 'val$': 1 }]);
-        (0, code_1.expect)((0, __1.each)({ b: 22, c: 11, a: 33 })).equal([
-            { name: 'a', 'key$': 'a', 'val$': 33 },
-            { name: 'b', 'key$': 'b', 'val$': 22 },
-            { name: 'c', 'key$': 'c', 'val$': 11 },
+        (0, code_1.expect)((0, __1.each)({ a: 1 })).equal([{ 'key$': 'a', 'val$': 1 }]);
+        (0, code_1.expect)((0, __1.each)({ b: 22, c: 11, a: 33 }, { sort: true })).equal([
+            { 'key$': 'a', 'val$': 33 },
+            { 'key$': 'b', 'val$': 22 },
+            { 'key$': 'c', 'val$': 11 },
         ]);
         (0, code_1.expect)((0, __1.each)({ b: 22, c: 11, a: 33 }, (v, n, i) => n + '-' + i + '-' + JSON.stringify(v)))
             .equal([
-            'a-0-{"name":"a","key$":"a","val$":33}',
-            'b-1-{"name":"b","key$":"b","val$":22}',
-            'c-2-{"name":"c","key$":"c","val$":11}'
+            'b-0-{"key$":"b","val$":22}',
+            'c-1-{"key$":"c","val$":11}',
+            'a-2-{"key$":"a","val$":33}',
         ]);
     });
     (0, node_test_1.test)('getx', () => {

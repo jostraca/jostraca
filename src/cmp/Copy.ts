@@ -1,5 +1,5 @@
 
-import type { Node } from '../utility'
+import type { Node } from '../jostraca'
 
 import { cmp } from '../jostraca'
 

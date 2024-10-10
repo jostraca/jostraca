@@ -11,7 +11,7 @@ import type {
   Node,
   OpDef,
   Component,
-} from './utility'
+} from './types'
 
 
 import {
@@ -65,6 +65,7 @@ function Jostraca() {
       content: null,
       meta,
       fs,
+      opts,
     }
 
     return GLOBAL.jostraca.run(ctx$, async () => {
@@ -101,35 +102,35 @@ function Jostraca() {
   async function build(ctx$: any, buildctx: any) {
     const topnode = ctx$.node
 
-    let info = { exclude: [], last: -1 }
-    const infopath = Path.join(buildctx.folder, '.jostraca', 'info.json')
+    let log = { exclude: [], last: -1 }
+    const logpath = Path.join(buildctx.folder, '.jostraca', 'jostraca.json.log')
 
     try {
-      info = JSON.parse(ctx$.fs.readFileSync(
-        infopath, 'utf8'))
+      log = JSON.parse(ctx$.fs.readFileSync(
+        logpath, 'utf8'))
     }
     catch (err: any) {
       // console.log(err)
       // TODO: file not foound ignored, handle others!
     }
 
-    buildctx.info = info
-    // console.log('B-INFO', buildctx.info)
+    buildctx.log = log
+    // console.log('B-LOG', buildctx.log)
 
     await step(topnode, ctx$, buildctx)
 
 
     try {
-      ctx$.fs.mkdirSync(Path.dirname(infopath), { recursive: true })
-      const info = {
+      ctx$.fs.mkdirSync(Path.dirname(logpath), { recursive: true })
+      const log = {
         last: Date.now(),
-        exclude: buildctx.info.exclude,
+        exclude: buildctx.log.exclude,
       }
-      ctx$.fs.writeFileSync(infopath, JSON.stringify(info, null, 2), { flush: true })
+      ctx$.fs.writeFileSync(logpath, JSON.stringify(log, null, 2), { flush: true })
     }
     catch (err: any) {
       console.log(err)
-      // TODO: file not foound ignored, handle others!
+      // TODO: file not found ignored, handle others!
     }
 
 

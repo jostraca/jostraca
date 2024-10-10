@@ -7,7 +7,7 @@ const InjectOp = {
         cfile.filepath = buildctx.current.folder.path.join('/') + '/' + node.name;
         cfile.content = [];
     },
-    after(node, _ctx$, buildctx) {
+    after(node, ctx$, buildctx) {
         const { fs, info, current } = buildctx;
         const cfile = current.file;
         let content = cfile.content.join('');
@@ -15,7 +15,7 @@ const InjectOp = {
         let exclude = node.exclude;
         if (info && null == exclude) {
             exclude = info.exclude.includes(rpath);
-            if (!exclude) {
+            if (!exclude && true === ctx$.opts.exclude) {
                 const stat = fs.statSync(cfile.filepath, { throwIfNoEntry: false });
                 if (stat) {
                     let timedelta = stat.mtimeMs - info.last;

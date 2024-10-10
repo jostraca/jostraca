@@ -1,6 +1,6 @@
 
 
-import type { Node } from '../utility'
+import type { Node } from '../jostraca'
 
 import { cmp, each } from '../jostraca'
 
@@ -11,7 +11,7 @@ const Folder = cmp(function Folder(props: any, children: any) {
   node.kind = 'folder'
   node.name = props.name
 
-  each(children)
+  each(children, { call: true })
 })
 
 

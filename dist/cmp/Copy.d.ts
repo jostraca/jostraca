@@ -1,2 +1,2 @@
-declare const Copy: import("../utility").Component;
+declare const Copy: import("../types").Component;
 export { Copy };

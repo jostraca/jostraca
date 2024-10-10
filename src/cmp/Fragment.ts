@@ -1,5 +1,5 @@
 
-import type { Node } from '../utility'
+import type { Node } from '../jostraca'
 
 import { cmp } from '../jostraca'
 
@@ -11,7 +11,6 @@ const Fragment = cmp(function Fragment(props: any, _children: any) {
   node.from = props.from
   node.indent = props.indent
 })
-
 
 
 export {

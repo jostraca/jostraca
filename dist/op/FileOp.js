@@ -7,23 +7,23 @@ const FileOp = {
         cfile.filepath = buildctx.current.folder.path.join('/') + '/' + node.name;
         cfile.content = [];
     },
-    after(node, _ctx$, buildctx) {
-        // console.log('FB-INFO', buildctx.info)
-        const { fs, info, current } = buildctx;
+    after(node, ctx$, buildctx) {
+        // console.log('FB-LOG', buildctx.log)
+        const { fs, log, current } = buildctx;
         const cfile = current.file;
         const content = cfile.content.join('');
         const rpath = cfile.path.join('/'); // NOT Path.sep - needs to be canonical
         let exclude = node.exclude;
-        // console.log('FILE-a exclude', rpath, exclude, !!info)
-        if (info && null == exclude) {
-            exclude = info.exclude.includes(rpath);
-            if (!exclude) {
+        // console.log('FILE-a exclude', rpath, exclude, !!log)
+        if (log && null == exclude) {
+            exclude = log.exclude.includes(rpath);
+            if (!exclude && true === ctx$.opts.exclude) {
                 const stat = fs.statSync(cfile.filepath, { throwIfNoEntry: false });
                 if (stat) {
-                    let timedelta = stat.mtimeMs - info.last;
+                    let timedelta = stat.mtimeMs - log.last;
                     if ((timedelta > 0 && timedelta < stat.mtimeMs)) {
                         exclude = true;
-                        // console.log('FILEOP-STAT', rpath, timedelta, exclude, stat?.mtimeMs, info.last)
+                        // console.log('FILEOP-STAT', rpath, timedelta, exclude, stat?.mtimeMs, log.last)
                     }
                 }
             }
@@ -33,8 +33,8 @@ const FileOp = {
             fs.writeFileSync(cfile.filepath, content, { flush: true });
         }
         else {
-            if (!info.exclude.includes(rpath)) {
-                info.exclude.push(rpath);
+            if (!log.exclude.includes(rpath)) {
+                log.exclude.push(rpath);
             }
         }
     },

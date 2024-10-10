@@ -1,2 +1,2 @@
-declare const Inject: import("../utility").Component;
+declare const Inject: import("../types").Component;
 export { Inject };

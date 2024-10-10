@@ -1,2 +1,2 @@
-declare const Folder: import("../utility").Component;
+declare const Folder: import("../types").Component;
 export { Folder };

@@ -13,7 +13,7 @@ const InjectOp = {
   },
 
 
-  after(node: Node, _ctx$: any, buildctx: any) {
+  after(node: Node, ctx$: any, buildctx: any) {
     const { fs, info, current } = buildctx
     const cfile = current.file
     let content = cfile.content.join('')
@@ -22,7 +22,7 @@ const InjectOp = {
 
     if (info && null == exclude) {
       exclude = info.exclude.includes(rpath)
-      if (!exclude) {
+      if (!exclude && true === ctx$.opts.exclude) {
         const stat = fs.statSync(cfile.filepath, { throwIfNoEntry: false })
         if (stat) {
           let timedelta = stat.mtimeMs - info.last

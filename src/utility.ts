@@ -1,83 +1,103 @@
 /* Copyright (c) 2024 Richard Rodger, MIT License */
 
 
-type JostracaOptions = {
-  folder?: string
-  fs?: any
-  meta?: any
-}
+// Iterate over arrays and objects (opinionated mutation!).
+function each(
+  subject?: any[] | Object, // Iterate over subject.
+  flags?: { // Optional, flags to control output.
+    mark?: boolean, // Mark items (key$ or index$), default: true, 
+    oval?: boolean, // Convert non-object values into synthetic objects, default: true
+    sort?: boolean | string, // Sort items, optionally by named prop, default: false
+    call?: boolean, // Call items, if they are functions, default: false
+  } | ((...a: any[]) => any),
+  apply?: (...a: any[]) => any) // Optional  Function to apply to each item.
+{
+  const isArray = Array.isArray(subject)
 
+  const hasFlags = null != flags && 'function' !== typeof flags
+  apply = (hasFlags ? apply : flags) as ((...a: any[]) => any)
 
-type Node = {
-  kind: string
-  children?: Node[]
-  meta: any
+  flags = (hasFlags ? flags : {}) as { mark: boolean, sort: boolean }
+  flags.mark = null != flags.mark ? flags.mark : true
+  flags.oval = null != flags.oval ? flags.oval : true
+  flags.sort = null != flags.sort ? flags.sort : false
+  flags.call = null != flags.call ? flags.call : false
 
-  name?: string
-  path: string[]
-  from?: string
-  content?: any[]
-  folder?: string
-  after?: any
-  exclude?: boolean
-  indent?: string
-}
+  let out: any[] = []
 
-
-type OpStep = (node: Node, ctx$: any, buildctx: any) => void
-
-type OpDef = {
-  before: OpStep,
-  after: OpStep,
-}
-
-
-type Component = (props: any, children?: any) => void
-
-
-
-
-function each(subject?: any, apply?: any) {
-  if (null == apply) {
-    let out = []
-    if (Array.isArray(subject)) {
-      for (let fn of subject) {
-        out.push('function' === typeof fn ? fn() : fn)
-      }
-      return out.sort()
+  if (isArray) {
+    for (let fn of subject) {
+      out.push(flags.call && 'function' === typeof fn ? fn() : fn)
     }
-    else if (null == subject || 'object' !== typeof subject) {
-      return []
+
+    out = true === flags.sort && 1 < out.length ? out.sort() : out
+
+    out = flags.oval ? out.map((n: any) =>
+      (null != n && 'object' === typeof n) ? n : { val$: n }) : out
+
+    out = 'string' === typeof flags.sort ?
+      out.sort((a: any, b: any) =>
+      (a?.[flags.sort as string] < b?.[flags.sort as string] ? -1 :
+        a?.[flags.sort as string] > b?.[flags.sort as string] ? 1 : 0)) : out
+
+    out = flags.mark ? out
+      .map((n: any, i: number, _: any) =>
+        (_ = typeof n, (null != n && 'object' === _ ? (n.index$ = i) : null), n)) : out
+
+    if ('function' === typeof apply) {
+      out = out.map((n: any, ...args: any[]) =>
+        apply(n, ...args))
     }
-  }
-  else if (Array.isArray(subject)) {
-    return subject.map(apply)
-  }
 
-  if (null == subject || 'object' !== typeof subject) {
-    return []
+    return out
   }
 
-  const entries: any = Object.entries(subject).map((n: any[], _: any) =>
-  (_ = typeof n[1],
-    (null != n[1] && 'object' === _) ? (n[1].key$ = n[0]) :
-      (n[1] = { name: n[0], key$: n[0], val$: n[1] }), n))
+  const isObject = null != subject && 'object' === typeof subject
 
-  if (1 < entries.length) {
-    if (entries[0] && entries[0][1] && 'string' === typeof entries[0][1].name) {
+  if (!isObject) {
+    return out
+  }
+
+  let entries: any = Object.entries(subject as any)
+
+  if (flags.call) {
+    entries = entries.map((n: any[]) => ((n[1] = 'function' === typeof n[1] ? n[1]() : n[1]), n))
+  }
+
+  if (flags.oval) {
+    out = entries.map((n: any[], _: any) =>
+    (_ = typeof n[1],
+      (null != n[1] && 'object' === _) ? n[1] :
+        (n[1] = { key$: n[0], val$: n[1] }), n))
+  }
+
+  if (flags.mark) {
+    entries.map((n: any[], _: any) =>
+    (_ = typeof n[1],
+      (null != n[1] && 'object' === _) ? (n[1].key$ = n[0]) : n[1], n))
+  }
+
+  if (1 < entries.length && flags.sort) {
+    if (null != entries[0][1] && 'object' === typeof entries[0][1]) {
+      let sprop = 'string' === flags.sort ? flags.sort : 'key$'
       entries.sort((a: any, b: any) =>
-        a[1].name < b[1].name ? -1 : b[1].name < a[1].name ? 1 : 0)
+        a[1]?.[sprop] < b[1]?.[sprop] ? -1 : b[1]?.[sprop] < a[1]?.[sprop] ? 1 : 0)
     }
-    else if (entries[0] && entries[0][1] && 'string' === typeof entries[0][1].key$) {
+    else {
       entries.sort((a: any, b: any) =>
-        a[1].key$ < b[1].key$ ? -1 : b[1].key$ < a[1].key$ ? 1 : 0)
+        a[1] < b[1] ? -1 : b[1] < a[1] ? 1 : 0)
     }
   }
 
-  apply = 'function' === typeof apply ? apply : (x: any) => x
+  if ('function' === typeof apply) {
+    out = entries.map((n: any[], ...args: any[]) =>
+      apply(n[1], n[0], ...args))
+  }
+  else {
+    out = entries.map((n: any[]) => n[1])
+  }
 
-  return entries.map((n: any, ...args: any[]) =>
-    apply(n[1], n[0], ...args))
+  return out
 }
 
 
@@ -220,8 +240,13 @@ function getx(root: any, path: string | string[]): any {
       out = each(node)
         .filter((child: any) => undefined != getx(child, ftokens))
 
-      if (null !== node && 'object' === typeof node && !Array.isArray(node)) {
-        out = out.reduce((a: any, n: any) => (a[n.key$] = n, delete n.key$, a), {})
+      if (null != node && 'object' === typeof node) {
+        if (Array.isArray(node)) {
+          out = out.map((n: any) => (delete n.index$, n))
+        }
+        else {
+          out = out.reduce((a: any, n: any) => (a[n.key$] = n, delete n.key$, a), {})
+        }
       }
 
       node = out
@@ -625,14 +650,6 @@ const BINARY_EXT = [
 ]
 
 
-
-export type {
-  JostracaOptions,
-  Node,
-  OpStep,
-  OpDef,
-  Component,
-}
 
 
 export {

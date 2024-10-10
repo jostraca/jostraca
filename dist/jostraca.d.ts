@@ -1,4 +1,4 @@
-import type { JostracaOptions, Node, Component } from './utility';
+import type { JostracaOptions, Node, Component } from './types';
 import { each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names } from './utility';
 import { Content } from './cmp/Content';
 import { Copy } from './cmp/Copy';

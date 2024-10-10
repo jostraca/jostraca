@@ -1,5 +1,5 @@
 
-import type { Node } from '../utility'
+import type { Node } from '../jostraca'
 
 import { cmp, each } from '../jostraca'
 
@@ -12,7 +12,7 @@ const Inject = cmp(function Inject(props: any, children: any) {
   node.meta.markers = props.markers || ['#--START--#\n', '\n#--END--#']
   node.exclude = null == props.exclude ? node.exclude : !!props.exclude
 
-  each(children)
+  each(children, { call: true })
 })
 
 

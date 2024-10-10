@@ -1,28 +1,10 @@
-type JostracaOptions = {
-    folder?: string;
-    fs?: any;
-    meta?: any;
-};
-type Node = {
-    kind: string;
-    children?: Node[];
-    meta: any;
-    name?: string;
-    path: string[];
-    from?: string;
-    content?: any[];
-    folder?: string;
-    after?: any;
-    exclude?: boolean;
-    indent?: string;
-};
-type OpStep = (node: Node, ctx$: any, buildctx: any) => void;
-type OpDef = {
-    before: OpStep;
-    after: OpStep;
-};
-type Component = (props: any, children?: any) => void;
-declare function each(subject?: any, apply?: any): any;
+declare function each(subject?: any[] | Object, // Iterate over subject.
+flags?: {
+    mark?: boolean;
+    oval?: boolean;
+    sort?: boolean | string;
+    call?: boolean;
+} | ((...a: any[]) => any), apply?: (...a: any[]) => any): any[];
 declare function select(key: any, map: Record<string, Function>): any;
 declare function getx(root: any, path: string | string[]): any;
 declare function get(root: any, path: string | string[]): any;
@@ -43,5 +25,4 @@ declare namespace vmap {
     var KEY: (_: any, p: any) => any;
 }
 declare const BINARY_EXT: string[];
-export type { JostracaOptions, Node, OpStep, OpDef, Component, };
 export { each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, BINARY_EXT, };

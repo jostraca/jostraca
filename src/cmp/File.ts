@@ -1,5 +1,5 @@
 
-import type { Node } from '../utility'
+import type { Node } from '../jostraca'
 
 import { cmp, each } from '../jostraca'
 
@@ -11,7 +11,7 @@ const File = cmp(function File(props: any, children: any) {
   node.name = props.name
   node.exclude = null == props.exclude ? node.exclude : !!props.exclude
 
-  each(children)
+  each(children, { call: true })
 })
 
 

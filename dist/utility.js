@@ -12,38 +12,67 @@ exports.kebabify = kebabify;
 exports.cmap = cmap;
 exports.vmap = vmap;
 exports.names = names;
-function each(subject, apply) {
-    if (null == apply) {
-        let out = [];
-        if (Array.isArray(subject)) {
-            for (let fn of subject) {
-                out.push('function' === typeof fn ? fn() : fn);
-            }
-            return out.sort();
+// Iterate over arrays and objects (opinionated mutation!).
+function each(subject, // Iterate over subject.
+flags, apply) {
+    const isArray = Array.isArray(subject);
+    const hasFlags = null != flags && 'function' !== typeof flags;
+    apply = (hasFlags ? apply : flags);
+    flags = (hasFlags ? flags : {});
+    flags.mark = null != flags.mark ? flags.mark : true;
+    flags.oval = null != flags.oval ? flags.oval : true;
+    flags.sort = null != flags.sort ? flags.sort : false;
+    flags.call = null != flags.call ? flags.call : false;
+    let out = [];
+    if (isArray) {
+        for (let fn of subject) {
+            out.push(flags.call && 'function' === typeof fn ? fn() : fn);
         }
-        else if (null == subject || 'object' !== typeof subject) {
-            return [];
+        out = true === flags.sort && 1 < out.length ? out.sort() : out;
+        out = flags.oval ? out.map((n) => (null != n && 'object' === typeof n) ? n : { val$: n }) : out;
+        out = 'string' === typeof flags.sort ?
+            out.sort((a, b) => (a?.[flags.sort] < b?.[flags.sort] ? -1 :
+                a?.[flags.sort] > b?.[flags.sort] ? 1 : 0)) : out;
+        out = flags.mark ? out
+            .map((n, i, _) => (_ = typeof n, (null != n && 'object' === _ ? (n.index$ = i) : null), n)) : out;
+        if ('function' === typeof apply) {
+            out = out.map((n, ...args) => apply(n, ...args));
+        }
+        return out;
+    }
+    const isObject = null != subject && 'object' === typeof subject;
+    if (!isObject) {
+        return out;
+    }
+    let entries = Object.entries(subject);
+    if (flags.call) {
+        entries = entries.map((n) => ((n[1] = 'function' === typeof n[1] ? n[1]() : n[1]), n));
+    }
+    if (flags.oval) {
+        out = entries.map((n, _) => (_ = typeof n[1],
+            (null != n[1] && 'object' === _) ? n[1] :
+                (n[1] = { key$: n[0], val$: n[1] }), n));
+    }
+    if (flags.mark) {
+        entries.map((n, _) => (_ = typeof n[1],
+            (null != n[1] && 'object' === _) ? (n[1].key$ = n[0]) : n[1], n));
+    }
+    if (1 < entries.length && flags.sort) {
+        if (null != entries[0][1] && 'object' === typeof entries[0][1]) {
+            let sprop = 'string' === flags.sort ? flags.sort : 'key$';
+            entries.sort((a, b) => a[1]?.[sprop] < b[1]?.[sprop] ? -1 : b[1]?.[sprop] < a[1]?.[sprop] ? 1 : 0);
+        }
+        else {
+            entries.sort((a, b) => a[1] < b[1] ? -1 : b[1] < a[1] ? 1 : 0);
         }
     }
-    else if (Array.isArray(subject)) {
-        return subject.map(apply);
+    if ('function' === typeof apply) {
+        out = entries.map((n, ...args) => apply(n[1], n[0], ...args));
     }
-    if (null == subject || 'object' !== typeof subject) {
-        return [];
+    else {
+        out = entries.map((n) => n[1]);
     }
-    const entries = Object.entries(subject).map((n, _) => (_ = typeof n[1],
-        (null != n[1] && 'object' === _) ? (n[1].key$ = n[0]) :
-            (n[1] = { name: n[0], key$: n[0], val$: n[1] }), n));
-    if (1 < entries.length) {
-        if (entries[0] && entries[0][1] && 'string' === typeof entries[0][1].name) {
-            entries.sort((a, b) => a[1].name < b[1].name ? -1 : b[1].name < a[1].name ? 1 : 0);
-        }
-        else if (entries[0] && entries[0][1] && 'string' === typeof entries[0][1].key$) {
-            entries.sort((a, b) => a[1].key$ < b[1].key$ ? -1 : b[1].key$ < a[1].key$ ? 1 : 0);
-        }
-    }
-    apply = 'function' === typeof apply ? apply : (x) => x;
-    return entries.map((n, ...args) => apply(n[1], n[0], ...args));
+    return out;
 }
 function select(key, map) {
     const fn = map && map[key];
@@ -174,8 +203,13 @@ function getx(root, path) {
             // console.log('FTOKENS B', ftokens)
             out = each(node)
                 .filter((child) => undefined != getx(child, ftokens));
-            if (null !== node && 'object' === typeof node && !Array.isArray(node)) {
-                out = out.reduce((a, n) => (a[n.key$] = n, delete n.key$, a), {});
+            if (null != node && 'object' === typeof node) {
+                if (Array.isArray(node)) {
+                    out = out.map((n) => (delete n.index$, n));
+                }
+                else {
+                    out = out.reduce((a, n) => (a[n.key$] = n, delete n.key$, a), {});
+                }
             }
             node = out;
             i += ftokens.length;

@@ -1,2 +1,2 @@
-declare const Project: import("../utility").Component;
+declare const Project: import("../types").Component;
 export { Project };

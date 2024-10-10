@@ -42,12 +42,12 @@ const CopyOp = {
         }
     },
     after(node, ctx$, buildctx) {
-        const info = buildctx.info;
+        const log = buildctx.log;
         const kind = node.after.kind;
         const frompath = node.from;
         const topath = buildctx.current.folder.path.join('/');
         let exclude = node.exclude;
-        if (info && true === exclude) {
+        if (log && true === exclude) {
             return;
         }
         if ('file' === kind) {
@@ -106,34 +106,38 @@ function ignored(state, nodepath, name, topath) {
     return !name.match(/(~|-jostraca-off)$/);
 }
 function excludeFile(state, nodepath, name, topath) {
-    const { fs, info } = state.buildctx;
+    const { opts } = state.ctx$;
+    if (true !== opts.exclude) {
+        return false;
+    }
+    const { fs, log } = state.buildctx;
     let exclude = false;
     // NOT Path.sep - needs to be canonical
     const rpath = nodepath.concat(name).join('/');
-    if (info) {
-        exclude = info.exclude.includes(rpath);
+    if (log) {
+        exclude = log.exclude.includes(rpath);
         let stat, timedelta;
         if (!exclude) {
             stat = fs.statSync(topath, { throwIfNoEntry: false });
             if (stat) {
-                timedelta = stat.mtimeMs - info.last;
+                timedelta = stat.mtimeMs - log.last;
                 if (stat && (timedelta > 0 && timedelta < stat.mtimeMs)) {
                     exclude = true;
-                    // console.log('COPYOP-STAT', rpath, timedelta, exclude, stat?.mtimeMs, info.last)
+                    // console.log('COPYOP-STAT', rpath, timedelta, exclude, stat?.mtimeMs, log.last)
                 }
             }
         }
         // if ('sdk.js' === name) {
         // console.log('COPYSTAT', rpath, frompath,
         //   timedelta,
-        //   info.exclude.includes(rpath),
-        //   stat?.mtimeMs - info.last,
-        //   stat?.mtimeMs, info.last, exclude)
+        //   log.exclude.includes(rpath),
+        //   stat?.mtimeMs - log.last,
+        //   stat?.mtimeMs, log.last, exclude)
         // }
     }
-    if (exclude && info && !info.exclude.includes(rpath)) {
+    if (exclude && log && !log.exclude.includes(rpath)) {
         // NOT Path.sep - has to be canonical
-        info.exclude.push(rpath);
+        log.exclude.push(rpath);
     }
     // console.log('COPY-EXCLUDE', rpath, exclude)
     return exclude;

@@ -8,7 +8,7 @@ const Inject = (0, jostraca_1.cmp)(function Inject(props, children) {
     node.name = props.name;
     node.meta.markers = props.markers || ['#--START--#\n', '\n#--END--#'];
     node.exclude = null == props.exclude ? node.exclude : !!props.exclude;
-    (0, jostraca_1.each)(children);
+    (0, jostraca_1.each)(children, { call: true });
 });
 exports.Inject = Inject;
 //# sourceMappingURL=Inject.js.map

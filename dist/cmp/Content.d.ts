@@ -1,2 +1,2 @@
-declare const Content: import("../utility").Component;
+declare const Content: import("../types").Component;
 export { Content };

@@ -1,2 +1,2 @@
-declare const File: import("../utility").Component;
+declare const File: import("../types").Component;
 export { File };
