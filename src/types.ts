@@ -20,7 +20,7 @@ type Node = {
   content?: any[]
   folder?: string
   after?: any
-  exclude?: boolean
+  exclude?: boolean | string | string[]
   indent?: string
 }
 

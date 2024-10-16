@@ -20,7 +20,28 @@ const FileOp = {
     const cfile = current.file
     const content = cfile.content.join('')
     const rpath = cfile.path.join('/') // NOT Path.sep - needs to be canonical
+
+    const fileExists = fs.existsSync(cfile.filepath)
+
     let exclude = node.exclude
+
+    if (fileExists) {
+      if (true === exclude) {
+        return
+      }
+
+      const excludes = 'string' === node.exclude ? [node.exclude] :
+        Array.isArray(node.exclude) ? node.exclude :
+          []
+
+      if (excludes.includes(rpath)) {
+        return
+      }
+    }
+    else {
+      exclude = false
+    }
+
 
     // console.log('FILE-a exclude', rpath, exclude, !!log)
 

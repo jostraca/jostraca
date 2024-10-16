@@ -14,7 +14,7 @@ type Node = {
     content?: any[];
     folder?: string;
     after?: any;
-    exclude?: boolean;
+    exclude?: boolean | string | string[];
     indent?: string;
 };
 type OpStep = (node: Node, ctx$: any, buildctx: any) => void;

@@ -10,9 +10,17 @@ const FragmentOp = {
   },
 
 
-  after(node: Node, _ctx$: any, buildctx: any) {
+  after(node: Node, ctx$: any, buildctx: any) {
     const { fs } = buildctx
-    const frompath = node.from as string
+    let frompath = node.from as string
+
+    // TODO: this is relative to the output - but that is just one case - provide more control?
+    if (!Path.isAbsolute(frompath)) {
+      // console.log('FRAG REL', node.folder, node.path, frompath, '|') // , process.cwd(), buildctx)
+      frompath = Path.join(buildctx.folder, ...node.path, frompath)
+      // console.log('FRAG RESOLVED', frompath)
+    }
+
     let src = fs.readFileSync(frompath, 'utf8')
 
     if ('string' === typeof node.indent) {

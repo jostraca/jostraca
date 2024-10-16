@@ -11,10 +11,14 @@ const FileOp_1 = require("./FileOp");
 const CopyOp = {
     before(node, ctx$, buildctx) {
         const fs = buildctx.fs;
+        if (null == node.name && null != node.from) {
+            node.name = node_path_1.default.basename(node.from);
+        }
         // TODO: do these need null checks here?
         const name = node.name;
         const from = node.from;
         const fromStat = fs.statSync(from);
+        // console.log('COPY', from, name, fromStat.isFile())
         if (fromStat.isFile()) {
             FileOp_1.FileOp.before(node, ctx$, buildctx);
             const topath = buildctx.current.file.path;
@@ -42,14 +46,13 @@ const CopyOp = {
         }
     },
     after(node, ctx$, buildctx) {
-        const log = buildctx.log;
         const kind = node.after.kind;
         const frompath = node.from;
         const topath = buildctx.current.folder.path.join('/');
-        let exclude = node.exclude;
-        if (log && true === exclude) {
-            return;
-        }
+        // let exclude = node.exclude
+        // if (true === exclude) {
+        //   return
+        // }
         if ('file' === kind) {
             FileOp_1.FileOp.after(node, ctx$, buildctx);
         }
@@ -60,9 +63,14 @@ const CopyOp = {
                 tmCount: 0,
                 ctx$,
                 buildctx,
+                node,
+                excludes: 'string' === node.exclude ? [node.exclude] :
+                    Array.isArray(node.exclude) ? node.exclude :
+                        []
             };
             // TODO: node.path is wrong
             // change prop.name to prop.to and account for subfolders
+            // console.log('COPY WALK', frompath, topath, node.exclude, state.excludes)
             walk(state, node.path, frompath, topath);
         }
         else {
@@ -79,11 +87,15 @@ function walk(state, nodepath, from, to) {
         const frompath = node_path_1.default.join(from, name);
         const topath = node_path_1.default.join(to, name);
         const stat = fs.statSync(frompath);
-        if (stat.isDirectory()) {
+        const isDirectory = stat.isDirectory();
+        const isTemplateFile = isTemplate(name);
+        const isIgnored = ignored(state, nodepath, name, topath);
+        // console.log('COPY FROM', frompath, isDirectory, isTemplateFile, isIgnored)
+        if (isDirectory) {
             state.folderCount++;
             walk(state, nodepath.concat(name), frompath, topath);
         }
-        else if (isTemplate(name)) {
+        else if (isTemplateFile) {
             if (excludeFile(state, nodepath, name, topath)) {
                 continue;
             }
@@ -93,7 +105,7 @@ function walk(state, nodepath, from, to) {
             state.fileCount++;
             state.tmCount++;
         }
-        else if (!ignored(state, nodepath, name, topath)) {
+        else if (!isIgnored) {
             if (excludeFile(state, nodepath, name, topath)) {
                 continue;
             }
@@ -107,13 +119,18 @@ function ignored(state, nodepath, name, topath) {
 }
 function excludeFile(state, nodepath, name, topath) {
     const { opts } = state.ctx$;
-    if (true !== opts.exclude) {
-        return false;
-    }
     const { fs, log } = state.buildctx;
     let exclude = false;
     // NOT Path.sep - needs to be canonical
     const rpath = nodepath.concat(name).join('/');
+    const fileExists = fs.existsSync(topath);
+    // console.log('COPY EXCLUDE', fileExists, state.excludes.includes(rpath), rpath, '|', state.excludes)
+    if (fileExists && state.excludes.includes(rpath)) {
+        return true;
+    }
+    if (true !== opts.exclude) {
+        return false;
+    }
     if (log) {
         exclude = log.exclude.includes(rpath);
         let stat, timedelta;

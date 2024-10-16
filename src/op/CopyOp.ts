@@ -15,11 +15,17 @@ const CopyOp = {
   before(node: Node, ctx$: any, buildctx: any) {
     const fs = buildctx.fs
 
+    if (null == node.name && null != node.from) {
+      node.name = Path.basename(node.from)
+    }
+
     // TODO: do these need null checks here?
     const name = node.name as string
     const from = node.from as string
 
     const fromStat = fs.statSync(from)
+
+    // console.log('COPY', from, name, fromStat.isFile())
 
     if (fromStat.isFile()) {
       FileOp.before(node, ctx$, buildctx)
@@ -54,16 +60,15 @@ const CopyOp = {
 
 
   after(node: Node, ctx$: any, buildctx: any) {
-    const log = buildctx.log
     const kind = node.after.kind
 
     const frompath = node.from as string
     const topath = buildctx.current.folder.path.join('/')
 
-    let exclude = node.exclude
-    if (log && true === exclude) {
-      return
-    }
+    // let exclude = node.exclude
+    // if (true === exclude) {
+    //   return
+    // }
 
     if ('file' === kind) {
       FileOp.after(node, ctx$, buildctx)
@@ -75,11 +80,16 @@ const CopyOp = {
         tmCount: 0,
         ctx$,
         buildctx,
+        node,
+        excludes: 'string' === node.exclude ? [node.exclude] :
+          Array.isArray(node.exclude) ? node.exclude :
+            []
       }
 
       // TODO: node.path is wrong
       // change prop.name to prop.to and account for subfolders
 
+      // console.log('COPY WALK', frompath, topath, node.exclude, state.excludes)
       walk(state, node.path, frompath, topath)
     }
     else {
@@ -100,11 +110,17 @@ function walk(state: any, nodepath: string[], from: string, to: string) {
     const topath = Path.join(to, name)
     const stat = fs.statSync(frompath)
 
-    if (stat.isDirectory()) {
+    const isDirectory = stat.isDirectory()
+    const isTemplateFile = isTemplate(name)
+    const isIgnored = ignored(state, nodepath, name, topath)
+
+    // console.log('COPY FROM', frompath, isDirectory, isTemplateFile, isIgnored)
+
+    if (isDirectory) {
       state.folderCount++
       walk(state, nodepath.concat(name), frompath, topath)
     }
-    else if (isTemplate(name)) {
+    else if (isTemplateFile) {
       if (excludeFile(state, nodepath, name, topath)) { continue }
       const src = fs.readFileSync(frompath, 'utf8')
       const out = genTemplate(state, src, { name, frompath, topath })
@@ -112,7 +128,7 @@ function walk(state: any, nodepath: string[], from: string, to: string) {
       state.fileCount++
       state.tmCount++
     }
-    else if (!ignored(state, nodepath, name, topath)) {
+    else if (!isIgnored) {
       if (excludeFile(state, nodepath, name, topath)) { continue }
       copyFileSync(buildctx, frompath, topath)
       state.fileCount++
@@ -128,15 +144,21 @@ function ignored(state: any, nodepath: string[], name: string, topath: string) {
 
 function excludeFile(state: any, nodepath: string[], name: string, topath: string) {
   const { opts } = state.ctx$
-  if (true !== opts.exclude) {
-    return false
-  }
-
   const { fs, log } = state.buildctx
   let exclude = false
 
   // NOT Path.sep - needs to be canonical
   const rpath = nodepath.concat(name).join('/')
+  const fileExists = fs.existsSync(topath)
+
+  // console.log('COPY EXCLUDE', fileExists, state.excludes.includes(rpath), rpath, '|', state.excludes)
+  if (fileExists && state.excludes.includes(rpath)) {
+    return true
+  }
+
+  if (true !== opts.exclude) {
+    return false
+  }
 
   if (log) {
     exclude = log.exclude.includes(rpath)
