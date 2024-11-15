@@ -80,32 +80,26 @@ function Jostraca() {
     }
 
     return GLOBAL.jostraca.run(ctx$, async () => {
-      try {
-        // Define phase
-        root()
+      // Define phase
+      root()
 
-        const ctx$ = GLOBAL.jostraca.getStore()
+      const ctx$ = GLOBAL.jostraca.getStore()
 
-        // console.dir(ctx$.node, { depth: null })
+      // console.dir(ctx$.node, { depth: null })
 
-        // Build phase
+      // Build phase
 
-        const buildctx = {
-          fs,
-          folder,
-          current: {
-            folder: {
-              parent: folder
-            }
+      const buildctx = {
+        fs,
+        folder,
+        current: {
+          folder: {
+            parent: folder
           }
         }
-        await build(ctx$, buildctx)
-        return buildctx
       }
-      catch (err: any) {
-        console.log('JOSTRACA ERROR:', err)
-        throw err
-      }
+      await build(ctx$, buildctx)
+      return buildctx
     })
   }
 

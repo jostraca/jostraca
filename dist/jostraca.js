@@ -91,28 +91,22 @@ function Jostraca() {
             log,
         };
         return GLOBAL.jostraca.run(ctx$, async () => {
-            try {
-                // Define phase
-                root();
-                const ctx$ = GLOBAL.jostraca.getStore();
-                // console.dir(ctx$.node, { depth: null })
-                // Build phase
-                const buildctx = {
-                    fs,
-                    folder,
-                    current: {
-                        folder: {
-                            parent: folder
-                        }
+            // Define phase
+            root();
+            const ctx$ = GLOBAL.jostraca.getStore();
+            // console.dir(ctx$.node, { depth: null })
+            // Build phase
+            const buildctx = {
+                fs,
+                folder,
+                current: {
+                    folder: {
+                        parent: folder
                     }
-                };
-                await build(ctx$, buildctx);
-                return buildctx;
-            }
-            catch (err) {
-                console.log('JOSTRACA ERROR:', err);
-                throw err;
-            }
+                }
+            };
+            await build(ctx$, buildctx);
+            return buildctx;
         });
     }
     async function build(ctx$, buildctx) {
