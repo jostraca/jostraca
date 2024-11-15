@@ -3,6 +3,7 @@ type JostracaOptions = {
     meta?: any;
     exclude?: boolean;
     fs?: any;
+    log?: Log;
 };
 type Node = {
     kind: string;
@@ -23,4 +24,12 @@ type OpDef = {
     after: OpStep;
 };
 type Component = (props: any, children?: any) => void;
-export type { JostracaOptions, Node, OpStep, OpDef, Component, };
+type Log = {
+    trace: (...args: any[]) => any;
+    debug: (...args: any[]) => any;
+    info: (...args: any[]) => any;
+    warn: (...args: any[]) => any;
+    error: (...args: any[]) => any;
+    fatal: (...args: any[]) => any;
+};
+export type { JostracaOptions, Node, OpStep, OpDef, Component, Log, };

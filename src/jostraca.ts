@@ -11,6 +11,7 @@ import type {
   Node,
   OpDef,
   Component,
+  Log,
 } from './types'
 
 
@@ -49,6 +50,14 @@ import { NoneOp } from './op/NoneOp'
 
 const GLOBAL = (global as any)
 
+const DEFAULT_LOGGER = {
+  trace: (...args: any[]) => console.log(new Date().toISOString(), 'TRACE', ...args),
+  debug: (...args: any[]) => console.log(new Date().toISOString(), 'DEBUG', ...args),
+  info: (...args: any[]) => console.log(new Date().toISOString(), 'INFO', ...args),
+  warn: (...args: any[]) => console.warn(new Date().toISOString(), 'WARN', ...args),
+  error: (...args: any[]) => console.error(new Date().toISOString(), 'ERROR', ...args),
+  fatal: (...args: any[]) => console.error(new Date().toISOString(), 'FATAL', ...args),
+}
 
 
 function Jostraca() {
@@ -59,6 +68,7 @@ function Jostraca() {
     const fs = opts.fs || Fs
     const meta = opts.meta || {}
     const folder = opts.folder || '.'
+    const log: Log = opts.log || DEFAULT_LOGGER
 
     const ctx$ = {
       folder,
@@ -66,6 +76,7 @@ function Jostraca() {
       meta,
       fs,
       opts,
+      log,
     }
 
     return GLOBAL.jostraca.run(ctx$, async () => {

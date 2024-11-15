@@ -3,14 +3,16 @@ const Fs = require('node:fs')
 const { Jostraca, getx, each, Folder, Inject, Content } = require('..')
 const Parser = require('oxc-parser')
 
-const utilitySrcPath = __dirname+'/../src/utility.ts' 
+const utilitySrcPath = __dirname+'/../src/types.ts' 
 const sourceText = Fs.readFileSync(utilitySrcPath,'utf8')
 const options = {
   sourceFilename: utilitySrcPath,
 }
 
 let pres = Parser.parseSync(sourceText, options)
-let ast = JSON.parse(pres.program)
+let ast = pres.program
+
+// console.dir(ast,{depth:3})
 
 let optionDefs = getx(ast, 'body?id:name==JostracaOptions 0 typeAnnotation members')
     .map(od=>({

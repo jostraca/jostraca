@@ -35,13 +35,13 @@
   ],
   "devDependencies": {
     "@hapi/code": "^9.0.3",
-    "@types/node": "22.7.6",
+    "@types/node": "22.9.0",
     "esbuild": "^0.24.0",
     "memfs": "^4.14.0",
-    "oxc-parser": "^0.31.0",
+    "oxc-parser": "^0.36.0",
     "typescript": "^5.6.3"
   },
-  "dependencies": {
-    "@jsonic/jsonic-next": "^2.12.1"
+  "peerDependencies": {
+    "jsonic": ">=2.15.2"
   }
 }

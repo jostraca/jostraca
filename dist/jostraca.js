@@ -67,18 +67,28 @@ const FragmentOp_1 = require("./op/FragmentOp");
 const ContentOp_1 = require("./op/ContentOp");
 const NoneOp_1 = require("./op/NoneOp");
 const GLOBAL = global;
+const DEFAULT_LOGGER = {
+    trace: (...args) => console.log(new Date().toISOString(), 'TRACE', ...args),
+    debug: (...args) => console.log(new Date().toISOString(), 'DEBUG', ...args),
+    info: (...args) => console.log(new Date().toISOString(), 'INFO', ...args),
+    warn: (...args) => console.warn(new Date().toISOString(), 'WARN', ...args),
+    error: (...args) => console.error(new Date().toISOString(), 'ERROR', ...args),
+    fatal: (...args) => console.error(new Date().toISOString(), 'FATAL', ...args),
+};
 function Jostraca() {
     GLOBAL.jostraca = new node_async_hooks_1.AsyncLocalStorage();
     async function generate(opts, root) {
         const fs = opts.fs || Fs;
         const meta = opts.meta || {};
         const folder = opts.folder || '.';
+        const log = opts.log || DEFAULT_LOGGER;
         const ctx$ = {
             folder,
             content: null,
             meta,
             fs,
             opts,
+            log,
         };
         return GLOBAL.jostraca.run(ctx$, async () => {
             try {

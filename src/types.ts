@@ -6,6 +6,7 @@ type JostracaOptions = {
   meta?: any // Provide meta data to the generation process. Default: `{}`
   exclude?: boolean // Exclude modified output files. Default: `false`.
   fs?: any // File system API (used for testing). Default: `node:fs`
+  log?: Log
 }
 
 
@@ -36,6 +37,15 @@ type OpDef = {
 type Component = (props: any, children?: any) => void
 
 
+type Log = {
+  trace: (...args: any[]) => any
+  debug: (...args: any[]) => any
+  info: (...args: any[]) => any
+  warn: (...args: any[]) => any
+  error: (...args: any[]) => any
+  fatal: (...args: any[]) => any
+}
+
 
 export type {
   JostracaOptions,
@@ -43,5 +53,6 @@ export type {
   OpStep,
   OpDef,
   Component,
+  Log,
 }
 
