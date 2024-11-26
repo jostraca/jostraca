@@ -289,6 +289,7 @@ function template(src, model, spec) {
             }
             else {
                 ref = '';
+                insert = '';
                 let rI = 4;
                 while (rI < m.length &&
                     '' === (ref = (null == m[rI] || '' == m[rI] ? '' : m[rI]))) {
@@ -298,17 +299,22 @@ function template(src, model, spec) {
                     insert = spec.replace[Object.keys(spec.replace)[rI - 4]];
                 }
             }
-            let ti = typeof insert;
-            if (null == insert || ('number' === ti && isNaN(insert))) {
-                out += (0 === skip ? '' : m[1]) + ref + (0 === skip ? '' : m[3]);
-            }
-            else if ('function' === ti) {
-                out += insert({ src, model, spec, ref, index: mi });
+            if ('' === ref) {
+                throw new Error('Regular expression matches empty string: ' + insertRE);
             }
             else {
-                out += ('object' === ti ? JSON.stringify(insert) : insert);
+                let ti = typeof insert;
+                if (null == insert || ('number' === ti && isNaN(insert))) {
+                    out += (0 === skip ? '' : m[1]) + ref + (0 === skip ? '' : m[3]);
+                }
+                else if ('function' === ti) {
+                    out += insert({ src, model, spec, ref, index: mi });
+                }
+                else {
+                    out += ('object' === ti ? JSON.stringify(insert) : insert);
+                }
+                remain = remain.substring(mi + skip + ref.length);
             }
-            remain = remain.substring(mi + skip + ref.length);
         }
         else {
             out += remain;

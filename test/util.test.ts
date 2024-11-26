@@ -160,7 +160,6 @@ describe('util', () => {
 
     expect(getx([{ y: 1 }, { y: 2 }, { y: 2 }], '?y=2 0'))
       .equal({ y: 2 })
-
   })
 
 
@@ -175,11 +174,12 @@ describe('util', () => {
     expect(template('$$a$$', { a: ['b', 'c'] })).equal('["b","c"]')
     expect(template('$$a$$', { a: () => 'A' })).equal('A')
     expect(template('$$__insert__$$', {})).equal('/(\\$\\$)([^$]+)(\\$\\$)/')
-    expect(template('$$a$$', { a: '$$b$$' })).equal('$$b$$') // NOPE!
+    expect(template('$$a$$', { a: '$$b$$' })).equal('$$b$$') // NOPE - NOT A MACRO SYSTEM!
     expect(template('aQb', {}, { replace: { Q: 'Z' } })).equal('aZb')
+    expect(template('aQQQb', {}, { replace: { '/Q+/': 'Z' } })).equal('aZb')
+    expect(() => template('aQQQb', {}, { replace: { '/Q*/': 'Z' } })).throws(/empty/)
     expect(template('aQbWc$$__insert__$$', {}, { replace: { Q: 'Z', W: 'Y' } }))
       .equal('aZbYc/(\\$\\$)([^$]+)(\\$\\$)|(Q)|(W)/')
-
   })
 })
 

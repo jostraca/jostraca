@@ -122,8 +122,10 @@ const __1 = require("../");
         (0, code_1.expect)((0, __1.template)('$$a$$', { a: ['b', 'c'] })).equal('["b","c"]');
         (0, code_1.expect)((0, __1.template)('$$a$$', { a: () => 'A' })).equal('A');
         (0, code_1.expect)((0, __1.template)('$$__insert__$$', {})).equal('/(\\$\\$)([^$]+)(\\$\\$)/');
-        (0, code_1.expect)((0, __1.template)('$$a$$', { a: '$$b$$' })).equal('$$b$$'); // NOPE!
+        (0, code_1.expect)((0, __1.template)('$$a$$', { a: '$$b$$' })).equal('$$b$$'); // NOPE - NOT A MACRO SYSTEM!
         (0, code_1.expect)((0, __1.template)('aQb', {}, { replace: { Q: 'Z' } })).equal('aZb');
+        (0, code_1.expect)((0, __1.template)('aQQQb', {}, { replace: { '/Q+/': 'Z' } })).equal('aZb');
+        (0, code_1.expect)(() => (0, __1.template)('aQQQb', {}, { replace: { '/Q*/': 'Z' } })).throws(/empty/);
         (0, code_1.expect)((0, __1.template)('aQbWc$$__insert__$$', {}, { replace: { Q: 'Z', W: 'Y' } }))
             .equal('aZbYc/(\\$\\$)([^$]+)(\\$\\$)|(Q)|(W)/');
     });
