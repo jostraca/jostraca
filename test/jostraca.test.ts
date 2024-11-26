@@ -153,8 +153,8 @@ describe('jostraca', () => {
     const { fs, vol } = memfs({
       '/tmp/foo.txt': 'FOO\n',
       '/tmp/bar.txt': 'BAR\n',
-      '/tmp/zed.txt': 'ZED <[SLOT]> \n',
-      '/tmp/qaz.txt': 'QAZ <[SLOT:alice]> - <[SLOT:bob]> \n',
+      '/tmp/zed.txt': 'ZED+<[SLOT]> \n',
+      '/tmp/qaz.txt': 'QAZ+// <[SLOT:alice]>+/* <[SLOT:bob]> */+ # <[SLOT:bob]>\n',
     })
 
     const jostraca = Jostraca()
@@ -199,11 +199,11 @@ describe('jostraca', () => {
       '/tmp/foo.txt': 'FOO\n',
       '/tmp/bar.txt': 'BAR\n',
 
-      '/tmp/zed.txt': 'ZED <[SLOT]> \n',
-      '/top/sdk/bar.js': 'ZED red \n',
+      '/tmp/zed.txt': 'ZED+<[SLOT]> \n',
+      '/top/sdk/bar.js': 'ZED+red\n',
 
-      '/tmp/qaz.txt': 'QAZ <[SLOT:alice]> - <[SLOT:bob]> \n',
-      '/top/sdk/qaz.js': 'QAZ ALICE - BOB \n',
+      '/tmp/qaz.txt': 'QAZ+// <[SLOT:alice]>+/* <[SLOT:bob]> */+ # <[SLOT:bob]>\n',
+      '/top/sdk/qaz.js': 'QAZ+ALICE+BOB+BOB\n',
 
       '/top/sdk/foo.js': '// custom-foo\nFOO\n  BAR\n// END\n',
     })

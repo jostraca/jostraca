@@ -7,6 +7,7 @@ const Fragment = (0, jostraca_1.cmp)(function Fragment(props, children) {
     node.kind = 'fragment';
     node.from = props.from;
     node.indent = props.indent;
+    node.meta.replace = props.replace;
     (0, jostraca_1.each)(children, { call: true });
 });
 exports.Fragment = Fragment;

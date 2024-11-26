@@ -10,6 +10,7 @@ const Fragment = cmp(function Fragment(props: any, children: any) {
   node.kind = 'fragment'
   node.from = props.from
   node.indent = props.indent
+  node.meta.replace = props.replace
 
   each(children, { call: true })
 })

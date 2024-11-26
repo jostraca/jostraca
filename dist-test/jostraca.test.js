@@ -96,8 +96,8 @@ const __1 = require("../");
         const { fs, vol } = (0, memfs_1.memfs)({
             '/tmp/foo.txt': 'FOO\n',
             '/tmp/bar.txt': 'BAR\n',
-            '/tmp/zed.txt': 'ZED <[SLOT]> \n',
-            '/tmp/qaz.txt': 'QAZ <[SLOT:alice]> - <[SLOT:bob]> \n',
+            '/tmp/zed.txt': 'ZED+<[SLOT]> \n',
+            '/tmp/qaz.txt': 'QAZ+// <[SLOT:alice]>+/* <[SLOT:bob]> */+ # <[SLOT:bob]>\n',
         });
         const jostraca = (0, __1.Jostraca)();
         const info = await jostraca.generate({ fs, folder: '/top' }, (0, __1.cmp)((props) => {
@@ -128,10 +128,10 @@ const __1 = require("../");
             '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
             '/tmp/foo.txt': 'FOO\n',
             '/tmp/bar.txt': 'BAR\n',
-            '/tmp/zed.txt': 'ZED <[SLOT]> \n',
-            '/top/sdk/bar.js': 'ZED red \n',
-            '/tmp/qaz.txt': 'QAZ <[SLOT:alice]> - <[SLOT:bob]> \n',
-            '/top/sdk/qaz.js': 'QAZ ALICE - BOB \n',
+            '/tmp/zed.txt': 'ZED+<[SLOT]> \n',
+            '/top/sdk/bar.js': 'ZED+red\n',
+            '/tmp/qaz.txt': 'QAZ+// <[SLOT:alice]>+/* <[SLOT:bob]> */+ # <[SLOT:bob]>\n',
+            '/top/sdk/qaz.js': 'QAZ+ALICE+BOB+BOB\n',
             '/top/sdk/foo.js': '// custom-foo\nFOO\n  BAR\n// END\n',
         });
     });

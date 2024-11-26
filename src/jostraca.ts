@@ -32,6 +32,7 @@ import {
   vmap,
   names,
   template,
+  escre,
 } from './utility'
 
 
@@ -261,6 +262,7 @@ export {
   vmap,
   names,
   template,
+  escre,
 
   Project,
   Content,

@@ -37,7 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Copy = exports.Folder = exports.Fragment = exports.Inject = exports.File = exports.Content = exports.Project = exports.template = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.select = exports.each = void 0;
+exports.Copy = exports.Folder = exports.Fragment = exports.Inject = exports.File = exports.Content = exports.Project = exports.escre = exports.template = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.select = exports.each = void 0;
 exports.Jostraca = Jostraca;
 exports.cmp = cmp;
 // TODO:
@@ -58,6 +58,7 @@ Object.defineProperty(exports, "cmap", { enumerable: true, get: function () { re
 Object.defineProperty(exports, "vmap", { enumerable: true, get: function () { return utility_1.vmap; } });
 Object.defineProperty(exports, "names", { enumerable: true, get: function () { return utility_1.names; } });
 Object.defineProperty(exports, "template", { enumerable: true, get: function () { return utility_1.template; } });
+Object.defineProperty(exports, "escre", { enumerable: true, get: function () { return utility_1.escre; } });
 const Content_1 = require("./cmp/Content");
 Object.defineProperty(exports, "Content", { enumerable: true, get: function () { return Content_1.Content; } });
 const Copy_1 = require("./cmp/Copy");

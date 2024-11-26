@@ -1,5 +1,5 @@
 import type { JostracaOptions, Node, Component } from './types';
-import { each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template } from './utility';
+import { each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre } from './utility';
 import { Content } from './cmp/Content';
 import { Copy } from './cmp/Copy';
 import { File } from './cmp/File';
@@ -12,4 +12,4 @@ declare function Jostraca(): {
 };
 declare function cmp(component: Function): Component;
 export type { JostracaOptions, Component, Node, };
-export { Jostraca, cmp, each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, Project, Content, File, Inject, Fragment, Folder, Copy, };
+export { Jostraca, cmp, each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, Project, Content, File, Inject, Fragment, Folder, Copy, };

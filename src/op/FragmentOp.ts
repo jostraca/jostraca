@@ -1,7 +1,7 @@
 
 import Path from 'node:path'
 
-import { each, template } from '../jostraca'
+import { escre, each, template } from '../jostraca'
 
 import type { Node } from '../jostraca'
 
@@ -28,15 +28,21 @@ const FragmentOp = {
 
     let src = fs.readFileSync(frompath, 'utf8')
 
-    let replace: any = {}
+    let replace: any = node.meta.replace || {}
     let content = buildctx.current.file.content
     if (0 < content.length) {
-      replace['<[SLOT]>'] = content.join('')
+      // NOTE: RegExp consumes comment markers in same line.
+      replace['/[ \\t]*[-</#*]*[ \\t]*<\\[SLOT]>[ \\t]*[-</#*]*[ \\t]*/'] = content.join('')
     }
 
     const contentMap = node.meta.content_map || {}
     each(contentMap, (content: any) => {
-      replace['<[SLOT:' + content.key$ + ']>'] = content.join('')
+      replace[
+        '/[ \\t]*[-</#*]*[ \\t]*<\\[SLOT:' +
+        escre(content.key$) +
+        ']>[ \\t]*[-</#*]*[ \\t]*/'
+      ] =
+        content.join('')
     })
 
     // console.log('REPLACE', replace)
