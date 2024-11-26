@@ -1,5 +1,10 @@
 /* Copyright (c) 2024 Richard Rodger, MIT License */
 
+// TODO:
+// Need to check file existence in define phase, otherwise error stack is useless
+// Options for each cmp; for copy, option to exclude ~ backups
+
+
 import * as Fs from 'node:fs'
 import Path from 'node:path'
 
@@ -26,6 +31,7 @@ import {
   cmap,
   vmap,
   names,
+  template,
 } from './utility'
 
 
@@ -254,6 +260,7 @@ export {
   cmap,
   vmap,
   names,
+  template,
 
   Project,
   Content,

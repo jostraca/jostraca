@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.FileOp = void 0;
 const FileOp = {
     before(node, _ctx$, buildctx) {
+        // TODO: error if not inside a folder
         const cfile = buildctx.current.file = node;
         cfile.filepath = buildctx.current.folder.path.join('/') + '/' + node.name;
         cfile.content = [];

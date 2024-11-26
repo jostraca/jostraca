@@ -16,20 +16,33 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Copy = exports.Folder = exports.Fragment = exports.Inject = exports.File = exports.Content = exports.Project = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.select = exports.each = void 0;
+exports.Copy = exports.Folder = exports.Fragment = exports.Inject = exports.File = exports.Content = exports.Project = exports.template = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.select = exports.each = void 0;
 exports.Jostraca = Jostraca;
 exports.cmp = cmp;
+// TODO:
+// Need to check file existence in define phase, otherwise error stack is useless
+// Options for each cmp; for copy, option to exclude ~ backups
 const Fs = __importStar(require("node:fs"));
 const node_path_1 = __importDefault(require("node:path"));
 const node_async_hooks_1 = require("node:async_hooks");
@@ -44,6 +57,7 @@ Object.defineProperty(exports, "kebabify", { enumerable: true, get: function () 
 Object.defineProperty(exports, "cmap", { enumerable: true, get: function () { return utility_1.cmap; } });
 Object.defineProperty(exports, "vmap", { enumerable: true, get: function () { return utility_1.vmap; } });
 Object.defineProperty(exports, "names", { enumerable: true, get: function () { return utility_1.names; } });
+Object.defineProperty(exports, "template", { enumerable: true, get: function () { return utility_1.template; } });
 const Content_1 = require("./cmp/Content");
 Object.defineProperty(exports, "Content", { enumerable: true, get: function () { return Content_1.Content; } });
 const Copy_1 = require("./cmp/Copy");

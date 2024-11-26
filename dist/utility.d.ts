@@ -12,6 +12,14 @@ declare function camelify(input: any[] | string): string;
 declare function kebabify(input: any[] | string): string;
 declare function snakify(input: any[] | string): string;
 declare function names(base: any, name: string, prop?: string): void;
+declare function escre(s: string): string;
+declare function template(src: string, model: any, spec?: {
+    open?: string;
+    close?: string;
+    ref?: string;
+    insert?: RegExp;
+    replace?: Record<string, any>;
+}): string;
 declare function cmap(o: any, p: any): any;
 declare namespace cmap {
     var COPY: (x: any) => any;
@@ -25,4 +33,4 @@ declare namespace vmap {
     var KEY: (_: any, p: any) => any;
 }
 declare const BINARY_EXT: string[];
-export { each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, BINARY_EXT, };
+export { each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, BINARY_EXT, };

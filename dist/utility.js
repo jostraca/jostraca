@@ -12,6 +12,8 @@ exports.kebabify = kebabify;
 exports.cmap = cmap;
 exports.vmap = vmap;
 exports.names = names;
+exports.template = template;
+exports.escre = escre;
 // Iterate over arrays and objects (opinionated mutation!).
 function each(subject, // Iterate over subject.
 flags, apply) {
@@ -107,20 +109,13 @@ function getx(root, path) {
     else {
         return undefined;
     }
-    // console.log('GETX', JSON.stringify(root).replace(/["\n]/g, ''))
-    // console.log('TOKENS', tokens)
     let node = root;
     let out = undefined;
     let ancestry = false;
     for (let i = 0; i < tokens.length && undefined !== node; i++) {
         let t0 = tokens[i];
         let t1 = tokens[i + 1];
-        // let what = ''
-        // console.log('PART-S  ', ancestry ? ':' : ' ', i, t0 + '|' + t1 + '|' + tokens.slice(i + 2),
-        //   ' N=', JSON.stringify(node || '').replace(/["\n]/g, ''),
-        //   ' O=', JSON.stringify(out || '').replace(/["\n]/g, ''))
         if (t1 && t1.match(/=|!=/)) {
-            // what = 'O'
             let val = node[t0];
             let arg = tokens[i + 2];
             const argtype = typeof arg;
@@ -174,7 +169,6 @@ function getx(root, path) {
         }
         // Retain ancestry in result - getx({a:{b:1}},'a:b'}) === {a:{b:1}}
         else if (':' === t1) {
-            // what = 'D'
             if ('=' !== tokens[i + 2]) {
                 out = !ancestry ? node : out;
                 node = node[t0];
@@ -186,9 +180,7 @@ function getx(root, path) {
             i++;
         }
         else if ('?' === t0) {
-            // what = '?'
             let ftokens = tokens.slice(i + 1);
-            // console.log('FTOKENS A', ftokens)
             // Two adjacent values marks the end of the filter
             // TODO: not great, find a better way
             let j = 0;
@@ -200,7 +192,6 @@ function getx(root, path) {
                 }
             }
             ftokens.length = j;
-            // console.log('FTOKENS B', ftokens)
             out = each(node)
                 .filter((child) => undefined != getx(child, ftokens));
             if (null != node && 'object' === typeof node) {
@@ -215,9 +206,6 @@ function getx(root, path) {
             i += ftokens.length;
         }
         else if (null != t1) {
-            // what = 'N'
-            // console.log('NNN', dot, t0, out, node)
-            // out = (dot && undefined !== node) ? out : node
             node = node[t0];
             if (ancestry) {
                 ancestry = false;
@@ -226,14 +214,9 @@ function getx(root, path) {
             }
         }
         else {
-            // what = 'M'
             node = node[t0];
             out = (ancestry && undefined !== node) ? out : node;
         }
-        // console.log('PART-E', what,
-        //   ancestry ? ':' : ' ', i, t0 + '|' + t1 + '|' + tokens.slice(i + 2),
-        //   ' N=', JSON.stringify(node || '').replace(/["\n]/g, ''),
-        //   ' O=', JSON.stringify(out || '').replace(/["\n]/g, ''))
     }
     return out;
 }
@@ -266,12 +249,73 @@ function snakify(input) {
         .join('_');
 }
 function names(base, name, prop = 'name') {
+    name = '' + name;
     base.name$ = name;
     base[prop.toLowerCase()] = name.toLowerCase();
     base[camelify(prop)] = camelify(name);
     base[snakify(prop)] = snakify(name);
     base[kebabify(prop)] = kebabify(name);
     base[prop.toUpperCase()] = name.toUpperCase();
+}
+function escre(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+// NOTE: $$foo.bar$$ format used as explicit start and end markers mean regex can be used
+// unambiguously ($fooa would not match `foo`)
+function template(src, model, spec) {
+    src = null == src ? '' : '' + src;
+    model = null == model ? {} : model;
+    let open = null == spec?.open ? '\\$\\$' : spec.open;
+    let close = null == spec?.close ? '\\$\\$' : spec.close;
+    let ref = null == spec?.ref ? '[^$]+' : spec.ref;
+    let insertRE = null == spec?.insert ?
+        new RegExp('(' + open + ')(' + ref + ')(' + close + ')' +
+            ((Object.keys(spec?.replace || {}))
+                .map(k => '|(' + (k.match(/^\/.+\/$/) ? k.substring(1, k.length - 1) : escre(k)) + ')')
+                .join(''))) :
+        spec.insert;
+    let out = '';
+    let remain = src;
+    let nextm = true;
+    while (nextm) {
+        let m = remain.match(insertRE);
+        if (m) {
+            let mi = m.index;
+            out += remain.substring(0, mi);
+            let insert;
+            let skip = 0;
+            let ref = m[2];
+            if (null != ref) {
+                insert = '__insert__' === ref ? '' + insertRE : getx(model, ref);
+                skip = m[1].length + m[3].length;
+            }
+            else {
+                ref = '';
+                let rI = 4;
+                while (rI < m.length &&
+                    '' === (ref = (null == m[rI] || '' == m[rI] ? '' : m[rI]))) {
+                    rI++;
+                }
+                if ('' !== ref && spec?.replace) {
+                    insert = spec.replace[Object.keys(spec.replace)[rI - 4]];
+                }
+            }
+            let ti = typeof insert;
+            if (null == insert || ('number' === ti && isNaN(insert))) {
+                out += (0 === skip ? '' : m[1]) + ref + (0 === skip ? '' : m[3]);
+            }
+            else if ('function' === ti) {
+                out += insert({ src, model, spec, ref, index: mi });
+            }
+            else {
+                out += ('object' === ti ? JSON.stringify(insert) : insert);
+            }
+            remain = remain.substring(mi + skip + ref.length);
+        }
+        else {
+            out += remain;
+            nextm = false;
+        }
+    }
+    return out;
 }
 // Map child objects to new child objects
 function cmap(o, p) {

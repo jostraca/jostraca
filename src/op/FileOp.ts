@@ -7,6 +7,8 @@ import type { Node } from '../jostraca'
 const FileOp = {
 
   before(node: Node, _ctx$: any, buildctx: any) {
+    // TODO: error if not inside a folder
+
     const cfile: any = buildctx.current.file = node
     cfile.filepath = buildctx.current.folder.path.join('/') + '/' + node.name
     cfile.content = []

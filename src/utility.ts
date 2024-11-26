@@ -143,9 +143,6 @@ function getx(root: any, path: string | string[]): any {
     return undefined
   }
 
-  // console.log('GETX', JSON.stringify(root).replace(/["\n]/g, ''))
-  // console.log('TOKENS', tokens)
-
   let node = root
   let out = undefined
   let ancestry = false
@@ -154,13 +151,7 @@ function getx(root: any, path: string | string[]): any {
     let t0 = tokens[i]
     let t1 = tokens[i + 1]
 
-    // let what = ''
-    // console.log('PART-S  ', ancestry ? ':' : ' ', i, t0 + '|' + t1 + '|' + tokens.slice(i + 2),
-    //   ' N=', JSON.stringify(node || '').replace(/["\n]/g, ''),
-    //   ' O=', JSON.stringify(out || '').replace(/["\n]/g, ''))
-
     if (t1 && t1.match(/=|!=/)) {
-      // what = 'O'
       let val = node[t0]
       let arg: any = tokens[i + 2]
 
@@ -203,7 +194,6 @@ function getx(root: any, path: string | string[]): any {
 
     // Retain ancestry in result - getx({a:{b:1}},'a:b'}) === {a:{b:1}}
     else if (':' === t1) {
-      // what = 'D'
       if ('=' !== tokens[i + 2]) {
         out = !ancestry ? node : out
         node = node[t0]
@@ -217,10 +207,7 @@ function getx(root: any, path: string | string[]): any {
     }
 
     else if ('?' === t0) {
-      // what = '?'
-
       let ftokens = tokens.slice(i + 1)
-      // console.log('FTOKENS A', ftokens)
 
       // Two adjacent values marks the end of the filter
       // TODO: not great, find a better way
@@ -234,8 +221,6 @@ function getx(root: any, path: string | string[]): any {
         }
       }
       ftokens.length = j
-
-      // console.log('FTOKENS B', ftokens)
 
       out = each(node)
         .filter((child: any) => undefined != getx(child, ftokens))
@@ -253,10 +238,6 @@ function getx(root: any, path: string | string[]): any {
       i += ftokens.length
     }
     else if (null != t1) {
-      // what = 'N'
-      // console.log('NNN', dot, t0, out, node)
-      // out = (dot && undefined !== node) ? out : node
-
       node = node[t0]
 
       if (ancestry) {
@@ -266,15 +247,9 @@ function getx(root: any, path: string | string[]): any {
       }
     }
     else {
-      // what = 'M'
       node = node[t0]
       out = (ancestry && undefined !== node) ? out : node
     }
-
-    // console.log('PART-E', what,
-    //   ancestry ? ':' : ' ', i, t0 + '|' + t1 + '|' + tokens.slice(i + 2),
-    //   ' N=', JSON.stringify(node || '').replace(/["\n]/g, ''),
-    //   ' O=', JSON.stringify(out || '').replace(/["\n]/g, ''))
 
   }
 
@@ -321,12 +296,96 @@ function snakify(input: any[] | string) {
 
 
 function names(base: any, name: string, prop = 'name') {
+  name = '' + name
   base.name$ = name
   base[prop.toLowerCase()] = name.toLowerCase()
   base[camelify(prop)] = camelify(name)
   base[snakify(prop)] = snakify(name)
   base[kebabify(prop)] = kebabify(name)
   base[prop.toUpperCase()] = name.toUpperCase()
+}
+
+
+function escre(s: string) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') }
+
+
+// NOTE: $$foo.bar$$ format used as explicit start and end markers mean regex can be used
+// unambiguously ($fooa would not match `foo`)
+function template(
+  src: string,
+  model: any,
+  spec?: {
+    open?: string,
+    close?: string,
+    ref?: string,
+    insert?: RegExp,
+    replace?: Record<string, any>
+  }
+) {
+
+  src = null == src ? '' : '' + src
+  model = null == model ? {} : model
+  let open = null == spec?.open ? '\\$\\$' : spec.open
+  let close = null == spec?.close ? '\\$\\$' : spec.close
+  let ref = null == spec?.ref ? '[^$]+' : spec.ref
+  let insertRE = null == spec?.insert ?
+    new RegExp('(' + open + ')(' + ref + ')(' + close + ')' +
+      ((Object.keys(spec?.replace || {}))
+        .map(k => '|(' + (k.match(/^\/.+\/$/) ? k.substring(1, k.length - 1) : escre(k)) + ')')
+        .join(''))) :
+    spec.insert
+  let out = ''
+  let remain = src
+  let nextm = true
+
+  while (nextm) {
+    let m = remain.match(insertRE)
+
+    if (m) {
+      let mi = (m.index as number)
+      out += remain.substring(0, mi)
+
+      let insert
+      let skip = 0
+      let ref = m[2]
+
+      if (null != ref) {
+        insert = '__insert__' === ref ? '' + insertRE : getx(model, ref)
+        skip = m[1].length + m[3].length
+      }
+
+      else {
+        ref = ''
+        let rI = 4
+        while (rI < m.length &&
+          '' === (ref = (null == m[rI] || '' == m[rI] ? '' : m[rI]))) { rI++ }
+
+        if ('' !== ref && spec?.replace) {
+          insert = spec.replace[Object.keys(spec.replace)[rI - 4]]
+        }
+      }
+
+      let ti = typeof insert
+
+      if (null == insert || ('number' === ti && isNaN(insert))) {
+        out += (0 === skip ? '' : m[1]) + ref + (0 === skip ? '' : m[3])
+      }
+      else if ('function' === ti) {
+        out += insert({ src, model, spec, ref, index: mi })
+      }
+      else {
+        out += ('object' === ti ? JSON.stringify(insert) : insert)
+      }
+
+      remain = remain.substring(mi + skip + ref.length)
+    }
+    else {
+      out += remain
+      nextm = false
+    }
+  }
+
+  return out
 }
 
 
@@ -663,5 +722,7 @@ export {
   cmap,
   vmap,
   names,
+  template,
+  escre,
   BINARY_EXT,
 }
