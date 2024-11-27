@@ -154,5 +154,24 @@ const __1 = require("../");
             '/top/foo.txt': 'FOO\n#--START--#\nQAZ\n#--END--#\nZED',
         });
     });
+    (0, node_test_1.test)('line', async () => {
+        const { fs, vol } = (0, memfs_1.memfs)({});
+        const jostraca = (0, __1.Jostraca)();
+        const info = await jostraca.generate({ fs, folder: '/top' }, (0, __1.cmp)((props) => {
+            props.ctx$.model = {};
+            (0, __1.Project)({}, () => {
+                (0, __1.File)({ name: 'foo.txt' }, () => {
+                    (0, __1.Content)('ONE\n');
+                    (0, __1.Line)('TWO');
+                    (0, __1.Content)('THREE\n');
+                });
+            });
+        }));
+        const voljson = vol.toJSON();
+        (0, code_1.expect)(voljson).equal({
+            '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
+            '/top/foo.txt': 'ONE\nTWO\nTHREE\n',
+        });
+    });
 });
 //# sourceMappingURL=jostraca.test.js.map

@@ -147,6 +147,12 @@ function excludeFile(state: any, nodepath: string[], name: string, topath: strin
   const { fs, log } = state.buildctx
   let exclude = false
 
+  for (let ignoreRE of opts.cmp.Copy.ignore) {
+    if (name.match(ignoreRE)) {
+      return true
+    }
+  }
+
   // NOT Path.sep - needs to be canonical
   const rpath = nodepath.concat(name).join('/')
   const fileExists = fs.existsSync(topath)

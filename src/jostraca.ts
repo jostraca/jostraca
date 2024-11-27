@@ -37,6 +37,7 @@ import {
 
 
 import { Content } from './cmp/Content'
+import { Line } from './cmp/Line'
 import { Copy } from './cmp/Copy'
 import { File } from './cmp/File'
 import { Inject } from './cmp/Inject'
@@ -76,6 +77,12 @@ function Jostraca() {
     const meta = opts.meta || {}
     const folder = opts.folder || '.'
     const log: Log = opts.log || DEFAULT_LOGGER
+    const debug: boolean = !!opts.debug
+
+    // Component defaults.
+    opts.cmp = (opts.cmp || {})
+    opts.cmp.Copy = (opts.cmp.Copy || {})
+    opts.cmp.Copy.ignore = (opts.cmp.Copy.ignore || [/~$/])
 
     const ctx$ = {
       folder,
@@ -84,6 +91,7 @@ function Jostraca() {
       fs,
       opts,
       log,
+      debug,
     }
 
     return GLOBAL.jostraca.run(ctx$, async () => {
@@ -212,6 +220,11 @@ function cmp(component: Function): Component {
       meta: {},
     }
 
+    if (props.ctx$.debug) {
+      node.meta.debug = (node.meta.debug || {})
+      node.meta.debug.callsite = new Error('component: ' + component.name).stack
+    }
+
     const parent = props.ctx$.node = (props.ctx$.node || node)
     const siblings = props.ctx$.children = (props.ctx$.children || [])
     siblings.push(node)
@@ -271,5 +284,6 @@ export {
   Fragment,
   Folder,
   Copy,
+  Line,
 }
 

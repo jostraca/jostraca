@@ -37,7 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Copy = exports.Folder = exports.Fragment = exports.Inject = exports.File = exports.Content = exports.Project = exports.escre = exports.template = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.select = exports.each = void 0;
+exports.Line = exports.Copy = exports.Folder = exports.Fragment = exports.Inject = exports.File = exports.Content = exports.Project = exports.escre = exports.template = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.select = exports.each = void 0;
 exports.Jostraca = Jostraca;
 exports.cmp = cmp;
 // TODO:
@@ -61,6 +61,8 @@ Object.defineProperty(exports, "template", { enumerable: true, get: function () 
 Object.defineProperty(exports, "escre", { enumerable: true, get: function () { return utility_1.escre; } });
 const Content_1 = require("./cmp/Content");
 Object.defineProperty(exports, "Content", { enumerable: true, get: function () { return Content_1.Content; } });
+const Line_1 = require("./cmp/Line");
+Object.defineProperty(exports, "Line", { enumerable: true, get: function () { return Line_1.Line; } });
 const Copy_1 = require("./cmp/Copy");
 Object.defineProperty(exports, "Copy", { enumerable: true, get: function () { return Copy_1.Copy; } });
 const File_1 = require("./cmp/File");
@@ -97,6 +99,11 @@ function Jostraca() {
         const meta = opts.meta || {};
         const folder = opts.folder || '.';
         const log = opts.log || DEFAULT_LOGGER;
+        const debug = !!opts.debug;
+        // Component defaults.
+        opts.cmp = (opts.cmp || {});
+        opts.cmp.Copy = (opts.cmp.Copy || {});
+        opts.cmp.Copy.ignore = (opts.cmp.Copy.ignore || [/~$/]);
         const ctx$ = {
             folder,
             content: null,
@@ -104,6 +111,7 @@ function Jostraca() {
             fs,
             opts,
             log,
+            debug,
         };
         return GLOBAL.jostraca.run(ctx$, async () => {
             // Define phase
@@ -203,6 +211,10 @@ function cmp(component) {
             path: [],
             meta: {},
         };
+        if (props.ctx$.debug) {
+            node.meta.debug = (node.meta.debug || {});
+            node.meta.debug.callsite = new Error('component: ' + component.name).stack;
+        }
         const parent = props.ctx$.node = (props.ctx$.node || node);
         const siblings = props.ctx$.children = (props.ctx$.children || []);
         siblings.push(node);

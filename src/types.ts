@@ -5,8 +5,16 @@ type JostracaOptions = {
   folder?: string // Base output folder for generated files. Default: `.`.
   meta?: any // Provide meta data to the generation process. Default: `{}`
   exclude?: boolean // Exclude modified output files. Default: `false`.
-  fs?: any // File system API (used for testing). Default: `node:fs`
-  log?: Log
+  fs?: any // File system API (used for testing). Default: `node:fs`.
+  log?: Log // Logging interface.
+  debug?: boolean // Generate additional debugging information.
+
+  // Component specific options.
+  cmp?: {
+    Copy?: {
+      ignore?: RegExp[]
+    }
+  }
 }
 
 
@@ -26,7 +34,7 @@ type Node = {
 }
 
 
-type OpStep = (node: Node, ctx$: any, buildctx: any) => void
+type OpStep = (node: Node, ctx$: any, buildctx: any) => Promise<any> | void
 
 type OpDef = {
   before: OpStep,

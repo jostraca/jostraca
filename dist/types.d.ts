@@ -4,6 +4,12 @@ type JostracaOptions = {
     exclude?: boolean;
     fs?: any;
     log?: Log;
+    debug?: boolean;
+    cmp?: {
+        Copy?: {
+            ignore?: RegExp[];
+        };
+    };
 };
 type Node = {
     kind: string;
@@ -18,7 +24,7 @@ type Node = {
     exclude?: boolean | string | string[];
     indent?: string;
 };
-type OpStep = (node: Node, ctx$: any, buildctx: any) => void;
+type OpStep = (node: Node, ctx$: any, buildctx: any) => Promise<any> | void;
 type OpDef = {
     before: OpStep;
     after: OpStep;

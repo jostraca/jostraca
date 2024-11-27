@@ -14,6 +14,7 @@ import {
   Content,
   Copy,
   Inject,
+  Line,
 
   cmp,
 } from '../'
@@ -237,6 +238,38 @@ describe('jostraca', () => {
       '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
 
       '/top/foo.txt': 'FOO\n#--START--#\nQAZ\n#--END--#\nZED',
+    })
+  })
+
+
+
+  test('line', async () => {
+    const { fs, vol } = memfs({
+    })
+
+    const jostraca = Jostraca()
+
+    const info = await jostraca.generate(
+      { fs, folder: '/top' },
+      cmp((props: any) => {
+        props.ctx$.model = {}
+
+        Project({}, () => {
+          File({ name: 'foo.txt' }, () => {
+            Content('ONE\n')
+            Line('TWO')
+            Content('THREE\n')
+          })
+        })
+      })
+    )
+
+    const voljson: any = vol.toJSON()
+
+    expect(voljson).equal({
+      '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
+
+      '/top/foo.txt': 'ONE\nTWO\nTHREE\n',
     })
   })
 
