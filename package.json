@@ -1,6 +1,6 @@
 {
   "name": "jostraca",
-  "version": "0.11.1",
+  "version": "0.12.0",
   "main": "dist/jostraca.js",
   "type": "commonjs",
   "types": "dist/jostraca.d.ts",
