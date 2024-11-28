@@ -15,6 +15,7 @@ import {
   Copy,
   Inject,
   Line,
+  Slot,
 
   cmp,
 } from '../'
@@ -150,12 +151,13 @@ describe('jostraca', () => {
   })
 
 
-  test('fragment', async () => {
+  test('fragment-basic', async () => {
     const { fs, vol } = memfs({
       '/tmp/foo.txt': 'FOO\n',
       '/tmp/bar.txt': 'BAR\n',
       '/tmp/zed.txt': 'ZED+<[SLOT]> \n',
-      '/tmp/qaz.txt': 'QAZ+// <[SLOT:alice]>+/* <[SLOT:bob]> */+ # <[SLOT:bob]>\n',
+      '/tmp/qaz.txt':
+        'QAZ+<!--<[SLOT]>-->+// <[SLOT:alice]>+/* <[SLOT:bob]> */+ # <[SLOT:bob]>\n',
     })
 
     const jostraca = Jostraca()
@@ -182,9 +184,20 @@ describe('jostraca', () => {
 
           File({ name: 'qaz.js' }, () => {
             Fragment({ from: '/tmp/qaz.txt' }, () => {
-              Content({ name: 'bob' }, 'B')
-              Content({ name: 'alice' }, 'ALICE')
-              Content({ name: 'bob' }, 'OB')
+              Content('A')
+
+              Slot({ name: 'bob' }, () => {
+                Content('B')
+                Content('OB')
+              })
+
+              Content('B')
+
+              Slot({ name: 'alice' }, () => {
+                Content('ALICE')
+              })
+
+              Content('C')
             })
           })
 
@@ -192,21 +205,22 @@ describe('jostraca', () => {
       })
     )
 
+    // console.dir(info.root, { depth: null })
+
     const voljson: any = vol.toJSON()
 
     expect(voljson).equal({
-      '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
-
       '/tmp/foo.txt': 'FOO\n',
       '/tmp/bar.txt': 'BAR\n',
-
       '/tmp/zed.txt': 'ZED+<[SLOT]> \n',
+      '/tmp/qaz.txt':
+        'QAZ+<!--<[SLOT]>-->+// <[SLOT:alice]>+/* <[SLOT:bob]> */+ # <[SLOT:bob]>\n',
+
       '/top/sdk/bar.js': 'ZED+red\n',
-
-      '/tmp/qaz.txt': 'QAZ+// <[SLOT:alice]>+/* <[SLOT:bob]> */+ # <[SLOT:bob]>\n',
-      '/top/sdk/qaz.js': 'QAZ+ALICE+BOB+BOB\n',
-
+      '/top/sdk/qaz.js': 'QAZ+ABC+ALICE+BOB+BOB\n',
       '/top/sdk/foo.js': '// custom-foo\nFOO\n  BAR\n// END\n',
+
+      '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
     })
   })
 
@@ -272,6 +286,62 @@ describe('jostraca', () => {
       '/top/foo.txt': 'ONE\nTWO\nTHREE\n',
     })
   })
+
+
+  test('fragment-subcmp', async () => {
+    const { fs, vol } = memfs({
+      '/f01.txt': 'TWO-$$a$$-bar-zed-con-foo+<[SLOT]>\n'
+    })
+
+    const Foo = cmp(function Foo(props: any) {
+      Content('FOO[')
+      Content(props.arg)
+      Content(']')
+    })
+
+
+    const jostraca = Jostraca()
+
+    const info = await jostraca.generate(
+      {
+        fs, folder: '/top',
+        // build: false
+      },
+      cmp((props: any) => {
+        props.ctx$.model = {
+          a: 'A'
+        }
+
+        Project({}, () => {
+          File({ name: 'foo.txt' }, () => {
+            Content('ONE\n')
+            Fragment({
+              from: '/f01.txt', replace: {
+                bar: 'BAR',
+                zed: () => 'ZED',
+                con: () => Content('CON'),
+                foo: () => Foo('B')
+              }
+            }, () => {
+              Content('S')
+            })
+            Content('THREE\n')
+          })
+        })
+      })
+    )
+
+    // console.dir(info.root, { depth: null })
+
+    const voljson: any = vol.toJSON()
+
+    expect(voljson).equal({
+      '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
+      '/f01.txt': 'TWO-$$a$$-bar-zed-con-foo+<[SLOT]>\n',
+      '/top/foo.txt': 'ONE\nTWO-A-BAR-ZED-CON-FOO[B]+S\nTHREE\n',
+    })
+  })
+
 
 
 })

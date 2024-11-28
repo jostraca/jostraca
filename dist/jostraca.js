@@ -37,7 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Line = exports.Copy = exports.Folder = exports.Fragment = exports.Inject = exports.File = exports.Content = exports.Project = exports.escre = exports.template = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.select = exports.each = void 0;
+exports.Slot = exports.Line = exports.Copy = exports.Folder = exports.Fragment = exports.Inject = exports.File = exports.Content = exports.Project = exports.escre = exports.template = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.select = exports.each = void 0;
 exports.Jostraca = Jostraca;
 exports.cmp = cmp;
 // TODO:
@@ -63,6 +63,8 @@ const Content_1 = require("./cmp/Content");
 Object.defineProperty(exports, "Content", { enumerable: true, get: function () { return Content_1.Content; } });
 const Line_1 = require("./cmp/Line");
 Object.defineProperty(exports, "Line", { enumerable: true, get: function () { return Line_1.Line; } });
+const Slot_1 = require("./cmp/Slot");
+Object.defineProperty(exports, "Slot", { enumerable: true, get: function () { return Slot_1.Slot; } });
 const Copy_1 = require("./cmp/Copy");
 Object.defineProperty(exports, "Copy", { enumerable: true, get: function () { return Copy_1.Copy; } });
 const File_1 = require("./cmp/File");
@@ -79,6 +81,7 @@ const CopyOp_1 = require("./op/CopyOp");
 const ProjectOp_1 = require("./op/ProjectOp");
 const FolderOp_1 = require("./op/FolderOp");
 const FileOp_1 = require("./op/FileOp");
+const SlotOp_1 = require("./op/SlotOp");
 const InjectOp_1 = require("./op/InjectOp");
 const FragmentOp_1 = require("./op/FragmentOp");
 const ContentOp_1 = require("./op/ContentOp");
@@ -100,6 +103,7 @@ function Jostraca() {
         const folder = opts.folder || '.';
         const log = opts.log || DEFAULT_LOGGER;
         const debug = !!opts.debug;
+        const doBuild = false !== opts.build;
         // Component defaults.
         opts.cmp = (opts.cmp || {});
         opts.cmp.Copy = (opts.cmp.Copy || {});
@@ -120,6 +124,7 @@ function Jostraca() {
             // console.dir(ctx$.node, { depth: null })
             // Build phase
             const buildctx = {
+                root: ctx$.root,
                 fs,
                 folder,
                 current: {
@@ -128,7 +133,9 @@ function Jostraca() {
                     }
                 }
             };
-            await build(ctx$, buildctx);
+            if (doBuild) {
+                await build(ctx$, buildctx);
+            }
             return buildctx;
         });
     }
@@ -191,6 +198,7 @@ function Jostraca() {
         fragment: FragmentOp_1.FragmentOp,
         content: ContentOp_1.ContentOp,
         copy: CopyOp_1.CopyOp,
+        slot: SlotOp_1.SlotOp,
         none: NoneOp_1.NoneOp,
     };
     return {
@@ -199,11 +207,18 @@ function Jostraca() {
 }
 function cmp(component) {
     const cf = (props, children) => {
-        props = props || {};
+        children = null == children ?
+            (('function' === typeof props || Array.isArray(props)) ? props : null) : children;
         if (null == props || 'object' !== typeof props) {
             props = { arg: props };
         }
         props.ctx$ = GLOBAL.jostraca.getStore();
+        let parent = props.ctx$.node;
+        // console.log('BBB', component, props, parent?.filter?.({ props }))
+        if (parent?.filter && !parent.filter({ props, children, component })) {
+            // console.log('PF', component, props)
+            return undefined;
+        }
         children = 'function' === typeof children ? [children] : children;
         let node = {
             kind: 'none',
@@ -211,11 +226,12 @@ function cmp(component) {
             path: [],
             meta: {},
         };
+        props.ctx$.root = (props.ctx$.root || node);
+        parent = props.ctx$.node || node;
         if (props.ctx$.debug) {
             node.meta.debug = (node.meta.debug || {});
             node.meta.debug.callsite = new Error('component: ' + component.name).stack;
         }
-        const parent = props.ctx$.node = (props.ctx$.node || node);
         const siblings = props.ctx$.children = (props.ctx$.children || []);
         siblings.push(node);
         props.ctx$.children = node.children;

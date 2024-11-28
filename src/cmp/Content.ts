@@ -10,6 +10,7 @@ const Content = cmp(function Content(props: any, children: any) {
   let src = null != props.arg ? props.arg :
     null != props.src ? props.src :
       'string' === typeof children ? children : ''
+
   src = template(src, props.ctx$.model)
   node.content = src
   node.name = props.name

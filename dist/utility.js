@@ -272,14 +272,15 @@ function template(src, model, spec) {
                 .map(k => '|(' + (k.match(/^\/.+\/$/) ? k.substring(1, k.length - 1) : escre(k)) + ')')
                 .join(''))) :
         spec.insert;
-    let out = '';
     let remain = src;
     let nextm = true;
+    let out = '';
+    let handle = spec?.handle || ((s) => out += (null == s ? '' : s));
     while (nextm) {
         let m = remain.match(insertRE);
         if (m) {
             let mi = m.index;
-            out += remain.substring(0, mi);
+            handle(remain.substring(0, mi));
             let insert;
             let skip = 0;
             let ref = m[2];
@@ -305,24 +306,113 @@ function template(src, model, spec) {
             else {
                 let ti = typeof insert;
                 if (null == insert || ('number' === ti && isNaN(insert))) {
-                    out += (0 === skip ? '' : m[1]) + ref + (0 === skip ? '' : m[3]);
+                    handle((0 === skip ? '' : m[1]) + ref + (0 === skip ? '' : m[3]));
                 }
                 else if ('function' === ti) {
-                    out += insert({ src, model, spec, ref, index: mi });
+                    handle(insert({ src, model, spec, ref, index: mi }));
                 }
                 else {
-                    out += ('object' === ti ? JSON.stringify(insert) : insert);
+                    handle(('object' === ti ? JSON.stringify(insert) : insert));
                 }
                 remain = remain.substring(mi + skip + ref.length);
             }
         }
         else {
-            out += remain;
+            handle(remain);
             nextm = false;
         }
     }
     return out;
 }
+/*
+  // NOTE: $$foo.bar$$ format used as explicit start and end markers mean regex can be used
+// unambiguously ($fooa would not match `foo`)
+function template(
+  src: string,
+  model: any,
+  spec?: {
+    open?: string,
+    close?: string,
+    ref?: string,
+    insert?: RegExp,
+    replace?: Record<string, any>
+  }
+) {
+
+  src = null == src ? '' : '' + src
+  model = null == model ? {} : model
+  let open = null == spec?.open ? '\\$\\$' : spec.open
+  let close = null == spec?.close ? '\\$\\$' : spec.close
+  let ref = null == spec?.ref ? '[^$]+' : spec.ref
+  let insertRE = null == spec?.insert ?
+    new RegExp('(' + open + ')(' + ref + ')(' + close + ')' +
+      ((Object.keys(spec?.replace || {}))
+        .map(k => '|(' + (k.match(/^\/.+\/$/) ? k.substring(1, k.length - 1) : escre(k)) + ')')
+        .join(''))) :
+    spec.insert
+  let out = ''
+  let remain = src
+  let nextm = true
+
+
+  while (nextm) {
+    let m = remain.match(insertRE)
+
+    if (m) {
+      let mi = (m.index as number)
+      out += remain.substring(0, mi)
+
+      let insert
+      let skip = 0
+      let ref = m[2]
+
+      if (null != ref) {
+        insert = '__insert__' === ref ? '' + insertRE : getx(model, ref)
+        skip = m[1].length + m[3].length
+      }
+
+      else {
+        ref = ''
+        insert = ''
+        let rI = 4
+        while (rI < m.length &&
+          '' === (ref = (null == m[rI] || '' == m[rI] ? '' : m[rI]))) { rI++ }
+
+        if ('' !== ref && spec?.replace) {
+          insert = spec.replace[Object.keys(spec.replace)[rI - 4]]
+        }
+      }
+
+      if ('' === ref) {
+        throw new Error('Regular expression matches empty string: ' + insertRE)
+      }
+      else {
+        let ti = typeof insert
+
+        if (null == insert || ('number' === ti && isNaN(insert))) {
+          out += (0 === skip ? '' : m[1]) + ref + (0 === skip ? '' : m[3])
+        }
+        else if ('function' === ti) {
+          out += insert({ src, model, spec, ref, index: mi })
+        }
+        else {
+          out += ('object' === ti ? JSON.stringify(insert) : insert)
+        }
+
+        remain = remain.substring(mi + skip + ref.length)
+      }
+    }
+    else {
+      out += remain
+      nextm = false
+    }
+  }
+
+
+  return out
+}
+
+  */
 // Map child objects to new child objects
 function cmap(o, p) {
     return Object

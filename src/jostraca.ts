@@ -38,6 +38,7 @@ import {
 
 import { Content } from './cmp/Content'
 import { Line } from './cmp/Line'
+import { Slot } from './cmp/Slot'
 import { Copy } from './cmp/Copy'
 import { File } from './cmp/File'
 import { Inject } from './cmp/Inject'
@@ -49,6 +50,7 @@ import { CopyOp } from './op/CopyOp'
 import { ProjectOp } from './op/ProjectOp'
 import { FolderOp } from './op/FolderOp'
 import { FileOp } from './op/FileOp'
+import { SlotOp } from './op/SlotOp'
 import { InjectOp } from './op/InjectOp'
 import { FragmentOp } from './op/FragmentOp'
 import { ContentOp } from './op/ContentOp'
@@ -78,6 +80,7 @@ function Jostraca() {
     const folder = opts.folder || '.'
     const log: Log = opts.log || DEFAULT_LOGGER
     const debug: boolean = !!opts.debug
+    const doBuild: boolean = false !== opts.build
 
     // Component defaults.
     opts.cmp = (opts.cmp || {})
@@ -105,6 +108,7 @@ function Jostraca() {
       // Build phase
 
       const buildctx = {
+        root: ctx$.root,
         fs,
         folder,
         current: {
@@ -113,7 +117,11 @@ function Jostraca() {
           }
         }
       }
-      await build(ctx$, buildctx)
+
+      if (doBuild) {
+        await build(ctx$, buildctx)
+      }
+
       return buildctx
     })
   }
@@ -185,7 +193,6 @@ function Jostraca() {
     }
   }
 
-
   const opmap: Record<string, OpDef> = {
     project: ProjectOp,
     folder: FolderOp,
@@ -194,9 +201,9 @@ function Jostraca() {
     fragment: FragmentOp,
     content: ContentOp,
     copy: CopyOp,
+    slot: SlotOp,
     none: NoneOp,
   }
-
 
   return {
     generate,
@@ -206,11 +213,22 @@ function Jostraca() {
 
 function cmp(component: Function): Component {
   const cf = (props: any, children?: any) => {
-    props = props || {}
+    children = null == children ?
+      (('function' === typeof props || Array.isArray(props)) ? props : null) : children
+
     if (null == props || 'object' !== typeof props) {
       props = { arg: props }
     }
     props.ctx$ = GLOBAL.jostraca.getStore()
+
+    let parent = props.ctx$.node
+    // console.log('BBB', component, props, parent?.filter?.({ props }))
+
+    if (parent?.filter && !parent.filter({ props, children, component })) {
+      // console.log('PF', component, props)
+      return undefined
+    }
+
     children = 'function' === typeof children ? [children] : children
 
     let node: Node = {
@@ -220,12 +238,15 @@ function cmp(component: Function): Component {
       meta: {},
     }
 
+    props.ctx$.root = (props.ctx$.root || node)
+    parent = props.ctx$.node || node
+
     if (props.ctx$.debug) {
       node.meta.debug = (node.meta.debug || {})
       node.meta.debug.callsite = new Error('component: ' + component.name).stack
     }
 
-    const parent = props.ctx$.node = (props.ctx$.node || node)
+
     const siblings = props.ctx$.children = (props.ctx$.children || [])
     siblings.push(node)
 
@@ -285,5 +306,6 @@ export {
   Folder,
   Copy,
   Line,
+  Slot,
 }
 

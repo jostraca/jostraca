@@ -92,12 +92,12 @@ const __1 = require("../");
             '/top/sdk/js/c/d.txt': '// SUB-C-D Y Z TXT\n',
         });
     });
-    (0, node_test_1.test)('fragment', async () => {
+    (0, node_test_1.test)('fragment-basic', async () => {
         const { fs, vol } = (0, memfs_1.memfs)({
             '/tmp/foo.txt': 'FOO\n',
             '/tmp/bar.txt': 'BAR\n',
             '/tmp/zed.txt': 'ZED+<[SLOT]> \n',
-            '/tmp/qaz.txt': 'QAZ+// <[SLOT:alice]>+/* <[SLOT:bob]> */+ # <[SLOT:bob]>\n',
+            '/tmp/qaz.txt': 'QAZ+<!--<[SLOT]>-->+// <[SLOT:alice]>+/* <[SLOT:bob]> */+ # <[SLOT:bob]>\n',
         });
         const jostraca = (0, __1.Jostraca)();
         const info = await jostraca.generate({ fs, folder: '/top' }, (0, __1.cmp)((props) => {
@@ -116,23 +116,31 @@ const __1 = require("../");
                 });
                 (0, __1.File)({ name: 'qaz.js' }, () => {
                     (0, __1.Fragment)({ from: '/tmp/qaz.txt' }, () => {
-                        (0, __1.Content)({ name: 'bob' }, 'B');
-                        (0, __1.Content)({ name: 'alice' }, 'ALICE');
-                        (0, __1.Content)({ name: 'bob' }, 'OB');
+                        (0, __1.Content)('A');
+                        (0, __1.Slot)({ name: 'bob' }, () => {
+                            (0, __1.Content)('B');
+                            (0, __1.Content)('OB');
+                        });
+                        (0, __1.Content)('B');
+                        (0, __1.Slot)({ name: 'alice' }, () => {
+                            (0, __1.Content)('ALICE');
+                        });
+                        (0, __1.Content)('C');
                     });
                 });
             });
         }));
+        // console.dir(info.root, { depth: null })
         const voljson = vol.toJSON();
         (0, code_1.expect)(voljson).equal({
-            '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
             '/tmp/foo.txt': 'FOO\n',
             '/tmp/bar.txt': 'BAR\n',
             '/tmp/zed.txt': 'ZED+<[SLOT]> \n',
+            '/tmp/qaz.txt': 'QAZ+<!--<[SLOT]>-->+// <[SLOT:alice]>+/* <[SLOT:bob]> */+ # <[SLOT:bob]>\n',
             '/top/sdk/bar.js': 'ZED+red\n',
-            '/tmp/qaz.txt': 'QAZ+// <[SLOT:alice]>+/* <[SLOT:bob]> */+ # <[SLOT:bob]>\n',
-            '/top/sdk/qaz.js': 'QAZ+ALICE+BOB+BOB\n',
+            '/top/sdk/qaz.js': 'QAZ+ABC+ALICE+BOB+BOB\n',
             '/top/sdk/foo.js': '// custom-foo\nFOO\n  BAR\n// END\n',
+            '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
         });
     });
     (0, node_test_1.test)('inject', async () => {
@@ -171,6 +179,48 @@ const __1 = require("../");
         (0, code_1.expect)(voljson).equal({
             '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
             '/top/foo.txt': 'ONE\nTWO\nTHREE\n',
+        });
+    });
+    (0, node_test_1.test)('fragment-subcmp', async () => {
+        const { fs, vol } = (0, memfs_1.memfs)({
+            '/f01.txt': 'TWO-$$a$$-bar-zed-con-foo+<[SLOT]>\n'
+        });
+        const Foo = (0, __1.cmp)(function Foo(props) {
+            (0, __1.Content)('FOO[');
+            (0, __1.Content)(props.arg);
+            (0, __1.Content)(']');
+        });
+        const jostraca = (0, __1.Jostraca)();
+        const info = await jostraca.generate({
+            fs, folder: '/top',
+            // build: false
+        }, (0, __1.cmp)((props) => {
+            props.ctx$.model = {
+                a: 'A'
+            };
+            (0, __1.Project)({}, () => {
+                (0, __1.File)({ name: 'foo.txt' }, () => {
+                    (0, __1.Content)('ONE\n');
+                    (0, __1.Fragment)({
+                        from: '/f01.txt', replace: {
+                            bar: 'BAR',
+                            zed: () => 'ZED',
+                            con: () => (0, __1.Content)('CON'),
+                            foo: () => Foo('B')
+                        }
+                    }, () => {
+                        (0, __1.Content)('S');
+                    });
+                    (0, __1.Content)('THREE\n');
+                });
+            });
+        }));
+        // console.dir(info.root, { depth: null })
+        const voljson = vol.toJSON();
+        (0, code_1.expect)(voljson).equal({
+            '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
+            '/f01.txt': 'TWO-$$a$$-bar-zed-con-foo+<[SLOT]>\n',
+            '/top/foo.txt': 'ONE\nTWO-A-BAR-ZED-CON-FOO[B]+S\nTHREE\n',
         });
     });
 });

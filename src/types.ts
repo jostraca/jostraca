@@ -9,6 +9,8 @@ type JostracaOptions = {
   log?: Log // Logging interface.
   debug?: boolean // Generate additional debugging information.
 
+  build?: boolean
+
   // Component specific options.
   cmp?: {
     Copy?: {
@@ -31,6 +33,7 @@ type Node = {
   after?: any
   exclude?: boolean | string | string[]
   indent?: string
+  filter?: (props: any, children: any, component: any) => boolean
 }
 
 

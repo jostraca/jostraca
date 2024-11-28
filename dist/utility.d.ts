@@ -19,6 +19,7 @@ declare function template(src: string, model: any, spec?: {
     ref?: string;
     insert?: RegExp;
     replace?: Record<string, any>;
+    handle?: (s?: string) => void;
 }): string;
 declare function cmap(o: any, p: any): any;
 declare namespace cmap {
