@@ -5,7 +5,10 @@ type JostracaOptions = {
     fs?: any;
     log?: Log;
     debug?: boolean;
+    model?: any;
     build?: boolean;
+    mem?: boolean;
+    vol?: any;
     cmp?: {
         Copy?: {
             ignore?: RegExp[];

@@ -10,6 +10,10 @@ import Path from 'node:path'
 
 import { AsyncLocalStorage } from 'node:async_hooks'
 
+import { util as JsonicUtil } from 'jsonic'
+
+import { memfs as MemFs } from 'memfs'
+
 
 import type {
   JostracaOptions,
@@ -36,6 +40,9 @@ import {
 } from './utility'
 
 
+
+
+
 import { Content } from './cmp/Content'
 import { Line } from './cmp/Line'
 import { Slot } from './cmp/Slot'
@@ -57,6 +64,7 @@ import { ContentOp } from './op/ContentOp'
 import { NoneOp } from './op/NoneOp'
 
 
+const deep: any = JsonicUtil.deep
 
 const GLOBAL = (global as any)
 
@@ -70,22 +78,32 @@ const DEFAULT_LOGGER = {
 }
 
 
-function Jostraca() {
+function Jostraca(gopts?: JostracaOptions) {
   GLOBAL.jostraca = new AsyncLocalStorage()
 
 
   async function generate(opts: JostracaOptions, root: Function) {
-    const fs = opts.fs || Fs
-    const meta = opts.meta || {}
-    const folder = opts.folder || '.'
-    const log: Log = opts.log || DEFAULT_LOGGER
-    const debug: boolean = !!opts.debug
-    const doBuild: boolean = false !== opts.build
+    const useMemFS = opts.mem || gopts?.mem
+    const memfs = useMemFS ? MemFs(opts.vol || gopts?.vol || {}) : undefined
+    const fs = opts.fs || gopts?.fs || memfs?.fs || Fs
+    const meta = {
+      ...(gopts?.meta || {}),
+      ...(opts.meta || {}),
+    }
+    const folder = opts.folder || gopts?.folder || '.'
+    const log: Log = opts.log || gopts?.log || DEFAULT_LOGGER
+    const debug: boolean = !!(null == opts.debug ? gopts?.debug : opts.debug)
+
+    const doBuild: boolean = null == gopts?.build ? false !== opts.build : false !== gopts?.build
+
+    const model = opts.model || gopts?.model || {}
 
     // Component defaults.
-    opts.cmp = (opts.cmp || {})
-    opts.cmp.Copy = (opts.cmp.Copy || {})
-    opts.cmp.Copy.ignore = (opts.cmp.Copy.ignore || [/~$/])
+    opts.cmp = deep({
+      Copy: {
+        ignore: [/~$/]
+      }
+    }, gopts?.cmp, opts.cmp)
 
     const ctx$ = {
       folder,
@@ -95,6 +113,7 @@ function Jostraca() {
       opts,
       log,
       debug,
+      model,
     }
 
     return GLOBAL.jostraca.run(ctx$, async () => {
@@ -103,13 +122,11 @@ function Jostraca() {
 
       const ctx$ = GLOBAL.jostraca.getStore()
 
-      // console.dir(ctx$.node, { depth: null })
-
       // Build phase
-
       const buildctx = {
         root: ctx$.root,
         fs,
+        vol: memfs?.vol,
         folder,
         current: {
           folder: {
@@ -177,7 +194,16 @@ function Jostraca() {
 
       if (node.children) {
         for (let childnode of node.children) {
-          await step(childnode, ctx$, buildctx)
+          try {
+            await step(childnode, ctx$, buildctx)
+          }
+          catch (err: any) {
+            console.log('JERR', childnode)
+            if (childnode.meta.callsite) {
+              err.callsite = childnode.meta.callsite
+            }
+            throw err
+          }
         }
       }
 
@@ -246,7 +272,6 @@ function cmp(component: Function): Component {
       node.meta.debug.callsite = new Error('component: ' + component.name).stack
     }
 
-
     const siblings = props.ctx$.children = (props.ctx$.children || [])
     siblings.push(node)
 
@@ -297,6 +322,8 @@ export {
   names,
   template,
   escre,
+
+  deep,
 
   Project,
   Content,

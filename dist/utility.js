@@ -16,26 +16,27 @@ exports.template = template;
 exports.escre = escre;
 // Iterate over arrays and objects (opinionated mutation!).
 function each(subject, // Iterate over subject.
-flags, apply) {
+spec, apply) {
     const isArray = Array.isArray(subject);
-    const hasFlags = null != flags && 'function' !== typeof flags;
-    apply = (hasFlags ? apply : flags);
-    flags = (hasFlags ? flags : {});
-    flags.mark = null != flags.mark ? flags.mark : true;
-    flags.oval = null != flags.oval ? flags.oval : true;
-    flags.sort = null != flags.sort ? flags.sort : false;
-    flags.call = null != flags.call ? flags.call : false;
+    const hasFlags = null != spec && 'function' !== typeof spec;
+    apply = (hasFlags ? apply : spec);
+    const rspec = hasFlags ? spec : {};
+    const mark = null != rspec.mark ? rspec.mark : true;
+    const oval = null != rspec.oval ? rspec.oval : true;
+    const sort = null != rspec.sort ? rspec.sort : false;
+    const call = null != rspec.call ? rspec.call : false;
+    const args = null == rspec.args ? [] : Array.isArray(rspec.args) ? rspec.args : [rspec.args];
     let out = [];
     if (isArray) {
         for (let fn of subject) {
-            out.push(flags.call && 'function' === typeof fn ? fn() : fn);
+            out.push(call && 'function' === typeof fn ? fn(...args) : fn);
         }
-        out = true === flags.sort && 1 < out.length ? out.sort() : out;
-        out = flags.oval ? out.map((n) => (null != n && 'object' === typeof n) ? n : { val$: n }) : out;
-        out = 'string' === typeof flags.sort ?
-            out.sort((a, b) => (a?.[flags.sort] < b?.[flags.sort] ? -1 :
-                a?.[flags.sort] > b?.[flags.sort] ? 1 : 0)) : out;
-        out = flags.mark ? out
+        out = true === sort && 1 < out.length ? out.sort() : out;
+        out = oval ? out.map((n) => (null != n && 'object' === typeof n) ? n : { val$: n }) : out;
+        out = 'string' === typeof sort ?
+            out.sort((a, b) => (a?.[sort] < b?.[sort] ? -1 :
+                a?.[sort] > b?.[sort] ? 1 : 0)) : out;
+        out = mark ? out
             .map((n, i, _) => (_ = typeof n, (null != n && 'object' === _ ? (n.index$ = i) : null), n)) : out;
         if ('function' === typeof apply) {
             out = out.map((n, ...args) => apply(n, ...args));
@@ -47,21 +48,22 @@ flags, apply) {
         return out;
     }
     let entries = Object.entries(subject);
-    if (flags.call) {
-        entries = entries.map((n) => ((n[1] = 'function' === typeof n[1] ? n[1]() : n[1]), n));
+    if (call) {
+        entries =
+            entries.map((n) => ((n[1] = 'function' === typeof n[1] ? n[1](...args) : n[1]), n));
     }
-    if (flags.oval) {
+    if (oval) {
         out = entries.map((n, _) => (_ = typeof n[1],
             (null != n[1] && 'object' === _) ? n[1] :
                 (n[1] = { key$: n[0], val$: n[1] }), n));
     }
-    if (flags.mark) {
+    if (mark) {
         entries.map((n, _) => (_ = typeof n[1],
             (null != n[1] && 'object' === _) ? (n[1].key$ = n[0]) : n[1], n));
     }
-    if (1 < entries.length && flags.sort) {
+    if (1 < entries.length && sort) {
         if (null != entries[0][1] && 'object' === typeof entries[0][1]) {
-            let sprop = 'string' === flags.sort ? flags.sort : 'key$';
+            let sprop = 'string' === sort ? sort : 'key$';
             entries.sort((a, b) => a[1]?.[sprop] < b[1]?.[sprop] ? -1 : b[1]?.[sprop] < a[1]?.[sprop] ? 1 : 0);
         }
         else {

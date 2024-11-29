@@ -181,5 +181,7 @@ describe('util', () => {
     expect(template('aQbWc$$__insert__$$', {}, { replace: { Q: 'Z', W: 'Y' } }))
       .equal('aZbYc/(\\$\\$)([^$]+)(\\$\\$)|(Q)|(W)/')
   })
+
+
 })
 

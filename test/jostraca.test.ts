@@ -18,6 +18,7 @@ import {
   Slot,
 
   cmp,
+  each,
 } from '../'
 
 
@@ -107,14 +108,13 @@ describe('jostraca', () => {
       '/tm/sub/c/d.txt': '// SUB-C-D $$x.y$$ $$x.z$$ TXT\n',
     })
 
-    const jostraca = Jostraca()
+    const jostraca = Jostraca({
+      model: { x: { y: 'Y', z: 'Z' } }
+    })
 
     const info = await jostraca.generate(
       { fs, folder: '/top' },
       cmp((props: any) => {
-        props.ctx$.model = {
-          x: { y: 'Y', z: 'Z' }
-        }
         Project({ folder: 'sdk' }, () => {
 
           Folder({ name: 'js' }, () => {
@@ -165,8 +165,6 @@ describe('jostraca', () => {
     const info = await jostraca.generate(
       { fs, folder: '/top' },
       cmp((props: any) => {
-        props.ctx$.model = {}
-
         Project({ folder: 'sdk' }, () => {
 
           File({ name: 'foo.js' }, () => {
@@ -236,8 +234,6 @@ describe('jostraca', () => {
     const info = await jostraca.generate(
       { fs, folder: '/top' },
       cmp((props: any) => {
-        props.ctx$.model = {}
-
         Project({}, () => {
           Inject({ name: 'foo.txt' }, () => {
             Content('QAZ')
@@ -266,8 +262,6 @@ describe('jostraca', () => {
     const info = await jostraca.generate(
       { fs, folder: '/top' },
       cmp((props: any) => {
-        props.ctx$.model = {}
-
         Project({}, () => {
           File({ name: 'foo.txt' }, () => {
             Content('ONE\n')
@@ -300,7 +294,9 @@ describe('jostraca', () => {
     })
 
 
-    const jostraca = Jostraca()
+    const jostraca = Jostraca({
+      model: { a: 'A' }
+    })
 
     const info = await jostraca.generate(
       {
@@ -308,9 +304,6 @@ describe('jostraca', () => {
         // build: false
       },
       cmp((props: any) => {
-        props.ctx$.model = {
-          a: 'A'
-        }
 
         Project({}, () => {
           File({ name: 'foo.txt' }, () => {
@@ -339,6 +332,63 @@ describe('jostraca', () => {
       '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
       '/f01.txt': 'TWO-$$a$$-bar-zed-con-foo+<[SLOT]>\n',
       '/top/foo.txt': 'ONE\nTWO-A-BAR-ZED-CON-FOO[B]+S\nTHREE\n',
+    })
+  })
+
+
+
+  test('custom-cmp', async () => {
+    const Foo = cmp(function Foo(props: any, children: any) {
+      const { ctx$: { model } } = props
+      Content(`FOO[$$a$$:${props.b}`)
+      each(model.foo, (foo) => each(children, { call: true, args: foo }))
+      Content(']')
+    })
+
+
+    const jostraca = Jostraca({
+      model: {
+        a: 'A', foo: {
+          a: { x: 11 },
+          b: { x: 22 }
+        }
+      },
+      mem: true,
+      vol: {
+        '/f01.txt': '<foo>'
+      }
+    })
+
+    const info = await jostraca.generate(
+      { folder: '/' },
+      cmp(() => {
+        Project({}, () => {
+          File({ name: 'foo.txt' }, () => {
+            Content('{')
+            Fragment({
+              from: '/f01.txt',
+              replace: {
+                foo: () => Foo({ b: 'B' }, (foo: any) => {
+                  Content(`:${foo.key$}=(`)
+                  Content(`${foo.x}`)
+                  Content(')')
+                })
+              }
+            })
+            Content('}')
+          })
+        })
+      })
+    )
+
+    // console.dir(info.root, { depth: null })
+
+    const voljson: any = info.vol.toJSON()
+
+    expect(voljson).equal({
+      '/f01.txt': '<foo>',
+      '/foo.txt': '{<FOO[A:B:a=(11):b=(22)]>}',
+      '/.jostraca/jostraca.json.log': voljson['/.jostraca/jostraca.json.log'],
     })
   })
 

@@ -61,11 +61,10 @@ const __1 = require("../");
             '/tm/sub/b.txt': '// SUB-B $$x.y$$ TXT\n',
             '/tm/sub/c/d.txt': '// SUB-C-D $$x.y$$ $$x.z$$ TXT\n',
         });
-        const jostraca = (0, __1.Jostraca)();
+        const jostraca = (0, __1.Jostraca)({
+            model: { x: { y: 'Y', z: 'Z' } }
+        });
         const info = await jostraca.generate({ fs, folder: '/top' }, (0, __1.cmp)((props) => {
-            props.ctx$.model = {
-                x: { y: 'Y', z: 'Z' }
-            };
             (0, __1.Project)({ folder: 'sdk' }, () => {
                 (0, __1.Folder)({ name: 'js' }, () => {
                     (0, __1.File)({ name: 'foo.js' }, () => {
@@ -101,7 +100,6 @@ const __1 = require("../");
         });
         const jostraca = (0, __1.Jostraca)();
         const info = await jostraca.generate({ fs, folder: '/top' }, (0, __1.cmp)((props) => {
-            props.ctx$.model = {};
             (0, __1.Project)({ folder: 'sdk' }, () => {
                 (0, __1.File)({ name: 'foo.js' }, () => {
                     (0, __1.Content)('// custom-foo\n');
@@ -149,7 +147,6 @@ const __1 = require("../");
         });
         const jostraca = (0, __1.Jostraca)();
         const info = await jostraca.generate({ fs, folder: '/top' }, (0, __1.cmp)((props) => {
-            props.ctx$.model = {};
             (0, __1.Project)({}, () => {
                 (0, __1.Inject)({ name: 'foo.txt' }, () => {
                     (0, __1.Content)('QAZ');
@@ -166,7 +163,6 @@ const __1 = require("../");
         const { fs, vol } = (0, memfs_1.memfs)({});
         const jostraca = (0, __1.Jostraca)();
         const info = await jostraca.generate({ fs, folder: '/top' }, (0, __1.cmp)((props) => {
-            props.ctx$.model = {};
             (0, __1.Project)({}, () => {
                 (0, __1.File)({ name: 'foo.txt' }, () => {
                     (0, __1.Content)('ONE\n');
@@ -190,14 +186,13 @@ const __1 = require("../");
             (0, __1.Content)(props.arg);
             (0, __1.Content)(']');
         });
-        const jostraca = (0, __1.Jostraca)();
+        const jostraca = (0, __1.Jostraca)({
+            model: { a: 'A' }
+        });
         const info = await jostraca.generate({
             fs, folder: '/top',
             // build: false
         }, (0, __1.cmp)((props) => {
-            props.ctx$.model = {
-                a: 'A'
-            };
             (0, __1.Project)({}, () => {
                 (0, __1.File)({ name: 'foo.txt' }, () => {
                     (0, __1.Content)('ONE\n');
@@ -221,6 +216,51 @@ const __1 = require("../");
             '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
             '/f01.txt': 'TWO-$$a$$-bar-zed-con-foo+<[SLOT]>\n',
             '/top/foo.txt': 'ONE\nTWO-A-BAR-ZED-CON-FOO[B]+S\nTHREE\n',
+        });
+    });
+    (0, node_test_1.test)('custom-cmp', async () => {
+        const Foo = (0, __1.cmp)(function Foo(props, children) {
+            const { ctx$: { model } } = props;
+            (0, __1.Content)(`FOO[$$a$$:${props.b}`);
+            (0, __1.each)(model.foo, (foo) => (0, __1.each)(children, { call: true, args: foo }));
+            (0, __1.Content)(']');
+        });
+        const jostraca = (0, __1.Jostraca)({
+            model: {
+                a: 'A', foo: {
+                    a: { x: 11 },
+                    b: { x: 22 }
+                }
+            },
+            mem: true,
+            vol: {
+                '/f01.txt': '<foo>'
+            }
+        });
+        const info = await jostraca.generate({ folder: '/' }, (0, __1.cmp)(() => {
+            (0, __1.Project)({}, () => {
+                (0, __1.File)({ name: 'foo.txt' }, () => {
+                    (0, __1.Content)('{');
+                    (0, __1.Fragment)({
+                        from: '/f01.txt',
+                        replace: {
+                            foo: () => Foo({ b: 'B' }, (foo) => {
+                                (0, __1.Content)(`:${foo.key$}=(`);
+                                (0, __1.Content)(`${foo.x}`);
+                                (0, __1.Content)(')');
+                            })
+                        }
+                    });
+                    (0, __1.Content)('}');
+                });
+            });
+        }));
+        // console.dir(info.root, { depth: null })
+        const voljson = info.vol.toJSON();
+        (0, code_1.expect)(voljson).equal({
+            '/f01.txt': '<foo>',
+            '/foo.txt': '{<FOO[A:B:a=(11):b=(22)]>}',
+            '/.jostraca/jostraca.json.log': voljson['/.jostraca/jostraca.json.log'],
         });
     });
 });

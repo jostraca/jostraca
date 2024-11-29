@@ -4,43 +4,45 @@
 // Iterate over arrays and objects (opinionated mutation!).
 function each(
   subject?: any[] | Object, // Iterate over subject.
-  flags?: { // Optional, flags to control output.
+  spec?: { // Optional, flags to control output.
     mark?: boolean, // Mark items (key$ or index$), default: true, 
     oval?: boolean, // Convert non-object values into synthetic objects, default: true
     sort?: boolean | string, // Sort items, optionally by named prop, default: false
     call?: boolean, // Call items, if they are functions, default: false
+    args?: any, // Call args, if call items are functions
   } | ((...a: any[]) => any),
   apply?: (...a: any[]) => any) // Optional  Function to apply to each item.
 {
   const isArray = Array.isArray(subject)
 
-  const hasFlags = null != flags && 'function' !== typeof flags
-  apply = (hasFlags ? apply : flags) as ((...a: any[]) => any)
+  const hasFlags = null != spec && 'function' !== typeof spec
+  apply = (hasFlags ? apply : spec) as ((...a: any[]) => any)
 
-  flags = (hasFlags ? flags : {}) as { mark: boolean, sort: boolean }
-  flags.mark = null != flags.mark ? flags.mark : true
-  flags.oval = null != flags.oval ? flags.oval : true
-  flags.sort = null != flags.sort ? flags.sort : false
-  flags.call = null != flags.call ? flags.call : false
+  const rspec = hasFlags ? spec : {}
+  const mark = null != rspec.mark ? rspec.mark : true
+  const oval = null != rspec.oval ? rspec.oval : true
+  const sort = null != rspec.sort ? rspec.sort : false
+  const call = null != rspec.call ? rspec.call : false
+  const args = null == rspec.args ? [] : Array.isArray(rspec.args) ? rspec.args : [rspec.args]
 
   let out: any[] = []
 
   if (isArray) {
     for (let fn of subject) {
-      out.push(flags.call && 'function' === typeof fn ? fn() : fn)
+      out.push(call && 'function' === typeof fn ? fn(...args) : fn)
     }
 
-    out = true === flags.sort && 1 < out.length ? out.sort() : out
+    out = true === sort && 1 < out.length ? out.sort() : out
 
-    out = flags.oval ? out.map((n: any) =>
+    out = oval ? out.map((n: any) =>
       (null != n && 'object' === typeof n) ? n : { val$: n }) : out
 
-    out = 'string' === typeof flags.sort ?
+    out = 'string' === typeof sort ?
       out.sort((a: any, b: any) =>
-      (a?.[flags.sort as string] < b?.[flags.sort as string] ? -1 :
-        a?.[flags.sort as string] > b?.[flags.sort as string] ? 1 : 0)) : out
+      (a?.[sort as string] < b?.[sort as string] ? -1 :
+        a?.[sort as string] > b?.[sort as string] ? 1 : 0)) : out
 
-    out = flags.mark ? out
+    out = mark ? out
       .map((n: any, i: number, _: any) =>
         (_ = typeof n, (null != n && 'object' === _ ? (n.index$ = i) : null), n)) : out
 
@@ -60,26 +62,28 @@ function each(
 
   let entries: any = Object.entries(subject as any)
 
-  if (flags.call) {
-    entries = entries.map((n: any[]) => ((n[1] = 'function' === typeof n[1] ? n[1]() : n[1]), n))
+  if (call) {
+    entries =
+      entries.map((n: any[]) =>
+        ((n[1] = 'function' === typeof n[1] ? n[1](...args) : n[1]), n))
   }
 
-  if (flags.oval) {
+  if (oval) {
     out = entries.map((n: any[], _: any) =>
     (_ = typeof n[1],
       (null != n[1] && 'object' === _) ? n[1] :
         (n[1] = { key$: n[0], val$: n[1] }), n))
   }
 
-  if (flags.mark) {
+  if (mark) {
     entries.map((n: any[], _: any) =>
     (_ = typeof n[1],
       (null != n[1] && 'object' === _) ? (n[1].key$ = n[0]) : n[1], n))
   }
 
-  if (1 < entries.length && flags.sort) {
+  if (1 < entries.length && sort) {
     if (null != entries[0][1] && 'object' === typeof entries[0][1]) {
-      let sprop = 'string' === flags.sort ? flags.sort : 'key$'
+      let sprop = 'string' === sort ? sort : 'key$'
       entries.sort((a: any, b: any) =>
         a[1]?.[sprop] < b[1]?.[sprop] ? -1 : b[1]?.[sprop] < a[1]?.[sprop] ? 1 : 0)
     }

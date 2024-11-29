@@ -1,9 +1,10 @@
 declare function each(subject?: any[] | Object, // Iterate over subject.
-flags?: {
+spec?: {
     mark?: boolean;
     oval?: boolean;
     sort?: boolean | string;
     call?: boolean;
+    args?: any;
 } | ((...a: any[]) => any), apply?: (...a: any[]) => any): any[];
 declare function select(key: any, map: Record<string, Function>): any;
 declare function getx(root: any, path: string | string[]): any;

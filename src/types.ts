@@ -9,7 +9,10 @@ type JostracaOptions = {
   log?: Log // Logging interface.
   debug?: boolean // Generate additional debugging information.
 
+  model?: any
   build?: boolean
+  mem?: boolean
+  vol?: any
 
   // Component specific options.
   cmp?: {

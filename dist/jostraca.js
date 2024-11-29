@@ -37,7 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Slot = exports.Line = exports.Copy = exports.Folder = exports.Fragment = exports.Inject = exports.File = exports.Content = exports.Project = exports.escre = exports.template = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.select = exports.each = void 0;
+exports.Slot = exports.Line = exports.Copy = exports.Folder = exports.Fragment = exports.Inject = exports.File = exports.Content = exports.Project = exports.deep = exports.escre = exports.template = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.select = exports.each = void 0;
 exports.Jostraca = Jostraca;
 exports.cmp = cmp;
 // TODO:
@@ -46,6 +46,8 @@ exports.cmp = cmp;
 const Fs = __importStar(require("node:fs"));
 const node_path_1 = __importDefault(require("node:path"));
 const node_async_hooks_1 = require("node:async_hooks");
+const jsonic_1 = require("jsonic");
+const memfs_1 = require("memfs");
 const utility_1 = require("./utility");
 Object.defineProperty(exports, "each", { enumerable: true, get: function () { return utility_1.each; } });
 Object.defineProperty(exports, "select", { enumerable: true, get: function () { return utility_1.select; } });
@@ -86,6 +88,8 @@ const InjectOp_1 = require("./op/InjectOp");
 const FragmentOp_1 = require("./op/FragmentOp");
 const ContentOp_1 = require("./op/ContentOp");
 const NoneOp_1 = require("./op/NoneOp");
+const deep = jsonic_1.util.deep;
+exports.deep = deep;
 const GLOBAL = global;
 const DEFAULT_LOGGER = {
     trace: (...args) => console.log(new Date().toISOString(), 'TRACE', ...args),
@@ -95,19 +99,27 @@ const DEFAULT_LOGGER = {
     error: (...args) => console.error(new Date().toISOString(), 'ERROR', ...args),
     fatal: (...args) => console.error(new Date().toISOString(), 'FATAL', ...args),
 };
-function Jostraca() {
+function Jostraca(gopts) {
     GLOBAL.jostraca = new node_async_hooks_1.AsyncLocalStorage();
     async function generate(opts, root) {
-        const fs = opts.fs || Fs;
-        const meta = opts.meta || {};
-        const folder = opts.folder || '.';
-        const log = opts.log || DEFAULT_LOGGER;
-        const debug = !!opts.debug;
-        const doBuild = false !== opts.build;
+        const useMemFS = opts.mem || gopts?.mem;
+        const memfs = useMemFS ? (0, memfs_1.memfs)(opts.vol || gopts?.vol || {}) : undefined;
+        const fs = opts.fs || gopts?.fs || memfs?.fs || Fs;
+        const meta = {
+            ...(gopts?.meta || {}),
+            ...(opts.meta || {}),
+        };
+        const folder = opts.folder || gopts?.folder || '.';
+        const log = opts.log || gopts?.log || DEFAULT_LOGGER;
+        const debug = !!(null == opts.debug ? gopts?.debug : opts.debug);
+        const doBuild = null == gopts?.build ? false !== opts.build : false !== gopts?.build;
+        const model = opts.model || gopts?.model || {};
         // Component defaults.
-        opts.cmp = (opts.cmp || {});
-        opts.cmp.Copy = (opts.cmp.Copy || {});
-        opts.cmp.Copy.ignore = (opts.cmp.Copy.ignore || [/~$/]);
+        opts.cmp = deep({
+            Copy: {
+                ignore: [/~$/]
+            }
+        }, gopts?.cmp, opts.cmp);
         const ctx$ = {
             folder,
             content: null,
@@ -116,16 +128,17 @@ function Jostraca() {
             opts,
             log,
             debug,
+            model,
         };
         return GLOBAL.jostraca.run(ctx$, async () => {
             // Define phase
             root();
             const ctx$ = GLOBAL.jostraca.getStore();
-            // console.dir(ctx$.node, { depth: null })
             // Build phase
             const buildctx = {
                 root: ctx$.root,
                 fs,
+                vol: memfs?.vol,
                 folder,
                 current: {
                     folder: {
@@ -176,7 +189,16 @@ function Jostraca() {
             await op.before(node, ctx$, buildctx);
             if (node.children) {
                 for (let childnode of node.children) {
-                    await step(childnode, ctx$, buildctx);
+                    try {
+                        await step(childnode, ctx$, buildctx);
+                    }
+                    catch (err) {
+                        console.log('JERR', childnode);
+                        if (childnode.meta.callsite) {
+                            err.callsite = childnode.meta.callsite;
+                        }
+                        throw err;
+                    }
                 }
             }
             await op.after(node, ctx$, buildctx);
