@@ -7,6 +7,7 @@ import { cmp, template } from '../jostraca'
 const Line = cmp(function Line(props: any, children: any) {
   const node: Node = props.ctx$.node
   node.kind = 'content'
+  node.indent = props.indent
 
   let src = null != props.arg ? props.arg :
     null != props.src ? props.src :

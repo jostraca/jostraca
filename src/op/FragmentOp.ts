@@ -1,6 +1,8 @@
 
 import type { Node } from '../jostraca'
 
+import { indent } from '../jostraca'
+
 
 const FragmentOp = {
 
@@ -16,8 +18,8 @@ const FragmentOp = {
   after(node: Node, _ctx$: any, buildctx: any) {
     let src = node.content?.join('') || ''
 
-    if ('string' === typeof node.indent) {
-      src = src.replace(/([^\n]+\n)/g, node.indent + '$1')
+    if (null != node.indent) {
+      src = indent(src, node.indent)
     }
 
     buildctx.current.file = node.meta.fragment_file

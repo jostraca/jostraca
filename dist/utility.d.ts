@@ -22,6 +22,7 @@ declare function template(src: string, model: any, spec?: {
     replace?: Record<string, any>;
     handle?: (s?: string) => void;
 }): string;
+declare function indent(src: string, indent: string | number | undefined): string;
 declare function cmap(o: any, p: any): any;
 declare namespace cmap {
     var COPY: (x: any) => any;
@@ -35,4 +36,4 @@ declare namespace vmap {
     var KEY: (_: any, p: any) => any;
 }
 declare const BINARY_EXT: string[];
-export { each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, BINARY_EXT, };
+export { each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, BINARY_EXT, };

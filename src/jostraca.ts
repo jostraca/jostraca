@@ -37,6 +37,7 @@ import {
   names,
   template,
   escre,
+  indent,
 } from './utility'
 
 
@@ -52,6 +53,7 @@ import { Inject } from './cmp/Inject'
 import { Fragment } from './cmp/Fragment'
 import { Folder } from './cmp/Folder'
 import { Project } from './cmp/Project'
+import { List } from './cmp/List'
 
 import { CopyOp } from './op/CopyOp'
 import { ProjectOp } from './op/ProjectOp'
@@ -322,7 +324,7 @@ export {
   names,
   template,
   escre,
-
+  indent,
   deep,
 
   Project,
@@ -334,5 +336,6 @@ export {
   Copy,
   Line,
   Slot,
+  List,
 }
 

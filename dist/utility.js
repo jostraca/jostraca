@@ -14,6 +14,7 @@ exports.vmap = vmap;
 exports.names = names;
 exports.template = template;
 exports.escre = escre;
+exports.indent = indent;
 // Iterate over arrays and objects (opinionated mutation!).
 function each(subject, // Iterate over subject.
 spec, apply) {
@@ -260,6 +261,7 @@ function names(base, name, prop = 'name') {
     base[prop.toUpperCase()] = name.toUpperCase();
 }
 function escre(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function idenstr(s) { return s.replace(/[^\w\d]/g, '_'); }
 // NOTE: $$foo.bar$$ format used as explicit start and end markers mean regex can be used
 // unambiguously ($fooa would not match `foo`)
 function template(src, model, spec) {
@@ -268,51 +270,104 @@ function template(src, model, spec) {
     let open = null == spec?.open ? '\\$\\$' : spec.open;
     let close = null == spec?.close ? '\\$\\$' : spec.close;
     let ref = null == spec?.ref ? '[^$]+' : spec.ref;
+    let specReplaceMap = spec?.replace || {};
+    let specReplaceCanon = {};
+    let ngI = 1;
     let insertRE = null == spec?.insert ?
-        new RegExp('(' + open + ')(' + ref + ')(' + close + ')' +
-            ((Object.keys(spec?.replace || {}))
-                .map(k => '|(' + (k.match(/^\/.+\/$/) ? k.substring(1, k.length - 1) : escre(k)) + ')')
+        new RegExp(
+        // Match alternate for `$$foo.bar$$` model replacements.
+        '(?<J_O>' + open + ')' +
+            '(?<J_R>' + ref + ')' +
+            '(?<J_C>' + close + ')' +
+            // Template replace entries.
+            ((Object.keys(specReplaceMap))
+                .sort((a, b) => a.startsWith('#') ?
+                (a.includes('-') ? b.includes('-') ? b.length - a.length : -1 : b.length - a.length) :
+                b.length - a.length)
+                .map((k, _) => (
+            // console.log(k),
+            // Normalize key for use as group name as key could be a regexp ('/foo/' format).
+            _ = idenstr(k).replace(/_+/g, '_'),
+                specReplaceCanon[_] = specReplaceMap[k],
+                // match alternate per key.
+                `|(?<J_K${ngI++}_${_}>` +
+                    // Custom regexp.
+                    (k.match(/^\/.+\/$/) ? k.substring(1, k.length - 1)
+                        // Prepend a counter to custom group names to ensure they are unique.
+                        .replace(/\(\?<([\w\d_]+)>/g, (_, p1) => `(?<J_N${ngI++}_${p1}>`) :
+                        // Tags: #Name matches <indent><comment><space>#Name<space><newline>
+                        // #Name-Tag matches same, but inner: #<Identifer>-Tag, and
+                        // provides {Tag:<identifer>}
+                        // See template utility unit test!
+                        (_ = k.match(/^#([A-Za-z0-9]+)(-[A-Z][a-z0-9]+)?$/)) ?
+                            ( /*console.log('QQQ', _),*/`(?<J_N${ngI++}_indent>[ \t]*)` +
+                                '\\/\\/' +
+                                '[ \t]*#' +
+                                (_[1] ?
+                                    `(?<J_T${ngI++}_${_[2]?.substring(1) || 'TAG'}>` +
+                                        (_[2] ? '[A-Za-z0-9]+' : _[1]) + ')' : '') +
+                                (_[2] ? `-(?<J_N${ngI++}_TAG>${_[2].substring(1)})` : '') +
+                                '[ \t]*\\n?') :
+                            // Just a key string.
+                            escre(k)) + ')'))
                 .join(''))) :
         spec.insert;
+    // console.log('RE', insertRE)
     let remain = src;
     let nextm = true;
     let out = '';
+    // By default, just append to a string, but allow for custom handling.
     let handle = spec?.handle || ((s) => out += (null == s ? '' : s));
     while (nextm) {
         let m = remain.match(insertRE);
         if (m) {
-            let mi = m.index;
+            let mi = m.index || 0;
             handle(remain.substring(0, mi));
+            let mg = m.groups || {};
+            // console.log('MG', mg)
             let insert;
             let skip = 0;
-            let ref = m[2];
+            let ref = mg.J_R; // m[2]
+            // Get replacement from model path.
             if (null != ref) {
-                insert = '__insert__' === ref ? '' + insertRE : getx(model, ref);
-                skip = m[1].length + m[3].length;
+                insert = '__JOSTRACA_REPLACE__' === ref ? '' + insertRE : getx(model, ref);
+                skip = mg.J_O.length + mg.J_C.length;
             }
+            // Else custom replacement.
             else {
                 ref = '';
                 insert = '';
-                let rI = 4;
-                while (rI < m.length &&
-                    '' === (ref = (null == m[rI] || '' == m[rI] ? '' : m[rI]))) {
-                    rI++;
-                }
-                if ('' !== ref && spec?.replace) {
-                    insert = spec.replace[Object.keys(spec.replace)[rI - 4]];
+                // Use first key with a defined match (that is, the alternate that matched).
+                let key = Object.keys(mg).
+                    filter(k => k.startsWith('J_K') && null != mg[k])[0];
+                if (null != key) {
+                    ref = mg[key] || '';
+                    insert = specReplaceCanon[key.replace(/^J_K\d+_/, '')] || '';
                 }
             }
+            // Check if custom regexp has resulted in an alternate that matches an empy string.
             if ('' === ref) {
                 throw new Error('Regular expression matches empty string: ' + insertRE);
             }
             else {
                 let ti = typeof insert;
+                // Leave unmatched model paths in place so they can be debugged.
                 if (null == insert || ('number' === ti && isNaN(insert))) {
-                    handle((0 === skip ? '' : m[1]) + ref + (0 === skip ? '' : m[3]));
+                    handle((0 === skip ? '' : mg.J_O) + ref +
+                        (0 === skip ? '' : mg.J_C));
                 }
+                // Replacement is a function, so call it to generate a dynamic replacement string.
                 else if ('function' === ti) {
-                    handle(insert({ src, model, spec, ref, index: mi }));
+                    // Provide custom named groups, removing unique prefix.
+                    let groups = Object.entries(mg)
+                        .reduce((a, n, _) => ((n[0].startsWith('J_') ? ((_ = n[0].match(/^J_[NT]\d+_(.+)$/)) && null != n[1] ?
+                        (a[_[1]] = n[1],
+                            // Tag also sets property `name`
+                            (_[0].startsWith('J_T') ? a.name = n[1] : null))
+                        : null) : a[n[0]] = n[1]), a), { '$&': m[0] });
+                    handle(insert(groups, { src, model, spec, ref, index: mi, groups }));
                 }
+                // Insert a plain replacement value, JSONifying if necessary.
                 else {
                     handle(('object' === ti ? JSON.stringify(insert) : insert));
                 }
@@ -326,95 +381,13 @@ function template(src, model, spec) {
     }
     return out;
 }
-/*
-  // NOTE: $$foo.bar$$ format used as explicit start and end markers mean regex can be used
-// unambiguously ($fooa would not match `foo`)
-function template(
-  src: string,
-  model: any,
-  spec?: {
-    open?: string,
-    close?: string,
-    ref?: string,
-    insert?: RegExp,
-    replace?: Record<string, any>
-  }
-) {
-
-  src = null == src ? '' : '' + src
-  model = null == model ? {} : model
-  let open = null == spec?.open ? '\\$\\$' : spec.open
-  let close = null == spec?.close ? '\\$\\$' : spec.close
-  let ref = null == spec?.ref ? '[^$]+' : spec.ref
-  let insertRE = null == spec?.insert ?
-    new RegExp('(' + open + ')(' + ref + ')(' + close + ')' +
-      ((Object.keys(spec?.replace || {}))
-        .map(k => '|(' + (k.match(/^\/.+\/$/) ? k.substring(1, k.length - 1) : escre(k)) + ')')
-        .join(''))) :
-    spec.insert
-  let out = ''
-  let remain = src
-  let nextm = true
-
-
-  while (nextm) {
-    let m = remain.match(insertRE)
-
-    if (m) {
-      let mi = (m.index as number)
-      out += remain.substring(0, mi)
-
-      let insert
-      let skip = 0
-      let ref = m[2]
-
-      if (null != ref) {
-        insert = '__insert__' === ref ? '' + insertRE : getx(model, ref)
-        skip = m[1].length + m[3].length
-      }
-
-      else {
-        ref = ''
-        insert = ''
-        let rI = 4
-        while (rI < m.length &&
-          '' === (ref = (null == m[rI] || '' == m[rI] ? '' : m[rI]))) { rI++ }
-
-        if ('' !== ref && spec?.replace) {
-          insert = spec.replace[Object.keys(spec.replace)[rI - 4]]
-        }
-      }
-
-      if ('' === ref) {
-        throw new Error('Regular expression matches empty string: ' + insertRE)
-      }
-      else {
-        let ti = typeof insert
-
-        if (null == insert || ('number' === ti && isNaN(insert))) {
-          out += (0 === skip ? '' : m[1]) + ref + (0 === skip ? '' : m[3])
-        }
-        else if ('function' === ti) {
-          out += insert({ src, model, spec, ref, index: mi })
-        }
-        else {
-          out += ('object' === ti ? JSON.stringify(insert) : insert)
-        }
-
-        remain = remain.substring(mi + skip + ref.length)
-      }
-    }
-    else {
-      out += remain
-      nextm = false
-    }
-  }
-
-
-  return out
+function indent(src, indent) {
+    src = null == src ? '' : '' + src;
+    indent = null == indent ? 2 : indent;
+    indent = 'number' === typeof indent ? ' '.repeat(indent) : '' + indent;
+    src = src.replace(/(\n|^)\s*([^\n]+)/g, '$1' + indent + '$2');
+    return src;
 }
-
-  */
 // Map child objects to new child objects
 function cmap(o, p) {
     return Object
@@ -457,268 +430,6 @@ vmap.KEY = (_, p) => p.key;
  
   Thank You!
 */
-const BINARY_EXT = [
-    "3dm",
-    "3ds",
-    "3g2",
-    "3gp",
-    "7z",
-    "a",
-    "aac",
-    "adp",
-    "afdesign",
-    "afphoto",
-    "afpub",
-    "ai",
-    "aif",
-    "aiff",
-    "alz",
-    "ape",
-    "apk",
-    "appimage",
-    "ar",
-    "arj",
-    "asf",
-    "au",
-    "avi",
-    "bak",
-    "baml",
-    "bh",
-    "bin",
-    "bk",
-    "bmp",
-    "btif",
-    "bz2",
-    "bzip2",
-    "cab",
-    "caf",
-    "cgm",
-    "class",
-    "cmx",
-    "cpio",
-    "cr2",
-    "cur",
-    "dat",
-    "dcm",
-    "deb",
-    "dex",
-    "djvu",
-    "dll",
-    "dmg",
-    "dng",
-    "doc",
-    "docm",
-    "docx",
-    "dot",
-    "dotm",
-    "dra",
-    "DS_Store",
-    "dsk",
-    "dts",
-    "dtshd",
-    "dvb",
-    "dwg",
-    "dxf",
-    "ecelp4800",
-    "ecelp7470",
-    "ecelp9600",
-    "egg",
-    "eol",
-    "eot",
-    "epub",
-    "exe",
-    "f4v",
-    "fbs",
-    "fh",
-    "fla",
-    "flac",
-    "flatpak",
-    "fli",
-    "flv",
-    "fpx",
-    "fst",
-    "fvt",
-    "g3",
-    "gh",
-    "gif",
-    "graffle",
-    "gz",
-    "gzip",
-    "h261",
-    "h263",
-    "h264",
-    "icns",
-    "ico",
-    "ief",
-    "img",
-    "ipa",
-    "iso",
-    "jar",
-    "jpeg",
-    "jpg",
-    "jpgv",
-    "jpm",
-    "jxr",
-    "key",
-    "ktx",
-    "lha",
-    "lib",
-    "lvp",
-    "lz",
-    "lzh",
-    "lzma",
-    "lzo",
-    "m3u",
-    "m4a",
-    "m4v",
-    "mar",
-    "mdi",
-    "mht",
-    "mid",
-    "midi",
-    "mj2",
-    "mka",
-    "mkv",
-    "mmr",
-    "mng",
-    "mobi",
-    "mov",
-    "movie",
-    "mp3",
-    "mp4",
-    "mp4a",
-    "mpeg",
-    "mpg",
-    "mpga",
-    "mxu",
-    "nef",
-    "npx",
-    "numbers",
-    "nupkg",
-    "o",
-    "odp",
-    "ods",
-    "odt",
-    "oga",
-    "ogg",
-    "ogv",
-    "otf",
-    "ott",
-    "pages",
-    "pbm",
-    "pcx",
-    "pdb",
-    "pdf",
-    "pea",
-    "pgm",
-    "pic",
-    "png",
-    "pnm",
-    "pot",
-    "potm",
-    "potx",
-    "ppa",
-    "ppam",
-    "ppm",
-    "pps",
-    "ppsm",
-    "ppsx",
-    "ppt",
-    "pptm",
-    "pptx",
-    "psd",
-    "pya",
-    "pyc",
-    "pyo",
-    "pyv",
-    "qt",
-    "rar",
-    "ras",
-    "raw",
-    "resources",
-    "rgb",
-    "rip",
-    "rlc",
-    "rmf",
-    "rmvb",
-    "rpm",
-    "rtf",
-    "rz",
-    "s3m",
-    "s7z",
-    "scpt",
-    "sgi",
-    "shar",
-    "snap",
-    "sil",
-    "sketch",
-    "slk",
-    "smv",
-    "snk",
-    "so",
-    "stl",
-    "suo",
-    "sub",
-    "swf",
-    "tar",
-    "tbz",
-    "tbz2",
-    "tga",
-    "tgz",
-    "thmx",
-    "tif",
-    "tiff",
-    "tlz",
-    "ttc",
-    "ttf",
-    "txz",
-    "udf",
-    "uvh",
-    "uvi",
-    "uvm",
-    "uvp",
-    "uvs",
-    "uvu",
-    "viv",
-    "vob",
-    "war",
-    "wav",
-    "wax",
-    "wbmp",
-    "wdp",
-    "weba",
-    "webm",
-    "webp",
-    "whl",
-    "wim",
-    "wm",
-    "wma",
-    "wmv",
-    "wmx",
-    "woff",
-    "woff2",
-    "wrm",
-    "wvx",
-    "xbm",
-    "xif",
-    "xla",
-    "xlam",
-    "xls",
-    "xlsb",
-    "xlsm",
-    "xlsx",
-    "xlt",
-    "xltm",
-    "xltx",
-    "xm",
-    "xmind",
-    "xpi",
-    "xpm",
-    "xwd",
-    "xz",
-    "z",
-    "zip",
-    "zipx"
-];
+const BINARY_EXT = '3dm;3ds;3g2;3gp;7z;a;aac;adp;afdesign;afphoto;afpub;ai;aif;aiff;alz;ape;apk;appimage;ar;arj;asf;au;avi;bak;baml;bh;bin;bk;bmp;btif;bz2;bzip2;cab;caf;cgm;class;cmx;cpio;cr2;cur;dat;dcm;deb;dex;djvu;dll;dmg;dng;doc;docm;docx;dot;dotm;dra;DS_Store;dsk;dts;dtshd;dvb;dwg;dxf;ecelp4800;ecelp7470;ecelp9600;egg;eol;eot;epub;exe;f4v;fbs;fh;fla;flac;flatpak;fli;flv;fpx;fst;fvt;g3;gh;gif;graffle;gz;gzip;h261;h263;h264;icns;ico;ief;img;ipa;iso;jar;jpeg;jpg;jpgv;jpm;jxr;key;ktx;lha;lib;lvp;lz;lzh;lzma;lzo;m3u;m4a;m4v;mar;mdi;mht;mid;midi;mj2;mka;mkv;mmr;mng;mobi;mov;movie;mp3;mp4;mp4a;mpeg;mpg;mpga;mxu;nef;npx;numbers;nupkg;o;odp;ods;odt;oga;ogg;ogv;otf;ott;pages;pbm;pcx;pdb;pdf;pea;pgm;pic;png;pnm;pot;potm;potx;ppa;ppam;ppm;pps;ppsm;ppsx;ppt;pptm;pptx;psd;pya;pyc;pyo;pyv;qt;rar;ras;raw;resources;rgb;rip;rlc;rmf;rmvb;rpm;rtf;rz;s3m;s7z;scpt;sgi;shar;snap;sil;sketch;slk;smv;snk;so;stl;suo;sub;swf;tar;tbz;tbz2;tga;tgz;thmx;tif;tiff;tlz;ttc;ttf;txz;udf;uvh;uvi;uvm;uvp;uvs;uvu;viv;vob;war;wav;wax;wbmp;wdp;weba;webm;webp;whl;wim;wm;wma;wmv;wmx;woff;woff2;wrm;wvx;xbm;xif;xla;xlam;xls;xlsb;xlsm;xlsx;xlt;xltm;xltx;xm;xmind;xpi;xpm;xwd;xz;z;zip;zipx'.split(';');
 exports.BINARY_EXT = BINARY_EXT;
 //# sourceMappingURL=utility.js.map

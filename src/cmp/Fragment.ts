@@ -12,7 +12,7 @@ const Fragment = cmp(function Fragment(props: any, children: any) {
   node.kind = 'fragment'
   node.from = props.from
   node.indent = props.indent
-  // const replace = node.meta.replace = props.replace
+
   const replace = props.replace || {}
 
 

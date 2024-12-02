@@ -11,7 +11,6 @@ const Fragment = (0, jostraca_1.cmp)(function Fragment(props, children) {
     node.kind = 'fragment';
     node.from = props.from;
     node.indent = props.indent;
-    // const replace = node.meta.replace = props.replace
     const replace = props.replace || {};
     const { fs, folder, model } = props.ctx$;
     let frompath = node.from;
