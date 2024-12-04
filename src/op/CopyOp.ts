@@ -155,10 +155,14 @@ function excludeFile(state: any, nodepath: string[], name: string, topath: strin
 
   // NOT Path.sep - needs to be canonical
   const rpath = nodepath.concat(name).join('/')
+
+  // TOOD: use exclude only for actual excludes, refactor logic to ignore if exists,
+  // use a different prop for that
   const fileExists = fs.existsSync(topath)
 
   // console.log('COPY EXCLUDE', fileExists, state.excludes.includes(rpath), rpath, '|', state.excludes)
-  if (fileExists && state.excludes.includes(rpath)) {
+  // if (fileExists && state.excludes.includes(rpath)) {
+  if (excluded(rpath, state.excludes)) {
     return true
   }
 
@@ -196,6 +200,23 @@ function excludeFile(state: any, nodepath: string[], name: string, topath: strin
 
   // console.log('COPY-EXCLUDE', rpath, exclude)
   return exclude
+}
+
+
+function excluded(path: string, excludes: (string | RegExp)[]) {
+  let out = false
+  if (excludes.filter(exc => 'string' === typeof exc).includes(path)) {
+    out = true
+  }
+  else if (excludes
+    .filter(exc => 'object' === typeof exc)
+    .reduce((a, exc) => (a ? a : (a || !!path.match(exc))), false)) {
+    out = true
+  }
+
+  // console.log('EXCLUDED', path, out, excludes)
+
+  return out
 }
 
 

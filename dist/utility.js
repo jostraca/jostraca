@@ -385,7 +385,8 @@ function indent(src, indent) {
     src = null == src ? '' : '' + src;
     indent = null == indent ? 2 : indent;
     indent = 'number' === typeof indent ? ' '.repeat(indent) : '' + indent;
-    src = src.replace(/(\n|^)\s*([^\n]+)/g, '$1' + indent + '$2');
+    src = src.replace(/(\n|^)(?!$)/g, '$1' + indent);
+    // (_, p1) => p1 + indent)
     return src;
 }
 // Map child objects to new child objects

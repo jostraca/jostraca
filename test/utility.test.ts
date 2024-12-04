@@ -228,17 +228,20 @@ describe('util', () => {
   test('indent', () => {
     expect(indent('a', 2)).equal('  a')
     expect(indent('\na', 2)).equal('\n  a')
-    expect(indent('\n a', 2)).equal('\n  a')
-    expect(indent('\n  a', 2)).equal('\n  a')
-    expect(indent('\n   a', 2)).equal('\n  a')
-    expect(indent('\n\ta', 2)).equal('\n  a')
+    expect(indent('\n a', 2)).equal('\n   a')
+    expect(indent('\n  a', 2)).equal('\n    a')
+    expect(indent('\n   a', 2)).equal('\n     a')
+    expect(indent('\n    a', 2)).equal('\n      a')
+    expect(indent('\n\ta', 2)).equal('\n  \ta')
+
+    expect(indent('{\n  a\n}', 2)).equal('  {\n    a\n  }')
 
     expect(indent('a', '    ')).equal('    a')
     expect(indent('\na', '    ')).equal('\n    a')
-    expect(indent('\n a', '    ')).equal('\n    a')
-    expect(indent('\n  a', '    ')).equal('\n    a')
-    expect(indent('\n   a', '    ')).equal('\n    a')
-    expect(indent('\n\ta', '    ')).equal('\n    a')
+    expect(indent('\n a', '    ')).equal('\n     a')
+    expect(indent('\n  a', '    ')).equal('\n      a')
+    expect(indent('\n   a', '    ')).equal('\n       a')
+    expect(indent('\n\ta', '    ')).equal('\n    \ta')
 
     expect(indent('a\nb', 2)).equal('  a\n  b')
     expect(indent('a\nb\nc', 2)).equal('  a\n  b\n  c')
@@ -248,10 +251,10 @@ describe('util', () => {
     expect(indent('\na\nb\nc', 2)).equal('\n  a\n  b\n  c')
     expect(indent('\na\nb\nc\n', 2)).equal('\n  a\n  b\n  c\n')
 
-    expect(indent('a\n b', 2)).equal('  a\n  b')
-    expect(indent('a\n b\n c', 2)).equal('  a\n  b\n  c')
-    expect(indent(' a\n b\nc\n', 2)).equal('  a\n  b\n  c\n')
-    expect(indent(' a\n b\n c\n', 2)).equal('  a\n  b\n  c\n')
+    expect(indent('a\n b', 2)).equal('  a\n   b')
+    expect(indent('a\n b\n c', 2)).equal('  a\n   b\n   c')
+    expect(indent(' a\n b\nc\n', 2)).equal('   a\n   b\n  c\n')
+    expect(indent(' a\n b\n c\n', 2)).equal('   a\n   b\n   c\n')
   })
 })
 
