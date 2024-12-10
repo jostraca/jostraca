@@ -10,9 +10,9 @@ const From = (from: any, _: any, s: any) => s.ctx.fs.statSync(from)
 
 const CopyShape = Gubu({
   ctx$: Object,
-  name: Optional(String),
-  from: Check(From).String(),
-  exclude: Optional(One(Boolean, [String]))
+  name: Optional(String) as unknown as string,
+  from: Check(From).String() as unknown as string,
+  exclude: Optional(One(Boolean, [String])) as unknown as boolean | string[],
 }, { name: 'Copy' })
 
 
