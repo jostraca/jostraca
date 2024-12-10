@@ -43,5 +43,8 @@
   "peerDependencies": {
     "jsonic": ">=2.15.2",
     "memfs": ">=4"
+  },
+  "dependencies": {
+    "gubu": "^8.3.0"
   }
 }
