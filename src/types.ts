@@ -4,10 +4,12 @@
 type JostracaOptions = {
   folder?: string // Base output folder for generated files. Default: `.`.
   meta?: any // Provide meta data to the generation process. Default: `{}`
-  exclude?: boolean // Exclude modified output files. Default: `false`.
   fs?: any // File system API (used for testing). Default: `node:fs`.
   log?: Log // Logging interface.
   debug?: boolean // Generate additional debugging information.
+
+  // TOOD: needs rethink
+  exclude?: boolean // Exclude modified output files. Default: `false`.
 
   model?: any
   build?: boolean
@@ -34,7 +36,7 @@ type Node = {
   content?: any[]
   folder?: string
   after?: any
-  exclude?: boolean | string | string[]
+  exclude?: boolean | string | (string | RegExp)[]
   indent?: string
   filter?: (props: any, children: any, component: any) => boolean
 }

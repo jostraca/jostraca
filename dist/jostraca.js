@@ -47,6 +47,7 @@ const Fs = __importStar(require("node:fs"));
 const node_path_1 = __importDefault(require("node:path"));
 const node_async_hooks_1 = require("node:async_hooks");
 const jsonic_1 = require("jsonic");
+const gubu_1 = require("gubu");
 const memfs_1 = require("memfs");
 const utility_1 = require("./utility");
 Object.defineProperty(exports, "each", { enumerable: true, get: function () { return utility_1.each; } });
@@ -102,11 +103,35 @@ const DEFAULT_LOGGER = {
     error: (...args) => console.error(new Date().toISOString(), 'ERROR', ...args),
     fatal: (...args) => console.error(new Date().toISOString(), 'FATAL', ...args),
 };
-function Jostraca(gopts) {
+const OptionsShape = (0, gubu_1.Gubu)({
+    folder: '.', // Base output folder for generated files. Default: `.`.
+    meta: {}, // Provide meta data to the generation process. Default: `{}`
+    fs: (0, gubu_1.Any)(), // File system API (used for testing). Default: `node:fs`.
+    log: DEFAULT_LOGGER, // Logging interface.
+    debug: 'info', // Generate additional debugging information.
+    // TOOD: needs rethink
+    exclude: false, // Exclude modified output files. Default: `false`.
+    model: {},
+    build: true,
+    mem: false,
+    vol: {},
+    // Component specific options.
+    cmp: {
+        Copy: {
+            ignore: []
+        }
+    }
+});
+function Jostraca(gopts_in) {
     GLOBAL.jostraca = new node_async_hooks_1.AsyncLocalStorage();
+    const gopts = OptionsShape(gopts_in || {});
+    // console.log('gopts', gopts)
     async function generate(opts, root) {
-        const useMemFS = opts.mem || gopts?.mem;
-        const memfs = useMemFS ? (0, memfs_1.memfs)(opts.vol || gopts?.vol || {}) : undefined;
+        opts = OptionsShape(opts);
+        // console.log('opts', opts)
+        const useMemFS = opts.mem || gopts.mem;
+        // console.log('useMemFS', useMemFS)
+        const memfs = useMemFS ? (0, memfs_1.memfs)(deep({}, gopts.vol, opts.vol)) : undefined;
         const fs = opts.fs || gopts?.fs || memfs?.fs || Fs;
         const meta = {
             ...(gopts?.meta || {}),
@@ -116,7 +141,7 @@ function Jostraca(gopts) {
         const log = opts.log || gopts?.log || DEFAULT_LOGGER;
         const debug = !!(null == opts.debug ? gopts?.debug : opts.debug);
         const doBuild = null == gopts?.build ? false !== opts.build : false !== gopts?.build;
-        const model = opts.model || gopts?.model || {};
+        const model = deep({}, gopts.model, opts.model);
         // Component defaults.
         opts.cmp = deep({
             Copy: {
@@ -196,7 +221,6 @@ function Jostraca(gopts) {
                         await step(childnode, ctx$, buildctx);
                     }
                     catch (err) {
-                        console.log('JERR', childnode);
                         if (childnode.meta.callsite) {
                             err.callsite = childnode.meta.callsite;
                         }

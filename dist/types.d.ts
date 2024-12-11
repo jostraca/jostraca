@@ -1,10 +1,10 @@
 type JostracaOptions = {
     folder?: string;
     meta?: any;
-    exclude?: boolean;
     fs?: any;
     log?: Log;
     debug?: boolean;
+    exclude?: boolean;
     model?: any;
     build?: boolean;
     mem?: boolean;
@@ -25,7 +25,7 @@ type Node = {
     content?: any[];
     folder?: string;
     after?: any;
-    exclude?: boolean | string | string[];
+    exclude?: boolean | string | (string | RegExp)[];
     indent?: string;
     filter?: (props: any, children: any, component: any) => boolean;
 };

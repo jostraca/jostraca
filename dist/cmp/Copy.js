@@ -8,7 +8,8 @@ const CopyShape = (0, gubu_1.Gubu)({
     ctx$: Object,
     name: (0, gubu_1.Optional)(String),
     from: (0, gubu_1.Check)(From).String(),
-    exclude: (0, gubu_1.Optional)((0, gubu_1.One)(Boolean, [String])),
+    to: (0, gubu_1.Optional)(String),
+    exclude: (0, gubu_1.Optional)((0, gubu_1.One)(Boolean, [(0, gubu_1.One)(String, RegExp)]))
 }, { name: 'Copy' });
 const Copy = (0, jostraca_1.cmp)(function Copy(props, _children) {
     props = CopyShape(props, { fs: props.ctx$.fs });

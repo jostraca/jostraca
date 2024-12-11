@@ -12,11 +12,13 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 
 import { util as JsonicUtil } from 'jsonic'
 
+import { Gubu, Any } from 'gubu'
+
 import { memfs as MemFs } from 'memfs'
 
 
 import type {
-  JostracaOptions,
+  // JostracaOptions,
   Node,
   OpDef,
   Component,
@@ -80,13 +82,47 @@ const DEFAULT_LOGGER = {
 }
 
 
-function Jostraca(gopts?: JostracaOptions) {
+const OptionsShape = Gubu({
+  folder: '.', // Base output folder for generated files. Default: `.`.
+  meta: {}, // Provide meta data to the generation process. Default: `{}`
+  fs: Any() as any, // File system API (used for testing). Default: `node:fs`.
+  log: DEFAULT_LOGGER as any, // Logging interface.
+  debug: 'info', // Generate additional debugging information.
+
+  // TOOD: needs rethink
+  exclude: false, // Exclude modified output files. Default: `false`.
+
+  model: {},
+  build: true,
+  mem: false,
+  vol: {},
+
+  // Component specific options.
+  cmp: {
+    Copy: {
+      ignore: [] as any[]
+    }
+  }
+})
+
+type JostracaOptions = ReturnType<typeof OptionsShape>
+
+
+function Jostraca(gopts_in?: JostracaOptions) {
   GLOBAL.jostraca = new AsyncLocalStorage()
 
+  const gopts = OptionsShape(gopts_in || {})
+  // console.log('gopts', gopts)
 
   async function generate(opts: JostracaOptions, root: Function) {
-    const useMemFS = opts.mem || gopts?.mem
-    const memfs = useMemFS ? MemFs(opts.vol || gopts?.vol || {}) : undefined
+    opts = OptionsShape(opts)
+
+    // console.log('opts', opts)
+
+    const useMemFS = opts.mem || gopts.mem
+    // console.log('useMemFS', useMemFS)
+
+    const memfs = useMemFS ? MemFs(deep({}, gopts.vol, opts.vol)) : undefined
     const fs = opts.fs || gopts?.fs || memfs?.fs || Fs
     const meta = {
       ...(gopts?.meta || {}),
@@ -98,7 +134,7 @@ function Jostraca(gopts?: JostracaOptions) {
 
     const doBuild: boolean = null == gopts?.build ? false !== opts.build : false !== gopts?.build
 
-    const model = opts.model || gopts?.model || {}
+    const model = deep({}, gopts.model, opts.model)
 
     // Component defaults.
     opts.cmp = deep({
@@ -200,7 +236,6 @@ function Jostraca(gopts?: JostracaOptions) {
             await step(childnode, ctx$, buildctx)
           }
           catch (err: any) {
-            console.log('JERR', childnode)
             if (childnode.meta.callsite) {
               err.callsite = childnode.meta.callsite
             }

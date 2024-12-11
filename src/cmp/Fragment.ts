@@ -5,8 +5,26 @@ import type { Node } from '../jostraca'
 
 import { cmp, template, each, escre, Content } from '../jostraca'
 
+import { Gubu, One, Optional, Check } from 'gubu'
 
-const Fragment = cmp(function Fragment(props: any, children: any) {
+
+const From = (from: any, _: any, s: any) => s.ctx.fs.statSync(from)
+
+const FragmentShape = Gubu({
+  ctx$: Object,
+  from: Check(From).String() as unknown as string,
+  exclude: Optional(One(Boolean, [String])) as unknown as boolean | string[],
+  indent: Optional(One(String, Number)),
+  replace: {} as any,
+}, { name: 'Fragment' })
+
+
+type FragmentProps = ReturnType<typeof FragmentShape>
+
+
+const Fragment = cmp(function Fragment(props: FragmentProps, children: any) {
+  props = FragmentShape(props, { fs: props.ctx$.fs })
+
   const node: Node = props.ctx$.node
 
   node.kind = 'fragment'

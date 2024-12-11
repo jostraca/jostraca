@@ -12,7 +12,8 @@ const CopyShape = Gubu({
   ctx$: Object,
   name: Optional(String) as unknown as string,
   from: Check(From).String() as unknown as string,
-  exclude: Optional(One(Boolean, [String])) as unknown as boolean | string[],
+  to: Optional(String) as unknown as string,
+  exclude: Optional(One(Boolean, [One(String, RegExp)])) as unknown as any
 }, { name: 'Copy' })
 
 
