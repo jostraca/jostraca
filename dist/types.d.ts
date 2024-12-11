@@ -64,5 +64,9 @@ type BuildContext = {
         exclude: string[];
         last: number;
     };
+    util: {
+        save: (path: string, content: string, write?: boolean) => any;
+        copy: (frompath: string, topath: string, write?: boolean) => any;
+    };
 };
 export type { JostracaOptions, Node, OpStep, OpDef, Component, Log, BuildContext, };

@@ -131,13 +131,11 @@ const OptionsShape = (0, gubu_1.Gubu)({
 function Jostraca(gopts_in) {
     GLOBAL.jostraca = new node_async_hooks_1.AsyncLocalStorage();
     const gopts = OptionsShape(gopts_in || {});
-    // console.log('gopts', gopts)
     async function generate(opts_in, root) {
         const opts = OptionsShape(opts_in);
-        // console.log('opts', opts)
         const useMemFS = opts.mem || gopts.mem;
-        // console.log('useMemFS', useMemFS)
-        const memfs = useMemFS ? (0, memfs_1.memfs)(deep({}, gopts.vol, opts.vol)) : undefined;
+        const vol = deep({}, gopts.vol, opts.vol);
+        const memfs = useMemFS ? (0, memfs_1.memfs)(vol) : undefined;
         const fs = opts.fs() || gopts.fs() || memfs?.fs || Fs;
         const meta = {
             ...(gopts?.meta || {}),
@@ -187,7 +185,47 @@ function Jostraca(gopts_in) {
                     file: { kind: 'none', path: [], meta: {}, content: [] },
                     content: undefined,
                 },
-                log: { exclude: [], last: -1 }
+                log: { exclude: [], last: -1 },
+                util: {
+                    save: (path, content, write = false) => {
+                        path = node_path_1.default.normalize(path);
+                        // console.log('SAVE', path)
+                        const exists = fs.existsSync(path);
+                        write = write || !exists;
+                        if (exists) {
+                            // TODO: if content matchs do nothing
+                            // console.log('EXISTS', path)
+                            if (existing.preserve) {
+                                let oldcontent = fs.readFileSync(path, 'utf8').toString();
+                                if (oldcontent.length !== content.length || oldcontent !== content) {
+                                    let oldpath = node_path_1.default.join(folder, node_path_1.default.basename(path).replace(/\.[^.]+$/, '') +
+                                        '.old' + node_path_1.default.extname(path));
+                                    buildctx.util.copy(path, oldpath, true);
+                                }
+                            }
+                            if (existing.write) {
+                                write = true;
+                            }
+                            else if (existing.present) {
+                                let newpath = node_path_1.default.join(folder, node_path_1.default.basename(path).replace(/\.[^.]+$/, '') +
+                                    '.new' + node_path_1.default.extname(path));
+                                fs.writeFileSync(newpath, content, 'utf8', { flush: true });
+                            }
+                        }
+                        if (write) {
+                            const folder = node_path_1.default.dirname(path);
+                            fs.mkdirSync(folder, { recursive: true });
+                            fs.writeFileSync(path, content, 'utf8', { flush: true });
+                        }
+                    },
+                    copy(frompath, topath, write = false) {
+                        const isBinary = utility_1.BINARY_EXT.includes(node_path_1.default.extname(frompath));
+                        // TODO: check excludes
+                        fs.mkdirSync(node_path_1.default.dirname(topath), { recursive: true });
+                        const contents = fs.readFileSync(frompath, isBinary ? undefined : 'utf8');
+                        fs.writeFileSync(topath, contents, { flush: true });
+                    }
+                }
             };
             if (doBuild) {
                 await build(ctx$, buildctx);
@@ -277,7 +315,6 @@ function cmp(component) {
         let parent = props.ctx$.node;
         // console.log('BBB', component, props, parent?.filter?.({ props }))
         if (parent?.filter && !parent.filter({ props, children, component })) {
-            // console.log('PF', component, props)
             return undefined;
         }
         children = 'function' === typeof children ? [children] : children;
@@ -301,8 +338,6 @@ function cmp(component) {
         node.path = parent.path.slice(0);
         if ('string' === typeof props.name) {
             node.path.push(props.name);
-            // console.log('CMP-PATH', component.name, node.path)
-            // console.trace()
         }
         let out = component(props, children);
         props.ctx$.children = siblings;

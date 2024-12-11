@@ -40,6 +40,7 @@ import {
   template,
   escre,
   indent,
+  BINARY_EXT,
 } from './utility'
 
 
@@ -119,17 +120,14 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
   GLOBAL.jostraca = new AsyncLocalStorage()
 
   const gopts = OptionsShape(gopts_in || {})
-  // console.log('gopts', gopts)
 
   async function generate(opts_in: JostracaOptions | {}, root: Function) {
     const opts = OptionsShape(opts_in)
 
-    // console.log('opts', opts)
-
     const useMemFS = opts.mem || gopts.mem
-    // console.log('useMemFS', useMemFS)
 
-    const memfs = useMemFS ? MemFs(deep({}, gopts.vol, opts.vol)) : undefined
+    const vol = deep({}, gopts.vol, opts.vol)
+    const memfs = useMemFS ? MemFs(vol) : undefined
 
     const fs = opts.fs() || gopts.fs() || memfs?.fs || Fs
 
@@ -189,7 +187,61 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
           file: { kind: 'none', path: [], meta: {}, content: [] },
           content: undefined,
         },
-        log: { exclude: [], last: -1 }
+        log: { exclude: [], last: -1 },
+
+        util: {
+          save: (path: string, content: string, write = false) => {
+            path = Path.normalize(path)
+            // console.log('SAVE', path)
+
+            const exists = fs.existsSync(path)
+            write = write || !exists
+
+            if (exists) {
+
+              // TODO: if content matchs do nothing
+              // console.log('EXISTS', path)
+
+              if (existing.preserve) {
+                let oldcontent = fs.readFileSync(path, 'utf8').toString()
+
+                if (oldcontent.length !== content.length || oldcontent !== content) {
+                  let oldpath =
+                    Path.join(folder, Path.basename(path).replace(/\.[^.]+$/, '') +
+                      '.old' + Path.extname(path))
+                  buildctx.util.copy(path, oldpath, true)
+                }
+              }
+
+              if (existing.write) {
+                write = true
+              }
+              else if (existing.present) {
+                let newpath =
+                  Path.join(folder, Path.basename(path).replace(/\.[^.]+$/, '') +
+                    '.new' + Path.extname(path))
+                fs.writeFileSync(newpath, content, 'utf8', { flush: true })
+              }
+            }
+
+            if (write) {
+              const folder = Path.dirname(path)
+              fs.mkdirSync(folder, { recursive: true })
+
+              fs.writeFileSync(path, content, 'utf8', { flush: true })
+            }
+          },
+
+          copy(frompath: string, topath: string, write = false) {
+            const isBinary = BINARY_EXT.includes(Path.extname(frompath))
+
+            // TODO: check excludes
+            fs.mkdirSync(Path.dirname(topath), { recursive: true })
+            const contents = fs.readFileSync(frompath, isBinary ? undefined : 'utf8')
+            fs.writeFileSync(topath, contents, { flush: true })
+          }
+
+        }
       }
 
       if (doBuild) {
@@ -303,7 +355,6 @@ function cmp(component: Function): Component {
     // console.log('BBB', component, props, parent?.filter?.({ props }))
 
     if (parent?.filter && !parent.filter({ props, children, component })) {
-      // console.log('PF', component, props)
       return undefined
     }
 
@@ -334,8 +385,6 @@ function cmp(component: Function): Component {
     node.path = parent.path.slice(0)
     if ('string' === typeof props.name) {
       node.path.push(props.name)
-      // console.log('CMP-PATH', component.name, node.path)
-      // console.trace()
     }
 
     let out = component(props, children)

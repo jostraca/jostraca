@@ -263,5 +263,62 @@ const __1 = require("../");
             '/.jostraca/jostraca.json.log': voljson['/.jostraca/jostraca.json.log'],
         });
     });
+    (0, node_test_1.test)('existing', async () => {
+        const jostraca = (0, __1.Jostraca)({
+            mem: true,
+            vol: {
+                '/f01.txt': 'a0',
+                '/h01.txt': 'c0',
+            }
+        });
+        const info0 = await jostraca.generate({ folder: '/', existing: { write: false } }, (0, __1.cmp)(() => {
+            (0, __1.Project)({}, () => {
+                (0, __1.File)({ name: 'f01.txt' }, () => {
+                    (0, __1.Content)('a1');
+                });
+                (0, __1.File)({ name: 'g01.txt' }, () => {
+                    (0, __1.Content)('b1');
+                });
+            });
+        }));
+        const voljson0 = info0.vol.toJSON();
+        (0, code_1.expect)(voljson0).equal({
+            '/f01.txt': 'a0',
+            '/g01.txt': 'b1',
+            '/h01.txt': 'c0',
+            '/.jostraca/jostraca.json.log': voljson0['/.jostraca/jostraca.json.log'],
+        });
+        const info1 = await jostraca.generate({ folder: '/', existing: { preserve: true } }, (0, __1.cmp)(() => {
+            (0, __1.Project)({}, () => {
+                (0, __1.File)({ name: 'f01.txt' }, () => {
+                    (0, __1.Content)('a1');
+                });
+                (0, __1.File)({ name: 'h01.txt' }, () => {
+                    (0, __1.Content)('c0');
+                });
+            });
+        }));
+        const voljson1 = info1.vol.toJSON();
+        (0, code_1.expect)(voljson1).equal({
+            '/f01.txt': 'a1',
+            '/f01.old.txt': 'a0',
+            '/h01.txt': 'c0',
+            '/.jostraca/jostraca.json.log': voljson1['/.jostraca/jostraca.json.log'],
+        });
+        const info2 = await jostraca.generate({ folder: '/', existing: { write: false, present: true } }, (0, __1.cmp)(() => {
+            (0, __1.Project)({}, () => {
+                (0, __1.File)({ name: 'f01.txt' }, () => {
+                    (0, __1.Content)('a1');
+                });
+            });
+        }));
+        const voljson2 = info2.vol.toJSON();
+        (0, code_1.expect)(voljson2).equal({
+            '/f01.txt': 'a0',
+            '/f01.new.txt': 'a1',
+            '/h01.txt': 'c0',
+            '/.jostraca/jostraca.json.log': voljson2['/.jostraca/jostraca.json.log'],
+        });
+    });
 });
 //# sourceMappingURL=jostraca.test.js.map

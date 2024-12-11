@@ -44,8 +44,10 @@ const FileOp = {
             }
         }
         // console.log('FILE-a write', rpath, exclude) // , content.substring(0, 111))
+        const fullpath = cfile.fullpath;
         if (!exclude) {
-            fs.writeFileSync(cfile.fullpath, content, { flush: true });
+            // fs.writeFileSync(cfile.fullpath, content, { flush: true })
+            buildctx.util.save(fullpath, content);
         }
         else {
             if (!log.exclude.includes(rpath)) {

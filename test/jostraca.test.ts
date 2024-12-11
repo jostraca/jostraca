@@ -392,6 +392,87 @@ describe('jostraca', () => {
   })
 
 
+  test('existing', async () => {
+    const jostraca = Jostraca({
+      mem: true,
+      vol: {
+        '/f01.txt': 'a0',
+        '/h01.txt': 'c0',
+      }
+    })
+
+    const info0 = await jostraca.generate(
+      { folder: '/', existing: { write: false } },
+      cmp(() => {
+        Project({}, () => {
+          File({ name: 'f01.txt' }, () => {
+            Content('a1')
+          })
+          File({ name: 'g01.txt' }, () => {
+            Content('b1')
+          })
+        })
+      })
+    )
+
+    const voljson0: any = info0.vol.toJSON()
+
+    expect(voljson0).equal({
+      '/f01.txt': 'a0',
+      '/g01.txt': 'b1',
+      '/h01.txt': 'c0',
+      '/.jostraca/jostraca.json.log': voljson0['/.jostraca/jostraca.json.log'],
+    })
+
+
+    const info1 = await jostraca.generate(
+      { folder: '/', existing: { preserve: true } },
+      cmp(() => {
+        Project({}, () => {
+          File({ name: 'f01.txt' }, () => {
+            Content('a1')
+          })
+          File({ name: 'h01.txt' }, () => {
+            Content('c0')
+          })
+        })
+      })
+    )
+
+    const voljson1: any = info1.vol.toJSON()
+
+    expect(voljson1).equal({
+      '/f01.txt': 'a1',
+      '/f01.old.txt': 'a0',
+      '/h01.txt': 'c0',
+      '/.jostraca/jostraca.json.log': voljson1['/.jostraca/jostraca.json.log'],
+    })
+
+
+
+    const info2 = await jostraca.generate(
+      { folder: '/', existing: { write: false, present: true } },
+      cmp(() => {
+        Project({}, () => {
+          File({ name: 'f01.txt' }, () => {
+            Content('a1')
+          })
+        })
+      })
+    )
+
+    const voljson2: any = info2.vol.toJSON()
+
+    expect(voljson2).equal({
+      '/f01.txt': 'a0',
+      '/f01.new.txt': 'a1',
+      '/h01.txt': 'c0',
+      '/.jostraca/jostraca.json.log': voljson2['/.jostraca/jostraca.json.log'],
+    })
+
+
+  })
+
 
 })
 
