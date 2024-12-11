@@ -17,17 +17,18 @@ type JostracaOptions = {
 };
 type Node = {
     kind: string;
-    children?: Node[];
     meta: any;
+    content: any[];
+    children?: Node[];
     name?: string;
     path: string[];
     from?: string;
-    content?: any[];
     folder?: string;
     after?: any;
     exclude?: boolean | string | (string | RegExp)[];
     indent?: string;
     filter?: (props: any, children: any, component: any) => boolean;
+    fullpath?: string;
 };
 type OpStep = (node: Node, ctx$: any, buildctx: any) => Promise<any> | void;
 type OpDef = {
@@ -43,4 +44,25 @@ type Log = {
     error: (...args: any[]) => any;
     fatal: (...args: any[]) => any;
 };
-export type { JostracaOptions, Node, OpStep, OpDef, Component, Log, };
+type BuildContext = {
+    root: Component;
+    vol: any;
+    folder: string;
+    current: {
+        project: {
+            node: Node;
+        };
+        folder: {
+            node: Node;
+            parent: string;
+            path: string[];
+        };
+        file: Node;
+        content: any;
+    };
+    log: {
+        exclude: string[];
+        last: number;
+    };
+};
+export type { JostracaOptions, Node, OpStep, OpDef, Component, Log, BuildContext, };

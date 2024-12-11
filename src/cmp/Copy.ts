@@ -6,7 +6,7 @@ import { cmp } from '../jostraca'
 import { Gubu, One, Optional, Check } from 'gubu'
 
 
-const From = (from: any, _: any, s: any) => s.ctx.fs.statSync(from)
+const From = (from: any, _: any, s: any) => s.ctx.fs().statSync(from)
 
 const CopyShape = Gubu({
   ctx$: Object,

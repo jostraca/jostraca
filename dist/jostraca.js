@@ -106,11 +106,17 @@ const DEFAULT_LOGGER = {
 const OptionsShape = (0, gubu_1.Gubu)({
     folder: '.', // Base output folder for generated files. Default: `.`.
     meta: {}, // Provide meta data to the generation process. Default: `{}`
-    fs: (0, gubu_1.Any)(), // File system API (used for testing). Default: `node:fs`.
+    fs: (() => undefined), // File system API. Default: `node:fs`.
     log: DEFAULT_LOGGER, // Logging interface.
     debug: 'info', // Generate additional debugging information.
     // TOOD: needs rethink
     exclude: false, // Exclude modified output files. Default: `false`.
+    existing: {
+        write: true, // Overwrite existing files.
+        preserve: false, // Keep a backup copy (.old.) of overwritten files.
+        present: false, // Present the new file using .new. name annotation.
+        merge: false, // Annotated merge of new generate and existing file.
+    },
     model: {},
     build: true,
     mem: false,
@@ -126,13 +132,13 @@ function Jostraca(gopts_in) {
     GLOBAL.jostraca = new node_async_hooks_1.AsyncLocalStorage();
     const gopts = OptionsShape(gopts_in || {});
     // console.log('gopts', gopts)
-    async function generate(opts, root) {
-        opts = OptionsShape(opts);
+    async function generate(opts_in, root) {
+        const opts = OptionsShape(opts_in);
         // console.log('opts', opts)
         const useMemFS = opts.mem || gopts.mem;
         // console.log('useMemFS', useMemFS)
         const memfs = useMemFS ? (0, memfs_1.memfs)(deep({}, gopts.vol, opts.vol)) : undefined;
-        const fs = opts.fs || gopts?.fs || memfs?.fs || Fs;
+        const fs = opts.fs() || gopts.fs() || memfs?.fs || Fs;
         const meta = {
             ...(gopts?.meta || {}),
             ...(opts.meta || {}),
@@ -140,6 +146,7 @@ function Jostraca(gopts_in) {
         const folder = opts.folder || gopts?.folder || '.';
         const log = opts.log || gopts?.log || DEFAULT_LOGGER;
         const debug = !!(null == opts.debug ? gopts?.debug : opts.debug);
+        const existing = deep(gopts.existing, opts.existing);
         const doBuild = null == gopts?.build ? false !== opts.build : false !== gopts?.build;
         const model = deep({}, gopts.model, opts.model);
         // Component defaults.
@@ -149,13 +156,14 @@ function Jostraca(gopts_in) {
             }
         }, gopts?.cmp, opts.cmp);
         const ctx$ = {
+            fs: () => fs,
             folder,
             content: null,
             meta,
-            fs,
             opts,
             log,
             debug,
+            existing,
             model,
         };
         return GLOBAL.jostraca.run(ctx$, async () => {
@@ -165,14 +173,21 @@ function Jostraca(gopts_in) {
             // Build phase
             const buildctx = {
                 root: ctx$.root,
-                fs,
                 vol: memfs?.vol,
                 folder,
                 current: {
+                    project: {
+                        node: { kind: 'none', path: [], meta: {}, content: [] },
+                    },
                     folder: {
-                        parent: folder
-                    }
-                }
+                        node: { kind: 'none', path: [], meta: {}, content: [] },
+                        parent: folder,
+                        path: [],
+                    },
+                    file: { kind: 'none', path: [], meta: {}, content: [] },
+                    content: undefined,
+                },
+                log: { exclude: [], last: -1 }
             };
             if (doBuild) {
                 await build(ctx$, buildctx);
@@ -182,25 +197,22 @@ function Jostraca(gopts_in) {
     }
     async function build(ctx$, buildctx) {
         const topnode = ctx$.node;
-        let log = { exclude: [], last: -1 };
         const logpath = node_path_1.default.join(buildctx.folder, '.jostraca', 'jostraca.json.log');
         try {
-            log = JSON.parse(ctx$.fs.readFileSync(logpath, 'utf8'));
+            buildctx.log = JSON.parse(ctx$.fs().readFileSync(logpath, 'utf8'));
         }
         catch (err) {
             // console.log(err)
             // TODO: file not foound ignored, handle others!
         }
-        buildctx.log = log;
-        // console.log('B-LOG', buildctx.log)
         await step(topnode, ctx$, buildctx);
         try {
-            ctx$.fs.mkdirSync(node_path_1.default.dirname(logpath), { recursive: true });
+            ctx$.fs().mkdirSync(node_path_1.default.dirname(logpath), { recursive: true });
             const log = {
                 last: Date.now(),
                 exclude: buildctx.log.exclude,
             };
-            ctx$.fs.writeFileSync(logpath, JSON.stringify(log, null, 2), { flush: true });
+            ctx$.fs().writeFileSync(logpath, JSON.stringify(log, null, 2), { flush: true });
         }
         catch (err) {
             console.log(err);
@@ -274,6 +286,7 @@ function cmp(component) {
             children: [],
             path: [],
             meta: {},
+            content: [],
         };
         props.ctx$.root = (props.ctx$.root || node);
         parent = props.ctx$.node || node;
@@ -299,4 +312,35 @@ function cmp(component) {
     Object.defineProperty(cf, 'name', { value: component.name });
     return cf;
 }
+/* two file merge
+
+const fs = require('fs');
+const jsdiff = require('diff');
+
+// Read the two JavaScript files
+const file1 = fs.readFileSync('file1.js', 'utf8');
+const file2 = fs.readFileSync('file2.js', 'utf8');
+
+// Generate the diff
+const diff = jsdiff.diffLines(file1, file2);
+
+// Merge the files
+let mergedOutput = '';
+diff.forEach(part => {
+  if (part.added) {
+    // Lines that exist only in file2
+    mergedOutput += `// Added from file2:\n${part.value}`;
+  } else if (part.removed) {
+    // Lines that exist only in file1
+    mergedOutput += `// Removed from file1:\n${part.value}`;
+  } else {
+    // Common lines
+    mergedOutput += part.value;
+  }
+});
+
+// Write the merged result to a new file
+fs.writeFileSync('merged.js', mergedOutput);
+console.log('Merged output saved to merged.js');
+ */
 //# sourceMappingURL=jostraca.js.map

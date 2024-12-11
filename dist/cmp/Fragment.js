@@ -7,7 +7,7 @@ exports.Fragment = void 0;
 const node_path_1 = __importDefault(require("node:path"));
 const jostraca_1 = require("../jostraca");
 const gubu_1 = require("gubu");
-const From = (from, _, s) => s.ctx.fs.statSync(from);
+const From = (from, _, s) => s.ctx.fs().statSync(from);
 const FragmentShape = (0, gubu_1.Gubu)({
     ctx$: Object,
     from: (0, gubu_1.Check)(From).String(),
@@ -22,7 +22,8 @@ const Fragment = (0, jostraca_1.cmp)(function Fragment(props, children) {
     node.from = props.from;
     node.indent = props.indent;
     const replace = props.replace || {};
-    const { fs, folder, model } = props.ctx$;
+    const { folder, model } = props.ctx$;
+    const fs = props.ctx$.fs();
     let frompath = node.from;
     // TODO: this is relative to the output - but that is just one case - provide more control?
     if (!node_path_1.default.isAbsolute(frompath)) {

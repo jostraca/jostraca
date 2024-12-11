@@ -1,7 +1,7 @@
 
 import Path from 'node:path'
 
-import type { Node } from '../jostraca'
+import type { Node, BuildContext } from '../jostraca'
 
 import { getx } from '../jostraca'
 
@@ -12,8 +12,8 @@ import { FileOp } from './FileOp'
 
 const CopyOp = {
 
-  before(node: Node, ctx$: any, buildctx: any) {
-    const fs = buildctx.fs
+  before(node: Node, ctx$: any, buildctx: BuildContext) {
+    const fs = ctx$.fs()
 
     if (null == node.name && null != node.from) {
       node.name = Path.basename(node.from)
@@ -25,8 +25,6 @@ const CopyOp = {
 
     const fromStat = fs.statSync(from)
 
-    // console.log('COPY', from, name, fromStat.isFile())
-
     if (fromStat.isFile()) {
       FileOp.before(node, ctx$, buildctx)
       const topath = buildctx.current.file.path
@@ -37,7 +35,7 @@ const CopyOp = {
         ctx$,
         buildctx,
       }
-      const spec = { name, frompath: from, topath }
+      const spec = { name, frompath: from, topath: Path.join(...topath) }
 
       let content = processTemplate(state, fs.readFileSync(from).toString(), spec)
 
@@ -60,6 +58,7 @@ const CopyOp = {
 
 
   after(node: Node, ctx$: any, buildctx: any) {
+    const fs = ctx$.fs()
     const kind = node.after.kind
 
     const frompath = node.from as string
@@ -90,7 +89,7 @@ const CopyOp = {
       // change prop.name to prop.to and account for subfolders
 
       // console.log('COPY WALK', frompath, topath, node.exclude, state.excludes)
-      walk(state, node.path, frompath, topath)
+      walk(fs, state, node.path, frompath, topath)
     }
     else {
       throw new Error('Unknown kind=' + kind + ' for file: ' + frompath)
@@ -100,9 +99,8 @@ const CopyOp = {
 }
 
 
-function walk(state: any, nodepath: string[], from: string, to: string) {
+function walk(fs: any, state: any, nodepath: string[], from: string, to: string) {
   const buildctx = state.buildctx
-  const fs = buildctx.fs
   const entries = fs.readdirSync(from)
 
   for (let name of entries) {
@@ -118,19 +116,19 @@ function walk(state: any, nodepath: string[], from: string, to: string) {
 
     if (isDirectory) {
       state.folderCount++
-      walk(state, nodepath.concat(name), frompath, topath)
+      walk(fs, state, nodepath.concat(name), frompath, topath)
     }
     else if (isTemplateFile) {
-      if (excludeFile(state, nodepath, name, topath)) { continue }
+      if (excludeFile(fs, state, nodepath, name, topath)) { continue }
       const src = fs.readFileSync(frompath, 'utf8')
       const out = genTemplate(state, src, { name, frompath, topath })
-      writeFileSync(buildctx, topath, out)
+      writeFileSync(fs, topath, out)
       state.fileCount++
       state.tmCount++
     }
     else if (!isIgnored) {
-      if (excludeFile(state, nodepath, name, topath)) { continue }
-      copyFileSync(buildctx, frompath, topath)
+      if (excludeFile(fs, state, nodepath, name, topath)) { continue }
+      copyFileSync(fs, frompath, topath)
       state.fileCount++
     }
   }
@@ -142,9 +140,9 @@ function ignored(state: any, nodepath: string[], name: string, topath: string) {
 }
 
 
-function excludeFile(state: any, nodepath: string[], name: string, topath: string) {
+function excludeFile(fs: any, state: any, nodepath: string[], name: string, topath: string) {
   const { opts } = state.ctx$
-  const { fs, log } = state.buildctx
+  const { log } = state.buildctx
   let exclude = false
 
   for (let ignoreRE of opts.cmp.Copy.ignore) {
@@ -220,18 +218,14 @@ function excluded(path: string, excludes: (string | RegExp)[]) {
 }
 
 
-function writeFileSync(buildctx: any, path: string, content: string) {
-  // console.log('WF', path)
-  const fs = buildctx.fs
+function writeFileSync(fs: any, path: string, content: string) {
   // TODO: check excludes
   fs.mkdirSync(Path.dirname(path), { recursive: true })
   fs.writeFileSync(path, content, 'utf8', { flush: true })
 }
 
 
-function copyFileSync(buildctx: any, frompath: string, topath: string) {
-  const fs = buildctx.fs
-
+function copyFileSync(fs: any, frompath: string, topath: string) {
   const isBinary = BINARY_EXT.includes(Path.extname(frompath))
 
   // TODO: check excludes

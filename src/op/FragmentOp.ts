@@ -10,7 +10,7 @@ const FragmentOp = {
     node.meta.fragment_file = buildctx.current.file
 
     const cfile: any = buildctx.current.file = node
-    cfile.filepath = buildctx.current.folder.path.join('/') + '?fragment=' + node.name
+    cfile.fullpath = buildctx.current.folder.path.join('/') + '?fragment=' + node.name
     cfile.content = []
   },
 

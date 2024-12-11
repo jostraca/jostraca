@@ -1,29 +1,26 @@
 
-import Path from 'node:path'
-
-import type { Node } from '../jostraca'
+import type { Node, BuildContext } from '../jostraca'
 
 
 const FileOp = {
 
-  before(node: Node, _ctx$: any, buildctx: any) {
+  before(node: Node, _ctx$: any, buildctx: BuildContext) {
     // TODO: error if not inside a folder
 
     const cfile: any = buildctx.current.file = node
-    cfile.filepath = buildctx.current.folder.path.join('/') + '/' + node.name
+    cfile.fullpath = buildctx.current.folder.path.join('/') + '/' + node.name
     cfile.content = []
   },
 
 
-  after(node: Node, ctx$: any, buildctx: any) {
-    // console.log('FB-LOG', buildctx.log)
-
-    const { fs, log, current } = buildctx
+  after(node: Node, ctx$: any, buildctx: BuildContext) {
+    const { log, current } = buildctx
+    const fs = ctx$.fs()
     const cfile = current.file
-    const content = cfile.content.join('')
-    const rpath = cfile.path.join('/') // NOT Path.sep - needs to be canonical
+    const content = cfile.content?.join('')
+    const rpath = cfile.path?.join('/') // NOT Path.sep - needs to be canonical
 
-    const fileExists = fs.existsSync(cfile.filepath)
+    const fileExists = fs.existsSync(cfile.fullpath)
 
     let exclude = node.exclude
 
@@ -45,12 +42,10 @@ const FileOp = {
     }
 
 
-    // console.log('FILE-a exclude', rpath, exclude, !!log)
-
     if (log && null == exclude) {
       exclude = log.exclude.includes(rpath)
       if (!exclude && true === ctx$.opts.exclude) {
-        const stat = fs.statSync(cfile.filepath, { throwIfNoEntry: false })
+        const stat = fs.statSync(cfile.fullpath, { throwIfNoEntry: false })
         if (stat) {
           let timedelta = stat.mtimeMs - log.last
           if ((timedelta > 0 && timedelta < stat.mtimeMs)) {
@@ -64,7 +59,7 @@ const FileOp = {
     // console.log('FILE-a write', rpath, exclude) // , content.substring(0, 111))
 
     if (!exclude) {
-      fs.writeFileSync(cfile.filepath, content, { flush: true })
+      fs.writeFileSync(cfile.fullpath, content, { flush: true })
     }
     else {
       if (!log.exclude.includes(rpath)) {

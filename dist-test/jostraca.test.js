@@ -10,7 +10,7 @@ const __1 = require("../");
         const jostraca = (0, __1.Jostraca)();
         (0, code_1.expect)(jostraca).exist();
         const { fs, vol } = (0, memfs_1.memfs)({});
-        const info = await jostraca.generate({ fs, folder: '/top' }, () => (0, __1.Project)({ folder: 'sdk' }, () => {
+        const info = await jostraca.generate({ fs: () => fs, folder: '/top' }, () => (0, __1.Project)({ folder: 'sdk' }, () => {
             (0, __1.Folder)({ name: 'js' }, () => {
                 (0, __1.File)({ name: 'foo.js' }, () => {
                     (0, __1.Content)('// custom-foo\n');
@@ -38,7 +38,7 @@ const __1 = require("../");
     (0, node_test_1.test)('content', async () => {
         const { fs, vol } = (0, memfs_1.memfs)({});
         const jostraca = (0, __1.Jostraca)();
-        const info = await jostraca.generate({ fs, folder: '/top' }, () => {
+        const info = await jostraca.generate({ fs: () => fs, folder: '/top' }, () => {
             (0, __1.Folder)({}, () => {
                 (0, __1.File)({ name: 'foo.txt' }, () => {
                     (0, __1.Content)('A');
@@ -64,7 +64,7 @@ const __1 = require("../");
         const jostraca = (0, __1.Jostraca)({
             model: { x: { y: 'Y', z: 'Z' } }
         });
-        const info = await jostraca.generate({ fs, folder: '/top' }, (0, __1.cmp)((props) => {
+        const info = await jostraca.generate({ fs: () => fs, folder: '/top' }, (0, __1.cmp)((props) => {
             (0, __1.Project)({ folder: 'sdk' }, () => {
                 (0, __1.Folder)({ name: 'js' }, () => {
                     (0, __1.File)({ name: 'foo.js' }, () => {
@@ -99,7 +99,7 @@ const __1 = require("../");
             '/tmp/qaz.txt': 'QAZ+<!--<[SLOT]>-->+// <[SLOT:alice]>+/* <[SLOT:bob]> */+ # <[SLOT:bob]>\n',
         });
         const jostraca = (0, __1.Jostraca)();
-        const info = await jostraca.generate({ fs, folder: '/top' }, (0, __1.cmp)((props) => {
+        const info = await jostraca.generate({ fs: () => fs, folder: '/top' }, (0, __1.cmp)((props) => {
             (0, __1.Project)({ folder: 'sdk' }, () => {
                 (0, __1.File)({ name: 'foo.js' }, () => {
                     (0, __1.Content)('// custom-foo\n');
@@ -146,7 +146,7 @@ const __1 = require("../");
             '/top/foo.txt': 'FOO\n#--START--#\nBAR\n#--END--#\nZED',
         });
         const jostraca = (0, __1.Jostraca)();
-        const info = await jostraca.generate({ fs, folder: '/top' }, (0, __1.cmp)((props) => {
+        const info = await jostraca.generate({ fs: () => fs, folder: '/top' }, (0, __1.cmp)((props) => {
             (0, __1.Project)({}, () => {
                 (0, __1.Inject)({ name: 'foo.txt' }, () => {
                     (0, __1.Content)('QAZ');
@@ -162,7 +162,7 @@ const __1 = require("../");
     (0, node_test_1.test)('line', async () => {
         const { fs, vol } = (0, memfs_1.memfs)({});
         const jostraca = (0, __1.Jostraca)();
-        const info = await jostraca.generate({ fs, folder: '/top' }, (0, __1.cmp)((props) => {
+        const info = await jostraca.generate({ fs: () => fs, folder: '/top' }, (0, __1.cmp)((props) => {
             (0, __1.Project)({}, () => {
                 (0, __1.File)({ name: 'foo.txt' }, () => {
                     (0, __1.Content)('ONE\n');
@@ -190,7 +190,7 @@ const __1 = require("../");
             model: { a: 'A' }
         });
         const info = await jostraca.generate({
-            fs, folder: '/top',
+            fs: () => fs, folder: '/top',
             // build: false
         }, (0, __1.cmp)((props) => {
             (0, __1.Project)({}, () => {

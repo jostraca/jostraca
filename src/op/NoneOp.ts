@@ -1,11 +1,11 @@
 
 
-import type { Node } from '../jostraca'
+import type { Node, BuildContext } from '../jostraca'
 
 
 const NoneOp = {
-  before(node: Node, _ctx$: any, buildctx: any) { },
-  after(_node: Node, _ctx$: any, buildctx: any) { },
+  before(_node: Node, _ctx$: any, _buildctx: BuildContext) { },
+  after(_node: Node, _ctx$: any, _buildctx: BuildContext) { },
 }
 
 

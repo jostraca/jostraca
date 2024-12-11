@@ -4,11 +4,12 @@ exports.InjectOp = void 0;
 const InjectOp = {
     before(node, _ctx$, buildctx) {
         const cfile = buildctx.current.file = node;
-        cfile.filepath = buildctx.current.folder.path.join('/') + '/' + node.name;
+        cfile.fullpath = buildctx.current.folder.path.join('/') + '/' + node.name;
         cfile.content = [];
     },
     after(node, ctx$, buildctx) {
-        const { fs, info, current } = buildctx;
+        const { info, current } = buildctx;
+        const fs = ctx$.fs();
         const cfile = current.file;
         let content = cfile.content.join('');
         const rpath = cfile.path.join('/'); // NOT Path.sep - needs to be canonical
@@ -16,7 +17,7 @@ const InjectOp = {
         if (info && null == exclude) {
             exclude = info.exclude.includes(rpath);
             if (!exclude && true === ctx$.opts.exclude) {
-                const stat = fs.statSync(cfile.filepath, { throwIfNoEntry: false });
+                const stat = fs.statSync(cfile.fullpath, { throwIfNoEntry: false });
                 if (stat) {
                     let timedelta = stat.mtimeMs - info.last;
                     if ((timedelta > 0 && timedelta < stat.mtimeMs)) {
@@ -25,16 +26,12 @@ const InjectOp = {
                 }
             }
         }
-        // console.log('FILE-a write', rpath, exclude) // , content.substring(0, 111))
         if (!exclude) {
-            let src = fs.readFileSync(cfile.filepath, 'utf8');
+            let src = fs.readFileSync(cfile.fullpath, 'utf8');
             content = node.meta.markers.join(content);
-            // console.log(content)
             let re = new RegExp(node.meta.markers.join('(.*?)'), 'sg');
-            // console.log(re)
             src = src.replace(re, content);
-            // console.log(src)
-            fs.writeFileSync(cfile.filepath, src, { flush: true });
+            fs.writeFileSync(cfile.fullpath, src, { flush: true });
         }
         else {
             if (!info.exclude.includes(rpath)) {

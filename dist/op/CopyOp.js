@@ -10,7 +10,7 @@ const utility_1 = require("../utility");
 const FileOp_1 = require("./FileOp");
 const CopyOp = {
     before(node, ctx$, buildctx) {
-        const fs = buildctx.fs;
+        const fs = ctx$.fs();
         if (null == node.name && null != node.from) {
             node.name = node_path_1.default.basename(node.from);
         }
@@ -18,7 +18,6 @@ const CopyOp = {
         const name = node.name;
         const from = node.from;
         const fromStat = fs.statSync(from);
-        // console.log('COPY', from, name, fromStat.isFile())
         if (fromStat.isFile()) {
             FileOp_1.FileOp.before(node, ctx$, buildctx);
             const topath = buildctx.current.file.path;
@@ -29,7 +28,7 @@ const CopyOp = {
                 ctx$,
                 buildctx,
             };
-            const spec = { name, frompath: from, topath };
+            const spec = { name, frompath: from, topath: node_path_1.default.join(...topath) };
             let content = processTemplate(state, fs.readFileSync(from).toString(), spec);
             buildctx.current.file.content.push(content);
             node.after = node.after || {};
@@ -46,6 +45,7 @@ const CopyOp = {
         }
     },
     after(node, ctx$, buildctx) {
+        const fs = ctx$.fs();
         const kind = node.after.kind;
         const frompath = node.from;
         const topath = buildctx.current.folder.path.join('/');
@@ -71,7 +71,7 @@ const CopyOp = {
             // TODO: node.path is wrong
             // change prop.name to prop.to and account for subfolders
             // console.log('COPY WALK', frompath, topath, node.exclude, state.excludes)
-            walk(state, node.path, frompath, topath);
+            walk(fs, state, node.path, frompath, topath);
         }
         else {
             throw new Error('Unknown kind=' + kind + ' for file: ' + frompath);
@@ -79,9 +79,8 @@ const CopyOp = {
     },
 };
 exports.CopyOp = CopyOp;
-function walk(state, nodepath, from, to) {
+function walk(fs, state, nodepath, from, to) {
     const buildctx = state.buildctx;
-    const fs = buildctx.fs;
     const entries = fs.readdirSync(from);
     for (let name of entries) {
         const frompath = node_path_1.default.join(from, name);
@@ -93,23 +92,23 @@ function walk(state, nodepath, from, to) {
         // console.log('COPY FROM', frompath, isDirectory, isTemplateFile, isIgnored)
         if (isDirectory) {
             state.folderCount++;
-            walk(state, nodepath.concat(name), frompath, topath);
+            walk(fs, state, nodepath.concat(name), frompath, topath);
         }
         else if (isTemplateFile) {
-            if (excludeFile(state, nodepath, name, topath)) {
+            if (excludeFile(fs, state, nodepath, name, topath)) {
                 continue;
             }
             const src = fs.readFileSync(frompath, 'utf8');
             const out = genTemplate(state, src, { name, frompath, topath });
-            writeFileSync(buildctx, topath, out);
+            writeFileSync(fs, topath, out);
             state.fileCount++;
             state.tmCount++;
         }
         else if (!isIgnored) {
-            if (excludeFile(state, nodepath, name, topath)) {
+            if (excludeFile(fs, state, nodepath, name, topath)) {
                 continue;
             }
-            copyFileSync(buildctx, frompath, topath);
+            copyFileSync(fs, frompath, topath);
             state.fileCount++;
         }
     }
@@ -117,9 +116,9 @@ function walk(state, nodepath, from, to) {
 function ignored(state, nodepath, name, topath) {
     return !name.match(/(~|-jostraca-off)$/);
 }
-function excludeFile(state, nodepath, name, topath) {
+function excludeFile(fs, state, nodepath, name, topath) {
     const { opts } = state.ctx$;
-    const { fs, log } = state.buildctx;
+    const { log } = state.buildctx;
     let exclude = false;
     for (let ignoreRE of opts.cmp.Copy.ignore) {
         if (name.match(ignoreRE)) {
@@ -180,15 +179,12 @@ function excluded(path, excludes) {
     // console.log('EXCLUDED', path, out, excludes)
     return out;
 }
-function writeFileSync(buildctx, path, content) {
-    // console.log('WF', path)
-    const fs = buildctx.fs;
+function writeFileSync(fs, path, content) {
     // TODO: check excludes
     fs.mkdirSync(node_path_1.default.dirname(path), { recursive: true });
     fs.writeFileSync(path, content, 'utf8', { flush: true });
 }
-function copyFileSync(buildctx, frompath, topath) {
-    const fs = buildctx.fs;
+function copyFileSync(fs, frompath, topath) {
     const isBinary = utility_1.BINARY_EXT.includes(node_path_1.default.extname(frompath));
     // TODO: check excludes
     fs.mkdirSync(node_path_1.default.dirname(topath), { recursive: true });

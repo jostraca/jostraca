@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Copy = void 0;
 const jostraca_1 = require("../jostraca");
 const gubu_1 = require("gubu");
-const From = (from, _, s) => s.ctx.fs.statSync(from);
+const From = (from, _, s) => s.ctx.fs().statSync(from);
 const CopyShape = (0, gubu_1.Gubu)({
     ctx$: Object,
     name: (0, gubu_1.Optional)(String),

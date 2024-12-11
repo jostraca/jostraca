@@ -1,6 +1,6 @@
-import type { Node } from '../jostraca';
+import type { Node, BuildContext } from '../jostraca';
 declare const NoneOp: {
-    before(node: Node, _ctx$: any, buildctx: any): void;
-    after(_node: Node, _ctx$: any, buildctx: any): void;
+    before(_node: Node, _ctx$: any, _buildctx: BuildContext): void;
+    after(_node: Node, _ctx$: any, _buildctx: BuildContext): void;
 };
 export { NoneOp };

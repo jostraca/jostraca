@@ -1,4 +1,4 @@
-import type { Node, Component } from './types';
+import type { Node, Component, BuildContext } from './types';
 import { each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent } from './utility';
 import { Content } from './cmp/Content';
 import { Line } from './cmp/Line';
@@ -14,11 +14,17 @@ declare const deep: any;
 declare const OptionsShape: {
     <V>(root?: V | undefined, ctx?: import("gubu").Context): V & {
         folder: string;
-        meta: {};
+        meta: any;
         fs: any;
         log: any;
         debug: string;
         exclude: boolean;
+        existing: {
+            write: boolean;
+            preserve: boolean;
+            present: boolean;
+            merge: boolean;
+        };
         model: {};
         build: boolean;
         mem: boolean;
@@ -31,11 +37,17 @@ declare const OptionsShape: {
     };
     valid: <V>(root?: V | undefined, ctx?: import("gubu").Context) => root is V & {
         folder: string;
-        meta: {};
+        meta: any;
         fs: any;
         log: any;
         debug: string;
         exclude: boolean;
+        existing: {
+            write: boolean;
+            preserve: boolean;
+            present: boolean;
+            merge: boolean;
+        };
         model: {};
         build: boolean;
         mem: boolean;
@@ -86,11 +98,17 @@ declare const OptionsShape: {
     spec(): any;
     node(): import("gubu").Node<{
         folder: string;
-        meta: {};
+        meta: any;
         fs: any;
         log: any;
         debug: string;
         exclude: boolean;
+        existing: {
+            write: boolean;
+            preserve: boolean;
+            present: boolean;
+            merge: boolean;
+        };
         model: {};
         build: boolean;
         mem: boolean;
@@ -110,9 +128,9 @@ declare const OptionsShape: {
     };
 };
 type JostracaOptions = ReturnType<typeof OptionsShape>;
-declare function Jostraca(gopts_in?: JostracaOptions): {
-    generate: (opts: JostracaOptions, root: Function) => Promise<any>;
+declare function Jostraca(gopts_in?: JostracaOptions | {}): {
+    generate: (opts_in: JostracaOptions | {}, root: Function) => Promise<any>;
 };
 declare function cmp(component: Function): Component;
 export type { JostracaOptions, Component, Node, };
-export { Jostraca, cmp, each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, deep, Project, Content, File, Inject, Fragment, Folder, Copy, Line, Slot, List, };
+export { Jostraca, BuildContext, cmp, each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, deep, Project, Content, File, Inject, Fragment, Folder, Copy, Line, Slot, List, };

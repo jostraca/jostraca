@@ -1,6 +1,6 @@
-import type { Node } from '../jostraca';
+import type { Node, BuildContext } from '../jostraca';
 declare const CopyOp: {
-    before(node: Node, ctx$: any, buildctx: any): void;
+    before(node: Node, ctx$: any, buildctx: BuildContext): void;
     after(node: Node, ctx$: any, buildctx: any): void;
 };
 export { CopyOp };

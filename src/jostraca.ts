@@ -18,11 +18,11 @@ import { memfs as MemFs } from 'memfs'
 
 
 import type {
-  // JostracaOptions,
   Node,
   OpDef,
   Component,
   Log,
+  BuildContext,
 } from './types'
 
 
@@ -84,13 +84,20 @@ const DEFAULT_LOGGER = {
 
 const OptionsShape = Gubu({
   folder: '.', // Base output folder for generated files. Default: `.`.
-  meta: {}, // Provide meta data to the generation process. Default: `{}`
-  fs: Any() as any, // File system API (used for testing). Default: `node:fs`.
+  meta: {} as any, // Provide meta data to the generation process. Default: `{}`
+  fs: (() => undefined) as any, // File system API. Default: `node:fs`.
   log: DEFAULT_LOGGER as any, // Logging interface.
   debug: 'info', // Generate additional debugging information.
 
   // TOOD: needs rethink
   exclude: false, // Exclude modified output files. Default: `false`.
+
+  existing: {
+    write: true, // Overwrite existing files.
+    preserve: false, // Keep a backup copy (.old.) of overwritten files.
+    present: false, // Present the new file using .new. name annotation.
+    merge: false, // Annotated merge of new generate and existing file.
+  },
 
   model: {},
   build: true,
@@ -108,14 +115,14 @@ const OptionsShape = Gubu({
 type JostracaOptions = ReturnType<typeof OptionsShape>
 
 
-function Jostraca(gopts_in?: JostracaOptions) {
+function Jostraca(gopts_in?: JostracaOptions | {}) {
   GLOBAL.jostraca = new AsyncLocalStorage()
 
   const gopts = OptionsShape(gopts_in || {})
   // console.log('gopts', gopts)
 
-  async function generate(opts: JostracaOptions, root: Function) {
-    opts = OptionsShape(opts)
+  async function generate(opts_in: JostracaOptions | {}, root: Function) {
+    const opts = OptionsShape(opts_in)
 
     // console.log('opts', opts)
 
@@ -123,7 +130,9 @@ function Jostraca(gopts_in?: JostracaOptions) {
     // console.log('useMemFS', useMemFS)
 
     const memfs = useMemFS ? MemFs(deep({}, gopts.vol, opts.vol)) : undefined
-    const fs = opts.fs || gopts?.fs || memfs?.fs || Fs
+
+    const fs = opts.fs() || gopts.fs() || memfs?.fs || Fs
+
     const meta = {
       ...(gopts?.meta || {}),
       ...(opts.meta || {}),
@@ -131,6 +140,8 @@ function Jostraca(gopts_in?: JostracaOptions) {
     const folder = opts.folder || gopts?.folder || '.'
     const log: Log = opts.log || gopts?.log || DEFAULT_LOGGER
     const debug: boolean = !!(null == opts.debug ? gopts?.debug : opts.debug)
+
+    const existing = deep(gopts.existing, opts.existing)
 
     const doBuild: boolean = null == gopts?.build ? false !== opts.build : false !== gopts?.build
 
@@ -144,13 +155,14 @@ function Jostraca(gopts_in?: JostracaOptions) {
     }, gopts?.cmp, opts.cmp)
 
     const ctx$ = {
+      fs: () => fs,
       folder,
       content: null,
       meta,
-      fs,
       opts,
       log,
       debug,
+      existing,
       model,
     }
 
@@ -161,16 +173,23 @@ function Jostraca(gopts_in?: JostracaOptions) {
       const ctx$ = GLOBAL.jostraca.getStore()
 
       // Build phase
-      const buildctx = {
+      const buildctx: BuildContext = {
         root: ctx$.root,
-        fs,
         vol: memfs?.vol,
         folder,
         current: {
+          project: {
+            node: { kind: 'none', path: [], meta: {}, content: [] },
+          },
           folder: {
-            parent: folder
-          }
-        }
+            node: { kind: 'none', path: [], meta: {}, content: [] },
+            parent: folder,
+            path: [],
+          },
+          file: { kind: 'none', path: [], meta: {}, content: [] },
+          content: undefined,
+        },
+        log: { exclude: [], last: -1 }
       }
 
       if (doBuild) {
@@ -182,14 +201,13 @@ function Jostraca(gopts_in?: JostracaOptions) {
   }
 
 
-  async function build(ctx$: any, buildctx: any) {
+  async function build(ctx$: any, buildctx: BuildContext) {
     const topnode = ctx$.node
 
-    let log = { exclude: [], last: -1 }
     const logpath = Path.join(buildctx.folder, '.jostraca', 'jostraca.json.log')
 
     try {
-      log = JSON.parse(ctx$.fs.readFileSync(
+      buildctx.log = JSON.parse(ctx$.fs().readFileSync(
         logpath, 'utf8'))
     }
     catch (err: any) {
@@ -197,19 +215,16 @@ function Jostraca(gopts_in?: JostracaOptions) {
       // TODO: file not foound ignored, handle others!
     }
 
-    buildctx.log = log
-    // console.log('B-LOG', buildctx.log)
-
     await step(topnode, ctx$, buildctx)
 
 
     try {
-      ctx$.fs.mkdirSync(Path.dirname(logpath), { recursive: true })
+      ctx$.fs().mkdirSync(Path.dirname(logpath), { recursive: true })
       const log = {
         last: Date.now(),
         exclude: buildctx.log.exclude,
       }
-      ctx$.fs.writeFileSync(logpath, JSON.stringify(log, null, 2), { flush: true })
+      ctx$.fs().writeFileSync(logpath, JSON.stringify(log, null, 2), { flush: true })
     }
     catch (err: any) {
       console.log(err)
@@ -299,6 +314,7 @@ function cmp(component: Function): Component {
       children: [],
       path: [],
       meta: {},
+      content: [],
     }
 
     props.ctx$.root = (props.ctx$.root || node)
@@ -345,6 +361,7 @@ export type {
 
 export {
   Jostraca,
+  BuildContext,
   cmp,
 
   each,
@@ -373,4 +390,40 @@ export {
   Slot,
   List,
 }
+
+
+
+
+/* two file merge
+
+const fs = require('fs');
+const jsdiff = require('diff');
+
+// Read the two JavaScript files
+const file1 = fs.readFileSync('file1.js', 'utf8');
+const file2 = fs.readFileSync('file2.js', 'utf8');
+
+// Generate the diff
+const diff = jsdiff.diffLines(file1, file2);
+
+// Merge the files
+let mergedOutput = '';
+diff.forEach(part => {
+  if (part.added) {
+    // Lines that exist only in file2
+    mergedOutput += `// Added from file2:\n${part.value}`;
+  } else if (part.removed) {
+    // Lines that exist only in file1
+    mergedOutput += `// Removed from file1:\n${part.value}`;
+  } else {
+    // Common lines
+    mergedOutput += part.value;
+  }
+});
+
+// Write the merged result to a new file
+fs.writeFileSync('merged.js', mergedOutput);
+console.log('Merged output saved to merged.js');
+ */
+
 

@@ -22,7 +22,6 @@ import {
 } from '../'
 
 
-
 describe('jostraca', () => {
 
   test('happy', async () => {
@@ -34,7 +33,7 @@ describe('jostraca', () => {
     const { fs, vol } = memfs({})
 
     const info = await jostraca.generate(
-      { fs, folder: '/top' },
+      { fs: () => fs, folder: '/top' },
       () => Project({ folder: 'sdk' }, () => {
 
         Folder({ name: 'js' }, () => {
@@ -77,7 +76,7 @@ describe('jostraca', () => {
     const jostraca = Jostraca()
 
     const info = await jostraca.generate(
-      { fs, folder: '/top' },
+      { fs: () => fs, folder: '/top' },
       () => {
         Folder({}, () => {
           File({ name: 'foo.txt' }, () => {
@@ -113,7 +112,7 @@ describe('jostraca', () => {
     })
 
     const info = await jostraca.generate(
-      { fs, folder: '/top' },
+      { fs: () => fs, folder: '/top' },
       cmp((props: any) => {
         Project({ folder: 'sdk' }, () => {
 
@@ -163,7 +162,7 @@ describe('jostraca', () => {
     const jostraca = Jostraca()
 
     const info = await jostraca.generate(
-      { fs, folder: '/top' },
+      { fs: () => fs, folder: '/top' },
       cmp((props: any) => {
         Project({ folder: 'sdk' }, () => {
 
@@ -232,7 +231,7 @@ describe('jostraca', () => {
     const jostraca = Jostraca()
 
     const info = await jostraca.generate(
-      { fs, folder: '/top' },
+      { fs: () => fs, folder: '/top' },
       cmp((props: any) => {
         Project({}, () => {
           Inject({ name: 'foo.txt' }, () => {
@@ -260,7 +259,7 @@ describe('jostraca', () => {
     const jostraca = Jostraca()
 
     const info = await jostraca.generate(
-      { fs, folder: '/top' },
+      { fs: () => fs, folder: '/top' },
       cmp((props: any) => {
         Project({}, () => {
           File({ name: 'foo.txt' }, () => {
@@ -300,7 +299,7 @@ describe('jostraca', () => {
 
     const info = await jostraca.generate(
       {
-        fs, folder: '/top',
+        fs: () => fs, folder: '/top',
         // build: false
       },
       cmp((props: any) => {

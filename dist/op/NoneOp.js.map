@@ -1,1 +1,1 @@
-{"version":3,"file":"NoneOp.js","sourceRoot":"","sources":["../../src/op/NoneOp.ts"],"names":[],"mappings":";;;AAKA,MAAM,MAAM,GAAG;IACb,MAAM,CAAC,IAAU,EAAE,KAAU,EAAE,QAAa,IAAI,CAAC;IACjD,KAAK,CAAC,KAAW,EAAE,KAAU,EAAE,QAAa,IAAI,CAAC;CAClD,CAAA;AAIC,wBAAM"}
+{"version":3,"file":"NoneOp.js","sourceRoot":"","sources":["../../src/op/NoneOp.ts"],"names":[],"mappings":";;;AAKA,MAAM,MAAM,GAAG;IACb,MAAM,CAAC,KAAW,EAAE,KAAU,EAAE,SAAuB,IAAI,CAAC;IAC5D,KAAK,CAAC,KAAW,EAAE,KAAU,EAAE,SAAuB,IAAI,CAAC;CAC5D,CAAA;AAIC,wBAAM"}

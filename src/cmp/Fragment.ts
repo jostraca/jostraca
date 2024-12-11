@@ -8,7 +8,7 @@ import { cmp, template, each, escre, Content } from '../jostraca'
 import { Gubu, One, Optional, Check } from 'gubu'
 
 
-const From = (from: any, _: any, s: any) => s.ctx.fs.statSync(from)
+const From = (from: any, _: any, s: any) => s.ctx.fs().statSync(from)
 
 const FragmentShape = Gubu({
   ctx$: Object,
@@ -34,7 +34,8 @@ const Fragment = cmp(function Fragment(props: FragmentProps, children: any) {
   const replace = props.replace || {}
 
 
-  const { fs, folder, model } = props.ctx$
+  const { folder, model } = props.ctx$
+  const fs = props.ctx$.fs()
   let frompath = node.from as string
 
   // TODO: this is relative to the output - but that is just one case - provide more control?

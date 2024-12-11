@@ -6,15 +6,18 @@ import type { Node } from '../jostraca'
 
 const FolderOp = {
 
-  before(node: Node, _ctx$: any, buildctx: any) {
+  before(node: Node, ctx$: any, buildctx: any) {
     const cfolder = buildctx.current.folder = (buildctx.current.folder || {})
 
     cfolder.node = node
-    cfolder.path = (cfolder.path || [buildctx.current.folder.parent])
+    cfolder.path = (0 < cfolder.path.length ? cfolder.path : [buildctx.current.folder.parent])
     cfolder.path.push(node.name)
 
     let fullpath = cfolder.path.join(Path.sep)
-    buildctx.fs.mkdirSync(fullpath, { recursive: true })
+
+    if ('' !== fullpath) {
+      ctx$.fs().mkdirSync(fullpath, { recursive: true })
+    }
   },
 
 
