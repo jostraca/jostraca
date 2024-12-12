@@ -64,6 +64,12 @@ type Log = {
 }
 
 
+type FileEntry = {
+  path: string
+  action: 'write' | 'preserve' | 'present' | 'merge'
+  copy?: string
+}
+
 type BuildContext = {
   root: Component
   vol: any
@@ -85,6 +91,12 @@ type BuildContext = {
   util: {
     save: (path: string, content: string, write?: boolean) => any
     copy: (frompath: string, topath: string, write?: boolean) => any
+  }
+  file: {
+    write: FileEntry[],
+    preserve: FileEntry[],
+    present: FileEntry[],
+    merge: FileEntry[],
   }
 }
 

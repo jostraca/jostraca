@@ -35,9 +35,9 @@
   ],
   "devDependencies": {
     "@hapi/code": "^9.0.3",
-    "@types/node": "22.10.1",
+    "@types/node": "22.10.2",
     "esbuild": "^0.24.0",
-    "oxc-parser": "^0.38.0",
+    "oxc-parser": "^0.40.1",
     "typescript": "^5.7.2"
   },
   "peerDependencies": {
@@ -45,6 +45,7 @@
     "memfs": ">=4"
   },
   "dependencies": {
+    "diff": "^7.0.0",
     "gubu": "^8.3.0"
   }
 }

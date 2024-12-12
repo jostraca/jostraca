@@ -12,7 +12,9 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 
 import { util as JsonicUtil } from 'jsonic'
 
-import { Gubu, Any } from 'gubu'
+import { Gubu } from 'gubu'
+
+const Diff = require('diff')
 
 import { memfs as MemFs } from 'memfs'
 
@@ -42,9 +44,6 @@ import {
   indent,
   BINARY_EXT,
 } from './utility'
-
-
-
 
 
 import { Content } from './cmp/Content'
@@ -177,72 +176,32 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
         folder,
         current: {
           project: {
-            node: { kind: 'none', path: [], meta: {}, content: [] },
+            node: makeNode(),
           },
           folder: {
-            node: { kind: 'none', path: [], meta: {}, content: [] },
+            node: makeNode(),
             parent: folder,
             path: [],
           },
-          file: { kind: 'none', path: [], meta: {}, content: [] },
+          // TODI: should be file.node
+          file: makeNode(),
           content: undefined,
         },
         log: { exclude: [], last: -1 },
-
+        file: {
+          write: [],
+          preserve: [],
+          present: [],
+          merge: [],
+        },
         util: {
-          save: (path: string, content: string, write = false) => {
-            path = Path.normalize(path)
-            // console.log('SAVE', path)
-
-            const exists = fs.existsSync(path)
-            write = write || !exists
-
-            if (exists) {
-
-              // TODO: if content matchs do nothing
-              // console.log('EXISTS', path)
-
-              if (existing.preserve) {
-                let oldcontent = fs.readFileSync(path, 'utf8').toString()
-
-                if (oldcontent.length !== content.length || oldcontent !== content) {
-                  let oldpath =
-                    Path.join(folder, Path.basename(path).replace(/\.[^.]+$/, '') +
-                      '.old' + Path.extname(path))
-                  buildctx.util.copy(path, oldpath, true)
-                }
-              }
-
-              if (existing.write) {
-                write = true
-              }
-              else if (existing.present) {
-                let newpath =
-                  Path.join(folder, Path.basename(path).replace(/\.[^.]+$/, '') +
-                    '.new' + Path.extname(path))
-                fs.writeFileSync(newpath, content, 'utf8', { flush: true })
-              }
-            }
-
-            if (write) {
-              const folder = Path.dirname(path)
-              fs.mkdirSync(folder, { recursive: true })
-
-              fs.writeFileSync(path, content, 'utf8', { flush: true })
-            }
-          },
-
-          copy(frompath: string, topath: string, write = false) {
-            const isBinary = BINARY_EXT.includes(Path.extname(frompath))
-
-            // TODO: check excludes
-            fs.mkdirSync(Path.dirname(topath), { recursive: true })
-            const contents = fs.readFileSync(frompath, isBinary ? undefined : 'utf8')
-            fs.writeFileSync(topath, contents, { flush: true })
-          }
-
+          save: () => null,
+          copy: () => null,
         }
       }
+
+      buildctx.util.save = makeSave(fs, existing, buildctx)
+      buildctx.util.copy = makeCopy(fs, existing, buildctx)
 
       if (doBuild) {
         await build(ctx$, buildctx)
@@ -399,6 +358,113 @@ function cmp(component: Function): Component {
 }
 
 
+function makeNode() {
+  return { kind: 'none', path: [], meta: {}, content: [] }
+}
+
+
+function makeSave(fs: any, existing: any, buildctx: any) {
+  return function save(path: string, content: string, write = false) {
+    path = Path.normalize(path)
+    const folder = Path.dirname(path)
+
+    // console.log('SAVE', path)
+
+    const exists = fs.existsSync(path)
+    write = write || !exists
+
+    if (exists) {
+      let oldcontent
+
+      // TODO: if content matchs do nothing
+      // console.log('EXISTS', path)
+
+      if (existing.preserve) {
+        oldcontent = null == oldcontent ? fs.readFileSync(path, 'utf8').toString() : oldcontent
+
+        if (oldcontent.length !== content.length || oldcontent !== content) {
+          let oldpath =
+            Path.join(folder, Path.basename(path).replace(/\.[^.]+$/, '') +
+              '.old' + Path.extname(path))
+          buildctx.util.copy(path, oldpath, true)
+          buildctx.file.preserve.push({ path, action: 'preserve' })
+        }
+      }
+
+      if (existing.write) {
+        write = true
+      }
+      else if (existing.present) {
+        oldcontent = null == oldcontent ? fs.readFileSync(path, 'utf8').toString() : oldcontent
+
+        if (oldcontent.length !== content.length || oldcontent !== content) {
+          let newpath =
+            Path.join(folder, Path.basename(path).replace(/\.[^.]+$/, '') +
+              '.new' + Path.extname(path))
+          fs.writeFileSync(newpath, content, 'utf8', { flush: true })
+          buildctx.file.preserve.push({ path, action: 'present' })
+        }
+      }
+
+      if (existing.merge) {
+        oldcontent = null == oldcontent ? fs.readFileSync(path, 'utf8').toString() : oldcontent
+        write = false
+
+        if (oldcontent.length !== content.length || oldcontent !== content) {
+          merge(fs, path, content, oldcontent)
+          buildctx.file.merge.push({ path, action: 'merge' })
+        }
+      }
+    }
+
+    if (write) {
+      fs.mkdirSync(folder, { recursive: true })
+      fs.writeFileSync(path, content, 'utf8', { flush: true })
+      buildctx.file.write.push({ path, action: 'write' })
+    }
+  }
+}
+
+
+function makeCopy(fs: any, existing: any, buildctx: any) {
+  return function copy(frompath: string, topath: string, write = false) {
+    const isBinary = BINARY_EXT.includes(Path.extname(frompath))
+
+    // TODO: check excludes
+    fs.mkdirSync(Path.dirname(topath), { recursive: true })
+    const contents = fs.readFileSync(frompath, isBinary ? undefined : 'utf8')
+    fs.writeFileSync(topath, contents, { flush: true })
+  }
+}
+
+
+function merge(fs: any, path: string, oldcontent: string, newcontent: string) {
+  const diff = Diff.diffLines(newcontent, oldcontent)
+
+  const out: string[] = []
+  const when = new Date().toISOString()
+
+  diff.forEach((part: any) => {
+    if (part.added) {
+      out.push('<<<<<< GENERATED: ' + when + '\n')
+      out.push(part.value)
+      out.push('>>>>>> GENERATED: ' + when + '\n')
+    }
+    else if (part.removed) {
+      out.push('<<<<<< EXISTING: ' + when + '\n')
+      out.push(part.value)
+      out.push('>>>>>> EXISTING: ' + when + '\n')
+    }
+    else {
+      out.push(part.value)
+    }
+  })
+
+  const content = out.join('')
+  // console.log('MERGE', path, content)
+
+  fs.writeFileSync(path, content, { flush: true })
+}
 
 
 export type {
@@ -442,37 +508,5 @@ export {
 
 
 
-
-/* two file merge
-
-const fs = require('fs');
-const jsdiff = require('diff');
-
-// Read the two JavaScript files
-const file1 = fs.readFileSync('file1.js', 'utf8');
-const file2 = fs.readFileSync('file2.js', 'utf8');
-
-// Generate the diff
-const diff = jsdiff.diffLines(file1, file2);
-
-// Merge the files
-let mergedOutput = '';
-diff.forEach(part => {
-  if (part.added) {
-    // Lines that exist only in file2
-    mergedOutput += `// Added from file2:\n${part.value}`;
-  } else if (part.removed) {
-    // Lines that exist only in file1
-    mergedOutput += `// Removed from file1:\n${part.value}`;
-  } else {
-    // Common lines
-    mergedOutput += part.value;
-  }
-});
-
-// Write the merged result to a new file
-fs.writeFileSync('merged.js', mergedOutput);
-console.log('Merged output saved to merged.js');
- */
 
 
