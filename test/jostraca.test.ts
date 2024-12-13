@@ -122,7 +122,7 @@ describe('jostraca', () => {
               Content('// custom-foo\n')
             })
 
-            Copy({ from: '/tm/bar.txt', name: 'bar.txt' })
+            Copy({ from: '/tm/bar.txt', to: 'bar.txt' })
             Copy({ from: '/tm/sub' })
           })
         })
@@ -392,7 +392,7 @@ describe('jostraca', () => {
   })
 
 
-  test('existing', async () => {
+  test('existing-file', async () => {
     const jostraca = Jostraca({
       mem: true,
       vol: {
@@ -473,6 +473,91 @@ describe('jostraca', () => {
 
   })
 
+
+  test('existing-copy', async () => {
+    const { fs, vol } = memfs({
+      '/top/tm0/foo.txt': 'F0\nF1\nF2\n',
+      '/top/tm0/bar.txt': 'B0\nB1\nB2\n',
+      '/top/tm1/zed.txt': 'Z0\nZ1\nZ2\n',
+      '/top/tm2/qaz.bin': Buffer.from([0x00, 0x01, 0x02, 0x03, 0x04]),
+      '/top/tm2/haz.bin': Buffer.from([0x05, 0x06, 0x07, 0x08, 0x09]),
+      '/top/p0/bar.txt': 'B0\nB8\nB9\n',
+      '/top/p0/zed.txt': 'Z0\nZ7\nZ8\nZ9',
+      '/top/p0/haz.bin': Buffer.from([0x09, 0x08, 0x07, 0x06, 0x05]),
+    })
+
+    const jostraca = Jostraca()
+
+    const info = await jostraca.generate(
+      {
+        fs: () => fs, folder: '/top',
+        existing: { merge: true },
+        existingBinary: { preserve: true },
+      },
+      cmp(() => {
+        Project({ folder: 'p0' }, () => {
+          Folder({}, () => {
+            Copy({ from: '/top/tm0' })
+            Copy({ from: '/top/tm1/zed.txt' })
+            Copy({ from: '/top/tm2' })
+          })
+        })
+      })
+    )
+
+    // console.dir(info.file, { depth: null })
+
+    expect(info.file).equal({
+      write: [
+        { path: '/top/p0/foo.txt', action: 'write' },
+        { path: '/top/p0/haz.bin', action: 'write' },
+        { path: '/top/p0/qaz.bin', action: 'write' }
+      ],
+      preserve: [{ path: '/top/p0/haz.bin', action: 'preserve' }],
+      present: [],
+      merge: [
+        { path: '/top/p0/bar.txt', action: 'merge' },
+        { path: '/top/p0/zed.txt', action: 'merge' }
+      ]
+    })
+
+    const isowhen = new Date(info.when).toISOString()
+    const voljson: any = vol.toJSON()
+    // console.dir(voljson, { depth: null })
+
+
+    expect(JSON.parse(voljson['/top/.jostraca/jostraca.json.log']).exclude).equal([])
+    expect(voljson).equal({
+      '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
+      '/top/tm0/foo.txt': 'F0\nF1\nF2\n',
+      '/top/tm0/bar.txt': 'B0\nB1\nB2\n',
+      '/top/tm1/zed.txt': 'Z0\nZ1\nZ2\n',
+      '/top/tm2/qaz.bin': '\x00\x01\x02\x03\x04',
+      '/top/tm2/haz.bin': '\x05\x06\x07\b\t',
+      '/top/p0/bar.txt': 'B0\n' +
+        '<<<<<< EXISTING: ' + isowhen + '\n' +
+        'B8\n' +
+        'B9\n' +
+        '>>>>>> EXISTING: ' + isowhen + '\n' +
+        '<<<<<< GENERATED: ' + isowhen + '\n' +
+        'B1\n' +
+        'B2\n' +
+        '>>>>>> GENERATED: ' + isowhen + '\n',
+      '/top/p0/zed.txt': 'Z0\n' +
+        '<<<<<< EXISTING: ' + isowhen + '\n' +
+        'Z7\n' +
+        'Z8\n' +
+        'Z9>>>>>> EXISTING: ' + isowhen + '\n' +
+        '<<<<<< GENERATED: ' + isowhen + '\n' +
+        'Z1\n' +
+        'Z2\n' +
+        '>>>>>> GENERATED: ' + isowhen + '\n',
+      '/top/p0/foo.txt': 'F0\nF1\nF2\n',
+      '/top/p0/qaz.bin': '\x00\x01\x02\x03\x04',
+      '/top/p0/haz.bin': '\x05\x06\x07\b\t',
+      '/top/p0/haz.old.bin': '\t\b\x07\x06\x05',
+    })
+  })
 
 })
 

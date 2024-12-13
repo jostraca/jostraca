@@ -1,4 +1,6 @@
 
+import Path from 'node:path'
+
 import type { Node, BuildContext } from '../jostraca'
 
 
@@ -8,7 +10,8 @@ const FileOp = {
     // TODO: error if not inside a folder
 
     const cfile: any = buildctx.current.file = node
-    cfile.fullpath = buildctx.current.folder.path.join('/') + '/' + node.name
+    const name = node.name as string
+    cfile.fullpath = Path.join(buildctx.current.folder.path.join(Path.sep), name)
     cfile.content = []
   },
 
@@ -22,7 +25,7 @@ const FileOp = {
 
     const fileExists = fs.existsSync(cfile.fullpath)
 
-    let exclude = node.exclude
+    let exclude = true === node.exclude
 
     if (fileExists) {
       if (true === exclude) {
@@ -50,17 +53,14 @@ const FileOp = {
           let timedelta = stat.mtimeMs - log.last
           if ((timedelta > 0 && timedelta < stat.mtimeMs)) {
             exclude = true
-            // console.log('FILEOP-STAT', rpath, timedelta, exclude, stat?.mtimeMs, log.last)
           }
         }
       }
     }
 
-    // console.log('FILE-a write', rpath, exclude) // , content.substring(0, 111))
     const fullpath = cfile.fullpath as string
 
     if (!exclude) {
-      // fs.writeFileSync(cfile.fullpath, content, { flush: true })
       buildctx.util.save(fullpath, content)
     }
     else {

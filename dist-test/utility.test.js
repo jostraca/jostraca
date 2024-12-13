@@ -181,5 +181,8 @@ const __1 = require("../");
         (0, code_1.expect)((0, __1.indent)(' a\n b\nc\n', 2)).equal('   a\n   b\n  c\n');
         (0, code_1.expect)((0, __1.indent)(' a\n b\n c\n', 2)).equal('   a\n   b\n   c\n');
     });
+    (0, node_test_1.test)('isbinext', () => {
+        (0, code_1.expect)((0, __1.isbinext)('/foo/bar.png')).equal(true);
+    });
 });
 //# sourceMappingURL=utility.test.js.map

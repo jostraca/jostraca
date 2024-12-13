@@ -11,14 +11,14 @@ const FileOp_1 = require("./FileOp");
 const CopyOp = {
     before(node, ctx$, buildctx) {
         const fs = ctx$.fs();
-        if (null == node.name && null != node.from) {
-            node.name = node_path_1.default.basename(node.from);
-        }
         // TODO: do these need null checks here?
-        const name = node.name;
+        let name = node.name;
         const from = node.from;
         const fromStat = fs.statSync(from);
         if (fromStat.isFile()) {
+            if (null == node.name || '' === node.name) {
+                name = node.name = node_path_1.default.basename(from);
+            }
             FileOp_1.FileOp.before(node, ctx$, buildctx);
             const topath = buildctx.current.file.path;
             const state = {
@@ -48,7 +48,7 @@ const CopyOp = {
         const fs = ctx$.fs();
         const kind = node.after.kind;
         const frompath = node.from;
-        const topath = buildctx.current.folder.path.join('/');
+        let topath = buildctx.current.folder.path.join('/');
         // let exclude = node.exclude
         // if (true === exclude) {
         //   return
@@ -68,12 +68,11 @@ const CopyOp = {
                     Array.isArray(node.exclude) ? node.exclude :
                         []
             };
-            // TODO: node.path is wrong
-            // change prop.name to prop.to and account for subfolders
-            // console.log('COPY WALK', frompath, topath, node.exclude, state.excludes)
+            topath = null == node.name ? topath : node_path_1.default.join(topath, node.name);
             walk(fs, state, node.path, frompath, topath);
         }
         else {
+            // TODO: need Standrd JostracaError
             throw new Error('Unknown kind=' + kind + ' for file: ' + frompath);
         }
     },
@@ -89,7 +88,6 @@ function walk(fs, state, nodepath, from, to) {
         const isDirectory = stat.isDirectory();
         const isTemplateFile = isTemplate(name);
         const isIgnored = ignored(state, nodepath, name, topath);
-        // console.log('COPY FROM', frompath, isDirectory, isTemplateFile, isIgnored)
         if (isDirectory) {
             state.folderCount++;
             walk(fs, state, nodepath.concat(name), frompath, topath);
@@ -100,7 +98,8 @@ function walk(fs, state, nodepath, from, to) {
             }
             const src = fs.readFileSync(frompath, 'utf8');
             const out = genTemplate(state, src, { name, frompath, topath });
-            writeFileSync(fs, topath, out);
+            buildctx.util.save(topath, out);
+            // writeFileSync(fs, topath, out)
             state.fileCount++;
             state.tmCount++;
         }
@@ -108,13 +107,17 @@ function walk(fs, state, nodepath, from, to) {
             if (excludeFile(fs, state, nodepath, name, topath)) {
                 continue;
             }
-            copyFileSync(fs, frompath, topath);
+            // copyFileSync(fs, frompath, topath)
+            const isBinary = (0, utility_1.isbinext)(frompath);
+            const content = fs.readFileSync(frompath, isBinary ? undefined : 'utf8');
+            buildctx.util.save(topath, content);
             state.fileCount++;
         }
     }
 }
+// TODO: needs an option
 function ignored(state, nodepath, name, topath) {
-    return !name.match(/(~|-jostraca-off)$/);
+    return !!name.match(/(~|-jostraca-off)$/);
 }
 function excludeFile(fs, state, nodepath, name, topath) {
     const { opts } = state.ctx$;
@@ -129,9 +132,7 @@ function excludeFile(fs, state, nodepath, name, topath) {
     const rpath = nodepath.concat(name).join('/');
     // TOOD: use exclude only for actual excludes, refactor logic to ignore if exists,
     // use a different prop for that
-    const fileExists = fs.existsSync(topath);
-    // console.log('COPY EXCLUDE', fileExists, state.excludes.includes(rpath), rpath, '|', state.excludes)
-    // if (fileExists && state.excludes.includes(rpath)) {
+    // const fileExists = fs.existsSync(topath)
     if (excluded(rpath, state.excludes)) {
         return true;
     }
@@ -147,23 +148,14 @@ function excludeFile(fs, state, nodepath, name, topath) {
                 timedelta = stat.mtimeMs - log.last;
                 if (stat && (timedelta > 0 && timedelta < stat.mtimeMs)) {
                     exclude = true;
-                    // console.log('COPYOP-STAT', rpath, timedelta, exclude, stat?.mtimeMs, log.last)
                 }
             }
         }
-        // if ('sdk.js' === name) {
-        // console.log('COPYSTAT', rpath, frompath,
-        //   timedelta,
-        //   log.exclude.includes(rpath),
-        //   stat?.mtimeMs - log.last,
-        //   stat?.mtimeMs, log.last, exclude)
-        // }
     }
     if (exclude && log && !log.exclude.includes(rpath)) {
         // NOT Path.sep - has to be canonical
         log.exclude.push(rpath);
     }
-    // console.log('COPY-EXCLUDE', rpath, exclude)
     return exclude;
 }
 function excluded(path, excludes) {
@@ -176,20 +168,7 @@ function excluded(path, excludes) {
         .reduce((a, exc) => (a ? a : (a || !!path.match(exc))), false)) {
         out = true;
     }
-    // console.log('EXCLUDED', path, out, excludes)
     return out;
-}
-function writeFileSync(fs, path, content) {
-    // TODO: check excludes
-    fs.mkdirSync(node_path_1.default.dirname(path), { recursive: true });
-    fs.writeFileSync(path, content, 'utf8', { flush: true });
-}
-function copyFileSync(fs, frompath, topath) {
-    const isBinary = utility_1.BINARY_EXT.includes(node_path_1.default.extname(frompath));
-    // TODO: check excludes
-    fs.mkdirSync(node_path_1.default.dirname(topath), { recursive: true });
-    const contents = fs.readFileSync(frompath, isBinary ? undefined : 'utf8');
-    fs.writeFileSync(topath, contents, { flush: true });
 }
 function processTemplate(state, src, spec) {
     if (isTemplate(spec.name)) {
@@ -198,8 +177,7 @@ function processTemplate(state, src, spec) {
     return src;
 }
 function isTemplate(name) {
-    // TODO: need a better way; alsp should be configurable
-    return !name.match(/\.(gif|jpe?g|png|ico|bmp|tiff)$/i);
+    return !(0, utility_1.isbinext)(name);
 }
 // NOTE: $$foo.bar$$ format used as explicit start and end markers mean regex can be used
 // unambiguously ($fooa would not match `foo`)

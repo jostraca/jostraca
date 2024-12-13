@@ -5,7 +5,7 @@ import type { Node, BuildContext } from '../jostraca'
 
 import { getx } from '../jostraca'
 
-import { BINARY_EXT } from '../utility'
+import { isbinext } from '../utility'
 
 import { FileOp } from './FileOp'
 
@@ -15,17 +15,17 @@ const CopyOp = {
   before(node: Node, ctx$: any, buildctx: BuildContext) {
     const fs = ctx$.fs()
 
-    if (null == node.name && null != node.from) {
-      node.name = Path.basename(node.from)
-    }
-
     // TODO: do these need null checks here?
-    const name = node.name as string
+    let name = node.name as string
     const from = node.from as string
 
     const fromStat = fs.statSync(from)
 
     if (fromStat.isFile()) {
+      if (null == node.name || '' === node.name) {
+        name = node.name = Path.basename(from)
+      }
+
       FileOp.before(node, ctx$, buildctx)
       const topath = buildctx.current.file.path
       const state = {
@@ -62,7 +62,7 @@ const CopyOp = {
     const kind = node.after.kind
 
     const frompath = node.from as string
-    const topath = buildctx.current.folder.path.join('/')
+    let topath = buildctx.current.folder.path.join('/')
 
     // let exclude = node.exclude
     // if (true === exclude) {
@@ -85,13 +85,11 @@ const CopyOp = {
             []
       }
 
-      // TODO: node.path is wrong
-      // change prop.name to prop.to and account for subfolders
-
-      // console.log('COPY WALK', frompath, topath, node.exclude, state.excludes)
+      topath = null == node.name ? topath : Path.join(topath, node.name)
       walk(fs, state, node.path, frompath, topath)
     }
     else {
+      // TODO: need Standrd JostracaError
       throw new Error('Unknown kind=' + kind + ' for file: ' + frompath)
     }
   },
@@ -112,8 +110,6 @@ function walk(fs: any, state: any, nodepath: string[], from: string, to: string)
     const isTemplateFile = isTemplate(name)
     const isIgnored = ignored(state, nodepath, name, topath)
 
-    // console.log('COPY FROM', frompath, isDirectory, isTemplateFile, isIgnored)
-
     if (isDirectory) {
       state.folderCount++
       walk(fs, state, nodepath.concat(name), frompath, topath)
@@ -122,21 +118,28 @@ function walk(fs: any, state: any, nodepath: string[], from: string, to: string)
       if (excludeFile(fs, state, nodepath, name, topath)) { continue }
       const src = fs.readFileSync(frompath, 'utf8')
       const out = genTemplate(state, src, { name, frompath, topath })
-      writeFileSync(fs, topath, out)
+      buildctx.util.save(topath, out)
+      // writeFileSync(fs, topath, out)
       state.fileCount++
       state.tmCount++
     }
     else if (!isIgnored) {
       if (excludeFile(fs, state, nodepath, name, topath)) { continue }
-      copyFileSync(fs, frompath, topath)
+      // copyFileSync(fs, frompath, topath)
+
+      const isBinary = isbinext(frompath)
+      const content = fs.readFileSync(frompath, isBinary ? undefined : 'utf8')
+      buildctx.util.save(topath, content)
+
       state.fileCount++
     }
   }
 }
 
 
+// TODO: needs an option
 function ignored(state: any, nodepath: string[], name: string, topath: string) {
-  return !name.match(/(~|-jostraca-off)$/)
+  return !!name.match(/(~|-jostraca-off)$/)
 }
 
 
@@ -156,10 +159,8 @@ function excludeFile(fs: any, state: any, nodepath: string[], name: string, topa
 
   // TOOD: use exclude only for actual excludes, refactor logic to ignore if exists,
   // use a different prop for that
-  const fileExists = fs.existsSync(topath)
+  // const fileExists = fs.existsSync(topath)
 
-  // console.log('COPY EXCLUDE', fileExists, state.excludes.includes(rpath), rpath, '|', state.excludes)
-  // if (fileExists && state.excludes.includes(rpath)) {
   if (excluded(rpath, state.excludes)) {
     return true
   }
@@ -177,18 +178,10 @@ function excludeFile(fs: any, state: any, nodepath: string[], name: string, topa
         timedelta = stat.mtimeMs - log.last
         if (stat && (timedelta > 0 && timedelta < stat.mtimeMs)) {
           exclude = true
-          // console.log('COPYOP-STAT', rpath, timedelta, exclude, stat?.mtimeMs, log.last)
         }
       }
     }
 
-    // if ('sdk.js' === name) {
-    // console.log('COPYSTAT', rpath, frompath,
-    //   timedelta,
-    //   log.exclude.includes(rpath),
-    //   stat?.mtimeMs - log.last,
-    //   stat?.mtimeMs, log.last, exclude)
-    // }
   }
 
   if (exclude && log && !log.exclude.includes(rpath)) {
@@ -196,7 +189,6 @@ function excludeFile(fs: any, state: any, nodepath: string[], name: string, topa
     log.exclude.push(rpath)
   }
 
-  // console.log('COPY-EXCLUDE', rpath, exclude)
   return exclude
 }
 
@@ -212,26 +204,7 @@ function excluded(path: string, excludes: (string | RegExp)[]) {
     out = true
   }
 
-  // console.log('EXCLUDED', path, out, excludes)
-
   return out
-}
-
-
-function writeFileSync(fs: any, path: string, content: string) {
-  // TODO: check excludes
-  fs.mkdirSync(Path.dirname(path), { recursive: true })
-  fs.writeFileSync(path, content, 'utf8', { flush: true })
-}
-
-
-function copyFileSync(fs: any, frompath: string, topath: string) {
-  const isBinary = BINARY_EXT.includes(Path.extname(frompath))
-
-  // TODO: check excludes
-  fs.mkdirSync(Path.dirname(topath), { recursive: true })
-  const contents = fs.readFileSync(frompath, isBinary ? undefined : 'utf8')
-  fs.writeFileSync(topath, contents, { flush: true })
 }
 
 
@@ -245,10 +218,11 @@ function processTemplate(
   return src
 }
 
+
 function isTemplate(name: string) {
-  // TODO: need a better way; alsp should be configurable
-  return !name.match(/\.(gif|jpe?g|png|ico|bmp|tiff)$/i)
+  return !isbinext(name)
 }
+
 
 // NOTE: $$foo.bar$$ format used as explicit start and end markers mean regex can be used
 // unambiguously ($fooa would not match `foo`)

@@ -37,7 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.List = exports.Slot = exports.Line = exports.Copy = exports.Folder = exports.Fragment = exports.Inject = exports.File = exports.Content = exports.Project = exports.deep = exports.indent = exports.escre = exports.template = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.select = exports.each = void 0;
+exports.List = exports.Slot = exports.Line = exports.Copy = exports.Folder = exports.Fragment = exports.Inject = exports.File = exports.Content = exports.Project = exports.isbinext = exports.deep = exports.indent = exports.escre = exports.template = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.select = exports.each = void 0;
 exports.Jostraca = Jostraca;
 exports.cmp = cmp;
 // TODO:
@@ -64,6 +64,7 @@ Object.defineProperty(exports, "names", { enumerable: true, get: function () { r
 Object.defineProperty(exports, "template", { enumerable: true, get: function () { return utility_1.template; } });
 Object.defineProperty(exports, "escre", { enumerable: true, get: function () { return utility_1.escre; } });
 Object.defineProperty(exports, "indent", { enumerable: true, get: function () { return utility_1.indent; } });
+Object.defineProperty(exports, "isbinext", { enumerable: true, get: function () { return utility_1.isbinext; } });
 const Content_1 = require("./cmp/Content");
 Object.defineProperty(exports, "Content", { enumerable: true, get: function () { return Content_1.Content; } });
 const Line_1 = require("./cmp/Line");
@@ -113,10 +114,16 @@ const OptionsShape = (0, gubu_1.Gubu)({
     // TOOD: needs rethink
     exclude: false, // Exclude modified output files. Default: `false`.
     existing: {
-        write: true, // Overwrite existing files.
+        write: true, // Overwrite existing files (unless present=true).
         preserve: false, // Keep a backup copy (.old.) of overwritten files.
         present: false, // Present the new file using .new. name annotation.
         merge: false, // Annotated merge of new generate and existing file.
+    },
+    existingBinary: {
+        write: true, // Overwrite existing files (unless present=true).
+        preserve: false, // Keep a backup copy (.old.) of overwritten files.
+        present: false, // Present the new file using .new. name annotation.
+        // No merge of binary files
     },
     model: {},
     build: true,
@@ -146,6 +153,7 @@ function Jostraca(gopts_in) {
         const log = opts.log || gopts?.log || DEFAULT_LOGGER;
         const debug = !!(null == opts.debug ? gopts?.debug : opts.debug);
         const existing = deep(gopts.existing, opts.existing);
+        const existingBinary = deep(gopts.existingBinary, opts.existingBinary);
         const doBuild = null == gopts?.build ? false !== opts.build : false !== gopts?.build;
         const model = deep({}, gopts.model, opts.model);
         // Component defaults.
@@ -172,6 +180,7 @@ function Jostraca(gopts_in) {
             // Build phase
             const buildctx = {
                 root: ctx$.root,
+                when: Date.now(),
                 vol: memfs?.vol,
                 folder,
                 current: {
@@ -196,11 +205,9 @@ function Jostraca(gopts_in) {
                 },
                 util: {
                     save: () => null,
-                    copy: () => null,
                 }
             };
-            buildctx.util.save = makeSave(fs, existing, buildctx);
-            buildctx.util.copy = makeCopy(fs, existing, buildctx);
+            buildctx.util.save = makeSave(fs, existing, existingBinary, buildctx);
             if (doBuild) {
                 await build(ctx$, buildctx);
             }
@@ -214,7 +221,6 @@ function Jostraca(gopts_in) {
             buildctx.log = JSON.parse(ctx$.fs().readFileSync(logpath, 'utf8'));
         }
         catch (err) {
-            // console.log(err)
             // TODO: file not foound ignored, handle others!
         }
         await step(topnode, ctx$, buildctx);
@@ -324,23 +330,21 @@ function cmp(component) {
 function makeNode() {
     return { kind: 'none', path: [], meta: {}, content: [] };
 }
-function makeSave(fs, existing, buildctx) {
+function makeSave(fs, existingText, existingBinary, buildctx) {
     return function save(path, content, write = false) {
+        const existing = 'string' === typeof content ? existingText : existingBinary;
         path = node_path_1.default.normalize(path);
         const folder = node_path_1.default.dirname(path);
-        // console.log('SAVE', path)
         const exists = fs.existsSync(path);
         write = write || !exists;
         if (exists) {
             let oldcontent;
-            // TODO: if content matchs do nothing
-            // console.log('EXISTS', path)
             if (existing.preserve) {
                 oldcontent = null == oldcontent ? fs.readFileSync(path, 'utf8').toString() : oldcontent;
                 if (oldcontent.length !== content.length || oldcontent !== content) {
                     let oldpath = node_path_1.default.join(folder, node_path_1.default.basename(path).replace(/\.[^.]+$/, '') +
                         '.old' + node_path_1.default.extname(path));
-                    buildctx.util.copy(path, oldpath, true);
+                    copy(fs, path, oldpath);
                     buildctx.file.preserve.push({ path, action: 'preserve' });
                 }
             }
@@ -360,7 +364,7 @@ function makeSave(fs, existing, buildctx) {
                 oldcontent = null == oldcontent ? fs.readFileSync(path, 'utf8').toString() : oldcontent;
                 write = false;
                 if (oldcontent.length !== content.length || oldcontent !== content) {
-                    merge(fs, path, content, oldcontent);
+                    merge(fs, buildctx.when, path, content, oldcontent);
                     buildctx.file.merge.push({ path, action: 'merge' });
                 }
             }
@@ -372,36 +376,33 @@ function makeSave(fs, existing, buildctx) {
         }
     };
 }
-function makeCopy(fs, existing, buildctx) {
-    return function copy(frompath, topath, write = false) {
-        const isBinary = utility_1.BINARY_EXT.includes(node_path_1.default.extname(frompath));
-        // TODO: check excludes
-        fs.mkdirSync(node_path_1.default.dirname(topath), { recursive: true });
-        const contents = fs.readFileSync(frompath, isBinary ? undefined : 'utf8');
-        fs.writeFileSync(topath, contents, { flush: true });
-    };
+function copy(fs, frompath, topath) {
+    // const isBinary = BINARY_EXT.includes(Path.extname(frompath))
+    const isBinary = (0, utility_1.isbinext)(frompath);
+    fs.mkdirSync(node_path_1.default.dirname(topath), { recursive: true });
+    const contents = fs.readFileSync(frompath, isBinary ? undefined : 'utf8');
+    fs.writeFileSync(topath, contents, { flush: true });
 }
-function merge(fs, path, oldcontent, newcontent) {
+function merge(fs, when, path, oldcontent, newcontent) {
     const diff = Diff.diffLines(newcontent, oldcontent);
     const out = [];
-    const when = new Date().toISOString();
+    const isowhen = new Date(when).toISOString();
     diff.forEach((part) => {
         if (part.added) {
-            out.push('<<<<<< GENERATED: ' + when + '\n');
+            out.push('<<<<<< GENERATED: ' + isowhen + '\n');
             out.push(part.value);
-            out.push('>>>>>> GENERATED: ' + when + '\n');
+            out.push('>>>>>> GENERATED: ' + isowhen + '\n');
         }
         else if (part.removed) {
-            out.push('<<<<<< EXISTING: ' + when + '\n');
+            out.push('<<<<<< EXISTING: ' + isowhen + '\n');
             out.push(part.value);
-            out.push('>>>>>> EXISTING: ' + when + '\n');
+            out.push('>>>>>> EXISTING: ' + isowhen + '\n');
         }
         else {
             out.push(part.value);
         }
     });
     const content = out.join('');
-    // console.log('MERGE', path, content)
     fs.writeFileSync(path, content, { flush: true });
 }
 //# sourceMappingURL=jostraca.js.map

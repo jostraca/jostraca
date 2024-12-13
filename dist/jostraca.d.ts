@@ -1,5 +1,5 @@
 import type { Node, Component, BuildContext } from './types';
-import { each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent } from './utility';
+import { each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, isbinext } from './utility';
 import { Content } from './cmp/Content';
 import { Line } from './cmp/Line';
 import { Slot } from './cmp/Slot';
@@ -25,6 +25,11 @@ declare const OptionsShape: {
             present: boolean;
             merge: boolean;
         };
+        existingBinary: {
+            write: boolean;
+            preserve: boolean;
+            present: boolean;
+        };
         model: {};
         build: boolean;
         mem: boolean;
@@ -47,6 +52,11 @@ declare const OptionsShape: {
             preserve: boolean;
             present: boolean;
             merge: boolean;
+        };
+        existingBinary: {
+            write: boolean;
+            preserve: boolean;
+            present: boolean;
         };
         model: {};
         build: boolean;
@@ -109,6 +119,11 @@ declare const OptionsShape: {
             present: boolean;
             merge: boolean;
         };
+        existingBinary: {
+            write: boolean;
+            preserve: boolean;
+            present: boolean;
+        };
         model: {};
         build: boolean;
         mem: boolean;
@@ -133,4 +148,4 @@ declare function Jostraca(gopts_in?: JostracaOptions | {}): {
 };
 declare function cmp(component: Function): Component;
 export type { JostracaOptions, Component, Node, };
-export { Jostraca, BuildContext, cmp, each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, deep, Project, Content, File, Inject, Fragment, Folder, Copy, Line, Slot, List, };
+export { Jostraca, BuildContext, cmp, each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, deep, isbinext, Project, Content, File, Inject, Fragment, Folder, Copy, Line, Slot, List, };

@@ -72,6 +72,7 @@ type FileEntry = {
 
 type BuildContext = {
   root: Component
+  when: number,
   vol: any
   folder: string
   current: {
@@ -89,8 +90,7 @@ type BuildContext = {
     last: number,
   }
   util: {
-    save: (path: string, content: string, write?: boolean) => any
-    copy: (frompath: string, topath: string, write?: boolean) => any
+    save: (path: string, content: string | Buffer, write?: boolean) => any
   }
   file: {
     write: FileEntry[],

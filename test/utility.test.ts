@@ -8,6 +8,7 @@ import {
   getx,
   template,
   indent,
+  isbinext,
 } from '../'
 
 
@@ -255,6 +256,12 @@ describe('util', () => {
     expect(indent('a\n b\n c', 2)).equal('  a\n   b\n   c')
     expect(indent(' a\n b\nc\n', 2)).equal('   a\n   b\n  c\n')
     expect(indent(' a\n b\n c\n', 2)).equal('   a\n   b\n   c\n')
+  })
+
+
+  test('isbinext', () => {
+    expect(isbinext('/foo/bar.png')).equal(true)
+
   })
 })
 

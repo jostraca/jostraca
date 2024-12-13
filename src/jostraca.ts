@@ -42,7 +42,7 @@ import {
   template,
   escre,
   indent,
-  BINARY_EXT,
+  isbinext,
 } from './utility'
 
 
@@ -93,10 +93,17 @@ const OptionsShape = Gubu({
   exclude: false, // Exclude modified output files. Default: `false`.
 
   existing: {
-    write: true, // Overwrite existing files.
+    write: true, // Overwrite existing files (unless present=true).
     preserve: false, // Keep a backup copy (.old.) of overwritten files.
     present: false, // Present the new file using .new. name annotation.
     merge: false, // Annotated merge of new generate and existing file.
+  },
+
+  existingBinary: {
+    write: true, // Overwrite existing files (unless present=true).
+    preserve: false, // Keep a backup copy (.old.) of overwritten files.
+    present: false, // Present the new file using .new. name annotation.
+    // No merge of binary files
   },
 
   model: {},
@@ -139,6 +146,7 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
     const debug: boolean = !!(null == opts.debug ? gopts?.debug : opts.debug)
 
     const existing = deep(gopts.existing, opts.existing)
+    const existingBinary = deep(gopts.existingBinary, opts.existingBinary)
 
     const doBuild: boolean = null == gopts?.build ? false !== opts.build : false !== gopts?.build
 
@@ -172,6 +180,7 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
       // Build phase
       const buildctx: BuildContext = {
         root: ctx$.root,
+        when: Date.now(),
         vol: memfs?.vol,
         folder,
         current: {
@@ -196,12 +205,10 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
         },
         util: {
           save: () => null,
-          copy: () => null,
         }
       }
 
-      buildctx.util.save = makeSave(fs, existing, buildctx)
-      buildctx.util.copy = makeCopy(fs, existing, buildctx)
+      buildctx.util.save = makeSave(fs, existing, existingBinary, buildctx)
 
       if (doBuild) {
         await build(ctx$, buildctx)
@@ -222,7 +229,6 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
         logpath, 'utf8'))
     }
     catch (err: any) {
-      // console.log(err)
       // TODO: file not foound ignored, handle others!
     }
 
@@ -363,21 +369,18 @@ function makeNode() {
 }
 
 
-function makeSave(fs: any, existing: any, buildctx: any) {
-  return function save(path: string, content: string, write = false) {
+function makeSave(fs: any, existingText: any, existingBinary: any, buildctx: any) {
+  return function save(path: string, content: string | Buffer, write = false) {
+    const existing = 'string' === typeof content ? existingText : existingBinary
+
     path = Path.normalize(path)
     const folder = Path.dirname(path)
-
-    // console.log('SAVE', path)
 
     const exists = fs.existsSync(path)
     write = write || !exists
 
     if (exists) {
       let oldcontent
-
-      // TODO: if content matchs do nothing
-      // console.log('EXISTS', path)
 
       if (existing.preserve) {
         oldcontent = null == oldcontent ? fs.readFileSync(path, 'utf8').toString() : oldcontent
@@ -386,7 +389,7 @@ function makeSave(fs: any, existing: any, buildctx: any) {
           let oldpath =
             Path.join(folder, Path.basename(path).replace(/\.[^.]+$/, '') +
               '.old' + Path.extname(path))
-          buildctx.util.copy(path, oldpath, true)
+          copy(fs, path, oldpath)
           buildctx.file.preserve.push({ path, action: 'preserve' })
         }
       }
@@ -411,7 +414,7 @@ function makeSave(fs: any, existing: any, buildctx: any) {
         write = false
 
         if (oldcontent.length !== content.length || oldcontent !== content) {
-          merge(fs, path, content, oldcontent)
+          merge(fs, buildctx.when, path, content as string, oldcontent)
           buildctx.file.merge.push({ path, action: 'merge' })
         }
       }
@@ -426,34 +429,31 @@ function makeSave(fs: any, existing: any, buildctx: any) {
 }
 
 
-function makeCopy(fs: any, existing: any, buildctx: any) {
-  return function copy(frompath: string, topath: string, write = false) {
-    const isBinary = BINARY_EXT.includes(Path.extname(frompath))
-
-    // TODO: check excludes
-    fs.mkdirSync(Path.dirname(topath), { recursive: true })
-    const contents = fs.readFileSync(frompath, isBinary ? undefined : 'utf8')
-    fs.writeFileSync(topath, contents, { flush: true })
-  }
+function copy(fs: any, frompath: string, topath: string) {
+  // const isBinary = BINARY_EXT.includes(Path.extname(frompath))
+  const isBinary = isbinext(frompath)
+  fs.mkdirSync(Path.dirname(topath), { recursive: true })
+  const contents = fs.readFileSync(frompath, isBinary ? undefined : 'utf8')
+  fs.writeFileSync(topath, contents, { flush: true })
 }
 
 
-function merge(fs: any, path: string, oldcontent: string, newcontent: string) {
+function merge(fs: any, when: number, path: string, oldcontent: string, newcontent: string) {
   const diff = Diff.diffLines(newcontent, oldcontent)
 
   const out: string[] = []
-  const when = new Date().toISOString()
+  const isowhen = new Date(when).toISOString()
 
   diff.forEach((part: any) => {
     if (part.added) {
-      out.push('<<<<<< GENERATED: ' + when + '\n')
+      out.push('<<<<<< GENERATED: ' + isowhen + '\n')
       out.push(part.value)
-      out.push('>>>>>> GENERATED: ' + when + '\n')
+      out.push('>>>>>> GENERATED: ' + isowhen + '\n')
     }
     else if (part.removed) {
-      out.push('<<<<<< EXISTING: ' + when + '\n')
+      out.push('<<<<<< EXISTING: ' + isowhen + '\n')
       out.push(part.value)
-      out.push('>>>>>> EXISTING: ' + when + '\n')
+      out.push('>>>>>> EXISTING: ' + isowhen + '\n')
     }
     else {
       out.push(part.value)
@@ -461,8 +461,6 @@ function merge(fs: any, path: string, oldcontent: string, newcontent: string) {
   })
 
   const content = out.join('')
-  // console.log('MERGE', path, content)
-
   fs.writeFileSync(path, content, { flush: true })
 }
 
@@ -493,6 +491,7 @@ export {
   escre,
   indent,
   deep,
+  isbinext,
 
   Project,
   Content,

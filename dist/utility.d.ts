@@ -36,4 +36,5 @@ declare namespace vmap {
     var KEY: (_: any, p: any) => any;
 }
 declare const BINARY_EXT: string[];
-export { each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, BINARY_EXT, };
+declare function isbinext(path: string): boolean;
+export { each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, isbinext, BINARY_EXT, };
