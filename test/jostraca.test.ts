@@ -559,5 +559,61 @@ describe('jostraca', () => {
     })
   })
 
+
+  test('protect', async () => {
+    const { fs, vol } = memfs({
+      '/top/t0/p0/foo.txt': 'FOO new',
+      '/top/t0/p0/bar.txt': 'BAR new',
+      '/top/t0/p1/z0.txt': 'z0 new',
+      '/top/t0/p1/z1.txt': 'z1 new',
+
+      '/top/s0/p0/foo.txt': 'foo old # JOSTRACA_PROTECT',
+      '/top/s0/p0/bar.txt': 'bar old',
+      '/top/s0/p1/z0.txt': 'z0 old',
+      '/top/s0/p1/z1.txt': 'z1 old # JOSTRACA_PROTECT',
+    })
+
+    const jostraca = Jostraca()
+
+    const info = await jostraca.generate(
+      { fs: () => fs, folder: '/top' },
+      cmp((props: any) => {
+        Project({ folder: 's0' }, () => {
+
+          Folder({ name: 'p0' }, () => {
+
+            File({ name: 'foo.txt' }, () => {
+              Content('FOO new')
+            })
+
+            File({ name: 'bar.txt' }, () => {
+              Content('BAR new')
+            })
+          })
+
+          Copy({ from: '/top/t0' })
+        })
+      })
+    )
+
+    const voljson: any = vol.toJSON()
+
+    expect(JSON.parse(voljson['/top/.jostraca/jostraca.json.log']).exclude).equal([])
+    expect(voljson).equal({
+      '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
+
+      '/top/t0/p0/foo.txt': 'FOO new',
+      '/top/t0/p0/bar.txt': 'BAR new',
+      '/top/t0/p1/z0.txt': 'z0 new',
+      '/top/t0/p1/z1.txt': 'z1 new',
+
+      '/top/s0/p0/foo.txt': 'foo old # JOSTRACA_PROTECT',
+      '/top/s0/p0/bar.txt': 'BAR new',
+      '/top/s0/p1/z0.txt': 'z0 new',
+      '/top/s0/p1/z1.txt': 'z1 old # JOSTRACA_PROTECT'
+
+    })
+  })
+
 })
 

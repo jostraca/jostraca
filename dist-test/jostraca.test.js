@@ -394,5 +394,44 @@ const __1 = require("../");
             '/top/p0/haz.old.bin': '\t\b\x07\x06\x05',
         });
     });
+    (0, node_test_1.test)('protect', async () => {
+        const { fs, vol } = (0, memfs_1.memfs)({
+            '/top/t0/p0/foo.txt': 'FOO new',
+            '/top/t0/p0/bar.txt': 'BAR new',
+            '/top/t0/p1/z0.txt': 'z0 new',
+            '/top/t0/p1/z1.txt': 'z1 new',
+            '/top/s0/p0/foo.txt': 'foo old # JOSTRACA_PROTECT',
+            '/top/s0/p0/bar.txt': 'bar old',
+            '/top/s0/p1/z0.txt': 'z0 old',
+            '/top/s0/p1/z1.txt': 'z1 old # JOSTRACA_PROTECT',
+        });
+        const jostraca = (0, __1.Jostraca)();
+        const info = await jostraca.generate({ fs: () => fs, folder: '/top' }, (0, __1.cmp)((props) => {
+            (0, __1.Project)({ folder: 's0' }, () => {
+                (0, __1.Folder)({ name: 'p0' }, () => {
+                    (0, __1.File)({ name: 'foo.txt' }, () => {
+                        (0, __1.Content)('FOO new');
+                    });
+                    (0, __1.File)({ name: 'bar.txt' }, () => {
+                        (0, __1.Content)('BAR new');
+                    });
+                });
+                (0, __1.Copy)({ from: '/top/t0' });
+            });
+        }));
+        const voljson = vol.toJSON();
+        (0, code_1.expect)(JSON.parse(voljson['/top/.jostraca/jostraca.json.log']).exclude).equal([]);
+        (0, code_1.expect)(voljson).equal({
+            '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
+            '/top/t0/p0/foo.txt': 'FOO new',
+            '/top/t0/p0/bar.txt': 'BAR new',
+            '/top/t0/p1/z0.txt': 'z0 new',
+            '/top/t0/p1/z1.txt': 'z1 new',
+            '/top/s0/p0/foo.txt': 'foo old # JOSTRACA_PROTECT',
+            '/top/s0/p0/bar.txt': 'BAR new',
+            '/top/s0/p1/z0.txt': 'z0 new',
+            '/top/s0/p1/z1.txt': 'z1 old # JOSTRACA_PROTECT'
+        });
+    });
 });
 //# sourceMappingURL=jostraca.test.js.map

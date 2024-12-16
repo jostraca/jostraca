@@ -370,6 +370,8 @@ function makeNode() {
 
 
 function makeSave(fs: any, existingText: any, existingBinary: any, buildctx: any) {
+  const JOSTRACA_PROTECT = 'JOSTRACA_PROTECT'
+
   return function save(path: string, content: string | Buffer, write = false) {
     const existing = 'string' === typeof content ? existingText : existingBinary
 
@@ -380,12 +382,14 @@ function makeSave(fs: any, existingText: any, existingBinary: any, buildctx: any
     write = write || !exists
 
     if (exists) {
-      let oldcontent
+      let oldcontent = fs.readFileSync(path, 'utf8').toString()
+      const protect = 0 <= oldcontent.indexOf(JOSTRACA_PROTECT)
 
       if (existing.preserve) {
-        oldcontent = null == oldcontent ? fs.readFileSync(path, 'utf8').toString() : oldcontent
-
-        if (oldcontent.length !== content.length || oldcontent !== content) {
+        if (protect) {
+          write = false
+        }
+        else if (oldcontent.length !== content.length || oldcontent !== content) {
           let oldpath =
             Path.join(folder, Path.basename(path).replace(/\.[^.]+$/, '') +
               '.old' + Path.extname(path))
@@ -394,12 +398,10 @@ function makeSave(fs: any, existingText: any, existingBinary: any, buildctx: any
         }
       }
 
-      if (existing.write) {
+      if (existing.write && !protect) {
         write = true
       }
       else if (existing.present) {
-        oldcontent = null == oldcontent ? fs.readFileSync(path, 'utf8').toString() : oldcontent
-
         if (oldcontent.length !== content.length || oldcontent !== content) {
           let newpath =
             Path.join(folder, Path.basename(path).replace(/\.[^.]+$/, '') +
@@ -409,8 +411,7 @@ function makeSave(fs: any, existingText: any, existingBinary: any, buildctx: any
         }
       }
 
-      if (existing.merge) {
-        oldcontent = null == oldcontent ? fs.readFileSync(path, 'utf8').toString() : oldcontent
+      if (existing.merge && !protect) {
         write = false
 
         if (oldcontent.length !== content.length || oldcontent !== content) {

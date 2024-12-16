@@ -331,6 +331,7 @@ function makeNode() {
     return { kind: 'none', path: [], meta: {}, content: [] };
 }
 function makeSave(fs, existingText, existingBinary, buildctx) {
+    const JOSTRACA_PROTECT = 'JOSTRACA_PROTECT';
     return function save(path, content, write = false) {
         const existing = 'string' === typeof content ? existingText : existingBinary;
         path = node_path_1.default.normalize(path);
@@ -338,21 +339,23 @@ function makeSave(fs, existingText, existingBinary, buildctx) {
         const exists = fs.existsSync(path);
         write = write || !exists;
         if (exists) {
-            let oldcontent;
+            let oldcontent = fs.readFileSync(path, 'utf8').toString();
+            const protect = 0 <= oldcontent.indexOf(JOSTRACA_PROTECT);
             if (existing.preserve) {
-                oldcontent = null == oldcontent ? fs.readFileSync(path, 'utf8').toString() : oldcontent;
-                if (oldcontent.length !== content.length || oldcontent !== content) {
+                if (protect) {
+                    write = false;
+                }
+                else if (oldcontent.length !== content.length || oldcontent !== content) {
                     let oldpath = node_path_1.default.join(folder, node_path_1.default.basename(path).replace(/\.[^.]+$/, '') +
                         '.old' + node_path_1.default.extname(path));
                     copy(fs, path, oldpath);
                     buildctx.file.preserve.push({ path, action: 'preserve' });
                 }
             }
-            if (existing.write) {
+            if (existing.write && !protect) {
                 write = true;
             }
             else if (existing.present) {
-                oldcontent = null == oldcontent ? fs.readFileSync(path, 'utf8').toString() : oldcontent;
                 if (oldcontent.length !== content.length || oldcontent !== content) {
                     let newpath = node_path_1.default.join(folder, node_path_1.default.basename(path).replace(/\.[^.]+$/, '') +
                         '.new' + node_path_1.default.extname(path));
@@ -360,8 +363,7 @@ function makeSave(fs, existingText, existingBinary, buildctx) {
                     buildctx.file.preserve.push({ path, action: 'present' });
                 }
             }
-            if (existing.merge) {
-                oldcontent = null == oldcontent ? fs.readFileSync(path, 'utf8').toString() : oldcontent;
+            if (existing.merge && !protect) {
                 write = false;
                 if (oldcontent.length !== content.length || oldcontent !== content) {
                     merge(fs, buildctx.when, path, content, oldcontent);
