@@ -18,6 +18,8 @@ const CopyShape = Gubu({
   // or if copying a file, the output filename, if different.
   to: Optional(String) as unknown as string,
 
+  replace: {} as any,
+
   exclude: Optional(One(Boolean, [One(String, RegExp)])) as unknown as any
 }, { name: 'Copy' })
 
@@ -36,6 +38,8 @@ const Copy = cmp(function Copy(props: CopyProps, _children: any) {
   node.name = props.to
 
   node.exclude = null == props.exclude ? node.exclude : props.exclude
+
+  node.replace = props.replace
 })
 
 

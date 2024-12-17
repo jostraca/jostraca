@@ -45,7 +45,6 @@ const Fragment = cmp(function Fragment(props: FragmentProps, children: any) {
 
   let src = fs.readFileSync(frompath, 'utf8')
 
-
   const slotnames: Record<string, boolean> = {}
 
   node.filter = (({ props, component }) =>

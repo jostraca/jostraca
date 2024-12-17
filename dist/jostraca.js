@@ -37,7 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.List = exports.Slot = exports.Line = exports.Copy = exports.Folder = exports.Fragment = exports.Inject = exports.File = exports.Content = exports.Project = exports.isbinext = exports.deep = exports.indent = exports.escre = exports.template = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.select = exports.each = void 0;
+exports.List = exports.Slot = exports.Line = exports.Copy = exports.Folder = exports.Fragment = exports.Inject = exports.File = exports.Content = exports.Project = exports.omap = exports.deep = exports.isbinext = exports.indent = exports.escre = exports.template = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.select = exports.each = void 0;
 exports.Jostraca = Jostraca;
 exports.cmp = cmp;
 // TODO:
@@ -65,6 +65,11 @@ Object.defineProperty(exports, "template", { enumerable: true, get: function () 
 Object.defineProperty(exports, "escre", { enumerable: true, get: function () { return utility_1.escre; } });
 Object.defineProperty(exports, "indent", { enumerable: true, get: function () { return utility_1.indent; } });
 Object.defineProperty(exports, "isbinext", { enumerable: true, get: function () { return utility_1.isbinext; } });
+// TODO: the actual signatures
+const deep = jsonic_1.util.deep;
+exports.deep = deep;
+const omap = jsonic_1.util.omap;
+exports.omap = omap;
 const Content_1 = require("./cmp/Content");
 Object.defineProperty(exports, "Content", { enumerable: true, get: function () { return Content_1.Content; } });
 const Line_1 = require("./cmp/Line");
@@ -94,8 +99,6 @@ const InjectOp_1 = require("./op/InjectOp");
 const FragmentOp_1 = require("./op/FragmentOp");
 const ContentOp_1 = require("./op/ContentOp");
 const NoneOp_1 = require("./op/NoneOp");
-const deep = jsonic_1.util.deep;
-exports.deep = deep;
 const GLOBAL = global;
 const DEFAULT_LOGGER = {
     trace: (...args) => console.log(new Date().toISOString(), 'TRACE', ...args),

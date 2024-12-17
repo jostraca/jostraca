@@ -325,6 +325,7 @@ function template(src, model, spec) {
     let handle = spec?.handle || ((s) => out += (null == s ? '' : s));
     while (nextm) {
         let m = remain.match(insertRE);
+        // console.log('M', m)
         if (m) {
             let mi = m.index || 0;
             handle(remain.substring(0, mi));

@@ -3,7 +3,7 @@ import Path from 'node:path'
 
 import type { Node, BuildContext } from '../jostraca'
 
-import { getx } from '../jostraca'
+import { getx, template } from '../jostraca'
 
 import { isbinext } from '../utility'
 
@@ -117,7 +117,8 @@ function walk(fs: any, state: any, nodepath: string[], from: string, to: string)
     else if (isTemplateFile) {
       if (excludeFile(fs, state, nodepath, name, topath)) { continue }
       const src = fs.readFileSync(frompath, 'utf8')
-      const out = genTemplate(state, src, { name, frompath, topath })
+      // const out = genTemplate(state, src, { name, frompath, topath })
+      const out = template(src, state.ctx$.model, { replace: state.node.replace })
       buildctx.util.save(topath, out)
       // writeFileSync(fs, topath, out)
       state.fileCount++
@@ -212,8 +213,30 @@ function processTemplate(
   state: any,
   src: any,
   spec: { name: string, frompath: string, topath: string }) {
+
+  // console.log('PT', src, state.ctx$.model)
+
   if (isTemplate(spec.name)) {
-    return genTemplate(state, src, spec)
+    // return genTemplate(state, src, spec)
+    return template(src, state.ctx$.model, {
+      replace: {
+        ...(state.node?.replace || {}),
+
+        // // TODO: make $$ markers an option
+        // '/\\$\\$(?<ref>[^$]+)\\$\\$/': ({ ref }: any) => {
+        //   let insert = getx(state.ctx$.model, ref)
+
+        //   console.log('COPYTM', ref, insert)
+
+        //   if (null == insert) {
+        //     return '$$' + ref + '$$'
+        //   }
+        //   else {
+        //     return insert
+        //   }
+        // }
+      }
+    })
   }
   return src
 }
@@ -224,6 +247,7 @@ function isTemplate(name: string) {
 }
 
 
+/*
 // NOTE: $$foo.bar$$ format used as explicit start and end markers mean regex can be used
 // unambiguously ($fooa would not match `foo`)
 function genTemplate(
@@ -257,6 +281,8 @@ function genTemplate(
   }
   return out
 }
+*/
+
 
 export {
   CopyOp

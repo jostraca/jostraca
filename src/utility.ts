@@ -400,6 +400,7 @@ function template(
 
   while (nextm) {
     let m = remain.match(insertRE)
+    // console.log('M', m)
 
     if (m) {
       let mi = m.index || 0

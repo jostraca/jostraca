@@ -46,6 +46,11 @@ import {
 } from './utility'
 
 
+// TODO: the actual signatures
+const deep: (...args: any[]) => any = JsonicUtil.deep
+const omap: (...args: any[]) => any = JsonicUtil.omap
+
+
 import { Content } from './cmp/Content'
 import { Line } from './cmp/Line'
 import { Slot } from './cmp/Slot'
@@ -68,7 +73,7 @@ import { ContentOp } from './op/ContentOp'
 import { NoneOp } from './op/NoneOp'
 
 
-const deep: any = JsonicUtil.deep
+
 
 const GLOBAL = (global as any)
 
@@ -491,8 +496,10 @@ export {
   template,
   escre,
   indent,
-  deep,
   isbinext,
+
+  deep,
+  omap,
 
   Project,
   Content,

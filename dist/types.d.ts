@@ -29,6 +29,7 @@ type Node = {
     indent?: string;
     filter?: (props: any, children: any, component: any) => boolean;
     fullpath?: string;
+    replace?: Record<string, any>;
 };
 type OpStep = (node: Node, ctx$: any, buildctx: any) => Promise<any> | void;
 type OpDef = {

@@ -97,7 +97,8 @@ function walk(fs, state, nodepath, from, to) {
                 continue;
             }
             const src = fs.readFileSync(frompath, 'utf8');
-            const out = genTemplate(state, src, { name, frompath, topath });
+            // const out = genTemplate(state, src, { name, frompath, topath })
+            const out = (0, jostraca_1.template)(src, state.ctx$.model, { replace: state.node.replace });
             buildctx.util.save(topath, out);
             // writeFileSync(fs, topath, out)
             state.fileCount++;
@@ -171,41 +172,29 @@ function excluded(path, excludes) {
     return out;
 }
 function processTemplate(state, src, spec) {
+    // console.log('PT', src, state.ctx$.model)
     if (isTemplate(spec.name)) {
-        return genTemplate(state, src, spec);
+        // return genTemplate(state, src, spec)
+        return (0, jostraca_1.template)(src, state.ctx$.model, {
+            replace: {
+                ...(state.node?.replace || {}),
+                // // TODO: make $$ markers an option
+                // '/\\$\\$(?<ref>[^$]+)\\$\\$/': ({ ref }: any) => {
+                //   let insert = getx(state.ctx$.model, ref)
+                //   console.log('COPYTM', ref, insert)
+                //   if (null == insert) {
+                //     return '$$' + ref + '$$'
+                //   }
+                //   else {
+                //     return insert
+                //   }
+                // }
+            }
+        });
     }
     return src;
 }
 function isTemplate(name) {
     return !(0, utility_1.isbinext)(name);
-}
-// NOTE: $$foo.bar$$ format used as explicit start and end markers mean regex can be used
-// unambiguously ($fooa would not match `foo`)
-function genTemplate(state, src, spec) {
-    let model = state.ctx$.model; // { foo: 'FOO', bar: 'BAR' }
-    let out = '';
-    let remain = src;
-    let nextm = true;
-    while (nextm) {
-        let m = remain.match(/\$\$([^$]+)\$\$/);
-        if (m) {
-            let ref = m[1];
-            out += remain.substring(0, m.index);
-            let insert = (0, jostraca_1.getx)(model, ref);
-            if (null == insert) {
-                out += '$$' + ref + '$$';
-                remain = remain.substring(m.index + 4 + ref.length);
-            }
-            else {
-                out += insert;
-                remain = remain.substring(m.index + 4 + ref.length);
-            }
-        }
-        else {
-            out += remain;
-            nextm = false;
-        }
-    }
-    return out;
 }
 //# sourceMappingURL=CopyOp.js.map
