@@ -110,6 +110,7 @@ const __1 = require("../");
             .equal([{ y: 2 }, { y: 2 }]);
         (0, code_1.expect)((0, __1.getx)([{ y: 1 }, { y: 2 }, { y: 2 }], '?y=2 0'))
             .equal({ y: 2 });
+        (0, code_1.expect)((0, __1.getx)({ a: { b: 1 } }, 'a "b"')).equal(1);
     });
     (0, node_test_1.test)('template', () => {
         (0, code_1.expect)((0, __1.template)('a$$b.c$$d', { b: { c: 'X' } })).equal('aXd');

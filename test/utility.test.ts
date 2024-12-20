@@ -162,6 +162,9 @@ describe('util', () => {
 
     expect(getx([{ y: 1 }, { y: 2 }, { y: 2 }], '?y=2 0'))
       .equal({ y: 2 })
+
+
+    expect(getx({ a: { b: 1 } }, 'a "b"')).equal(1)
   })
 
 
