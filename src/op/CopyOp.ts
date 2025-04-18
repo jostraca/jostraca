@@ -19,6 +19,8 @@ const CopyOp = {
     let name = node.name as string
     const from = node.from as string
 
+    // console.log('COPY-OP', node, buildctx.current)
+
     const fromStat = fs.statSync(from)
 
     if (fromStat.isFile()) {

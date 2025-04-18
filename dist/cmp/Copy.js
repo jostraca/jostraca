@@ -3,11 +3,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Copy = void 0;
 const jostraca_1 = require("../jostraca");
 const gubu_1 = require("gubu");
-const From = (from, _, s) => s.ctx.fs().statSync(from);
+const From = (from, _, s) => s.ctx.meta.fs().statSync(from);
 const CopyShape = (0, gubu_1.Gubu)({
     ctx$: Object,
     // The From path is independent of the project folder.
     from: (0, gubu_1.Check)(From).String(),
+    //from: String,
     // output folder is current folder, this is an optional subfolder,
     // or if copying a file, the output filename, if different.
     to: (0, gubu_1.Optional)(String),
@@ -15,8 +16,20 @@ const CopyShape = (0, gubu_1.Gubu)({
     exclude: (0, gubu_1.Optional)((0, gubu_1.One)(Boolean, [(0, gubu_1.One)(String, RegExp)]))
 }, { name: 'Copy' });
 const Copy = (0, jostraca_1.cmp)(function Copy(props, _children) {
-    props = CopyShape(props, { fs: props.ctx$.fs });
-    const node = props.ctx$.node;
+    const ctx = props.ctx$;
+    const node = ctx.node;
+    props = CopyShape(props, {
+        prefix: `(${ctx.model.name}: ${node.path.join('/')})`,
+        meta: { fs: props.ctx$.fs },
+        // TODO: expand this to support a file extract and/or source mapping back to ts
+        suffix: () => {
+            const errstk = new Error();
+            const lines = errstk.stack.split('\n')
+                .filter((n) => !n.includes('/gubu/'))
+                .filter((n) => !n.includes('/jostraca/'));
+            return '[' + (lines[1] || '').trim() + ']';
+        }
+    });
     node.kind = 'copy';
     node.from = props.from;
     // NOTE: props.to is used as the Node name 

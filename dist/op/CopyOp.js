@@ -14,6 +14,7 @@ const CopyOp = {
         // TODO: do these need null checks here?
         let name = node.name;
         const from = node.from;
+        // console.log('COPY-OP', node, buildctx.current)
         const fromStat = fs.statSync(from);
         if (fromStat.isFile()) {
             if (null == node.name || '' === node.name) {
