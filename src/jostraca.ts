@@ -101,13 +101,15 @@ const OptionsShape = Gubu({
     write: true, // Overwrite existing files (unless present=true).
     preserve: false, // Keep a backup copy (.old.) of overwritten files.
     present: false, // Present the new file using .new. name annotation.
-    merge: false, // Annotated merge of new generate and existing file.
+    diff: false, // Annotated 2-way diff of new generate and existing file.
+    // merge: false, // Annotated 3-way merge of new generate and existing file.
   },
 
   existingBinary: {
     write: true, // Overwrite existing files (unless present=true).
     preserve: false, // Keep a backup copy (.old.) of overwritten files.
     present: false, // Present the new file using .new. name annotation.
+    // No diff of binary files
     // No merge of binary files
   },
 
@@ -206,7 +208,7 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
           write: [],
           preserve: [],
           present: [],
-          merge: [],
+          diff: [],
         },
         util: {
           save: () => null,
@@ -416,12 +418,12 @@ function makeSave(fs: any, existingText: any, existingBinary: any, buildctx: any
         }
       }
 
-      if (existing.merge && !protect) {
+      if (existing.diff && !protect) {
         write = false
 
         if (oldcontent.length !== content.length || oldcontent !== content) {
-          merge(fs, buildctx.when, path, content as string, oldcontent)
-          buildctx.file.merge.push({ path, action: 'merge' })
+          diff(fs, buildctx.when, path, content as string, oldcontent)
+          buildctx.file.diff.push({ path, action: 'diff' })
         }
       }
     }
@@ -444,13 +446,13 @@ function copy(fs: any, frompath: string, topath: string) {
 }
 
 
-function merge(fs: any, when: number, path: string, oldcontent: string, newcontent: string) {
-  const diff = Diff.diffLines(newcontent, oldcontent)
+function diff(fs: any, when: number, path: string, oldcontent: string, newcontent: string) {
+  const difflines = Diff.diffLines(newcontent, oldcontent)
 
   const out: string[] = []
   const isowhen = new Date(when).toISOString()
 
-  diff.forEach((part: any) => {
+  difflines.forEach((part: any) => {
     if (part.added) {
       out.push('<<<<<< GENERATED: ' + isowhen + '\n')
       out.push(part.value)

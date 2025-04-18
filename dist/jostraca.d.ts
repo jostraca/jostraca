@@ -24,7 +24,7 @@ declare const OptionsShape: {
             write: boolean;
             preserve: boolean;
             present: boolean;
-            merge: boolean;
+            diff: boolean;
         };
         existingBinary: {
             write: boolean;
@@ -52,7 +52,7 @@ declare const OptionsShape: {
             write: boolean;
             preserve: boolean;
             present: boolean;
-            merge: boolean;
+            diff: boolean;
         };
         existingBinary: {
             write: boolean;
@@ -118,7 +118,7 @@ declare const OptionsShape: {
             write: boolean;
             preserve: boolean;
             present: boolean;
-            merge: boolean;
+            diff: boolean;
         };
         existingBinary: {
             write: boolean;

@@ -24,7 +24,7 @@ import {
 
 describe('merge', () => {
 
-  test('happy', async () => {
+  test('over', async () => {
     expect(Jostraca).exist()
 
     const jostraca = Jostraca()

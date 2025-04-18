@@ -334,7 +334,7 @@ const __1 = require("../");
         const jostraca = (0, __1.Jostraca)();
         const info = await jostraca.generate({
             fs: () => fs, folder: '/top',
-            existing: { merge: true },
+            existing: { diff: true },
             existingBinary: { preserve: true },
         }, (0, __1.cmp)(() => {
             (0, __1.Project)({ folder: 'p0' }, () => {
@@ -354,9 +354,9 @@ const __1 = require("../");
             ],
             preserve: [{ path: '/top/p0/haz.bin', action: 'preserve' }],
             present: [],
-            merge: [
-                { path: '/top/p0/bar.txt', action: 'merge' },
-                { path: '/top/p0/zed.txt', action: 'merge' }
+            diff: [
+                { path: '/top/p0/bar.txt', action: 'diff' },
+                { path: '/top/p0/zed.txt', action: 'diff' }
             ]
         });
         const isowhen = new Date(info.when).toISOString();

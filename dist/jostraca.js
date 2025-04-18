@@ -120,12 +120,14 @@ const OptionsShape = (0, gubu_1.Gubu)({
         write: true, // Overwrite existing files (unless present=true).
         preserve: false, // Keep a backup copy (.old.) of overwritten files.
         present: false, // Present the new file using .new. name annotation.
-        merge: false, // Annotated merge of new generate and existing file.
+        diff: false, // Annotated 2-way diff of new generate and existing file.
+        // merge: false, // Annotated 3-way merge of new generate and existing file.
     },
     existingBinary: {
         write: true, // Overwrite existing files (unless present=true).
         preserve: false, // Keep a backup copy (.old.) of overwritten files.
         present: false, // Present the new file using .new. name annotation.
+        // No diff of binary files
         // No merge of binary files
     },
     model: {},
@@ -204,7 +206,7 @@ function Jostraca(gopts_in) {
                     write: [],
                     preserve: [],
                     present: [],
-                    merge: [],
+                    diff: [],
                 },
                 util: {
                     save: () => null,
@@ -366,11 +368,11 @@ function makeSave(fs, existingText, existingBinary, buildctx) {
                     buildctx.file.preserve.push({ path, action: 'present' });
                 }
             }
-            if (existing.merge && !protect) {
+            if (existing.diff && !protect) {
                 write = false;
                 if (oldcontent.length !== content.length || oldcontent !== content) {
-                    merge(fs, buildctx.when, path, content, oldcontent);
-                    buildctx.file.merge.push({ path, action: 'merge' });
+                    diff(fs, buildctx.when, path, content, oldcontent);
+                    buildctx.file.diff.push({ path, action: 'diff' });
                 }
             }
         }
@@ -388,11 +390,11 @@ function copy(fs, frompath, topath) {
     const contents = fs.readFileSync(frompath, isBinary ? undefined : 'utf8');
     fs.writeFileSync(topath, contents, { flush: true });
 }
-function merge(fs, when, path, oldcontent, newcontent) {
-    const diff = Diff.diffLines(newcontent, oldcontent);
+function diff(fs, when, path, oldcontent, newcontent) {
+    const difflines = Diff.diffLines(newcontent, oldcontent);
     const out = [];
     const isowhen = new Date(when).toISOString();
-    diff.forEach((part) => {
+    difflines.forEach((part) => {
         if (part.added) {
             out.push('<<<<<< GENERATED: ' + isowhen + '\n');
             out.push(part.value);

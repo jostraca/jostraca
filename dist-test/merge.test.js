@@ -5,7 +5,7 @@ const code_1 = require("@hapi/code");
 const memfs_1 = require("memfs");
 const __1 = require("../");
 (0, node_test_1.describe)('merge', () => {
-    (0, node_test_1.test)('happy', async () => {
+    (0, node_test_1.test)('over', async () => {
         (0, code_1.expect)(__1.Jostraca).exist();
         const jostraca = (0, __1.Jostraca)();
         (0, code_1.expect)(jostraca).exist();

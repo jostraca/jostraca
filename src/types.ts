@@ -67,7 +67,7 @@ type Log = {
 
 type FileEntry = {
   path: string
-  action: 'write' | 'preserve' | 'present' | 'merge'
+  action: 'write' | 'preserve' | 'present' | 'diff'
   copy?: string
 }
 
@@ -97,7 +97,7 @@ type BuildContext = {
     write: FileEntry[],
     preserve: FileEntry[],
     present: FileEntry[],
-    merge: FileEntry[],
+    diff: FileEntry[],
   }
 }
 

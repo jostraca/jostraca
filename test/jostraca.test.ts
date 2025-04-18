@@ -491,7 +491,7 @@ describe('jostraca', () => {
     const info = await jostraca.generate(
       {
         fs: () => fs, folder: '/top',
-        existing: { merge: true },
+        existing: { diff: true },
         existingBinary: { preserve: true },
       },
       cmp(() => {
@@ -515,9 +515,9 @@ describe('jostraca', () => {
       ],
       preserve: [{ path: '/top/p0/haz.bin', action: 'preserve' }],
       present: [],
-      merge: [
-        { path: '/top/p0/bar.txt', action: 'merge' },
-        { path: '/top/p0/zed.txt', action: 'merge' }
+      diff: [
+        { path: '/top/p0/bar.txt', action: 'diff' },
+        { path: '/top/p0/zed.txt', action: 'diff' }
       ]
     })
 
