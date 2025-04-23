@@ -24,9 +24,11 @@ import type {
   OpDef,
   Component,
   Log,
-  BuildContext,
 } from './types'
 
+import {
+  BuildContext
+} from './BuildContext'
 
 import {
   each,
@@ -43,7 +45,7 @@ import {
   escre,
   indent,
   isbinext,
-} from './utility'
+} from './util/basic'
 
 
 // TODO: the actual signatures
@@ -97,6 +99,7 @@ const OptionsShape = Gubu({
   // TOOD: needs rethink
   exclude: false, // Exclude modified output files. Default: `false`.
 
+  // TODO: change to existing:{txt,bin}
   existing: {
     write: true, // Overwrite existing files (unless present=true).
     preserve: false, // Keep a backup copy (.old.) of overwritten files.
@@ -128,6 +131,13 @@ const OptionsShape = Gubu({
 
 type JostracaOptions = ReturnType<typeof OptionsShape>
 
+type ExistingTxt = JostracaOptions["existing"]
+type ExistingBin = JostracaOptions["existingBinary"]
+type Existing = {
+  txt: ExistingTxt
+  bin: ExistingBin
+}
+
 
 function Jostraca(gopts_in?: JostracaOptions | {}) {
   GLOBAL.jostraca = new AsyncLocalStorage()
@@ -152,8 +162,10 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
     const log: Log = opts.log || gopts?.log || DEFAULT_LOGGER
     const debug: boolean = !!(null == opts.debug ? gopts?.debug : opts.debug)
 
-    const existing = deep(gopts.existing, opts.existing)
-    const existingBinary = deep(gopts.existingBinary, opts.existingBinary)
+    const existing = {
+      txt: deep(gopts.existing, opts.existing),
+      bin: deep(gopts.existingBinary, opts.existingBinary),
+    }
 
     const doBuild: boolean = null == gopts?.build ? false !== opts.build : false !== gopts?.build
 
@@ -185,37 +197,46 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
       const ctx$ = GLOBAL.jostraca.getStore()
 
       // Build phase
-      const buildctx: BuildContext = {
-        root: ctx$.root,
-        when: Date.now(),
-        vol: memfs?.vol,
+      const buildctx = new BuildContext(
         folder,
-        current: {
-          project: {
-            node: makeNode(),
-          },
-          folder: {
-            node: makeNode(),
-            parent: folder,
-            path: [],
-          },
-          // TODI: should be file.node
-          file: makeNode(),
-          content: undefined,
-        },
-        log: { exclude: [], last: -1 },
-        file: {
-          write: [],
-          preserve: [],
-          present: [],
-          diff: [],
-        },
-        util: {
-          save: () => null,
-        }
-      }
+        existing,
+        ctx$.fs
+      )
 
-      buildctx.util.save = makeSave(fs, existing, existingBinary, buildctx)
+      /*
+              = {
+              root: ctx$.root,
+              when: Date.now(),
+              vol: memfs?.vol,
+              folder,
+              current: {
+                project: {
+                  node: makeNode(),
+                },
+                folder: {
+                  node: makeNode(),
+                  parent: folder,
+                  path: [],
+                },
+                // TODI: should be file.node
+                file: makeNode(),
+                content: undefined,
+              },
+              log: { exclude: [], last: -1 },
+              file: {
+                write: [],
+                preserve: [],
+                present: [],
+                diff: [],
+              },
+              util: {
+                save: () => null,
+              }
+            }
+      
+            // buildctx.util.save = makeSave(fs, existing, existingBinary, buildctx)
+            */
+
 
       if (doBuild) {
         await build(ctx$, buildctx)
@@ -229,6 +250,7 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
   async function build(ctx$: any, buildctx: BuildContext) {
     const topnode = ctx$.node
 
+    /*
     const logpath = Path.join(buildctx.folder, '.jostraca', 'jostraca.json.log')
 
     try {
@@ -238,10 +260,13 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
     catch (err: any) {
       // TODO: file not foound ignored, handle others!
     }
+    */
 
     await step(topnode, ctx$, buildctx)
 
+    buildctx.bmeta.done()
 
+    /*
     try {
       ctx$.fs().mkdirSync(Path.dirname(logpath), { recursive: true })
       const log = {
@@ -254,7 +279,7 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
       console.log(err)
       // TODO: file not found ignored, handle others!
     }
-
+    */
 
     return { node: topnode, ctx$, buildctx }
   }
@@ -376,107 +401,11 @@ function makeNode() {
 }
 
 
-function makeSave(fs: any, existingText: any, existingBinary: any, buildctx: any) {
-  const JOSTRACA_PROTECT = 'JOSTRACA_PROTECT'
-
-  return function save(path: string, content: string | Buffer, write = false) {
-    const existing = 'string' === typeof content ? existingText : existingBinary
-
-    path = Path.normalize(path)
-    const folder = Path.dirname(path)
-
-    const exists = fs.existsSync(path)
-    write = write || !exists
-
-    if (exists) {
-      let oldcontent = fs.readFileSync(path, 'utf8').toString()
-      const protect = 0 <= oldcontent.indexOf(JOSTRACA_PROTECT)
-
-      if (existing.preserve) {
-        if (protect) {
-          write = false
-        }
-        else if (oldcontent.length !== content.length || oldcontent !== content) {
-          let oldpath =
-            Path.join(folder, Path.basename(path).replace(/\.[^.]+$/, '') +
-              '.old' + Path.extname(path))
-          copy(fs, path, oldpath)
-          buildctx.file.preserve.push({ path, action: 'preserve' })
-        }
-      }
-
-      if (existing.write && !protect) {
-        write = true
-      }
-      else if (existing.present) {
-        if (oldcontent.length !== content.length || oldcontent !== content) {
-          let newpath =
-            Path.join(folder, Path.basename(path).replace(/\.[^.]+$/, '') +
-              '.new' + Path.extname(path))
-          fs.writeFileSync(newpath, content, 'utf8', { flush: true })
-          buildctx.file.preserve.push({ path, action: 'present' })
-        }
-      }
-
-      if (existing.diff && !protect) {
-        write = false
-
-        if (oldcontent.length !== content.length || oldcontent !== content) {
-          diff(fs, buildctx.when, path, content as string, oldcontent)
-          buildctx.file.diff.push({ path, action: 'diff' })
-        }
-      }
-    }
-
-    if (write) {
-      fs.mkdirSync(folder, { recursive: true })
-      fs.writeFileSync(path, content, 'utf8', { flush: true })
-      buildctx.file.write.push({ path, action: 'write' })
-    }
-  }
-}
-
-
-function copy(fs: any, frompath: string, topath: string) {
-  // const isBinary = BINARY_EXT.includes(Path.extname(frompath))
-  const isBinary = isbinext(frompath)
-  fs.mkdirSync(Path.dirname(topath), { recursive: true })
-  const contents = fs.readFileSync(frompath, isBinary ? undefined : 'utf8')
-  fs.writeFileSync(topath, contents, { flush: true })
-}
-
-
-function diff(fs: any, when: number, path: string, oldcontent: string, newcontent: string) {
-  const difflines = Diff.diffLines(newcontent, oldcontent)
-
-  const out: string[] = []
-  const isowhen = new Date(when).toISOString()
-
-  difflines.forEach((part: any) => {
-    if (part.added) {
-      out.push('<<<<<< GENERATED: ' + isowhen + '\n')
-      out.push(part.value)
-      out.push('>>>>>> GENERATED: ' + isowhen + '\n')
-    }
-    else if (part.removed) {
-      out.push('<<<<<< EXISTING: ' + isowhen + '\n')
-      out.push(part.value)
-      out.push('>>>>>> EXISTING: ' + isowhen + '\n')
-    }
-    else {
-      out.push(part.value)
-    }
-  })
-
-  const content = out.join('')
-  fs.writeFileSync(path, content, { flush: true })
-}
-
-
 export type {
   JostracaOptions,
   Component,
   Node,
+  Existing,
 }
 
 

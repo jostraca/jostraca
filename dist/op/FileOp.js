@@ -49,7 +49,8 @@ const FileOp = {
         }
         const fullpath = cfile.fullpath;
         if (!exclude) {
-            buildctx.util.save(fullpath, content);
+            // buildctx.util.save(fullpath, content)
+            buildctx.fh.save(fullpath, content);
         }
         else {
             if (!log.exclude.includes(rpath)) {

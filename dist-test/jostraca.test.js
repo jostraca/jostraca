@@ -4,6 +4,9 @@ const node_test_1 = require("node:test");
 const code_1 = require("@hapi/code");
 const memfs_1 = require("memfs");
 const __1 = require("../");
+const META_FOLDER = '.jostraca';
+const META_FILE = 'jostraca.meta.log';
+const TOP_META = '/top/' + META_FOLDER + '/' + META_FILE;
 (0, node_test_1.describe)('jostraca', () => {
     (0, node_test_1.test)('happy', async () => {
         (0, code_1.expect)(__1.Jostraca).exist();
@@ -27,9 +30,10 @@ const __1 = require("../");
         }));
         // console.log('INFO', info)
         const voljson = vol.toJSON();
-        (0, code_1.expect)(JSON.parse(voljson['/top/.jostraca/jostraca.json.log']).exclude).equal([]);
+        // console.log(voljson)
+        (0, code_1.expect)(JSON.parse(voljson[TOP_META]).last > 0).true();
         (0, code_1.expect)(voljson).equal({
-            '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
+            [TOP_META]: voljson[TOP_META],
             '/top/sdk/js/foo.js': '// custom-foo\n',
             '/top/sdk/js/bar.js': '// custom-bar\n',
             '/top/sdk/go/zed.go': '// custom-zed\n'
@@ -47,9 +51,9 @@ const __1 = require("../");
         });
         // console.log('INFO', info)
         const voljson = vol.toJSON();
-        (0, code_1.expect)(JSON.parse(voljson['/top/.jostraca/jostraca.json.log']).exclude).equal([]);
+        (0, code_1.expect)(JSON.parse(voljson[TOP_META]).exclude).equal([]);
         (0, code_1.expect)(voljson).equal({
-            '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
+            [TOP_META]: voljson[TOP_META],
             '/top/foo.txt': 'A',
         });
     });
@@ -76,9 +80,9 @@ const __1 = require("../");
             });
         }));
         const voljson = vol.toJSON();
-        (0, code_1.expect)(JSON.parse(voljson['/top/.jostraca/jostraca.json.log']).exclude).equal([]);
+        (0, code_1.expect)(JSON.parse(voljson[TOP_META]).exclude).equal([]);
         (0, code_1.expect)(voljson).equal({
-            '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
+            [TOP_META]: voljson[TOP_META],
             '/tm/bar.txt': '// BAR $$x.z$$ TXT\n',
             '/tm/bar.txt~': '// BAR TXT\n',
             '/tm/sub/a.txt': '// SUB-A $$x.y$$ TXT\n',
@@ -138,7 +142,7 @@ const __1 = require("../");
             '/top/sdk/bar.js': 'ZED+red\n',
             '/top/sdk/qaz.js': 'QAZ+ABC+ALICE+BOB+BOB\n',
             '/top/sdk/foo.js': '// custom-foo\nFOO\n  BAR\n// END\n',
-            '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
+            [TOP_META]: voljson[TOP_META],
         });
     });
     (0, node_test_1.test)('inject', async () => {
@@ -155,7 +159,7 @@ const __1 = require("../");
         }));
         const voljson = vol.toJSON();
         (0, code_1.expect)(voljson).equal({
-            '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
+            [TOP_META]: voljson[TOP_META],
             '/top/foo.txt': 'FOO\n#--START--#\nQAZ\n#--END--#\nZED',
         });
     });
@@ -173,7 +177,7 @@ const __1 = require("../");
         }));
         const voljson = vol.toJSON();
         (0, code_1.expect)(voljson).equal({
-            '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
+            [TOP_META]: voljson[TOP_META],
             '/top/foo.txt': 'ONE\nTWO\nTHREE\n',
         });
     });
@@ -213,7 +217,7 @@ const __1 = require("../");
         // console.dir(info.root, { depth: null })
         const voljson = vol.toJSON();
         (0, code_1.expect)(voljson).equal({
-            '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
+            [TOP_META]: voljson[TOP_META],
             '/f01.txt': 'TWO-$$a$$-bar-zed-con-foo+<[SLOT]>\n',
             '/top/foo.txt': 'ONE\nTWO-A-BAR-ZED-CON-FOO[B]+S\nTHREE\n',
         });
@@ -260,7 +264,7 @@ const __1 = require("../");
         (0, code_1.expect)(voljson).equal({
             '/f01.txt': '<foo>',
             '/foo.txt': '{<FOO[A:B:a=(11):b=(22)]>}',
-            '/.jostraca/jostraca.json.log': voljson['/.jostraca/jostraca.json.log'],
+            ['/' + META_FOLDER + '/' + META_FILE]: voljson['/' + META_FOLDER + '/' + META_FILE],
         });
     });
     (0, node_test_1.test)('existing-file', async () => {
@@ -286,7 +290,7 @@ const __1 = require("../");
             '/f01.txt': 'a0',
             '/g01.txt': 'b1',
             '/h01.txt': 'c0',
-            '/.jostraca/jostraca.json.log': voljson0['/.jostraca/jostraca.json.log'],
+            ['/' + META_FOLDER + '/' + META_FILE]: voljson0['/' + META_FOLDER + '/' + META_FILE],
         });
         const info1 = await jostraca.generate({ folder: '/', existing: { preserve: true } }, (0, __1.cmp)(() => {
             (0, __1.Project)({}, () => {
@@ -303,7 +307,7 @@ const __1 = require("../");
             '/f01.txt': 'a1',
             '/f01.old.txt': 'a0',
             '/h01.txt': 'c0',
-            '/.jostraca/jostraca.json.log': voljson1['/.jostraca/jostraca.json.log'],
+            ['/' + META_FOLDER + '/' + META_FILE]: voljson1['/' + META_FOLDER + '/' + META_FILE],
         });
         const info2 = await jostraca.generate({ folder: '/', existing: { write: false, present: true } }, (0, __1.cmp)(() => {
             (0, __1.Project)({}, () => {
@@ -317,7 +321,7 @@ const __1 = require("../");
             '/f01.txt': 'a0',
             '/f01.new.txt': 'a1',
             '/h01.txt': 'c0',
-            '/.jostraca/jostraca.json.log': voljson2['/.jostraca/jostraca.json.log'],
+            ['/' + META_FOLDER + '/' + META_FILE]: voljson2['/' + META_FOLDER + '/' + META_FILE],
         });
     });
     (0, node_test_1.test)('existing-copy', async () => {
@@ -362,9 +366,9 @@ const __1 = require("../");
         const isowhen = new Date(info.when).toISOString();
         const voljson = vol.toJSON();
         // console.dir(voljson, { depth: null })
-        (0, code_1.expect)(JSON.parse(voljson['/top/.jostraca/jostraca.json.log']).exclude).equal([]);
+        (0, code_1.expect)(JSON.parse(voljson[TOP_META]).exclude).equal([]);
         (0, code_1.expect)(voljson).equal({
-            '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
+            [TOP_META]: voljson[TOP_META],
             '/top/tm0/foo.txt': 'F0\nF1\nF2\n',
             '/top/tm0/bar.txt': 'B0\nB1\nB2\n',
             '/top/tm1/zed.txt': 'Z0\nZ1\nZ2\n',
@@ -420,9 +424,9 @@ const __1 = require("../");
             });
         }));
         const voljson = vol.toJSON();
-        (0, code_1.expect)(JSON.parse(voljson['/top/.jostraca/jostraca.json.log']).exclude).equal([]);
+        (0, code_1.expect)(JSON.parse(voljson[TOP_META]).exclude).equal([]);
         (0, code_1.expect)(voljson).equal({
-            '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
+            [TOP_META]: voljson[TOP_META],
             '/top/t0/p0/foo.txt': 'FOO new',
             '/top/t0/p0/bar.txt': 'BAR new',
             '/top/t0/p1/z0.txt': 'z0 new',

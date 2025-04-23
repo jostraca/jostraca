@@ -1,4 +1,10 @@
-/* Copyright (c) 2024 Richard Rodger, MIT License */
+/* Copyright (c) 2024-2025 Richard Rodger, MIT License */
+
+
+import * as Fs from 'node:fs'
+
+
+type FST = typeof Fs
 
 
 type JostracaOptions = {
@@ -71,36 +77,8 @@ type FileEntry = {
   copy?: string
 }
 
-type BuildContext = {
-  root: Component
-  when: number,
-  vol: any
-  folder: string
-  current: {
-    project: { node: Node }
-    folder: {
-      node: Node,
-      parent: string
-      path: string[]
-    }
-    file: Node
-    content: any
-  }
-  log: {
-    exclude: string[],
-    last: number,
-  }
-  util: {
-    save: (path: string, content: string | Buffer, write?: boolean) => any
-  }
-  file: {
-    write: FileEntry[],
-    preserve: FileEntry[],
-    present: FileEntry[],
-    diff: FileEntry[],
-  }
-}
 
+type Audit = [string, any][]
 
 export type {
   JostracaOptions,
@@ -109,6 +87,8 @@ export type {
   OpDef,
   Component,
   Log,
-  BuildContext,
+  FileEntry,
+  FST,
+  Audit,
 }
 

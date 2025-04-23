@@ -6,7 +6,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CopyOp = void 0;
 const node_path_1 = __importDefault(require("node:path"));
 const jostraca_1 = require("../jostraca");
-const utility_1 = require("../utility");
 const FileOp_1 = require("./FileOp");
 const CopyOp = {
     before(node, ctx$, buildctx) {
@@ -100,8 +99,9 @@ function walk(fs, state, nodepath, from, to) {
             const src = fs.readFileSync(frompath, 'utf8');
             // const out = genTemplate(state, src, { name, frompath, topath })
             const out = (0, jostraca_1.template)(src, state.ctx$.model, { replace: state.node.replace });
-            buildctx.util.save(topath, out);
+            // buildctx.util.save(topath, out)
             // writeFileSync(fs, topath, out)
+            buildctx.fh.saveFile(topath, out);
             state.fileCount++;
             state.tmCount++;
         }
@@ -110,9 +110,10 @@ function walk(fs, state, nodepath, from, to) {
                 continue;
             }
             // copyFileSync(fs, frompath, topath)
-            const isBinary = (0, utility_1.isbinext)(frompath);
-            const content = fs.readFileSync(frompath, isBinary ? undefined : 'utf8');
-            buildctx.util.save(topath, content);
+            // const isBinary = isbinext(frompath)
+            // const content = fs.readFileSync(frompath, isBinary ? undefined : 'utf8')
+            // buildctx.util.save(topath, content)
+            buildctx.fh.copyFile(frompath, topath);
             state.fileCount++;
         }
     }
@@ -196,6 +197,6 @@ function processTemplate(state, src, spec) {
     return src;
 }
 function isTemplate(name) {
-    return !(0, utility_1.isbinext)(name);
+    return !(0, jostraca_1.isbinext)(name);
 }
 //# sourceMappingURL=CopyOp.js.map

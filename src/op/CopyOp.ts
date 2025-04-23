@@ -3,9 +3,7 @@ import Path from 'node:path'
 
 import type { Node, BuildContext } from '../jostraca'
 
-import { getx, template } from '../jostraca'
-
-import { isbinext } from '../utility'
+import { isbinext, template } from '../jostraca'
 
 import { FileOp } from './FileOp'
 
@@ -121,8 +119,11 @@ function walk(fs: any, state: any, nodepath: string[], from: string, to: string)
       const src = fs.readFileSync(frompath, 'utf8')
       // const out = genTemplate(state, src, { name, frompath, topath })
       const out = template(src, state.ctx$.model, { replace: state.node.replace })
-      buildctx.util.save(topath, out)
+      // buildctx.util.save(topath, out)
       // writeFileSync(fs, topath, out)
+
+      buildctx.fh.saveFile(topath, out)
+
       state.fileCount++
       state.tmCount++
     }
@@ -130,9 +131,11 @@ function walk(fs: any, state: any, nodepath: string[], from: string, to: string)
       if (excludeFile(fs, state, nodepath, name, topath)) { continue }
       // copyFileSync(fs, frompath, topath)
 
-      const isBinary = isbinext(frompath)
-      const content = fs.readFileSync(frompath, isBinary ? undefined : 'utf8')
-      buildctx.util.save(topath, content)
+      // const isBinary = isbinext(frompath)
+      // const content = fs.readFileSync(frompath, isBinary ? undefined : 'utf8')
+      // buildctx.util.save(topath, content)
+
+      buildctx.fh.copyFile(frompath, topath)
 
       state.fileCount++
     }

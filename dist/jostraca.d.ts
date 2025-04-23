@@ -1,5 +1,6 @@
-import type { Node, Component, BuildContext } from './types';
-import { each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, isbinext } from './utility';
+import type { Node, Component } from './types';
+import { BuildContext } from './BuildContext';
+import { each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, isbinext } from './util/basic';
 declare const deep: (...args: any[]) => any;
 declare const omap: (...args: any[]) => any;
 import { Content } from './cmp/Content';
@@ -144,9 +145,15 @@ declare const OptionsShape: {
     };
 };
 type JostracaOptions = ReturnType<typeof OptionsShape>;
+type ExistingTxt = JostracaOptions["existing"];
+type ExistingBin = JostracaOptions["existingBinary"];
+type Existing = {
+    txt: ExistingTxt;
+    bin: ExistingBin;
+};
 declare function Jostraca(gopts_in?: JostracaOptions | {}): {
     generate: (opts_in: JostracaOptions | {}, root: Function) => Promise<any>;
 };
 declare function cmp(component: Function): Component;
-export type { JostracaOptions, Component, Node, };
+export type { JostracaOptions, Component, Node, Existing, };
 export { Jostraca, BuildContext, cmp, each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, isbinext, deep, omap, Project, Content, File, Inject, Fragment, Folder, Copy, Line, Slot, List, };
