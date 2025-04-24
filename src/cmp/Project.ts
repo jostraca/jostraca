@@ -12,7 +12,7 @@ const Project = cmp(function Project(props: any, children: any) {
   node.name = props.name
   node.folder = props.folder
 
-  each(children, { call: true })
+  each(children, { call: true, args: props })
 })
 
 

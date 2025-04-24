@@ -1,8 +1,9 @@
 import { BuildContext } from './BuildContext';
-import { FST, Audit } from './types';
+import { FST, Audit } from '../types';
 declare class FileHandler {
     when: number;
     fs: () => FST;
+    now: () => number;
     folder: string;
     audit: Audit;
     maxdepth: number;
@@ -10,6 +11,9 @@ declare class FileHandler {
         txt: any;
         bin: any;
     };
+    duplicate: boolean;
+    duplicateFolder: () => string;
+    last: () => number;
     files: {
         preserved: string[];
         written: string[];
@@ -20,10 +24,11 @@ declare class FileHandler {
     constructor(bctx: BuildContext, existing: {
         txt: any;
         bin: any;
-    });
+    }, duplicate: boolean);
     save(path: string, content: string | Buffer, write?: boolean | string, whence?: string): void;
     copy(frompath: string, topath: string, write?: boolean | string, whence?: string): void;
-    diff(when: number, oldcontent: string, newcontent: string): string;
+    merge(oldcontent: string, newcontent: string, origcontent: string): string;
+    diff(oldcontent: string, newcontent: string): string;
     existsFile(path: string, whence?: string): boolean;
     copyFile(frompath: string, topath: string, whence?: string): void;
     loadJSON(path: string, opts?: any | string, whence?: string): any;

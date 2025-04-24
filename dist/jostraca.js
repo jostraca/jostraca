@@ -44,9 +44,8 @@ const Fs = __importStar(require("node:fs"));
 const node_async_hooks_1 = require("node:async_hooks");
 const jsonic_1 = require("jsonic");
 const gubu_1 = require("gubu");
-const Diff = require('diff');
 const memfs_1 = require("memfs");
-const BuildContext_1 = require("./BuildContext");
+const BuildContext_1 = require("./build/BuildContext");
 Object.defineProperty(exports, "BuildContext", { enumerable: true, get: function () { return BuildContext_1.BuildContext; } });
 const basic_1 = require("./util/basic");
 Object.defineProperty(exports, "each", { enumerable: true, get: function () { return basic_1.each; } });
@@ -110,24 +109,30 @@ const OptionsShape = (0, gubu_1.Gubu)({
     folder: '.', // Base output folder for generated files. Default: `.`.
     meta: {}, // Provide meta data to the generation process. Default: `{}`
     fs: (() => undefined), // File system API. Default: `node:fs`.
+    now: undefined, // Provide current time.
     log: DEFAULT_LOGGER, // Logging interface.
     debug: 'info', // Generate additional debugging information.
     // TOOD: needs rethink
     exclude: false, // Exclude modified output files. Default: `false`.
     // TODO: change to existing:{txt,bin}
     existing: {
-        write: true, // Overwrite existing files (unless present=true).
-        preserve: false, // Keep a backup copy (.old.) of overwritten files.
-        present: false, // Present the new file using .new. name annotation.
-        diff: false, // Annotated 2-way diff of new generate and existing file.
-        // merge: false, // Annotated 3-way merge of new generate and existing file.
+        txt: {
+            write: true, // Overwrite existing files (unless present=true).
+            preserve: false, // Keep a backup copy (.old.) of overwritten files.
+            present: false, // Present the new file using .new. name annotation.
+            diff: false, // Annotated 2-way diff of new generate and existing file.
+            merge: false, // Annotated 3-way merge of new generate and existing file.
+        },
+        bin: {
+            write: true, // Overwrite existing files (unless present=true).
+            preserve: false, // Keep a backup copy (.old.) of overwritten files.
+            present: false, // Present the new file using .new. name annotation.
+            // No diff of binary files
+            // No merge of binary files
+        }
     },
-    existingBinary: {
-        write: true, // Overwrite existing files (unless present=true).
-        preserve: false, // Keep a backup copy (.old.) of overwritten files.
-        present: false, // Present the new file using .new. name annotation.
-        // No diff of binary files
-        // No merge of binary files
+    processing: {
+        duplicate: true,
     },
     model: {},
     build: true,
@@ -149,6 +154,7 @@ function Jostraca(gopts_in) {
         const vol = deep({}, gopts.vol, opts.vol);
         const memfs = useMemFS ? (0, memfs_1.memfs)(vol) : undefined;
         const fs = opts.fs() || gopts.fs() || memfs?.fs || Fs;
+        const now = opts.now || gopts.now || Date.now;
         const meta = {
             ...(gopts?.meta || {}),
             ...(opts.meta || {}),
@@ -157,9 +163,10 @@ function Jostraca(gopts_in) {
         const log = opts.log || gopts?.log || DEFAULT_LOGGER;
         const debug = !!(null == opts.debug ? gopts?.debug : opts.debug);
         const existing = {
-            txt: deep(gopts.existing, opts.existing),
-            bin: deep(gopts.existingBinary, opts.existingBinary),
+            txt: deep(gopts.existing.txt, opts.existing.txt),
+            bin: deep(gopts.existing.bin, opts.existing.bin),
         };
+        const processing = opts.processing;
         const doBuild = null == gopts?.build ? false !== opts.build : false !== gopts?.build;
         const model = deep({}, gopts.model, opts.model);
         // Component defaults.
@@ -170,13 +177,14 @@ function Jostraca(gopts_in) {
         }, gopts?.cmp, opts.cmp);
         const ctx$ = {
             fs: () => fs,
+            now: () => now(),
             folder,
             content: null,
             meta,
             opts,
             log,
             debug,
-            existing,
+            // existing,
             model,
         };
         return GLOBAL.jostraca.run(ctx$, async () => {
@@ -184,75 +192,26 @@ function Jostraca(gopts_in) {
             root();
             const ctx$ = GLOBAL.jostraca.getStore();
             // Build phase
-            const buildctx = new BuildContext_1.BuildContext(folder, existing, ctx$.fs);
-            /*
-                    = {
-                    root: ctx$.root,
-                    when: Date.now(),
-                    vol: memfs?.vol,
-                    folder,
-                    current: {
-                      project: {
-                        node: makeNode(),
-                      },
-                      folder: {
-                        node: makeNode(),
-                        parent: folder,
-                        path: [],
-                      },
-                      // TODI: should be file.node
-                      file: makeNode(),
-                      content: undefined,
-                    },
-                    log: { exclude: [], last: -1 },
-                    file: {
-                      write: [],
-                      preserve: [],
-                      present: [],
-                      diff: [],
-                    },
-                    util: {
-                      save: () => null,
-                    }
-                  }
-            
-                  // buildctx.util.save = makeSave(fs, existing, existingBinary, buildctx)
-                  */
+            const buildctx = new BuildContext_1.BuildContext(folder, existing, processing, ctx$.fs, ctx$.now);
             if (doBuild) {
                 await build(ctx$, buildctx);
             }
-            return buildctx;
+            // console.log('END')
+            // console.dir(buildctx, { depth: null })
+            const res = {
+                when: buildctx.when,
+                files: buildctx.fh.files
+            };
+            if (memfs) {
+                res.vol = memfs.vol;
+            }
+            return res;
         });
     }
     async function build(ctx$, buildctx) {
         const topnode = ctx$.node;
-        /*
-        const logpath = Path.join(buildctx.folder, '.jostraca', 'jostraca.json.log')
-    
-        try {
-          buildctx.log = JSON.parse(ctx$.fs().readFileSync(
-            logpath, 'utf8'))
-        }
-        catch (err: any) {
-          // TODO: file not foound ignored, handle others!
-        }
-        */
         await step(topnode, ctx$, buildctx);
         buildctx.bmeta.done();
-        /*
-        try {
-          ctx$.fs().mkdirSync(Path.dirname(logpath), { recursive: true })
-          const log = {
-            last: Date.now(),
-            exclude: buildctx.log.exclude,
-          }
-          ctx$.fs().writeFileSync(logpath, JSON.stringify(log, null, 2), { flush: true })
-        }
-        catch (err: any) {
-          console.log(err)
-          // TODO: file not found ignored, handle others!
-        }
-        */
         return { node: topnode, ctx$, buildctx };
     }
     async function step(node, ctx$, buildctx) {
@@ -303,13 +262,17 @@ function Jostraca(gopts_in) {
 }
 function cmp(component) {
     const cf = (props, children) => {
+        const ctx$ = GLOBAL.jostraca.getStore();
         children = null == children ?
             (('function' === typeof props || Array.isArray(props)) ? props : null) : children;
+        // if (undefined === props) {
+        //   props = ctx$.props ? ctx$.props() : undefined
+        // }
         if (null == props || 'object' !== typeof props) {
             props = { arg: props };
         }
-        props.ctx$ = GLOBAL.jostraca.getStore();
-        let parent = props.ctx$.node;
+        props.ctx$ = ctx$;
+        let parent = ctx$.node;
         // console.log('BBB', component, props, parent?.filter?.({ props }))
         if (parent?.filter && !parent.filter({ props, children, component })) {
             return undefined;
@@ -322,29 +285,27 @@ function cmp(component) {
             meta: {},
             content: [],
         };
-        props.ctx$.root = (props.ctx$.root || node);
-        parent = props.ctx$.node || node;
-        if (props.ctx$.debug) {
+        ctx$.root = (ctx$.root || node);
+        parent = ctx$.node || node;
+        if (ctx$.debug) {
             node.meta.debug = (node.meta.debug || {});
             node.meta.debug.callsite = new Error('component: ' + component.name).stack;
         }
-        const siblings = props.ctx$.children = (props.ctx$.children || []);
+        const siblings = ctx$.children = (ctx$.children || []);
         siblings.push(node);
-        props.ctx$.children = node.children;
-        props.ctx$.node = node;
+        ctx$.children = node.children;
+        ctx$.node = node;
         node.path = parent.path.slice(0);
         if ('string' === typeof props.name) {
             node.path.push(props.name);
         }
+        // ctx$.props = () => props
         let out = component(props, children);
-        props.ctx$.children = siblings;
-        props.ctx$.node = parent;
+        ctx$.children = siblings;
+        ctx$.node = parent;
         return out;
     };
     Object.defineProperty(cf, 'name', { value: component.name });
     return cf;
-}
-function makeNode() {
-    return { kind: 'none', path: [], meta: {}, content: [] };
 }
 //# sourceMappingURL=jostraca.js.map

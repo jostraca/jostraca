@@ -6,17 +6,21 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.FileHandler = void 0;
 exports.validPath = validPath;
 const Diff = require('diff');
+const Diff3 = require('node-diff3');
 const node_path_1 = __importDefault(require("node:path"));
-const basic_1 = require("./util/basic");
+const basic_1 = require("../util/basic");
 const CN = 'FileHandler:';
 const JOSTRACA_PROTECT = 'JOSTRACA_PROTECT';
+// TODO: if EOL != '\n', normalize to '\n' in load,save 
 class FileHandler {
-    constructor(bctx, existing) {
-        this.when = bctx.when;
+    constructor(bctx, existing, duplicate) {
         this.fs = bctx.fs;
-        this.folder = bctx.folder;
+        this.now = bctx.now;
+        this.when = bctx.when;
+        this.folder = node_path_1.default.normalize(bctx.folder);
         this.audit = bctx.audit;
         this.existing = existing;
+        this.duplicate = duplicate;
         this.maxdepth = 22; // TODO: get from JostracaOptions
         this.files = {
             preserved: [],
@@ -25,12 +29,15 @@ class FileHandler {
             diffed: [],
             merged: [],
         };
+        // Yikes!
+        this.duplicateFolder = bctx.duplicateFolder.bind(bctx);
+        this.last = () => bctx.bmeta.prev.last;
         if (!this.fs().existsSync) {
             throw new Error(CN + ' Invalid file system provider: ' + this.fs());
         }
     }
     save(path, content, write, whence) {
-        const start = Date.now();
+        const start = this.now();
         const wstr = null == whence ? '' : whence + ':';
         const fs = this.fs();
         const FN = 'save:';
@@ -43,7 +50,6 @@ class FileHandler {
         }
         whence = null == whence ? '' : whence;
         const existing = 'string' === typeof content ? this.existing.txt : this.existing.bin;
-        // console.log('SAVE', path, existing)
         path = node_path_1.default.normalize(path);
         const folder = node_path_1.default.dirname(path);
         const exists = fs.existsSync(path);
@@ -61,7 +67,7 @@ class FileHandler {
                     this.copyFile(path, oldpath, whence + 'preserve:');
                     this.files.preserved.push(path);
                     this.audit.push([CN + FN + wstr + ':preserve',
-                        { action: 'preserve', when: Date.now(), path, start }]);
+                        { action: 'preserve', when: this.now(), path, start }]);
                 }
             }
             if (existing.write && !protect) {
@@ -74,18 +80,38 @@ class FileHandler {
                     this.saveFile(newpath, content, { flush: true }, whence + 'present:');
                     this.files.presented.push(path);
                     this.audit.push([CN + FN + wstr + ':present',
-                        { action: 'present', when: Date.now(), path, start }]);
+                        { action: 'present', when: this.now(), path, start }]);
                 }
             }
-            if (existing.diff && !protect) {
-                write = false;
-                if (oldcontent.length !== content.length || oldcontent !== content) {
-                    const cstr = 'string' === typeof content ? content : content.toString('utf8');
-                    const diffcontent = this.diff(this.when, cstr, oldcontent);
-                    this.saveFile(path, diffcontent, whence + 'diff:');
-                    this.files.diffed.push(path);
-                    this.audit.push([CN + FN + wstr + ':diff',
-                        { action: 'diff', when: Date.now(), path, start }]);
+            if (!protect) {
+                if (existing.diff) {
+                    write = false;
+                    if (oldcontent.length !== content.length || oldcontent !== content) {
+                        const cstr = 'string' === typeof content ? content : content.toString('utf8');
+                        const diffcontent = this.diff(cstr, oldcontent);
+                        this.saveFile(path, diffcontent, whence + 'diff:');
+                        this.files.diffed.push(path);
+                        this.audit.push([CN + FN + wstr + ':diff',
+                            { action: 'diff', when: this.now(), path, start }]);
+                    }
+                }
+                else if (existing.merge) {
+                    write = false;
+                    if (oldcontent.length !== content.length || oldcontent !== content) {
+                        const cstr = 'string' === typeof content ? content : content.toString('utf8');
+                        if (this.duplicate) {
+                            const dfolder = this.duplicateFolder();
+                            const dpath = node_path_1.default.join(dfolder, path);
+                            if (this.existsFile(dpath)) {
+                                const origcontent = this.loadFile(dpath, { encoding: 'utf8' });
+                                const diffcontent = this.merge(cstr, oldcontent, origcontent);
+                                this.saveFile(path, diffcontent, whence + 'merge:');
+                                this.files.diffed.push(path);
+                                this.audit.push([CN + FN + wstr + ':merge',
+                                    { action: 'merge', when: this.now(), path, start }]);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -93,7 +119,7 @@ class FileHandler {
             this.saveFile(path, content, whence + 'write:');
             this.files.written.push(path);
             this.audit.push([CN + FN + wstr + ':write',
-                { action: 'write', when: Date.now(), path, start }]);
+                { action: 'write', when: this.now(), path, start }]);
         }
     }
     copy(frompath, topath, write, whence) {
@@ -109,23 +135,39 @@ class FileHandler {
         whence = wstr + FN;
         const isBinary = (0, basic_1.isbinext)(frompath);
         const content = this.loadFile(frompath, { encoding: isBinary ? null : 'utf8' }, whence);
-        // console.log('COPY load', isBinary, typeof content)
         this.save(topath, content, whence);
     }
-    diff(when, oldcontent, newcontent) {
+    // TODO: need to record if diffed, merged
+    merge(oldcontent, newcontent, origcontent) {
+        const isowhen = new Date(this.when).toISOString();
+        const isolast = new Date(this.last()).toISOString();
+        const diffres = Diff3.merge(oldcontent, origcontent, newcontent, {
+            stringSeparator: '\n',
+            excludeFalseConflicts: true,
+            label: {
+                a: 'GENERATED: ' + isowhen,
+                b: 'EXISTING: ' + isolast,
+            }
+        });
+        // console.log('DIFFRES', diffres)
+        const content = diffres.result.join('\n');
+        return content;
+    }
+    diff(oldcontent, newcontent) {
+        const isowhen = new Date(this.when).toISOString();
+        const isolast = new Date(this.last()).toISOString();
         const difflines = Diff.diffLines(newcontent, oldcontent);
         const out = [];
-        const isowhen = new Date(when).toISOString();
         difflines.forEach((part) => {
             if (part.added) {
-                out.push('<<<<<< GENERATED: ' + isowhen + '\n');
+                out.push('<<<<<<< GENERATED: ' + isowhen + '\n');
                 out.push(part.value);
-                out.push('>>>>>> GENERATED: ' + isowhen + '\n');
+                out.push('>>>>>>> GENERATED: ' + isowhen + '\n');
             }
             else if (part.removed) {
-                out.push('<<<<<< EXISTING: ' + isowhen + '\n');
+                out.push('<<<<<<< EXISTING: ' + isolast + '\n');
                 out.push(part.value);
-                out.push('>>>>>> EXISTING: ' + isowhen + '\n');
+                out.push('>>>>>>> EXISTING: ' + isolast + '\n');
             }
             else {
                 out.push(part.value);
@@ -135,7 +177,7 @@ class FileHandler {
         return content;
     }
     existsFile(path, whence) {
-        const when = Date.now();
+        const when = this.now();
         const wstr = null == whence ? '' : whence + ':';
         const fs = this.fs();
         const FN = 'existsFile:';
@@ -156,7 +198,7 @@ class FileHandler {
         }
     }
     copyFile(frompath, topath, whence) {
-        const when = Date.now();
+        const when = this.now();
         const wstr = null == whence ? '' : whence + ':';
         const fs = this.fs();
         const FN = 'copyFile:';
@@ -182,7 +224,7 @@ class FileHandler {
         }
     }
     loadJSON(path, opts, whence) {
-        const when = Date.now();
+        const when = this.now();
         const wstr = null == whence ? '' : whence + ':';
         const FN = 'loadJSON:';
         if ('string' === typeof opts) {
@@ -209,7 +251,7 @@ class FileHandler {
         }
     }
     saveJSON(path, json, opts, whence) {
-        const when = Date.now();
+        const when = this.now();
         const wstr = null == whence ? '' : whence + ':';
         const FN = 'saveJSON:';
         if ('string' === typeof opts) {
@@ -235,7 +277,7 @@ class FileHandler {
         }
     }
     loadFile(path, opts, whence) {
-        const when = Date.now();
+        const when = this.now();
         const wstr = null == whence ? '' : whence + ':';
         const fs = this.fs();
         const FN = 'loadFile:';
@@ -263,7 +305,7 @@ class FileHandler {
         }
     }
     saveFile(path, content, opts, whence) {
-        const when = Date.now();
+        const when = this.now();
         const wstr = null == whence ? '' : whence + ':';
         const fs = this.fs();
         const FN = 'saveFile:';
@@ -281,13 +323,23 @@ class FileHandler {
                 ' content=' + content);
         }
         try {
-            const fullpath = node_path_1.default.isAbsolute(path) ? path : node_path_1.default.join(this.folder, path);
+            path = node_path_1.default.normalize(path);
+            const isAbsolute = node_path_1.default.isAbsolute(path);
+            const fullpath = isAbsolute ? path : node_path_1.default.join(this.folder, path);
             const parentfolder = node_path_1.default.dirname(fullpath);
             const existed = fs.existsSync(fullpath);
             fs.mkdirSync(parentfolder, { recursive: true });
             fs.writeFileSync(fullpath, content, opts);
             this.audit.push([CN + FN + wstr,
                 { path, when, existed, size: content.length }]);
+            const withinFolder = path.startsWith(this.folder);
+            if (this.duplicate && (!isAbsolute || withinFolder)) {
+                const dfolder = this.duplicateFolder();
+                const dpath = node_path_1.default.join(dfolder, path);
+                fs.mkdirSync(node_path_1.default.dirname(dpath), { recursive: true });
+                const dopts = { ...opts, flush: true };
+                fs.writeFileSync(dpath, content, dopts);
+            }
         }
         catch (err) {
             this.audit.push(['ERROR:' + CN + FN + wstr,

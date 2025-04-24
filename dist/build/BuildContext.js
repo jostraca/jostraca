@@ -1,19 +1,23 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BuildContext = void 0;
+const node_path_1 = __importDefault(require("node:path"));
 const FileHandler_1 = require("./FileHandler");
-const BuildMeta_1 = require("./build/BuildMeta");
+const BuildMeta_1 = require("./BuildMeta");
 const CN = 'BuildContext:';
 // TODO: rename meta folder to build, move into build folder
 class BuildContext {
-    constructor(folder, existing, fs) {
+    constructor(folder, existing, processing, fs, now) {
         this.fs = fs;
+        this.now = now;
         if (!this.fs().existsSync) {
             throw new Error(CN + ' Invalid file system provider: ' + this.fs());
         }
         this.audit = [];
-        // this.root = None
-        this.when = Date.now();
+        this.when = now();
         this.folder = folder;
         this.current = {
             project: {
@@ -29,8 +33,15 @@ class BuildContext {
             content: undefined,
         };
         this.log = { exclude: [], last: -1 };
-        this.fh = new FileHandler_1.FileHandler(this, existing);
-        this.bmeta = new BuildMeta_1.BuildMeta(this);
+        this.fh = new FileHandler_1.FileHandler(this, existing, processing.duplicate);
+        this.bmeta = new BuildMeta_1.BuildMeta(this.fh);
+    }
+    duplicateFolder() {
+        if (null == this.dfolder) {
+            this.dfolder =
+                node_path_1.default.normalize(node_path_1.default.join(this.folder, this.bmeta.next.foldername, 'generated'));
+        }
+        return this.dfolder;
     }
 }
 exports.BuildContext = BuildContext;

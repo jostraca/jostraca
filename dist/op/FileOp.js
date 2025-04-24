@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FileOp = void 0;
 const node_path_1 = __importDefault(require("node:path"));
+const ON = 'File:';
 const FileOp = {
     before(node, _ctx$, buildctx) {
         // TODO: error if not inside a folder
@@ -14,6 +15,7 @@ const FileOp = {
         cfile.content = [];
     },
     after(node, ctx$, buildctx) {
+        const FN = 'after:';
         const { log, current } = buildctx;
         const fs = ctx$.fs();
         const cfile = current.file;
@@ -49,8 +51,7 @@ const FileOp = {
         }
         const fullpath = cfile.fullpath;
         if (!exclude) {
-            // buildctx.util.save(fullpath, content)
-            buildctx.fh.save(fullpath, content);
+            buildctx.fh.save(fullpath, content, ON + FN);
         }
         else {
             if (!log.exclude.includes(rpath)) {

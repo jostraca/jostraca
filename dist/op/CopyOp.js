@@ -7,6 +7,7 @@ exports.CopyOp = void 0;
 const node_path_1 = __importDefault(require("node:path"));
 const jostraca_1 = require("../jostraca");
 const FileOp_1 = require("./FileOp");
+const ON = 'Copy:';
 const CopyOp = {
     before(node, ctx$, buildctx) {
         const fs = ctx$.fs();
@@ -79,6 +80,7 @@ const CopyOp = {
 };
 exports.CopyOp = CopyOp;
 function walk(fs, state, nodepath, from, to) {
+    const FN = 'walk:';
     const buildctx = state.buildctx;
     const entries = fs.readdirSync(from);
     for (let name of entries) {
@@ -93,7 +95,9 @@ function walk(fs, state, nodepath, from, to) {
             walk(fs, state, nodepath.concat(name), frompath, topath);
         }
         else if (isTemplateFile) {
-            if (excludeFile(fs, state, nodepath, name, topath)) {
+            const excluded = excludeFile(fs, state, nodepath, name, topath);
+            // console.log('COPY template', frompath, excluded)
+            if (excluded) {
                 continue;
             }
             const src = fs.readFileSync(frompath, 'utf8');
@@ -101,19 +105,17 @@ function walk(fs, state, nodepath, from, to) {
             const out = (0, jostraca_1.template)(src, state.ctx$.model, { replace: state.node.replace });
             // buildctx.util.save(topath, out)
             // writeFileSync(fs, topath, out)
-            buildctx.fh.saveFile(topath, out);
+            buildctx.fh.save(topath, out, ON + FN);
             state.fileCount++;
             state.tmCount++;
         }
         else if (!isIgnored) {
-            if (excludeFile(fs, state, nodepath, name, topath)) {
+            const excluded = excludeFile(fs, state, nodepath, name, topath);
+            // console.log('COPY copy', frompath, excluded)
+            if (excluded) {
                 continue;
             }
-            // copyFileSync(fs, frompath, topath)
-            // const isBinary = isbinext(frompath)
-            // const content = fs.readFileSync(frompath, isBinary ? undefined : 'utf8')
-            // buildctx.util.save(topath, content)
-            buildctx.fh.copyFile(frompath, topath);
+            buildctx.fh.copy(frompath, topath, ON + FN);
             state.fileCount++;
         }
     }

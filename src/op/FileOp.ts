@@ -4,6 +4,8 @@ import Path from 'node:path'
 import type { Node, BuildContext } from '../jostraca'
 
 
+const ON = 'File:'
+
 const FileOp = {
 
   before(node: Node, _ctx$: any, buildctx: BuildContext) {
@@ -17,6 +19,7 @@ const FileOp = {
 
 
   after(node: Node, ctx$: any, buildctx: BuildContext) {
+    const FN = 'after:'
     const { log, current } = buildctx
     const fs = ctx$.fs()
     const cfile = current.file
@@ -61,8 +64,7 @@ const FileOp = {
     const fullpath = cfile.fullpath as string
 
     if (!exclude) {
-      // buildctx.util.save(fullpath, content)
-      buildctx.fh.save(fullpath, content)
+      buildctx.fh.save(fullpath, content, ON + FN)
     }
     else {
       if (!log.exclude.includes(rpath)) {

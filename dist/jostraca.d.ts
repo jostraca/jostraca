@@ -1,5 +1,5 @@
-import type { Node, Component } from './types';
-import { BuildContext } from './BuildContext';
+import type { Node, Component, JostracaResult } from './types';
+import { BuildContext } from './build/BuildContext';
 import { each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, isbinext } from './util/basic';
 declare const deep: (...args: any[]) => any;
 declare const omap: (...args: any[]) => any;
@@ -18,19 +18,26 @@ declare const OptionsShape: {
         folder: string;
         meta: any;
         fs: any;
+        now: any;
         log: any;
         debug: string;
         exclude: boolean;
         existing: {
-            write: boolean;
-            preserve: boolean;
-            present: boolean;
-            diff: boolean;
+            txt: {
+                write: boolean;
+                preserve: boolean;
+                present: boolean;
+                diff: boolean;
+                merge: boolean;
+            };
+            bin: {
+                write: boolean;
+                preserve: boolean;
+                present: boolean;
+            };
         };
-        existingBinary: {
-            write: boolean;
-            preserve: boolean;
-            present: boolean;
+        processing: {
+            duplicate: boolean;
         };
         model: {};
         build: boolean;
@@ -46,19 +53,26 @@ declare const OptionsShape: {
         folder: string;
         meta: any;
         fs: any;
+        now: any;
         log: any;
         debug: string;
         exclude: boolean;
         existing: {
-            write: boolean;
-            preserve: boolean;
-            present: boolean;
-            diff: boolean;
+            txt: {
+                write: boolean;
+                preserve: boolean;
+                present: boolean;
+                diff: boolean;
+                merge: boolean;
+            };
+            bin: {
+                write: boolean;
+                preserve: boolean;
+                present: boolean;
+            };
         };
-        existingBinary: {
-            write: boolean;
-            preserve: boolean;
-            present: boolean;
+        processing: {
+            duplicate: boolean;
         };
         model: {};
         build: boolean;
@@ -112,19 +126,26 @@ declare const OptionsShape: {
         folder: string;
         meta: any;
         fs: any;
+        now: any;
         log: any;
         debug: string;
         exclude: boolean;
         existing: {
-            write: boolean;
-            preserve: boolean;
-            present: boolean;
-            diff: boolean;
+            txt: {
+                write: boolean;
+                preserve: boolean;
+                present: boolean;
+                diff: boolean;
+                merge: boolean;
+            };
+            bin: {
+                write: boolean;
+                preserve: boolean;
+                present: boolean;
+            };
         };
-        existingBinary: {
-            write: boolean;
-            preserve: boolean;
-            present: boolean;
+        processing: {
+            duplicate: boolean;
         };
         model: {};
         build: boolean;
@@ -145,14 +166,12 @@ declare const OptionsShape: {
     };
 };
 type JostracaOptions = ReturnType<typeof OptionsShape>;
-type ExistingTxt = JostracaOptions["existing"];
-type ExistingBin = JostracaOptions["existingBinary"];
 type Existing = {
-    txt: ExistingTxt;
-    bin: ExistingBin;
+    txt: JostracaOptions["existing"]["txt"];
+    bin: JostracaOptions["existing"]["bin"];
 };
 declare function Jostraca(gopts_in?: JostracaOptions | {}): {
-    generate: (opts_in: JostracaOptions | {}, root: Function) => Promise<any>;
+    generate: (opts_in: JostracaOptions | {}, root: Function) => Promise<JostracaResult>;
 };
 declare function cmp(component: Function): Component;
 export type { JostracaOptions, Component, Node, Existing, };

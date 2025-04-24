@@ -1,11 +1,12 @@
-import { Node, FST, Audit } from './types';
+import { Node, FST, Audit } from '../types';
 import { FileHandler } from './FileHandler';
-import { BuildMeta } from './build/BuildMeta';
-import type { Existing } from './jostraca';
+import { BuildMeta } from './BuildMeta';
+import type { Existing } from '../jostraca';
 declare class BuildContext {
+    fs: () => FST;
+    now: () => number;
     bmeta: BuildMeta;
     fh: FileHandler;
-    fs: () => FST;
     audit: Audit;
     when: number;
     vol: any;
@@ -26,6 +27,10 @@ declare class BuildContext {
         exclude: string[];
         last: number;
     };
-    constructor(folder: string, existing: Existing, fs: () => FST);
+    dfolder?: string;
+    constructor(folder: string, existing: Existing, processing: {
+        duplicate: boolean;
+    }, fs: () => FST, now: () => number);
+    duplicateFolder(): string;
 }
 export { BuildContext };

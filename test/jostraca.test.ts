@@ -66,7 +66,8 @@ describe('jostraca', () => {
     // console.log('INFO', info)
     const voljson: any = vol.toJSON()
 
-    // console.log(voljson)
+    console.log('VOL')
+    console.log(voljson)
 
     expect(JSON.parse(voljson[TOP_META]).last > 0).true()
     expect(voljson).equal({
@@ -98,7 +99,7 @@ describe('jostraca', () => {
     // console.log('INFO', info)
     const voljson: any = vol.toJSON()
 
-    expect(JSON.parse(voljson[TOP_META]).exclude).equal([])
+    expect(JSON.parse(voljson[TOP_META]).last > 0).true()
     expect(voljson).equal({
       [TOP_META]:
         voljson[TOP_META],
@@ -141,7 +142,7 @@ describe('jostraca', () => {
 
     const voljson: any = vol.toJSON()
 
-    expect(JSON.parse(voljson[TOP_META]).exclude).equal([])
+    expect(JSON.parse(voljson[TOP_META]).last > 0).true()
     expect(voljson).equal({
       [TOP_META]: voljson[TOP_META],
 
@@ -412,7 +413,7 @@ describe('jostraca', () => {
     })
 
     const info0 = await jostraca.generate(
-      { folder: '/', existing: { write: false } },
+      { folder: '/', existing: { txt: { write: false } } },
       cmp(() => {
         Project({}, () => {
           File({ name: 'f01.txt' }, () => {
@@ -436,7 +437,7 @@ describe('jostraca', () => {
 
 
     const info1 = await jostraca.generate(
-      { folder: '/', existing: { preserve: true } },
+      { folder: '/', existing: { txt: { preserve: true } } },
       cmp(() => {
         Project({}, () => {
           File({ name: 'f01.txt' }, () => {
@@ -461,7 +462,7 @@ describe('jostraca', () => {
 
 
     const info2 = await jostraca.generate(
-      { folder: '/', existing: { write: false, present: true } },
+      { folder: '/', existing: { txt: { write: false, present: true } } },
       cmp(() => {
         Project({}, () => {
           File({ name: 'f01.txt' }, () => {
@@ -501,8 +502,7 @@ describe('jostraca', () => {
     const info = await jostraca.generate(
       {
         fs: () => fs, folder: '/top',
-        existing: { diff: true },
-        existingBinary: { preserve: true },
+        existing: { txt: { diff: true }, bin: { preserve: true } },
       },
       cmp(() => {
         Project({ folder: 'p0' }, () => {
@@ -515,20 +515,15 @@ describe('jostraca', () => {
       })
     )
 
-    // console.dir(info.file, { depth: null })
+    // console.log('INFO')
+    // console.dir(info, { depth: null })
 
-    expect(info.file).equal({
-      write: [
-        { path: '/top/p0/foo.txt', action: 'write' },
-        { path: '/top/p0/haz.bin', action: 'write' },
-        { path: '/top/p0/qaz.bin', action: 'write' }
-      ],
-      preserve: [{ path: '/top/p0/haz.bin', action: 'preserve' }],
-      present: [],
-      diff: [
-        { path: '/top/p0/bar.txt', action: 'diff' },
-        { path: '/top/p0/zed.txt', action: 'diff' }
-      ]
+    expect(info.files).equal({
+      preserved: ['/top/p0/haz.bin'],
+      written: ['/top/p0/foo.txt', '/top/p0/haz.bin', '/top/p0/qaz.bin'],
+      presented: [],
+      diffed: ['/top/p0/bar.txt', '/top/p0/zed.txt'],
+      merged: []
     })
 
     const isowhen = new Date(info.when).toISOString()
@@ -536,7 +531,7 @@ describe('jostraca', () => {
     // console.dir(voljson, { depth: null })
 
 
-    expect(JSON.parse(voljson[TOP_META]).exclude).equal([])
+    expect(JSON.parse(voljson[TOP_META]).last > 0).true()
     expect(voljson).equal({
       [TOP_META]: voljson[TOP_META],
       '/top/tm0/foo.txt': 'F0\nF1\nF2\n',
@@ -608,7 +603,7 @@ describe('jostraca', () => {
 
     const voljson: any = vol.toJSON()
 
-    expect(JSON.parse(voljson[TOP_META]).exclude).equal([])
+    expect(JSON.parse(voljson[TOP_META]).last > 0).true()
     expect(voljson).equal({
       [TOP_META]:
         voljson[TOP_META],

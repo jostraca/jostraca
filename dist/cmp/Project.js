@@ -7,7 +7,7 @@ const Project = (0, jostraca_1.cmp)(function Project(props, children) {
     node.kind = 'project';
     node.name = props.name;
     node.folder = props.folder;
-    (0, jostraca_1.each)(children, { call: true });
+    (0, jostraca_1.each)(children, { call: true, args: props });
 });
 exports.Project = Project;
 //# sourceMappingURL=Project.js.map

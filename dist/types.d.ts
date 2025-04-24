@@ -17,6 +17,17 @@ type JostracaOptions = {
         };
     };
 };
+type JostracaResult = {
+    when: number;
+    files: {
+        preserved: string[];
+        written: string[];
+        presented: string[];
+        diffed: string[];
+        merged: string[];
+    };
+    vol?: any;
+};
 type Node = {
     kind: string;
     meta: any;
@@ -53,4 +64,4 @@ type FileEntry = {
     copy?: string;
 };
 type Audit = [string, any][];
-export type { JostracaOptions, Node, OpStep, OpDef, Component, Log, FileEntry, FST, Audit, };
+export type { JostracaOptions, JostracaResult, Node, OpStep, OpDef, Component, Log, FileEntry, FST, Audit, };

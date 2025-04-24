@@ -6,15 +6,12 @@
 
 
 import * as Fs from 'node:fs'
-import Path from 'node:path'
 
 import { AsyncLocalStorage } from 'node:async_hooks'
 
 import { util as JsonicUtil } from 'jsonic'
 
 import { Gubu } from 'gubu'
-
-const Diff = require('diff')
 
 import { memfs as MemFs } from 'memfs'
 
@@ -24,11 +21,12 @@ import type {
   OpDef,
   Component,
   Log,
+  JostracaResult,
 } from './types'
 
 import {
   BuildContext
-} from './BuildContext'
+} from './build/BuildContext'
 
 import {
   each,
@@ -76,7 +74,6 @@ import { NoneOp } from './op/NoneOp'
 
 
 
-
 const GLOBAL = (global as any)
 
 const DEFAULT_LOGGER = {
@@ -92,7 +89,10 @@ const DEFAULT_LOGGER = {
 const OptionsShape = Gubu({
   folder: '.', // Base output folder for generated files. Default: `.`.
   meta: {} as any, // Provide meta data to the generation process. Default: `{}`
+
   fs: (() => undefined) as any, // File system API. Default: `node:fs`.
+  now: undefined as any, // Provide current time.
+
   log: DEFAULT_LOGGER as any, // Logging interface.
   debug: 'info', // Generate additional debugging information.
 
@@ -101,19 +101,24 @@ const OptionsShape = Gubu({
 
   // TODO: change to existing:{txt,bin}
   existing: {
-    write: true, // Overwrite existing files (unless present=true).
-    preserve: false, // Keep a backup copy (.old.) of overwritten files.
-    present: false, // Present the new file using .new. name annotation.
-    diff: false, // Annotated 2-way diff of new generate and existing file.
-    // merge: false, // Annotated 3-way merge of new generate and existing file.
+    txt: {
+      write: true, // Overwrite existing files (unless present=true).
+      preserve: false, // Keep a backup copy (.old.) of overwritten files.
+      present: false, // Present the new file using .new. name annotation.
+      diff: false, // Annotated 2-way diff of new generate and existing file.
+      merge: false, // Annotated 3-way merge of new generate and existing file.
+    },
+    bin: {
+      write: true, // Overwrite existing files (unless present=true).
+      preserve: false, // Keep a backup copy (.old.) of overwritten files.
+      present: false, // Present the new file using .new. name annotation.
+      // No diff of binary files
+      // No merge of binary files
+    }
   },
 
-  existingBinary: {
-    write: true, // Overwrite existing files (unless present=true).
-    preserve: false, // Keep a backup copy (.old.) of overwritten files.
-    present: false, // Present the new file using .new. name annotation.
-    // No diff of binary files
-    // No merge of binary files
+  processing: {
+    duplicate: true,
   },
 
   model: {},
@@ -131,11 +136,9 @@ const OptionsShape = Gubu({
 
 type JostracaOptions = ReturnType<typeof OptionsShape>
 
-type ExistingTxt = JostracaOptions["existing"]
-type ExistingBin = JostracaOptions["existingBinary"]
 type Existing = {
-  txt: ExistingTxt
-  bin: ExistingBin
+  txt: JostracaOptions["existing"]["txt"]
+  bin: JostracaOptions["existing"]["bin"]
 }
 
 
@@ -144,7 +147,10 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
 
   const gopts = OptionsShape(gopts_in || {})
 
-  async function generate(opts_in: JostracaOptions | {}, root: Function) {
+  async function generate(
+    opts_in: JostracaOptions | {},
+    root: Function):
+    Promise<JostracaResult> {
     const opts = OptionsShape(opts_in)
 
     const useMemFS = opts.mem || gopts.mem
@@ -153,6 +159,7 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
     const memfs = useMemFS ? MemFs(vol) : undefined
 
     const fs = opts.fs() || gopts.fs() || memfs?.fs || Fs
+    const now = opts.now || gopts.now || Date.now
 
     const meta = {
       ...(gopts?.meta || {}),
@@ -163,9 +170,11 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
     const debug: boolean = !!(null == opts.debug ? gopts?.debug : opts.debug)
 
     const existing = {
-      txt: deep(gopts.existing, opts.existing),
-      bin: deep(gopts.existingBinary, opts.existingBinary),
+      txt: deep(gopts.existing.txt, opts.existing.txt),
+      bin: deep(gopts.existing.bin, opts.existing.bin),
     }
+
+    const processing = opts.processing
 
     const doBuild: boolean = null == gopts?.build ? false !== opts.build : false !== gopts?.build
 
@@ -180,13 +189,14 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
 
     const ctx$ = {
       fs: () => fs,
+      now: () => now(),
       folder,
       content: null,
       meta,
       opts,
       log,
       debug,
-      existing,
+      // existing,
       model,
     }
 
@@ -200,49 +210,27 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
       const buildctx = new BuildContext(
         folder,
         existing,
-        ctx$.fs
+        processing,
+        ctx$.fs,
+        ctx$.now,
       )
-
-      /*
-              = {
-              root: ctx$.root,
-              when: Date.now(),
-              vol: memfs?.vol,
-              folder,
-              current: {
-                project: {
-                  node: makeNode(),
-                },
-                folder: {
-                  node: makeNode(),
-                  parent: folder,
-                  path: [],
-                },
-                // TODI: should be file.node
-                file: makeNode(),
-                content: undefined,
-              },
-              log: { exclude: [], last: -1 },
-              file: {
-                write: [],
-                preserve: [],
-                present: [],
-                diff: [],
-              },
-              util: {
-                save: () => null,
-              }
-            }
-      
-            // buildctx.util.save = makeSave(fs, existing, existingBinary, buildctx)
-            */
-
 
       if (doBuild) {
         await build(ctx$, buildctx)
       }
 
-      return buildctx
+      // console.log('END')
+      // console.dir(buildctx, { depth: null })
+      const res: JostracaResult = {
+        when: buildctx.when,
+        files: buildctx.fh.files
+      }
+
+      if (memfs) {
+        res.vol = memfs.vol
+      }
+
+      return res
     })
   }
 
@@ -250,36 +238,9 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
   async function build(ctx$: any, buildctx: BuildContext) {
     const topnode = ctx$.node
 
-    /*
-    const logpath = Path.join(buildctx.folder, '.jostraca', 'jostraca.json.log')
-
-    try {
-      buildctx.log = JSON.parse(ctx$.fs().readFileSync(
-        logpath, 'utf8'))
-    }
-    catch (err: any) {
-      // TODO: file not foound ignored, handle others!
-    }
-    */
-
     await step(topnode, ctx$, buildctx)
 
     buildctx.bmeta.done()
-
-    /*
-    try {
-      ctx$.fs().mkdirSync(Path.dirname(logpath), { recursive: true })
-      const log = {
-        last: Date.now(),
-        exclude: buildctx.log.exclude,
-      }
-      ctx$.fs().writeFileSync(logpath, JSON.stringify(log, null, 2), { flush: true })
-    }
-    catch (err: any) {
-      console.log(err)
-      // TODO: file not found ignored, handle others!
-    }
-    */
 
     return { node: topnode, ctx$, buildctx }
   }
@@ -340,15 +301,22 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
 
 function cmp(component: Function): Component {
   const cf = (props: any, children?: any) => {
+    const ctx$ = GLOBAL.jostraca.getStore()
+
     children = null == children ?
       (('function' === typeof props || Array.isArray(props)) ? props : null) : children
+
+    // if (undefined === props) {
+    //   props = ctx$.props ? ctx$.props() : undefined
+    // }
 
     if (null == props || 'object' !== typeof props) {
       props = { arg: props }
     }
-    props.ctx$ = GLOBAL.jostraca.getStore()
 
-    let parent = props.ctx$.node
+    props.ctx$ = ctx$
+
+    let parent = ctx$.node
     // console.log('BBB', component, props, parent?.filter?.({ props }))
 
     if (parent?.filter && !parent.filter({ props, children, component })) {
@@ -365,29 +333,31 @@ function cmp(component: Function): Component {
       content: [],
     }
 
-    props.ctx$.root = (props.ctx$.root || node)
-    parent = props.ctx$.node || node
+    ctx$.root = (ctx$.root || node)
+    parent = ctx$.node || node
 
-    if (props.ctx$.debug) {
+    if (ctx$.debug) {
       node.meta.debug = (node.meta.debug || {})
       node.meta.debug.callsite = new Error('component: ' + component.name).stack
     }
 
-    const siblings = props.ctx$.children = (props.ctx$.children || [])
+    const siblings = ctx$.children = (ctx$.children || [])
     siblings.push(node)
 
-    props.ctx$.children = node.children
-    props.ctx$.node = node
+    ctx$.children = node.children
+    ctx$.node = node
 
     node.path = parent.path.slice(0)
     if ('string' === typeof props.name) {
       node.path.push(props.name)
     }
 
+    // ctx$.props = () => props
+
     let out = component(props, children)
 
-    props.ctx$.children = siblings
-    props.ctx$.node = parent
+    ctx$.children = siblings
+    ctx$.node = parent
 
     return out
   }
@@ -396,9 +366,9 @@ function cmp(component: Function): Component {
 }
 
 
-function makeNode() {
-  return { kind: 'none', path: [], meta: {}, content: [] }
-}
+// function makeNode() {
+//   return { kind: 'none', path: [], meta: {}, content: [] }
+// }
 
 
 export type {

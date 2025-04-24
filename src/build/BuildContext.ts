@@ -1,10 +1,11 @@
 
+import Path from 'node:path'
+
 import {
   Node,
-  FileEntry,
-  Component,
   FST,
-} from './types'
+  Audit,
+} from '../types'
 
 
 import {
@@ -13,17 +14,17 @@ import {
 
 import {
   BuildMeta
-} from './meta/BuildMeta'
+} from './BuildMeta'
 
 
 import type {
   Existing
-} from './jostraca'
+} from '../jostraca'
 
 
 import {
   None
-} from './cmp/None'
+} from '../cmp/None'
 
 
 const CN = 'BuildContext:'
@@ -32,11 +33,13 @@ const CN = 'BuildContext:'
 // TODO: rename meta folder to build, move into build folder
 class BuildContext {
 
+  fs: () => FST
+  now: () => number
+
   bmeta: BuildMeta
   fh: FileHandler
-  fs: () => FST
-  audit: [string, any][]
-  root: Component
+  audit: Audit
+  // root: Component
   when: number
   vol: any
   folder: string
@@ -54,30 +57,29 @@ class BuildContext {
     exclude: string[],
     last: number,
   }
-  file: {
-    write: FileEntry[],
-    preserve: FileEntry[],
-    present: FileEntry[],
-    diff: FileEntry[],
-  }
 
+  dfolder?: string
 
   constructor(
     folder: string,
     existing: Existing,
+    processing: {
+      duplicate: boolean
+    },
     fs: () => FST,
+    now: () => number
   ) {
 
     this.fs = fs
+    this.now = now
 
     if (!this.fs().existsSync) {
       throw new Error(CN + ' Invalid file system provider: ' + this.fs())
     }
 
-
     this.audit = []
-    this.root = None
-    this.when = Date.now()
+    this.when = now()
+
     this.folder = folder
     this.current = {
       project: {
@@ -93,17 +95,21 @@ class BuildContext {
       content: undefined,
     }
     this.log = { exclude: [], last: -1 }
-    this.file = {
-      write: [],
-      preserve: [],
-      present: [],
-      diff: [],
-    }
 
-    this.fh = new FileHandler(this, existing)
-    this.bmeta = new BuildMeta(this)
+    this.fh = new FileHandler(this, existing, processing.duplicate)
+    this.bmeta = new BuildMeta(this.fh)
   }
 
+
+  duplicateFolder() {
+    if (null == this.dfolder) {
+      this.dfolder =
+        Path.normalize(
+          Path.join(this.folder, this.bmeta.next.foldername, 'generated'))
+    }
+
+    return this.dfolder
+  }
 }
 
 

@@ -22,51 +22,67 @@ import {
 } from '../'
 
 
+const START_TIME = 1735689600000
+
 describe('merge', () => {
 
-  test('over', async () => {
-    expect(Jostraca).exist()
+  test('basic', async () => {
+    let nowI = 0
+    const now = () => START_TIME + (++nowI * (60 * 1000))
 
-    const jostraca = Jostraca()
-    expect(jostraca).exist()
+    const jostraca = Jostraca({ now })
 
-    const { fs, vol } = memfs({})
+    const root = () => Project({ folder: 'sdk' }, (props: any) => {
+      const m = props.ctx$.model
 
-    const info = await jostraca.generate(
-      { fs: () => fs, folder: '/top' },
-      () => Project({ folder: 'sdk' }, () => {
+      Folder({ name: 'js' }, () => {
 
-        Folder({ name: 'js' }, () => {
-
-          File({ name: 'foo.js' }, () => {
-            Content('// custom-foo\n')
-          })
-
-          File({ name: 'bar.js' }, () => {
-            Content('// custom-bar\n')
-          })
+        File({ name: 'foo.js' }, () => {
+          Content('// custom-foo:' + m.a + '\n// FOO\n')
         })
 
-        Folder({ name: 'go' }, () => {
-
-          File({ name: 'zed.go' }, () => {
-            Content('// custom-zed\n')
-          })
+        File({ name: 'bar.js' }, () => {
+          let extra = ''
+          if (1 === m.a) {
+            extra = '// EXTRA1'
+          }
+          Content('// custom-bar\n// BAR\n' + extra)
         })
-
       })
-    )
 
-    // console.log('INFO', info)
-    const voljson: any = vol.toJSON()
+      Folder({ name: 'go' }, () => {
 
-    expect(JSON.parse(voljson['/top/.jostraca/jostraca.json.log']).exclude).equal([])
-    expect(voljson).equal({
-      '/top/.jostraca/jostraca.json.log': voljson['/top/.jostraca/jostraca.json.log'],
-      '/top/sdk/js/foo.js': '// custom-foo\n',
-      '/top/sdk/js/bar.js': '// custom-bar\n',
-      '/top/sdk/go/zed.go': '// custom-zed\n'
+        File({ name: 'zed.go' }, () => {
+          let extra = ''
+          if (1 === m.a) {
+            extra = '// EXTRA1'
+          }
+          Content('// custom-zed:' + m.a + '\n' + extra)
+        })
+      })
+
     })
+
+    const mfs = memfs({})
+    const fs: any = mfs.fs
+    const vol: any = mfs.vol
+
+    const m0 = { a: 0 }
+    const res0 = await jostraca.generate({ fs: () => fs, folder: '/top', model: m0 }, root)
+    console.log('res0', res0, vol.toJSON())
+
+    fs.appendFileSync('/top/sdk/js/foo.js', '// added1\n', { encoding: 'utf8' })
+    fs.appendFileSync('/top/sdk/js/bar.js', '// added1\n', { encoding: 'utf8' })
+
+    console.log('ADD1', vol.toJSON())
+
+    const m1 = { a: 1 }
+    const res1 = await jostraca.generate({
+      fs: () => fs, folder: '/top', model: m1,
+      existing: { txt: { merge: true } }
+    }, root)
+    console.log('res1', res1, vol.toJSON())
+
   })
 
 

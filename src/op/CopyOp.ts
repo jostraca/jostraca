@@ -8,6 +8,8 @@ import { isbinext, template } from '../jostraca'
 import { FileOp } from './FileOp'
 
 
+const ON = 'Copy:'
+
 const CopyOp = {
 
   before(node: Node, ctx$: any, buildctx: BuildContext) {
@@ -57,7 +59,7 @@ const CopyOp = {
   },
 
 
-  after(node: Node, ctx$: any, buildctx: any) {
+  after(node: Node, ctx$: any, buildctx: BuildContext) {
     const fs = ctx$.fs()
     const kind = node.after.kind
 
@@ -98,7 +100,8 @@ const CopyOp = {
 
 
 function walk(fs: any, state: any, nodepath: string[], from: string, to: string) {
-  const buildctx = state.buildctx
+  const FN = 'walk:'
+  const buildctx = state.buildctx as BuildContext
   const entries = fs.readdirSync(from)
 
   for (let name of entries) {
@@ -115,27 +118,29 @@ function walk(fs: any, state: any, nodepath: string[], from: string, to: string)
       walk(fs, state, nodepath.concat(name), frompath, topath)
     }
     else if (isTemplateFile) {
-      if (excludeFile(fs, state, nodepath, name, topath)) { continue }
+      const excluded = excludeFile(fs, state, nodepath, name, topath)
+      // console.log('COPY template', frompath, excluded)
+
+      if (excluded) { continue }
+
       const src = fs.readFileSync(frompath, 'utf8')
       // const out = genTemplate(state, src, { name, frompath, topath })
       const out = template(src, state.ctx$.model, { replace: state.node.replace })
       // buildctx.util.save(topath, out)
       // writeFileSync(fs, topath, out)
 
-      buildctx.fh.saveFile(topath, out)
+      buildctx.fh.save(topath, out, ON + FN)
 
       state.fileCount++
       state.tmCount++
     }
     else if (!isIgnored) {
-      if (excludeFile(fs, state, nodepath, name, topath)) { continue }
-      // copyFileSync(fs, frompath, topath)
+      const excluded = excludeFile(fs, state, nodepath, name, topath)
+      // console.log('COPY copy', frompath, excluded)
 
-      // const isBinary = isbinext(frompath)
-      // const content = fs.readFileSync(frompath, isBinary ? undefined : 'utf8')
-      // buildctx.util.save(topath, content)
+      if (excluded) { continue }
 
-      buildctx.fh.copyFile(frompath, topath)
+      buildctx.fh.copy(frompath, topath, ON + FN)
 
       state.fileCount++
     }

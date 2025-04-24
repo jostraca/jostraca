@@ -7,6 +7,7 @@ import * as Fs from 'node:fs'
 type FST = typeof Fs
 
 
+// For calling code.
 type JostracaOptions = {
   folder?: string // Base output folder for generated files. Default: `.`.
   meta?: any // Provide meta data to the generation process. Default: `{}`
@@ -28,6 +29,20 @@ type JostracaOptions = {
       ignore?: RegExp[]
     }
   }
+}
+
+
+// For calling code.
+type JostracaResult = {
+  when: number,
+  files: {
+    preserved: string[],
+    written: string[],
+    presented: string[],
+    diffed: string[],
+    merged: string[],
+  }
+  vol?: any
 }
 
 
@@ -82,6 +97,7 @@ type Audit = [string, any][]
 
 export type {
   JostracaOptions,
+  JostracaResult,
   Node,
   OpStep,
   OpDef,

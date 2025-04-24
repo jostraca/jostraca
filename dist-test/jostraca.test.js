@@ -30,7 +30,8 @@ const TOP_META = '/top/' + META_FOLDER + '/' + META_FILE;
         }));
         // console.log('INFO', info)
         const voljson = vol.toJSON();
-        // console.log(voljson)
+        console.log('VOL');
+        console.log(voljson);
         (0, code_1.expect)(JSON.parse(voljson[TOP_META]).last > 0).true();
         (0, code_1.expect)(voljson).equal({
             [TOP_META]: voljson[TOP_META],
@@ -51,7 +52,7 @@ const TOP_META = '/top/' + META_FOLDER + '/' + META_FILE;
         });
         // console.log('INFO', info)
         const voljson = vol.toJSON();
-        (0, code_1.expect)(JSON.parse(voljson[TOP_META]).exclude).equal([]);
+        (0, code_1.expect)(JSON.parse(voljson[TOP_META]).last > 0).true();
         (0, code_1.expect)(voljson).equal({
             [TOP_META]: voljson[TOP_META],
             '/top/foo.txt': 'A',
@@ -80,7 +81,7 @@ const TOP_META = '/top/' + META_FOLDER + '/' + META_FILE;
             });
         }));
         const voljson = vol.toJSON();
-        (0, code_1.expect)(JSON.parse(voljson[TOP_META]).exclude).equal([]);
+        (0, code_1.expect)(JSON.parse(voljson[TOP_META]).last > 0).true();
         (0, code_1.expect)(voljson).equal({
             [TOP_META]: voljson[TOP_META],
             '/tm/bar.txt': '// BAR $$x.z$$ TXT\n',
@@ -275,7 +276,7 @@ const TOP_META = '/top/' + META_FOLDER + '/' + META_FILE;
                 '/h01.txt': 'c0',
             }
         });
-        const info0 = await jostraca.generate({ folder: '/', existing: { write: false } }, (0, __1.cmp)(() => {
+        const info0 = await jostraca.generate({ folder: '/', existing: { txt: { write: false } } }, (0, __1.cmp)(() => {
             (0, __1.Project)({}, () => {
                 (0, __1.File)({ name: 'f01.txt' }, () => {
                     (0, __1.Content)('a1');
@@ -292,7 +293,7 @@ const TOP_META = '/top/' + META_FOLDER + '/' + META_FILE;
             '/h01.txt': 'c0',
             ['/' + META_FOLDER + '/' + META_FILE]: voljson0['/' + META_FOLDER + '/' + META_FILE],
         });
-        const info1 = await jostraca.generate({ folder: '/', existing: { preserve: true } }, (0, __1.cmp)(() => {
+        const info1 = await jostraca.generate({ folder: '/', existing: { txt: { preserve: true } } }, (0, __1.cmp)(() => {
             (0, __1.Project)({}, () => {
                 (0, __1.File)({ name: 'f01.txt' }, () => {
                     (0, __1.Content)('a1');
@@ -309,7 +310,7 @@ const TOP_META = '/top/' + META_FOLDER + '/' + META_FILE;
             '/h01.txt': 'c0',
             ['/' + META_FOLDER + '/' + META_FILE]: voljson1['/' + META_FOLDER + '/' + META_FILE],
         });
-        const info2 = await jostraca.generate({ folder: '/', existing: { write: false, present: true } }, (0, __1.cmp)(() => {
+        const info2 = await jostraca.generate({ folder: '/', existing: { txt: { write: false, present: true } } }, (0, __1.cmp)(() => {
             (0, __1.Project)({}, () => {
                 (0, __1.File)({ name: 'f01.txt' }, () => {
                     (0, __1.Content)('a1');
@@ -338,8 +339,7 @@ const TOP_META = '/top/' + META_FOLDER + '/' + META_FILE;
         const jostraca = (0, __1.Jostraca)();
         const info = await jostraca.generate({
             fs: () => fs, folder: '/top',
-            existing: { diff: true },
-            existingBinary: { preserve: true },
+            existing: { txt: { diff: true }, bin: { preserve: true } },
         }, (0, __1.cmp)(() => {
             (0, __1.Project)({ folder: 'p0' }, () => {
                 (0, __1.Folder)({}, () => {
@@ -349,24 +349,19 @@ const TOP_META = '/top/' + META_FOLDER + '/' + META_FILE;
                 });
             });
         }));
-        // console.dir(info.file, { depth: null })
-        (0, code_1.expect)(info.file).equal({
-            write: [
-                { path: '/top/p0/foo.txt', action: 'write' },
-                { path: '/top/p0/haz.bin', action: 'write' },
-                { path: '/top/p0/qaz.bin', action: 'write' }
-            ],
-            preserve: [{ path: '/top/p0/haz.bin', action: 'preserve' }],
-            present: [],
-            diff: [
-                { path: '/top/p0/bar.txt', action: 'diff' },
-                { path: '/top/p0/zed.txt', action: 'diff' }
-            ]
+        // console.log('INFO')
+        // console.dir(info, { depth: null })
+        (0, code_1.expect)(info.files).equal({
+            preserved: ['/top/p0/haz.bin'],
+            written: ['/top/p0/foo.txt', '/top/p0/haz.bin', '/top/p0/qaz.bin'],
+            presented: [],
+            diffed: ['/top/p0/bar.txt', '/top/p0/zed.txt'],
+            merged: []
         });
         const isowhen = new Date(info.when).toISOString();
         const voljson = vol.toJSON();
         // console.dir(voljson, { depth: null })
-        (0, code_1.expect)(JSON.parse(voljson[TOP_META]).exclude).equal([]);
+        (0, code_1.expect)(JSON.parse(voljson[TOP_META]).last > 0).true();
         (0, code_1.expect)(voljson).equal({
             [TOP_META]: voljson[TOP_META],
             '/top/tm0/foo.txt': 'F0\nF1\nF2\n',
@@ -424,7 +419,7 @@ const TOP_META = '/top/' + META_FOLDER + '/' + META_FILE;
             });
         }));
         const voljson = vol.toJSON();
-        (0, code_1.expect)(JSON.parse(voljson[TOP_META]).exclude).equal([]);
+        (0, code_1.expect)(JSON.parse(voljson[TOP_META]).last > 0).true();
         (0, code_1.expect)(voljson).equal({
             [TOP_META]: voljson[TOP_META],
             '/top/t0/p0/foo.txt': 'FOO new',

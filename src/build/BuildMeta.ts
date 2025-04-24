@@ -1,7 +1,7 @@
 
 import Path from 'node:path'
 
-import { BuildContext } from '../BuildContext'
+import { FileHandler } from './FileHandler'
 
 
 type FileMetaData = {
@@ -23,20 +23,18 @@ type BuildMetaData = {
 // Handle loading, recording,and saving of build meta data
 class BuildMeta {
 
-  #bctx: BuildContext
-  #prev: BuildMetaData
-  #next: BuildMetaData
+  fh: FileHandler
+
+  prev: BuildMetaData
+  next: BuildMetaData
 
   constructor(
-    bctx: BuildContext
+    fh: FileHandler
   ) {
-    this.#bctx = bctx
+    this.fh = fh
 
-
-    // file folder and name default can be overriden by jopts
-
-
-    this.#prev = {
+    // TODO: file folder and name default can be overriden by jopts
+    this.prev = {
       foldername: '.jostraca',
       filename: 'jostraca.meta.log',
       last: -1,
@@ -44,13 +42,13 @@ class BuildMeta {
       files: {}
     }
 
-    this.#prev = loadMetaData(this.#bctx, this.#prev)
+    this.prev = loadMetaData(this.fh, this.prev)
 
     // TODO: load prev if exists
 
-    this.#next = {
-      foldername: this.#prev.foldername,
-      filename: this.#prev.filename,
+    this.next = {
+      foldername: this.prev.foldername,
+      filename: this.prev.filename,
       last: -1,
       hlast: -1,
       files: {}
@@ -60,7 +58,7 @@ class BuildMeta {
 
 
   last() {
-    return this.#prev.last
+    return this.prev.last
   }
 
   // TODO: perhaps?
@@ -77,21 +75,21 @@ class BuildMeta {
 
 
   done() {
-    this.#next.last = Date.now()
+    this.next.last = this.fh.now()
     // this.#next.hlast = humanify(this.#next.last)
 
     // save over previous
-    saveMetaData(this.#bctx, this.#next)
+    saveMetaData(this.fh, this.next)
 
-    return this.#next
+    return this.next
   }
 }
 
 
-function loadMetaData(bctx: BuildContext, bmeta: BuildMetaData) {
+function loadMetaData(fh: FileHandler, bmeta: BuildMetaData) {
   const metapath = Path.join(bmeta.foldername, bmeta.filename)
-  if (bctx.fh.existsFile(metapath)) {
-    const json = bctx.fh.loadJSON(metapath)
+  if (fh.existsFile(metapath)) {
+    const json = fh.loadJSON(metapath)
     bmeta.last = json.last
     bmeta.hlast = json.hlast
     bmeta.files = json.files
@@ -100,9 +98,9 @@ function loadMetaData(bctx: BuildContext, bmeta: BuildMetaData) {
 }
 
 
-function saveMetaData(bctx: BuildContext, bmeta: BuildMetaData) {
+function saveMetaData(fh: FileHandler, bmeta: BuildMetaData) {
   const metapath = Path.join(bmeta.foldername, bmeta.filename)
-  bctx.fh.saveJSON(metapath, bmeta)
+  fh.saveJSON(metapath, bmeta)
 }
 
 
