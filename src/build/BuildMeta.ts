@@ -3,6 +3,8 @@ import Path from 'node:path'
 
 import { FileHandler } from './FileHandler'
 
+import { humanify } from '../util/basic'
+
 
 type FileMetaData = {
   path: string
@@ -69,14 +71,13 @@ class BuildMeta {
 
 
   add(file: string, meta: any) {
-    // add file to next buildmetadata
-    // meta is size, write time, excluded, etc
+    this.next.files[file] = meta
   }
 
 
   done() {
     this.next.last = this.fh.now()
-    // this.#next.hlast = humanify(this.#next.last)
+    this.next.hlast = humanify(this.next.last)
 
     // save over previous
     saveMetaData(this.fh, this.next)

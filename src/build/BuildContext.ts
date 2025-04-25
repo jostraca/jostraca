@@ -39,7 +39,6 @@ class BuildContext {
   bmeta: BuildMeta
   fh: FileHandler
   audit: Audit
-  // root: Component
   when: number
   vol: any
   folder: string
@@ -59,6 +58,7 @@ class BuildContext {
   }
 
   dfolder?: string
+
 
   constructor(
     folder: string,
@@ -98,6 +98,11 @@ class BuildContext {
 
     this.fh = new FileHandler(this, existing, processing.duplicate)
     this.bmeta = new BuildMeta(this.fh)
+  }
+
+
+  addmeta(file: string, meta: any) {
+    this.bmeta.add(file, meta)
   }
 
 

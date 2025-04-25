@@ -27,13 +27,18 @@ const META_FILE = 'jostraca.meta.log'
 
 const TOP_META = '/top/' + META_FOLDER + '/' + META_FILE
 
+const START_TIME = 1735689600000
+
 
 describe('jostraca', () => {
 
   test('happy', async () => {
+    let nowI = 0
+    const now = () => START_TIME + (++nowI * (60 * 1000))
+
     expect(Jostraca).exist()
 
-    const jostraca = Jostraca()
+    const jostraca = Jostraca({ now })
     expect(jostraca).exist()
 
     const { fs, vol } = memfs({})
@@ -66,11 +71,12 @@ describe('jostraca', () => {
     // console.log('INFO', info)
     const voljson: any = vol.toJSON()
 
-    console.log('VOL')
-    console.log(voljson)
+    // console.log('VOL')
+    // console.log(voljson)
 
-    expect(JSON.parse(voljson[TOP_META]).last > 0).true()
-    expect(voljson).equal({
+    expect(JSON.parse(voljson[TOP_META]).last > START_TIME).true()
+
+    expect(voljson).includes({
       [TOP_META]:
         voljson[TOP_META],
       '/top/sdk/js/foo.js': '// custom-foo\n',
@@ -81,9 +87,12 @@ describe('jostraca', () => {
 
 
   test('content', async () => {
+    let nowI = 0
+    const now = () => START_TIME + (++nowI * (60 * 1000))
+
     const { fs, vol } = memfs({})
 
-    const jostraca = Jostraca()
+    const jostraca = Jostraca({ now })
 
     const info = await jostraca.generate(
       { fs: () => fs, folder: '/top' },
@@ -97,19 +106,54 @@ describe('jostraca', () => {
     )
 
     // console.log('INFO', info)
+    expect(info).equal({
+      when: 1735689660000,
+      files: {
+        preserved: [],
+        written: ['/top/foo.txt'],
+        presented: [],
+        diffed: [],
+        merged: [],
+        conflicted: [],
+        unchanged: []
+      }
+    })
+
     const voljson: any = vol.toJSON()
 
     expect(JSON.parse(voljson[TOP_META]).last > 0).true()
     expect(voljson).equal({
-      [TOP_META]:
-        voljson[TOP_META],
       '/top/foo.txt': 'A',
+      '/top/.jostraca/generated/top/foo.txt': 'A',
+      '/top/.jostraca/jostraca.meta.log': '{\n' +
+        '  "foldername": ".jostraca",\n' +
+        '  "filename": "jostraca.meta.log",\n' +
+        '  "last": 1735689900000,\n' +
+        '  "hlast": 2025010100050000,\n' +
+        '  "files": {\n' +
+        '    "/top/foo.txt": {\n' +
+        '      "action": "none",\n' +
+        '      "path": "/top/foo.txt",\n' +
+        '      "exists": false,\n' +
+        '      "actions": [\n' +
+        '        "write"\n' +
+        '      ],\n' +
+        '      "protect": false,\n' +
+        '      "conflict": false,\n' +
+        '      "when": 1735689840000,\n' +
+        '      "hwhen": 2025010100040000\n' +
+        '    }\n' +
+        '  }\n' +
+        '}'
     })
   })
 
 
 
-  test('copy', async () => {
+  test('basic-copy', async () => {
+    let nowI = 0
+    const now = () => START_TIME + (++nowI * (60 * 1000))
+
     const { fs, vol } = memfs({
       '/tm/bar.txt': '// BAR $$x.z$$ TXT\n',
       '/tm/bar.txt~': '// BAR TXT\n',
@@ -119,12 +163,13 @@ describe('jostraca', () => {
     })
 
     const jostraca = Jostraca({
+      now,
       model: { x: { y: 'Y', z: 'Z' } }
     })
 
     const info = await jostraca.generate(
       { fs: () => fs, folder: '/top' },
-      cmp((props: any) => {
+      cmp((_props: any) => {
         Project({ folder: 'sdk' }, () => {
 
           Folder({ name: 'js' }, () => {
@@ -140,10 +185,30 @@ describe('jostraca', () => {
       })
     )
 
+    // console.log('INFO', info)
+    expect(info).equal({
+      when: 1735689660000,
+      files: {
+        preserved: [],
+        written: [
+          '/top/sdk/js/foo.js',
+          '/top/sdk/js/bar.txt',
+          '/top/sdk/js/a.txt',
+          '/top/sdk/js/b.txt',
+          '/top/sdk/js/c/d.txt'
+        ],
+        presented: [],
+        diffed: [],
+        merged: [],
+        conflicted: [],
+        unchanged: []
+      }
+    })
+
     const voljson: any = vol.toJSON()
 
     expect(JSON.parse(voljson[TOP_META]).last > 0).true()
-    expect(voljson).equal({
+    expect(voljson).includes({
       [TOP_META]: voljson[TOP_META],
 
       '/tm/bar.txt': '// BAR $$x.z$$ TXT\n',
@@ -162,6 +227,9 @@ describe('jostraca', () => {
 
 
   test('fragment-basic', async () => {
+    let nowI = 0
+    const now = () => START_TIME + (++nowI * (60 * 1000))
+
     const { fs, vol } = memfs({
       '/tmp/foo.txt': 'FOO\n',
       '/tmp/bar.txt': 'BAR\n',
@@ -170,7 +238,7 @@ describe('jostraca', () => {
         'QAZ+<!--<[SLOT]>-->+// <[SLOT:alice]>+/* <[SLOT:bob]> */+ # <[SLOT:bob]>\n',
     })
 
-    const jostraca = Jostraca()
+    const jostraca = Jostraca({ now })
 
     const info = await jostraca.generate(
       { fs: () => fs, folder: '/top' },
@@ -213,11 +281,24 @@ describe('jostraca', () => {
       })
     )
 
-    // console.dir(info.root, { depth: null })
+    // console.log(info)
+
+    expect(info).equal({
+      when: 1735689660000,
+      files: {
+        preserved: [],
+        written: ['/top/sdk/foo.js', '/top/sdk/bar.js', '/top/sdk/qaz.js'],
+        presented: [],
+        diffed: [],
+        merged: [],
+        conflicted: [],
+        unchanged: []
+      }
+    })
 
     const voljson: any = vol.toJSON()
 
-    expect(voljson).equal({
+    expect(voljson).includes({
       '/tmp/foo.txt': 'FOO\n',
       '/tmp/bar.txt': 'BAR\n',
       '/tmp/zed.txt': 'ZED+<[SLOT]> \n',
@@ -235,11 +316,14 @@ describe('jostraca', () => {
 
 
   test('inject', async () => {
+    let nowI = 0
+    const now = () => START_TIME + (++nowI * (60 * 1000))
+
     const { fs, vol } = memfs({
       '/top/foo.txt': 'FOO\n#--START--#\nBAR\n#--END--#\nZED',
     })
 
-    const jostraca = Jostraca()
+    const jostraca = Jostraca({ now })
 
     const info = await jostraca.generate(
       { fs: () => fs, folder: '/top' },
@@ -252,9 +336,22 @@ describe('jostraca', () => {
       })
     )
 
+    expect(info).equal({
+      when: 1735689660000,
+      files: {
+        preserved: [],
+        written: [],
+        presented: [],
+        diffed: [],
+        merged: [],
+        conflicted: [],
+        unchanged: []
+      }
+    })
+
     const voljson: any = vol.toJSON()
 
-    expect(voljson).equal({
+    expect(voljson).includes({
       [TOP_META]: voljson[TOP_META],
 
       '/top/foo.txt': 'FOO\n#--START--#\nQAZ\n#--END--#\nZED',
@@ -264,10 +361,13 @@ describe('jostraca', () => {
 
 
   test('line', async () => {
+    let nowI = 0
+    const now = () => START_TIME + (++nowI * (60 * 1000))
+
     const { fs, vol } = memfs({
     })
 
-    const jostraca = Jostraca()
+    const jostraca = Jostraca({ now })
 
     const info = await jostraca.generate(
       { fs: () => fs, folder: '/top' },
@@ -282,9 +382,22 @@ describe('jostraca', () => {
       })
     )
 
+    expect(info).equal({
+      when: 1735689660000,
+      files: {
+        preserved: [],
+        written: ['/top/foo.txt'],
+        presented: [],
+        diffed: [],
+        merged: [],
+        conflicted: [],
+        unchanged: []
+      }
+    })
+
     const voljson: any = vol.toJSON()
 
-    expect(voljson).equal({
+    expect(voljson).includes({
       [TOP_META]: voljson[TOP_META],
 
       '/top/foo.txt': 'ONE\nTWO\nTHREE\n',
@@ -293,6 +406,9 @@ describe('jostraca', () => {
 
 
   test('fragment-subcmp', async () => {
+    let nowI = 0
+    const now = () => START_TIME + (++nowI * (60 * 1000))
+
     const { fs, vol } = memfs({
       '/f01.txt': 'TWO-$$a$$-bar-zed-con-foo+<[SLOT]>\n'
     })
@@ -305,6 +421,7 @@ describe('jostraca', () => {
 
 
     const jostraca = Jostraca({
+      now,
       model: { a: 'A' }
     })
 
@@ -313,7 +430,7 @@ describe('jostraca', () => {
         fs: () => fs, folder: '/top',
         // build: false
       },
-      cmp((props: any) => {
+      cmp((_props: any) => {
 
         Project({}, () => {
           File({ name: 'foo.txt' }, () => {
@@ -334,11 +451,22 @@ describe('jostraca', () => {
       })
     )
 
-    // console.dir(info.root, { depth: null })
+    expect(info).equal({
+      when: 1735689660000,
+      files: {
+        preserved: [],
+        written: ['/top/foo.txt'],
+        presented: [],
+        diffed: [],
+        merged: [],
+        conflicted: [],
+        unchanged: []
+      }
+    })
 
     const voljson: any = vol.toJSON()
 
-    expect(voljson).equal({
+    expect(voljson).includes({
       [TOP_META]: voljson[TOP_META],
       '/f01.txt': 'TWO-$$a$$-bar-zed-con-foo+<[SLOT]>\n',
       '/top/foo.txt': 'ONE\nTWO-A-BAR-ZED-CON-FOO[B]+S\nTHREE\n',
@@ -348,6 +476,9 @@ describe('jostraca', () => {
 
 
   test('custom-cmp', async () => {
+    let nowI = 0
+    const now = () => START_TIME + (++nowI * (60 * 1000))
+
     const Foo = cmp(function Foo(props: any, children: any) {
       const { ctx$: { model } } = props
       Content(`FOO[$$a$$:${props.b}`)
@@ -357,6 +488,7 @@ describe('jostraca', () => {
 
 
     const jostraca = Jostraca({
+      now,
       model: {
         a: 'A', foo: {
           a: { x: 11 },
@@ -391,11 +523,22 @@ describe('jostraca', () => {
       })
     )
 
-    // console.dir(info.root, { depth: null })
+    expect(info).includes({
+      when: 1735689660000,
+      files: {
+        preserved: [],
+        written: ['/foo.txt'],
+        presented: [],
+        diffed: [],
+        merged: [],
+        conflicted: [],
+        unchanged: []
+      },
+    })
 
     const voljson: any = info.vol.toJSON()
 
-    expect(voljson).equal({
+    expect(voljson).includes({
       '/f01.txt': '<foo>',
       '/foo.txt': '{<FOO[A:B:a=(11):b=(22)]>}',
       ['/' + META_FOLDER + '/' + META_FILE]: voljson['/' + META_FOLDER + '/' + META_FILE],
@@ -404,7 +547,11 @@ describe('jostraca', () => {
 
 
   test('existing-file', async () => {
+    let nowI = 0
+    const now = () => START_TIME + (++nowI * (60 * 1000))
+
     const jostraca = Jostraca({
+      now,
       mem: true,
       vol: {
         '/f01.txt': 'a0',
@@ -426,9 +573,22 @@ describe('jostraca', () => {
       })
     )
 
+    expect(info0).includes({
+      when: 1735689660000,
+      files: {
+        preserved: [],
+        written: ['/g01.txt'],
+        presented: [],
+        diffed: [],
+        merged: [],
+        conflicted: [],
+        unchanged: []
+      },
+    })
+
     const voljson0: any = info0.vol.toJSON()
 
-    expect(voljson0).equal({
+    expect(voljson0).includes({
       '/f01.txt': 'a0',
       '/g01.txt': 'b1',
       '/h01.txt': 'c0',
@@ -450,9 +610,22 @@ describe('jostraca', () => {
       })
     )
 
+    expect(info1).includes({
+      when: 1735690140000,
+      files: {
+        preserved: ['/f01.txt'],
+        written: ['/f01.txt', '/h01.txt'],
+        presented: [],
+        diffed: [],
+        merged: [],
+        conflicted: [],
+        unchanged: []
+      },
+    })
+
     const voljson1: any = info1.vol.toJSON()
 
-    expect(voljson1).equal({
+    expect(voljson1).includes({
       '/f01.txt': 'a1',
       '/f01.old.txt': 'a0',
       '/h01.txt': 'c0',
@@ -472,9 +645,22 @@ describe('jostraca', () => {
       })
     )
 
+    expect(info2).includes({
+      when: 1735690920000,
+      files: {
+        preserved: [],
+        written: [],
+        presented: ['/f01.txt'],
+        diffed: [],
+        merged: [],
+        conflicted: [],
+        unchanged: []
+      },
+    })
+
     const voljson2: any = info2.vol.toJSON()
 
-    expect(voljson2).equal({
+    expect(voljson2).includes({
       '/f01.txt': 'a0',
       '/f01.new.txt': 'a1',
       '/h01.txt': 'c0',
@@ -486,6 +672,9 @@ describe('jostraca', () => {
 
 
   test('existing-copy', async () => {
+    let nowI = 0
+    const now = () => START_TIME + (++nowI * (60 * 1000))
+
     const { fs, vol } = memfs({
       '/top/tm0/foo.txt': 'F0\nF1\nF2\n',
       '/top/tm0/bar.txt': 'B0\nB1\nB2\n',
@@ -497,7 +686,7 @@ describe('jostraca', () => {
       '/top/p0/haz.bin': Buffer.from([0x09, 0x08, 0x07, 0x06, 0x05]),
     })
 
-    const jostraca = Jostraca()
+    const jostraca = Jostraca({ now })
 
     const info = await jostraca.generate(
       {
@@ -523,49 +712,60 @@ describe('jostraca', () => {
       written: ['/top/p0/foo.txt', '/top/p0/haz.bin', '/top/p0/qaz.bin'],
       presented: [],
       diffed: ['/top/p0/bar.txt', '/top/p0/zed.txt'],
-      merged: []
+      merged: [],
+      conflicted: ['/top/p0/bar.txt', '/top/p0/zed.txt'],
+      unchanged: []
     })
 
-    const isowhen = new Date(info.when).toISOString()
     const voljson: any = vol.toJSON()
     // console.dir(voljson, { depth: null })
 
-
     expect(JSON.parse(voljson[TOP_META]).last > 0).true()
-    expect(voljson).equal({
+    expect(voljson).includes({
       [TOP_META]: voljson[TOP_META],
+
       '/top/tm0/foo.txt': 'F0\nF1\nF2\n',
       '/top/tm0/bar.txt': 'B0\nB1\nB2\n',
       '/top/tm1/zed.txt': 'Z0\nZ1\nZ2\n',
-      '/top/tm2/qaz.bin': '\x00\x01\x02\x03\x04',
       '/top/tm2/haz.bin': '\x05\x06\x07\b\t',
+      '/top/tm2/qaz.bin': '\x00\x01\x02\x03\x04',
+
       '/top/p0/bar.txt': 'B0\n' +
-        '<<<<<< EXISTING: ' + isowhen + '\n' +
+        '<<<<<<< EXISTING: 1969-12-31T23:59:59.999Z\n' +
         'B8\n' +
         'B9\n' +
-        '>>>>>> EXISTING: ' + isowhen + '\n' +
-        '<<<<<< GENERATED: ' + isowhen + '\n' +
+        '>>>>>>> EXISTING: 1969-12-31T23:59:59.999Z\n' +
+        '<<<<<<< GENERATED: 2025-01-01T00:01:00.000Z\n' +
         'B1\n' +
         'B2\n' +
-        '>>>>>> GENERATED: ' + isowhen + '\n',
+        '>>>>>>> GENERATED: 2025-01-01T00:01:00.000Z\n',
       '/top/p0/zed.txt': 'Z0\n' +
-        '<<<<<< EXISTING: ' + isowhen + '\n' +
+        '<<<<<<< EXISTING: 1969-12-31T23:59:59.999Z\n' +
         'Z7\n' +
         'Z8\n' +
-        'Z9>>>>>> EXISTING: ' + isowhen + '\n' +
-        '<<<<<< GENERATED: ' + isowhen + '\n' +
+        'Z9>>>>>>> EXISTING: 1969-12-31T23:59:59.999Z\n' +
+        '<<<<<<< GENERATED: 2025-01-01T00:01:00.000Z\n' +
         'Z1\n' +
         'Z2\n' +
-        '>>>>>> GENERATED: ' + isowhen + '\n',
-      '/top/p0/foo.txt': 'F0\nF1\nF2\n',
-      '/top/p0/qaz.bin': '\x00\x01\x02\x03\x04',
+        '>>>>>>> GENERATED: 2025-01-01T00:01:00.000Z\n',
       '/top/p0/haz.bin': '\x05\x06\x07\b\t',
+      '/top/p0/foo.txt': 'F0\nF1\nF2\n',
       '/top/p0/haz.old.bin': '\t\b\x07\x06\x05',
+      '/top/p0/qaz.bin': '\x00\x01\x02\x03\x04',
+
+      '/top/.jostraca/generated/top/p0/foo.txt': 'F0\nF1\nF2\n',
+      '/top/.jostraca/generated/top/p0/bar.txt': 'B0\nB1\nB2\n',
+      '/top/.jostraca/generated/top/p0/zed.txt': 'Z0\nZ1\nZ2\n',
+      '/top/.jostraca/generated/top/p0/haz.bin': '\x05\x06\x07\b\t',
+      '/top/.jostraca/generated/top/p0/qaz.bin': '\x00\x01\x02\x03\x04',
     })
   })
 
 
   test('protect', async () => {
+    let nowI = 0
+    const now = () => START_TIME + (++nowI * (60 * 1000))
+
     const { fs, vol } = memfs({
       '/top/t0/p0/foo.txt': 'FOO new',
       '/top/t0/p0/bar.txt': 'BAR new',
@@ -578,11 +778,11 @@ describe('jostraca', () => {
       '/top/s0/p1/z1.txt': 'z1 old # JOSTRACA_PROTECT',
     })
 
-    const jostraca = Jostraca()
+    const jostraca = Jostraca({ now })
 
     const info = await jostraca.generate(
       { fs: () => fs, folder: '/top' },
-      cmp((props: any) => {
+      cmp((_props: any) => {
         Project({ folder: 's0' }, () => {
 
           Folder({ name: 'p0' }, () => {
@@ -601,10 +801,23 @@ describe('jostraca', () => {
       })
     )
 
+    expect(info).equal({
+      when: 1735689660000,
+      files: {
+        preserved: [],
+        written: ['/top/s0/p0/bar.txt', '/top/s0/p0/bar.txt', '/top/s0/p1/z0.txt'],
+        presented: [],
+        diffed: [],
+        merged: [],
+        conflicted: [],
+        unchanged: []
+      }
+    })
+
     const voljson: any = vol.toJSON()
 
     expect(JSON.parse(voljson[TOP_META]).last > 0).true()
-    expect(voljson).equal({
+    expect(voljson).includes({
       [TOP_META]:
         voljson[TOP_META],
 

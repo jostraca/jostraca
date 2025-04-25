@@ -536,6 +536,43 @@ vmap.FILTER = (x: any) => 'function' === typeof x ? ((y: any, p: any, _: any) =>
 vmap.KEY = (_: any, p: any) => p.key
 
 
+function humanify(when?: number, flags: {
+  parts?: boolean
+  terse?: boolean
+} = {}) {
+  const d = when ? new Date(when) : new Date()
+  const iso = d.toISOString()
+
+  if (flags.parts) {
+    let parts = iso.split(/[-:T.Z]/).map(s => +s)
+    let i = 0
+    let out: any = {
+      year: parts[i++],
+      month: parts[i++],
+      day: parts[i++],
+      hour: parts[i++],
+      minute: parts[i++],
+      second: parts[i++],
+      milli: parts[i++],
+    }
+    if (flags.terse) {
+      out = {
+        ty: out.year,
+        tm: out.month,
+        td: out.day,
+        th: out.hour,
+        tn: out.minute,
+        ts: out.second,
+        ti: out.milli,
+      }
+    }
+    return out
+  }
+
+  return +(iso.replace(/[^\d]/g, '').replace(/\d$/, ''))
+}
+
+
 
 /*
   MIT License
@@ -553,20 +590,25 @@ function isbinext(path: string) {
 }
 
 
+
+
+
 export {
+  camelify,
+  cmap,
   each,
-  select,
+  escre,
   get,
   getx,
-  camelify,
-  snakify,
-  kebabify,
-  cmap,
-  vmap,
-  names,
-  template,
-  escre,
+  humanify,
   indent,
   isbinext,
+  kebabify,
+  names,
+  select,
+  snakify,
+  template,
+  vmap,
+
   BINARY_EXT,
 }

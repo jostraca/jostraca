@@ -5,20 +5,21 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BINARY_EXT = void 0;
+exports.camelify = camelify;
+exports.cmap = cmap;
 exports.each = each;
-exports.select = select;
+exports.escre = escre;
 exports.get = get;
 exports.getx = getx;
-exports.camelify = camelify;
-exports.snakify = snakify;
-exports.kebabify = kebabify;
-exports.cmap = cmap;
-exports.vmap = vmap;
-exports.names = names;
-exports.template = template;
-exports.escre = escre;
+exports.humanify = humanify;
 exports.indent = indent;
 exports.isbinext = isbinext;
+exports.kebabify = kebabify;
+exports.names = names;
+exports.select = select;
+exports.snakify = snakify;
+exports.template = template;
+exports.vmap = vmap;
 const node_path_1 = __importDefault(require("node:path"));
 // Iterate over arrays and objects (opinionated mutation!).
 function each(subject, // Iterate over subject.
@@ -429,6 +430,36 @@ function vmap(o, p) {
 vmap.COPY = (x) => x;
 vmap.FILTER = (x) => 'function' === typeof x ? ((y, p, _) => (_ = x(y, p), Array.isArray(_) ? !_[0] ? _[1] : vmap.FILTER : _)) : (x ? x : vmap.FILTER);
 vmap.KEY = (_, p) => p.key;
+function humanify(when, flags = {}) {
+    const d = when ? new Date(when) : new Date();
+    const iso = d.toISOString();
+    if (flags.parts) {
+        let parts = iso.split(/[-:T.Z]/).map(s => +s);
+        let i = 0;
+        let out = {
+            year: parts[i++],
+            month: parts[i++],
+            day: parts[i++],
+            hour: parts[i++],
+            minute: parts[i++],
+            second: parts[i++],
+            milli: parts[i++],
+        };
+        if (flags.terse) {
+            out = {
+                ty: out.year,
+                tm: out.month,
+                td: out.day,
+                th: out.hour,
+                tn: out.minute,
+                ts: out.second,
+                ti: out.milli,
+            };
+        }
+        return out;
+    }
+    return +(iso.replace(/[^\d]/g, '').replace(/\d$/, ''));
+}
 /*
   MIT License
  

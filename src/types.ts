@@ -41,6 +41,8 @@ type JostracaResult = {
     presented: string[],
     diffed: string[],
     merged: string[],
+    conflicted: string[],
+    unchanged: string[],
   }
   vol?: any
 }

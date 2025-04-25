@@ -31,6 +31,7 @@ declare class BuildContext {
     constructor(folder: string, existing: Existing, processing: {
         duplicate: boolean;
     }, fs: () => FST, now: () => number);
+    addmeta(file: string, meta: any): void;
     duplicateFolder(): string;
 }
 export { BuildContext };

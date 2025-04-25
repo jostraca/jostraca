@@ -28,16 +28,19 @@ class FileHandler {
             presented: [],
             diffed: [],
             merged: [],
+            conflicted: [],
+            unchanged: [],
         };
         // Yikes!
         this.duplicateFolder = bctx.duplicateFolder.bind(bctx);
         this.last = () => bctx.bmeta.prev.last;
+        this.addmeta = bctx.addmeta.bind(bctx);
+        this.metafile = () => bctx.bmeta.next.filename;
         if (!this.fs().existsSync) {
             throw new Error(CN + ' Invalid file system provider: ' + this.fs());
         }
     }
     save(path, content, write, whence) {
-        const start = this.now();
         const wstr = null == whence ? '' : whence + ':';
         const fs = this.fs();
         const FN = 'save:';
@@ -54,9 +57,20 @@ class FileHandler {
         const folder = node_path_1.default.dirname(path);
         const exists = fs.existsSync(path);
         write = write || !exists;
+        let action = 'none';
+        const meta = {
+            action,
+            path,
+            exists,
+            actions: [],
+            protect: false,
+            conflict: false,
+        };
         if (exists) {
-            let oldcontent = fs.readFileSync(path, 'utf8').toString();
+            // let oldcontent = fs.readFileSync(path, 'utf8').toString()
+            let oldcontent = this.loadFile(path);
             const protect = 0 <= oldcontent.indexOf(JOSTRACA_PROTECT);
+            meta.protect = protect;
             if (existing.preserve) {
                 if (protect) {
                     write = false;
@@ -66,8 +80,10 @@ class FileHandler {
                         '.old' + node_path_1.default.extname(path));
                     this.copyFile(path, oldpath, whence + 'preserve:');
                     this.files.preserved.push(path);
-                    this.audit.push([CN + FN + wstr + ':preserve',
-                        { action: 'preserve', when: this.now(), path, start }]);
+                    action = 'preserve';
+                    whenify(meta, this.now());
+                    meta.actions.push(action);
+                    this.audit.push([CN + FN + wstr + action, { ...meta, action, path }]);
                 }
             }
             if (existing.write && !protect) {
@@ -79,20 +95,29 @@ class FileHandler {
                         '.new' + node_path_1.default.extname(path));
                     this.saveFile(newpath, content, { flush: true }, whence + 'present:');
                     this.files.presented.push(path);
-                    this.audit.push([CN + FN + wstr + ':present',
-                        { action: 'present', when: this.now(), path, start }]);
+                    action = 'present';
+                    whenify(meta, this.now());
+                    meta.actions.push(action);
+                    this.audit.push([CN + FN + wstr + action, { ...meta, action, path }]);
                 }
             }
             if (!protect) {
                 if (existing.diff) {
                     write = false;
                     if (oldcontent.length !== content.length || oldcontent !== content) {
+                        action = 'diff';
                         const cstr = 'string' === typeof content ? content : content.toString('utf8');
-                        const diffcontent = this.diff(cstr, oldcontent);
-                        this.saveFile(path, diffcontent, whence + 'diff:');
+                        const diffcontent = this.diff(cstr, oldcontent.toString());
+                        this.saveFile(path, diffcontent, { encoding: 'utf8' }, whence + action, content);
                         this.files.diffed.push(path);
-                        this.audit.push([CN + FN + wstr + ':diff',
-                            { action: 'diff', when: this.now(), path, start }]);
+                        const conflict = cstr !== diffcontent;
+                        if (conflict) {
+                            this.files.conflicted.push(path);
+                        }
+                        whenify(meta, this.now());
+                        meta.actions.push(action);
+                        meta.conflict = conflict;
+                        this.audit.push([CN + FN + wstr + action, { ...meta, action, path }]);
                     }
                 }
                 else if (existing.merge) {
@@ -103,14 +128,25 @@ class FileHandler {
                             const dfolder = this.duplicateFolder();
                             const dpath = node_path_1.default.join(dfolder, path);
                             if (this.existsFile(dpath)) {
+                                action = 'merge';
                                 const origcontent = this.loadFile(dpath, { encoding: 'utf8' });
-                                const diffcontent = this.merge(cstr, oldcontent, origcontent);
-                                this.saveFile(path, diffcontent, whence + 'merge:');
-                                this.files.diffed.push(path);
-                                this.audit.push([CN + FN + wstr + ':merge',
-                                    { action: 'merge', when: this.now(), path, start }]);
+                                const mergeres = this.merge(cstr, oldcontent.toString(), origcontent);
+                                const diffcontent = mergeres.content;
+                                const conflict = mergeres.conflict;
+                                this.saveFile(path, diffcontent, { encoding: 'utf8' }, whence + action, content);
+                                this.files.merged.push(path);
+                                if (conflict) {
+                                    this.files.conflicted.push(path);
+                                }
+                                whenify(meta, this.now());
+                                meta.actions.push(action);
+                                meta.conflict = conflict;
+                                this.audit.push([CN + FN + wstr + action, { ...meta, action, path }]);
                             }
                         }
+                    }
+                    else {
+                        this.files.unchanged.push(path);
                     }
                 }
             }
@@ -118,9 +154,11 @@ class FileHandler {
         if (write) {
             this.saveFile(path, content, whence + 'write:');
             this.files.written.push(path);
-            this.audit.push([CN + FN + wstr + ':write',
-                { action: 'write', when: this.now(), path, start }]);
+            meta.actions.push('write');
+            whenify(meta, this.now());
+            this.audit.push([CN + FN + wstr + ':write', { ...meta, action, path }]);
         }
+        this.addmeta(path, meta);
     }
     copy(frompath, topath, write, whence) {
         const wstr = null == whence ? '' : whence + ':';
@@ -149,9 +187,9 @@ class FileHandler {
                 b: 'EXISTING: ' + isolast,
             }
         });
-        // console.log('DIFFRES', diffres)
+        const conflict = diffres.conflict;
         const content = diffres.result.join('\n');
-        return content;
+        return { content, conflict };
     }
     diff(oldcontent, newcontent) {
         const isowhen = new Date(this.when).toISOString();
@@ -304,7 +342,7 @@ class FileHandler {
             throw err;
         }
     }
-    saveFile(path, content, opts, whence) {
+    saveFile(path, content, opts, whence, original) {
         const when = this.now();
         const wstr = null == whence ? '' : whence + ':';
         const fs = this.fs();
@@ -333,12 +371,15 @@ class FileHandler {
             this.audit.push([CN + FN + wstr,
                 { path, when, existed, size: content.length }]);
             const withinFolder = path.startsWith(this.folder);
-            if (this.duplicate && (!isAbsolute || withinFolder)) {
+            if (this.duplicate &&
+                (!isAbsolute || withinFolder) &&
+                (node_path_1.default.basename(path) !== this.metafile())) {
                 const dfolder = this.duplicateFolder();
                 const dpath = node_path_1.default.join(dfolder, path);
                 fs.mkdirSync(node_path_1.default.dirname(dpath), { recursive: true });
                 const dopts = { ...opts, flush: true };
-                fs.writeFileSync(dpath, content, dopts);
+                const dcontent = null == original ? content : original;
+                fs.writeFileSync(dpath, dcontent, dopts);
             }
         }
         catch (err) {
@@ -350,6 +391,10 @@ class FileHandler {
     }
 }
 exports.FileHandler = FileHandler;
+function whenify(meta, now) {
+    meta.when = now;
+    meta.hwhen = (0, basic_1.humanify)(now);
+}
 function validPath(path, maxdepth, errmark) {
     if (null == path || '' == path || 'string' !== typeof path) {
         throw new Error('ERROR:' + errmark + ' invalid path, path=' + path);

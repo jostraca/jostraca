@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BuildMeta = void 0;
 const node_path_1 = __importDefault(require("node:path"));
+const basic_1 = require("../util/basic");
 // Handle loading, recording,and saving of build meta data
 class BuildMeta {
     constructor(fh) {
@@ -36,12 +37,11 @@ class BuildMeta {
         // returns file meta
     }
     add(file, meta) {
-        // add file to next buildmetadata
-        // meta is size, write time, excluded, etc
+        this.next.files[file] = meta;
     }
     done() {
         this.next.last = this.fh.now();
-        // this.#next.hlast = humanify(this.#next.last)
+        this.next.hlast = (0, basic_1.humanify)(this.next.last);
         // save over previous
         saveMetaData(this.fh, this.next);
         return this.next;

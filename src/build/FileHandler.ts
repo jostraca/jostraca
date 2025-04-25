@@ -10,6 +10,7 @@ import { BuildContext } from './BuildContext'
 import { FST, Audit } from '../types'
 
 import {
+  humanify,
   isbinext,
 } from '../util/basic'
 
@@ -33,13 +34,16 @@ class FileHandler {
   duplicate: boolean
   duplicateFolder: () => string
   last: () => number
-
+  addmeta: (file: string, meta: any) => void
+  metafile: () => string
   files: {
     preserved: string[]
     written: string[]
     presented: string[]
     diffed: string[]
     merged: string[]
+    conflicted: string[]
+    unchanged: string[]
   }
 
 
@@ -65,11 +69,15 @@ class FileHandler {
       presented: [],
       diffed: [],
       merged: [],
+      conflicted: [],
+      unchanged: [],
     }
 
     // Yikes!
     this.duplicateFolder = bctx.duplicateFolder.bind(bctx)
     this.last = () => bctx.bmeta.prev.last
+    this.addmeta = bctx.addmeta.bind(bctx)
+    this.metafile = () => bctx.bmeta.next.filename
 
     if (!this.fs().existsSync) {
       throw new Error(CN + ' Invalid file system provider: ' + this.fs())
@@ -78,7 +86,6 @@ class FileHandler {
 
 
   save(path: string, content: string | Buffer, write?: boolean | string, whence?: string): void {
-    const start = this.now()
     const wstr = null == whence ? '' : whence + ':'
     const fs = this.fs()
     const FN = 'save:'
@@ -100,9 +107,23 @@ class FileHandler {
     const exists = fs.existsSync(path)
     write = write || !exists
 
+    let action = 'none'
+
+    const meta: any = {
+      action,
+      path,
+      exists,
+      actions: [],
+      protect: false,
+      conflict: false,
+    }
+
     if (exists) {
-      let oldcontent = fs.readFileSync(path, 'utf8').toString()
+      // let oldcontent = fs.readFileSync(path, 'utf8').toString()
+      let oldcontent = this.loadFile(path)
+
       const protect = 0 <= oldcontent.indexOf(JOSTRACA_PROTECT)
+      meta.protect = protect
 
       if (existing.preserve) {
         if (protect) {
@@ -114,8 +135,12 @@ class FileHandler {
               '.old' + Path.extname(path))
           this.copyFile(path, oldpath, whence + 'preserve:')
           this.files.preserved.push(path)
-          this.audit.push([CN + FN + wstr + ':preserve',
-          { action: 'preserve', when: this.now(), path, start }])
+
+          action = 'preserve'
+          whenify(meta, this.now())
+          meta.actions.push(action)
+
+          this.audit.push([CN + FN + wstr + action, { ...meta, action, path }])
         }
       }
 
@@ -129,8 +154,12 @@ class FileHandler {
               '.new' + Path.extname(path))
           this.saveFile(newpath, content, { flush: true }, whence + 'present:')
           this.files.presented.push(path)
-          this.audit.push([CN + FN + wstr + ':present',
-          { action: 'present', when: this.now(), path, start }])
+
+          action = 'present'
+          whenify(meta, this.now())
+          meta.actions.push(action)
+
+          this.audit.push([CN + FN + wstr + action, { ...meta, action, path }])
         }
       }
 
@@ -139,12 +168,24 @@ class FileHandler {
           write = false
 
           if (oldcontent.length !== content.length || oldcontent !== content) {
+            action = 'diff'
+
             const cstr = 'string' === typeof content ? content : content.toString('utf8')
-            const diffcontent = this.diff(cstr, oldcontent)
-            this.saveFile(path, diffcontent, whence + 'diff:')
+            const diffcontent = this.diff(cstr, oldcontent.toString())
+
+            this.saveFile(path, diffcontent, { encoding: 'utf8' }, whence + action, content)
+
             this.files.diffed.push(path)
-            this.audit.push([CN + FN + wstr + ':diff',
-            { action: 'diff', when: this.now(), path, start }])
+            const conflict = cstr !== diffcontent
+            if (conflict) {
+              this.files.conflicted.push(path)
+            }
+
+            whenify(meta, this.now())
+            meta.actions.push(action)
+            meta.conflict = conflict
+
+            this.audit.push([CN + FN + wstr + action, { ...meta, action, path }])
           }
         }
         else if (existing.merge) {
@@ -158,14 +199,30 @@ class FileHandler {
 
               const dpath = Path.join(dfolder, path)
               if (this.existsFile(dpath)) {
+                action = 'merge'
+
                 const origcontent = this.loadFile(dpath, { encoding: 'utf8' }) as string
-                const diffcontent = this.merge(cstr, oldcontent, origcontent)
-                this.saveFile(path, diffcontent, whence + 'merge:')
-                this.files.diffed.push(path)
-                this.audit.push([CN + FN + wstr + ':merge',
-                { action: 'merge', when: this.now(), path, start }])
+                const mergeres = this.merge(cstr, oldcontent.toString(), origcontent)
+                const diffcontent = mergeres.content
+                const conflict = mergeres.conflict
+
+                this.saveFile(path, diffcontent, { encoding: 'utf8' }, whence + action, content)
+
+                this.files.merged.push(path)
+                if (conflict) {
+                  this.files.conflicted.push(path)
+                }
+
+                whenify(meta, this.now())
+                meta.actions.push(action)
+                meta.conflict = conflict
+
+                this.audit.push([CN + FN + wstr + action, { ...meta, action, path }])
               }
             }
+          }
+          else {
+            this.files.unchanged.push(path)
           }
         }
       }
@@ -174,9 +231,12 @@ class FileHandler {
     if (write) {
       this.saveFile(path, content, whence + 'write:')
       this.files.written.push(path)
-      this.audit.push([CN + FN + wstr + ':write',
-      { action: 'write', when: this.now(), path, start }])
+      meta.actions.push('write')
+      whenify(meta, this.now())
+      this.audit.push([CN + FN + wstr + ':write', { ...meta, action, path }])
     }
+
+    this.addmeta(path, meta)
   }
 
 
@@ -202,7 +262,13 @@ class FileHandler {
 
   // TODO: need to record if diffed, merged
 
-  merge(oldcontent: string, newcontent: string, origcontent: string): string {
+  merge(
+    oldcontent: string,
+    newcontent: string,
+    origcontent: string): {
+      content: string,
+      conflict: boolean
+    } {
     const isowhen = new Date(this.when).toISOString()
     const isolast = new Date(this.last()).toISOString()
 
@@ -214,9 +280,9 @@ class FileHandler {
         b: 'EXISTING: ' + isolast,
       }
     })
-    // console.log('DIFFRES', diffres)
+    const conflict = diffres.conflict
     const content = diffres.result.join('\n')
-    return content
+    return { content, conflict }
   }
 
 
@@ -404,7 +470,13 @@ class FileHandler {
   }
 
 
-  saveFile(path: string, content: string | Buffer, opts?: any | string, whence?: string): void {
+  saveFile(
+    path: string,
+    content: string | Buffer,
+    opts?: any | string,
+    whence?: string,
+    original?: string | Buffer,
+  ): void {
     const when = this.now()
     const wstr = null == whence ? '' : whence + ':'
     const fs = this.fs()
@@ -440,12 +512,16 @@ class FileHandler {
 
       const withinFolder = path.startsWith(this.folder)
 
-      if (this.duplicate && (!isAbsolute || withinFolder)) {
+      if (this.duplicate &&
+        (!isAbsolute || withinFolder) &&
+        (Path.basename(path) !== this.metafile())
+      ) {
         const dfolder = this.duplicateFolder()
         const dpath = Path.join(dfolder, path)
         fs.mkdirSync(Path.dirname(dpath), { recursive: true })
         const dopts = { ...opts, flush: true }
-        fs.writeFileSync(dpath, content, dopts)
+        const dcontent = null == original ? content : original
+        fs.writeFileSync(dpath, dcontent, dopts)
       }
 
     }
@@ -456,6 +532,12 @@ class FileHandler {
       throw err
     }
   }
+}
+
+
+function whenify(meta: any, now: number) {
+  meta.when = now
+  meta.hwhen = humanify(now)
 }
 
 

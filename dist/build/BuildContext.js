@@ -36,6 +36,9 @@ class BuildContext {
         this.fh = new FileHandler_1.FileHandler(this, existing, processing.duplicate);
         this.bmeta = new BuildMeta_1.BuildMeta(this.fh);
     }
+    addmeta(file, meta) {
+        this.bmeta.add(file, meta);
+    }
     duplicateFolder() {
         if (null == this.dfolder) {
             this.dfolder =

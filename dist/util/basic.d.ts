@@ -35,6 +35,10 @@ declare namespace vmap {
     var FILTER: (x: any) => any;
     var KEY: (_: any, p: any) => any;
 }
+declare function humanify(when?: number, flags?: {
+    parts?: boolean;
+    terse?: boolean;
+}): any;
 declare const BINARY_EXT: string[];
 declare function isbinext(path: string): boolean;
-export { each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, isbinext, BINARY_EXT, };
+export { camelify, cmap, each, escre, get, getx, humanify, indent, isbinext, kebabify, names, select, snakify, template, vmap, BINARY_EXT, };
