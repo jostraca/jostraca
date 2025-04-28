@@ -107,10 +107,8 @@ class FileHandler {
     const exists = fs.existsSync(path)
     write = write || !exists
 
-    let action = 'none'
-
     const meta: any = {
-      action,
+      action: 'init',
       path,
       exists,
       actions: [],
@@ -136,11 +134,12 @@ class FileHandler {
           this.copyFile(path, oldpath, whence + 'preserve:')
           this.files.preserved.push(path)
 
-          action = 'preserve'
+          meta.action = 'preserve'
           whenify(meta, this.now())
-          meta.actions.push(action)
+          meta.actions.push(meta.action)
 
-          this.audit.push([CN + FN + wstr + action, { ...meta, action, path }])
+          this.audit.push([CN + FN + wstr + meta.action,
+          { ...meta, action: meta.action, path }])
         }
       }
 
@@ -155,11 +154,12 @@ class FileHandler {
           this.saveFile(newpath, content, { flush: true }, whence + 'present:')
           this.files.presented.push(path)
 
-          action = 'present'
+          meta.action = 'present'
           whenify(meta, this.now())
-          meta.actions.push(action)
+          meta.actions.push(meta.action)
 
-          this.audit.push([CN + FN + wstr + action, { ...meta, action, path }])
+          this.audit.push([CN + FN + wstr + meta.action,
+          { ...meta, action: meta.action, path }])
         }
       }
 
@@ -168,12 +168,12 @@ class FileHandler {
           write = false
 
           if (oldcontent.length !== content.length || oldcontent !== content) {
-            action = 'diff'
+            meta.action = 'diff'
 
             const cstr = 'string' === typeof content ? content : content.toString('utf8')
             const diffcontent = this.diff(cstr, oldcontent.toString())
 
-            this.saveFile(path, diffcontent, { encoding: 'utf8' }, whence + action, content)
+            this.saveFile(path, diffcontent, { encoding: 'utf8' }, whence + meta.action, content)
 
             this.files.diffed.push(path)
             const conflict = cstr !== diffcontent
@@ -182,10 +182,11 @@ class FileHandler {
             }
 
             whenify(meta, this.now())
-            meta.actions.push(action)
+            meta.actions.push(meta.action)
             meta.conflict = conflict
 
-            this.audit.push([CN + FN + wstr + action, { ...meta, action, path }])
+            this.audit.push([CN + FN + wstr + meta.action,
+            { ...meta, action: meta.action, path }])
           }
         }
         else if (existing.merge) {
@@ -199,14 +200,15 @@ class FileHandler {
 
               const dpath = Path.join(dfolder, path)
               if (this.existsFile(dpath)) {
-                action = 'merge'
+                meta.action = 'merge'
 
                 const origcontent = this.loadFile(dpath, { encoding: 'utf8' }) as string
                 const mergeres = this.merge(cstr, oldcontent.toString(), origcontent)
                 const diffcontent = mergeres.content
                 const conflict = mergeres.conflict
 
-                this.saveFile(path, diffcontent, { encoding: 'utf8' }, whence + action, content)
+                this.saveFile(path, diffcontent, { encoding: 'utf8' },
+                  whence + meta.action, content)
 
                 this.files.merged.push(path)
                 if (conflict) {
@@ -214,10 +216,11 @@ class FileHandler {
                 }
 
                 whenify(meta, this.now())
-                meta.actions.push(action)
+                meta.actions.push(meta.action)
                 meta.conflict = conflict
 
-                this.audit.push([CN + FN + wstr + action, { ...meta, action, path }])
+                this.audit.push([CN + FN + wstr + meta.action,
+                { ...meta, action: meta.action, path }])
               }
             }
           }
@@ -229,11 +232,13 @@ class FileHandler {
     }
 
     if (write) {
-      this.saveFile(path, content, whence + 'write:')
+      meta.action = 'write'
+      this.saveFile(path, content, whence + meta.action)
       this.files.written.push(path)
-      meta.actions.push('write')
+      meta.actions.push(meta.action)
       whenify(meta, this.now())
-      this.audit.push([CN + FN + wstr + ':write', { ...meta, action, path }])
+      this.audit.push([CN + FN + wstr + meta.action,
+      { ...meta, action: meta.action, path }])
     }
 
     this.addmeta(path, meta)
@@ -263,8 +268,8 @@ class FileHandler {
   // TODO: need to record if diffed, merged
 
   merge(
-    oldcontent: string,
     newcontent: string,
+    oldcontent: string,
     origcontent: string): {
       content: string,
       conflict: boolean
@@ -272,14 +277,28 @@ class FileHandler {
     const isowhen = new Date(this.when).toISOString()
     const isolast = new Date(this.last()).toISOString()
 
+    // Consider the previously generated pure version, stored in
+    // .jostraca/generated to be the "original". That preserves
+    // manual edits in the main generated output.
     const diffres = Diff3.merge(oldcontent, origcontent, newcontent, {
       stringSeparator: '\n',
       excludeFalseConflicts: true,
       label: {
-        a: 'GENERATED: ' + isowhen,
-        b: 'EXISTING: ' + isolast,
+        a: 'EXISTING: ' + isolast,
+        b: 'GENERATED: ' + isowhen,
       }
     })
+
+    // if (oldcontent.includes('foo js')) {
+    //   console.log(
+    //     'DIFF======',
+    //     '\no=', JSON.stringify(oldcontent),
+    //     '\ng=', JSON.stringify(origcontent),
+    //     '\nn=', JSON.stringify(newcontent),
+    //     diffres
+    //   )
+    // }
+
     const conflict = diffres.conflict
     const content = diffres.result.join('\n')
     return { content, conflict }

@@ -31,7 +31,7 @@ declare class FileHandler {
     }, duplicate: boolean);
     save(path: string, content: string | Buffer, write?: boolean | string, whence?: string): void;
     copy(frompath: string, topath: string, write?: boolean | string, whence?: string): void;
-    merge(oldcontent: string, newcontent: string, origcontent: string): {
+    merge(newcontent: string, oldcontent: string, origcontent: string): {
         content: string;
         conflict: boolean;
     };

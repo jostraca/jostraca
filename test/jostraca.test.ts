@@ -27,6 +27,8 @@ const META_FILE = 'jostraca.meta.log'
 
 const TOP_META = '/top/' + META_FOLDER + '/' + META_FILE
 
+
+// 2025-01-01T00:00:00.000Z
 const START_TIME = 1735689600000
 
 
@@ -67,6 +69,23 @@ describe('jostraca', () => {
 
       })
     )
+
+    expect(info).equal({
+      when: 1735689660000,
+      files: {
+        preserved: [],
+        written: [
+          '/top/sdk/js/foo.js',
+          '/top/sdk/js/bar.js',
+          '/top/sdk/go/zed.go'
+        ],
+        presented: [],
+        diffed: [],
+        merged: [],
+        conflicted: [],
+        unchanged: []
+      }
+    })
 
     // console.log('INFO', info)
     const voljson: any = vol.toJSON()
@@ -132,7 +151,7 @@ describe('jostraca', () => {
         '  "hlast": 2025010100050000,\n' +
         '  "files": {\n' +
         '    "/top/foo.txt": {\n' +
-        '      "action": "none",\n' +
+        '      "action": "write",\n' +
         '      "path": "/top/foo.txt",\n' +
         '      "exists": false,\n' +
         '      "actions": [\n' +

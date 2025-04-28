@@ -63,12 +63,6 @@ class BuildMeta {
     return this.prev.last
   }
 
-  // TODO: perhaps?
-  get(file: any) {
-    // get prev file meta data, if any
-    // returns file meta
-  }
-
 
   add(file: string, meta: any) {
     this.next.files[file] = meta
@@ -103,9 +97,6 @@ function saveMetaData(fh: FileHandler, bmeta: BuildMetaData) {
   const metapath = Path.join(bmeta.foldername, bmeta.filename)
   fh.saveJSON(metapath, bmeta)
 }
-
-
-
 
 
 export {

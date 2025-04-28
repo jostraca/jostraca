@@ -31,11 +31,6 @@ class BuildMeta {
     last() {
         return this.prev.last;
     }
-    // TODO: perhaps?
-    get(file) {
-        // get prev file meta data, if any
-        // returns file meta
-    }
     add(file, meta) {
         this.next.files[file] = meta;
     }

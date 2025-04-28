@@ -18,7 +18,6 @@ declare class BuildMeta {
     next: BuildMetaData;
     constructor(fh: FileHandler);
     last(): number;
-    get(file: any): void;
     add(file: string, meta: any): void;
     done(): BuildMetaData;
 }

@@ -19,7 +19,7 @@ const START_TIME = 1735689600000;
                 (0, __1.File)({ name: 'bar.js' }, () => {
                     let extra = '';
                     if (1 === m.a) {
-                        extra = '// EXTRA1';
+                        extra = '// gen-extra1\n';
                     }
                     (0, __1.Content)('// custom-bar\n// BAR\n' + extra);
                 });
@@ -41,9 +41,7 @@ const START_TIME = 1735689600000;
         const vol = mfs.vol;
         const m0 = { a: 0 };
         const res0 = await jostraca.generate({ fs: () => fs, folder: '/top', model: m0 }, root);
-        // console.log('RES0', res0)
         (0, code_1.expect)(res0).includes(DATA_merge_basic_res0);
-        // console.log('VOL0', vol.toJSON())
         (0, code_1.expect)(vol.toJSON()).equal(DATA_merge_basic_vol0);
         fs.appendFileSync('/top/sdk/js/foo.js', '// added1\n', { encoding: 'utf8' });
         fs.appendFileSync('/top/sdk/js/bar.js', '// added1\n', { encoding: 'utf8' });
@@ -52,19 +50,15 @@ const START_TIME = 1735689600000;
             fs: () => fs, folder: '/top', model: m1,
             existing: { txt: { merge: true } }
         }, root);
-        // console.log('RES1', res1)
         (0, code_1.expect)(res1).includes(DATA_merge_basic_res1);
-        // console.log('VOL1', vol.toJSON())
         (0, code_1.expect)(vol.toJSON()).equal(DATA_merge_basic_vol1);
-        fs.writeFileSync('/top/sdk/js/bar.js', '// custom-bar\n// BAR\n// added1', { encoding: 'utf8' });
+        fs.writeFileSync('/top/sdk/js/bar.js', '// custom-bar\n// BAR\n// added1-resolve\n', { encoding: 'utf8' });
         const m12 = { a: 1 };
         const res2 = await jostraca.generate({
             fs: () => fs, folder: '/top', model: m12,
             existing: { txt: { merge: true } }
         }, root);
-        // console.log('RES2', res2)
         (0, code_1.expect)(res2).includes(DATA_merge_basic_res2);
-        // console.log('VOL2', vol.toJSON())
         (0, code_1.expect)(vol.toJSON()).equal(DATA_merge_basic_vol2);
     });
 });
@@ -127,7 +121,7 @@ const DATA_merge_basic_vol0 = {
         '  "hlast": 2025010100090000,\n' +
         '  "files": {\n' +
         '    "/top/sdk/js/foo.js": {\n' +
-        '      "action": "none",\n' +
+        '      "action": "write",\n' +
         '      "path": "/top/sdk/js/foo.js",\n' +
         '      "exists": false,\n' +
         '      "actions": [\n' +
@@ -139,7 +133,7 @@ const DATA_merge_basic_vol0 = {
         '      "hwhen": 2025010100040000\n' +
         '    },\n' +
         '    "/top/sdk/js/bar.js": {\n' +
-        '      "action": "none",\n' +
+        '      "action": "write",\n' +
         '      "path": "/top/sdk/js/bar.js",\n' +
         '      "exists": false,\n' +
         '      "actions": [\n' +
@@ -151,7 +145,7 @@ const DATA_merge_basic_vol0 = {
         '      "hwhen": 2025010100060000\n' +
         '    },\n' +
         '    "/top/sdk/go/zed.go": {\n' +
-        '      "action": "none",\n' +
+        '      "action": "write",\n' +
         '      "path": "/top/sdk/go/zed.go",\n' +
         '      "exists": false,\n' +
         '      "actions": [\n' +
@@ -170,15 +164,14 @@ const DATA_merge_basic_vol1 = {
     '/top/sdk/js/foo.js': '// custom-foo:1\n// FOO\n// added1\n',
     '/top/sdk/js/bar.js': '// custom-bar\n' +
         '// BAR\n' +
-        '<<<<<<< GENERATED: 2025-01-01T00:12:00.000Z\n' +
-        '// EXTRA1\n' +
-        '=======\n' +
+        '<<<<<<< EXISTING: 2025-01-01T00:09:00.000Z\n' +
         '// added1\n' +
-        '\n' +
-        '>>>>>>> EXISTING: 2025-01-01T00:09:00.000Z',
+        '=======\n' +
+        '// gen-extra1\n' +
+        '>>>>>>> GENERATED: 2025-01-01T00:12:00.000Z\n',
     '/top/sdk/go/zed.go': '// custom-zed:1\n// EXTRA1',
     '/top/.jostraca/generated/top/sdk/js/foo.js': '// custom-foo:1\n// FOO\n',
-    '/top/.jostraca/generated/top/sdk/js/bar.js': '// custom-bar\n// BAR\n// EXTRA1',
+    '/top/.jostraca/generated/top/sdk/js/bar.js': '// custom-bar\n// BAR\n// gen-extra1\n',
     '/top/.jostraca/generated/top/sdk/go/zed.go': '// custom-zed:1\n// EXTRA1',
     '/top/.jostraca/jostraca.meta.log': '{\n' +
         '  "foldername": ".jostraca",\n' +
@@ -187,7 +180,7 @@ const DATA_merge_basic_vol1 = {
         '  "hlast": 2025010100310000,\n' +
         '  "files": {\n' +
         '    "/top/sdk/js/foo.js": {\n' +
-        '      "action": "none",\n' +
+        '      "action": "merge",\n' +
         '      "path": "/top/sdk/js/foo.js",\n' +
         '      "exists": true,\n' +
         '      "actions": [\n' +
@@ -199,7 +192,7 @@ const DATA_merge_basic_vol1 = {
         '      "hwhen": 2025010100200000\n' +
         '    },\n' +
         '    "/top/sdk/js/bar.js": {\n' +
-        '      "action": "none",\n' +
+        '      "action": "merge",\n' +
         '      "path": "/top/sdk/js/bar.js",\n' +
         '      "exists": true,\n' +
         '      "actions": [\n' +
@@ -211,7 +204,7 @@ const DATA_merge_basic_vol1 = {
         '      "hwhen": 2025010100250000\n' +
         '    },\n' +
         '    "/top/sdk/go/zed.go": {\n' +
-        '      "action": "none",\n' +
+        '      "action": "merge",\n' +
         '      "path": "/top/sdk/go/zed.go",\n' +
         '      "exists": true,\n' +
         '      "actions": [\n' +
@@ -228,10 +221,10 @@ const DATA_merge_basic_vol1 = {
 const DATA_merge_basic_vol2 = {
     '/top/sdk/js/qaz.js': '// not-gen\n',
     '/top/sdk/js/foo.js': '// custom-foo:1\n// FOO\n// added1\n',
-    '/top/sdk/js/bar.js': '// custom-bar\n// BAR\n// added1',
+    '/top/sdk/js/bar.js': '// custom-bar\n// BAR\n// added1-resolve\n',
     '/top/sdk/go/zed.go': '// custom-zed:1\n// EXTRA1',
     '/top/.jostraca/generated/top/sdk/js/foo.js': '// custom-foo:1\n// FOO\n',
-    '/top/.jostraca/generated/top/sdk/js/bar.js': '// custom-bar\n// BAR\n// EXTRA1',
+    '/top/.jostraca/generated/top/sdk/js/bar.js': '// custom-bar\n// BAR\n// gen-extra1\n',
     '/top/.jostraca/generated/top/sdk/go/zed.go': '// custom-zed:1\n// EXTRA1',
     '/top/.jostraca/jostraca.meta.log': '{\n' +
         '  "foldername": ".jostraca",\n' +
@@ -240,7 +233,7 @@ const DATA_merge_basic_vol2 = {
         '  "hlast": 2025010100490000,\n' +
         '  "files": {\n' +
         '    "/top/sdk/js/foo.js": {\n' +
-        '      "action": "none",\n' +
+        '      "action": "merge",\n' +
         '      "path": "/top/sdk/js/foo.js",\n' +
         '      "exists": true,\n' +
         '      "actions": [\n' +
@@ -252,7 +245,7 @@ const DATA_merge_basic_vol2 = {
         '      "hwhen": 2025010100420000\n' +
         '    },\n' +
         '    "/top/sdk/js/bar.js": {\n' +
-        '      "action": "none",\n' +
+        '      "action": "merge",\n' +
         '      "path": "/top/sdk/js/bar.js",\n' +
         '      "exists": true,\n' +
         '      "actions": [\n' +
@@ -264,7 +257,7 @@ const DATA_merge_basic_vol2 = {
         '      "hwhen": 2025010100470000\n' +
         '    },\n' +
         '    "/top/sdk/go/zed.go": {\n' +
-        '      "action": "none",\n' +
+        '      "action": "init",\n' +
         '      "path": "/top/sdk/go/zed.go",\n' +
         '      "exists": true,\n' +
         '      "actions": [],\n' +
