@@ -252,6 +252,22 @@ const __1 = require("../");
         (0, code_1.expect)((0, __1.kebabify)('')).equal('');
         (0, code_1.expect)((0, __1.kebabify)(true)).equal('true');
         (0, code_1.expect)((0, __1.kebabify)([true])).equal('true');
+        (0, code_1.expect)((0, __1.names)({}, 'Foo')).equal({
+            name__orig: 'Foo',
+            Name: 'Foo',
+            name_: 'foo',
+            'name-': 'foo',
+            name: 'foo',
+            NAME: 'FOO'
+        });
+        (0, code_1.expect)((0, __1.names)({}, 'FooBar')).equal({
+            name__orig: 'FooBar',
+            Name: 'FooBar',
+            name_: 'foo_bar',
+            'name-': 'foo-bar',
+            name: 'foobar',
+            NAME: 'FOOBAR'
+        });
     });
 });
 //# sourceMappingURL=utility.test.js.map

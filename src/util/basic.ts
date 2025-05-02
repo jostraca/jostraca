@@ -322,11 +322,16 @@ function partify(input: any[] | string): string[] {
 function names(base: any, name: string, prop = 'name') {
   name = '' + name
   base[prop + '__orig'] = name
-  base[prop.toLowerCase()] = name.toLowerCase()
+
   base[camelify(prop)] = camelify(name)
-  base[snakify(prop)] = snakify(name)
-  base[kebabify(prop)] = kebabify(name)
+
+  base[snakify(prop) + '_'] = snakify(name)
+  base[kebabify(prop) + '-'] = kebabify(name)
+
+  base[prop.toLowerCase()] = name.toLowerCase()
   base[prop.toUpperCase()] = name.toUpperCase()
+
+  return base
 }
 
 

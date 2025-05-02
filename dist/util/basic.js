@@ -277,11 +277,12 @@ function partify(input) {
 function names(base, name, prop = 'name') {
     name = '' + name;
     base[prop + '__orig'] = name;
-    base[prop.toLowerCase()] = name.toLowerCase();
     base[camelify(prop)] = camelify(name);
-    base[snakify(prop)] = snakify(name);
-    base[kebabify(prop)] = kebabify(name);
+    base[snakify(prop) + '_'] = snakify(name);
+    base[kebabify(prop) + '-'] = kebabify(name);
+    base[prop.toLowerCase()] = name.toLowerCase();
     base[prop.toUpperCase()] = name.toUpperCase();
+    return base;
 }
 function escre(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 function idenstr(s) { return s.replace(/[^\w\d]/g, '_'); }

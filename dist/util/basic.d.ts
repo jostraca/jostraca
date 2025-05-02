@@ -15,7 +15,7 @@ declare function snakify(input: any[] | string): string;
 declare function ucf(s: string): string;
 declare function lcf(s: string): string;
 declare function partify(input: any[] | string): string[];
-declare function names(base: any, name: string, prop?: string): void;
+declare function names(base: any, name: string, prop?: string): any;
 declare function escre(s: string): string;
 declare function template(src: string, model: any, spec?: {
     open?: string;

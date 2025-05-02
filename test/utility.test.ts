@@ -347,6 +347,25 @@ describe('util', () => {
     expect(kebabify('')).equal('')
     expect(kebabify(true as unknown as string)).equal('true')
     expect(kebabify([true] as unknown as string[])).equal('true')
+
+    expect(names({}, 'Foo')).equal({
+      name__orig: 'Foo',
+      Name: 'Foo',
+      name_: 'foo',
+      'name-': 'foo',
+      name: 'foo',
+      NAME: 'FOO'
+    })
+    expect(names({}, 'FooBar')).equal({
+      name__orig: 'FooBar',
+      Name: 'FooBar',
+      name_: 'foo_bar',
+      'name-': 'foo-bar',
+      name: 'foobar',
+      NAME: 'FOOBAR'
+    })
+
+
   })
 
 })
