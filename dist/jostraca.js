@@ -34,7 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.List = exports.Slot = exports.Line = exports.Copy = exports.Folder = exports.Fragment = exports.Inject = exports.File = exports.Content = exports.Project = exports.omap = exports.deep = exports.isbinext = exports.indent = exports.escre = exports.template = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.select = exports.each = exports.BuildContext = void 0;
+exports.List = exports.Slot = exports.Line = exports.Copy = exports.Folder = exports.Fragment = exports.Inject = exports.File = exports.Content = exports.Project = exports.omap = exports.deep = exports.ucf = exports.lcf = exports.partify = exports.isbinext = exports.indent = exports.escre = exports.template = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.select = exports.each = exports.BuildContext = void 0;
 exports.Jostraca = Jostraca;
 exports.cmp = cmp;
 // TODO:
@@ -62,6 +62,9 @@ Object.defineProperty(exports, "template", { enumerable: true, get: function () 
 Object.defineProperty(exports, "escre", { enumerable: true, get: function () { return basic_1.escre; } });
 Object.defineProperty(exports, "indent", { enumerable: true, get: function () { return basic_1.indent; } });
 Object.defineProperty(exports, "isbinext", { enumerable: true, get: function () { return basic_1.isbinext; } });
+Object.defineProperty(exports, "partify", { enumerable: true, get: function () { return basic_1.partify; } });
+Object.defineProperty(exports, "lcf", { enumerable: true, get: function () { return basic_1.lcf; } });
+Object.defineProperty(exports, "ucf", { enumerable: true, get: function () { return basic_1.ucf; } });
 // TODO: the actual signatures
 const deep = jsonic_1.util.deep;
 exports.deep = deep;

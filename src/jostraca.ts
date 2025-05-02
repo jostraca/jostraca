@@ -43,6 +43,9 @@ import {
   escre,
   indent,
   isbinext,
+  partify,
+  lcf,
+  ucf,
 } from './util/basic'
 
 
@@ -398,6 +401,9 @@ export {
   escre,
   indent,
   isbinext,
+  partify,
+  lcf,
+  ucf,
 
   deep,
   omap,

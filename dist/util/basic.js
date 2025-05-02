@@ -16,10 +16,13 @@ exports.indent = indent;
 exports.isbinext = isbinext;
 exports.kebabify = kebabify;
 exports.names = names;
+exports.partify = partify;
 exports.select = select;
 exports.snakify = snakify;
 exports.template = template;
 exports.vmap = vmap;
+exports.ucf = ucf;
+exports.lcf = lcf;
 const node_path_1 = __importDefault(require("node:path"));
 // Iterate over arrays and objects (opinionated mutation!).
 function each(subject, // Iterate over subject.
@@ -238,28 +241,42 @@ function get(root, path) {
     return node;
 }
 function camelify(input) {
-    let parts = 'string' == typeof input ? input.split('-') : input.map(n => '' + n);
+    let parts = partify(input);
     return parts
-        .map((p) => ('' === p ? '' : (p[0].toUpperCase() + p.substring(1))))
+        .map((p) => p[0].toUpperCase() + p.substring(1))
         .join('');
 }
 function kebabify(input) {
-    let parts = 'string' == typeof input ? input.split(/([A-Z])/) : input.map(n => '' + n);
+    let parts = partify(input);
     return parts
-        .filter((p) => '' !== p)
-        .reduce((a, n, i) => ((0 === i % 2 ? a.push(n.toLowerCase()) : a[(i / 2) | 0] += n), a), [])
+        .map(p => p.toLowerCase())
         .join('-');
 }
 function snakify(input) {
-    let parts = 'string' == typeof input ? input.split(/([A-Z])/) : input.map(n => '' + n);
+    let parts = partify(input);
     return parts
-        .filter((p) => '' !== p)
-        .reduce((a, n, i) => ((0 === i % 2 ? a.push(n.toLowerCase()) : a[(i / 2) | 0] += n), a), [])
+        .map(p => p.toLowerCase())
         .join('_');
+}
+function ucf(s) {
+    s = ('string' === typeof s ? s : '' + s);
+    return 0 < s.length ? s[0].toUpperCase() + s.substring(1) : s;
+}
+function lcf(s) {
+    s = ('string' === typeof s ? s : '' + s);
+    return 0 < s.length ? s[0].toLowerCase() + s.substring(1) : s;
+}
+function partify(input) {
+    return 'string' == typeof input ?
+        input.split(/[-_]|([A-Z])/)
+            .filter(p => null != p && '' !== p)
+            .reduce((a, p) => (((0 < a.length && 1 === a[a.length - 1].length) ?
+            a[a.length - 1] += p : a.push(p)), a), []) :
+        Array.isArray(input) ? input.map(n => '' + n) : ['' + input];
 }
 function names(base, name, prop = 'name') {
     name = '' + name;
-    base.name$ = name;
+    base[prop + '__orig'] = name;
     base[prop.toLowerCase()] = name.toLowerCase();
     base[camelify(prop)] = camelify(name);
     base[snakify(prop)] = snakify(name);
@@ -352,7 +369,7 @@ function template(src, model, spec) {
                     insert = specReplaceCanon[key.replace(/^J_K\d+_/, '')] || '';
                 }
             }
-            // Check if custom regexp has resulted in an alternate that matches an empy string.
+            // Check if custom regexp has resulted in an alternate that matches an empty string.
             if ('' === ref) {
                 throw new Error('Regular expression matches empty string: ' + insertRE);
             }

@@ -9,6 +9,13 @@ import {
   template,
   indent,
   isbinext,
+  names,
+  camelify,
+  snakify,
+  kebabify,
+  partify,
+  lcf,
+  ucf,
 } from '../'
 
 
@@ -266,5 +273,81 @@ describe('util', () => {
     expect(isbinext('/foo/bar.png')).equal(true)
 
   })
+
+
+  test('name-formats', () => {
+    expect(ucf('foo')).equal('Foo')
+    expect(ucf('Foo')).equal('Foo')
+    expect(ucf('f')).equal('F')
+    expect(ucf('F')).equal('F')
+    expect(ucf('')).equal('')
+    expect(ucf(null as unknown as string)).equal('Null')
+
+    expect(lcf('foo')).equal('foo')
+    expect(lcf('Foo')).equal('foo')
+    expect(lcf('f')).equal('f')
+    expect(lcf('F')).equal('f')
+    expect(lcf('')).equal('')
+    expect(lcf(null as unknown as string)).equal('null')
+
+    expect(partify(undefined as unknown as string)).equal(['undefined'])
+    expect(partify(null as unknown as string)).equal(['null'])
+    expect(partify('')).equal([])
+    expect(partify('Foo')).equal(['Foo'])
+    expect(partify('FooBar')).equal(['Foo', 'Bar'])
+    expect(partify('foobar')).equal(['foobar'])
+    expect(partify('foo-bar')).equal(['foo', 'bar'])
+    expect(partify('foo_bar')).equal(['foo', 'bar'])
+    expect(partify(['foo'])).equal(['foo'])
+    expect(partify(['foo', 'bar'])).equal(['foo', 'bar'])
+    expect(partify(true as unknown as string)).equal(['true'])
+    expect(partify([true] as unknown as string[])).equal(['true'])
+
+    expect(camelify(null as unknown as string)).equal('Null')
+    expect(camelify(undefined as unknown as string)).equal('Undefined')
+    expect(camelify('foo')).equal('Foo')
+    expect(camelify('Foo')).equal('Foo')
+    expect(camelify('FooBar')).equal('FooBar')
+    expect(camelify('foo_bar')).equal('FooBar')
+    expect(camelify('foo-bar')).equal('FooBar')
+    expect(camelify('fooBar')).equal('FooBar')
+    expect(camelify('')).equal('')
+    expect(camelify(['foo'])).equal('Foo')
+    expect(camelify(['foo', 'bar'])).equal('FooBar')
+    expect(camelify('')).equal('')
+    expect(camelify(true as unknown as string)).equal('True')
+    expect(camelify([true] as unknown as string[])).equal('True')
+
+    expect(snakify(null as unknown as string)).equal('null')
+    expect(snakify(undefined as unknown as string)).equal('undefined')
+    expect(snakify('foo')).equal('foo')
+    expect(snakify('Foo')).equal('foo')
+    expect(snakify('FooBar')).equal('foo_bar')
+    expect(snakify('foo_bar')).equal('foo_bar')
+    expect(snakify('foo-bar')).equal('foo_bar')
+    expect(snakify('fooBar')).equal('foo_bar')
+    expect(snakify('')).equal('')
+    expect(snakify(['foo'])).equal('foo')
+    expect(snakify(['foo', 'bar'])).equal('foo_bar')
+    expect(snakify('')).equal('')
+    expect(snakify(true as unknown as string)).equal('true')
+    expect(snakify([true] as unknown as string[])).equal('true')
+
+    expect(kebabify(null as unknown as string)).equal('null')
+    expect(kebabify(undefined as unknown as string)).equal('undefined')
+    expect(kebabify('foo')).equal('foo')
+    expect(kebabify('Foo')).equal('foo')
+    expect(kebabify('FooBar')).equal('foo-bar')
+    expect(kebabify('foo_bar')).equal('foo-bar')
+    expect(kebabify('foo-bar')).equal('foo-bar')
+    expect(kebabify('fooBar')).equal('foo-bar')
+    expect(kebabify('')).equal('')
+    expect(kebabify(['foo'])).equal('foo')
+    expect(kebabify(['foo', 'bar'])).equal('foo-bar')
+    expect(kebabify('')).equal('')
+    expect(kebabify(true as unknown as string)).equal('true')
+    expect(kebabify([true] as unknown as string[])).equal('true')
+  })
+
 })
 

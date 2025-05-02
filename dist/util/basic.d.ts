@@ -12,6 +12,9 @@ declare function get(root: any, path: string | string[]): any;
 declare function camelify(input: any[] | string): string;
 declare function kebabify(input: any[] | string): string;
 declare function snakify(input: any[] | string): string;
+declare function ucf(s: string): string;
+declare function lcf(s: string): string;
+declare function partify(input: any[] | string): string[];
 declare function names(base: any, name: string, prop?: string): void;
 declare function escre(s: string): string;
 declare function template(src: string, model: any, spec?: {
@@ -41,4 +44,4 @@ declare function humanify(when?: number, flags?: {
 }): any;
 declare const BINARY_EXT: string[];
 declare function isbinext(path: string): boolean;
-export { camelify, cmap, each, escre, get, getx, humanify, indent, isbinext, kebabify, names, select, snakify, template, vmap, BINARY_EXT, };
+export { camelify, cmap, each, escre, get, getx, humanify, indent, isbinext, kebabify, names, partify, select, snakify, template, vmap, ucf, lcf, BINARY_EXT, };
