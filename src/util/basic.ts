@@ -438,7 +438,16 @@ function template(
 
       // Get replacement from model path.
       if (null != ref) {
-        insert = '__JOSTRACA_REPLACE__' === ref ? '' + insertRE : getx(model, ref)
+        const qm = ref.match(/^"(.+)"$/)
+        if (qm) {
+          insert = qm[1]
+        }
+        else if ('__JOSTRACA_REPLACE__' === ref) {
+          insert = '' + insertRE
+        }
+        else {
+          insert = getx(model, ref)
+        }
         skip = mg.J_O.length + mg.J_C.length
       }
 

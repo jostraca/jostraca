@@ -233,6 +233,14 @@ describe('util', () => {
       '  RED-Bar-"  // #Red-Bar\\n"\n' +
       'AAA\n    GREENBLUE-Zed-"    //\\t#GreenBlue-Zed \\n"\n}')
 
+    // Missing refs are not replaced.
+    expect(template('Name $$Name$$', {}, { replace: { Name: () => 'Foo' } }))
+      .equal('Foo $$Name$$')
+
+    // Escape format: $$"(.+)"$$
+    expect(template('Name $$"Name"$$', {}, { replace: { Name: () => 'Foo' } }))
+      .equal('Foo Name')
+
   })
 
 

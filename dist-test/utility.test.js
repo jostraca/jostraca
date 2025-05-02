@@ -155,6 +155,12 @@ const __1 = require("../");
         })).equal('{\n-Wax:WAX-"//#Wax\\n"\n  -SeeSaw:SEESAW-"  //  #SeeSaw\\n"\n' +
             '  RED-Bar-"  // #Red-Bar\\n"\n' +
             'AAA\n    GREENBLUE-Zed-"    //\\t#GreenBlue-Zed \\n"\n}');
+        // Missing refs are not replaced.
+        (0, code_1.expect)((0, __1.template)('Name $$Name$$', {}, { replace: { Name: () => 'Foo' } }))
+            .equal('Foo $$Name$$');
+        // Escape format: $$"(.+)"$$
+        (0, code_1.expect)((0, __1.template)('Name $$"Name"$$', {}, { replace: { Name: () => 'Foo' } }))
+            .equal('Foo Name');
     });
     (0, node_test_1.test)('indent', () => {
         (0, code_1.expect)((0, __1.indent)('a', 2)).equal('  a');
