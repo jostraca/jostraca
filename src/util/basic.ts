@@ -308,8 +308,6 @@ function lcf(s: string) {
 }
 
 
-
-
 function partify(input: any[] | string): string[] {
   return 'string' == typeof input ?
     input.split(/[-_]|([A-Z])/)
@@ -319,6 +317,7 @@ function partify(input: any[] | string): string[] {
         a[a.length - 1] += p : a.push(p)), a), []) :
     Array.isArray(input) ? input.map(n => '' + n) : ['' + input]
 }
+
 
 function names(base: any, name: string, prop = 'name') {
   name = '' + name
