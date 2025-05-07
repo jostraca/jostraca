@@ -15,31 +15,21 @@ import { Project } from './cmp/Project';
 import { List } from './cmp/List';
 declare const OptionsShape: {
     <V>(root?: V | undefined, ctx?: import("gubu").Context): V & {
-        folder: string;
+        folder: any;
         meta: any;
         fs: any;
         now: any;
         log: any;
-        debug: string;
+        debug: any;
         exclude: boolean;
         existing: {
-            txt: {
-                write: boolean;
-                preserve: boolean;
-                present: boolean;
-                diff: boolean;
-                merge: boolean;
-            };
-            bin: {
-                write: boolean;
-                preserve: boolean;
-                present: boolean;
-            };
+            txt: {};
+            bin: {};
         };
         processing: {
             duplicate: boolean;
         };
-        model: {};
+        model: any;
         build: boolean;
         mem: boolean;
         vol: {};
@@ -50,31 +40,21 @@ declare const OptionsShape: {
         };
     };
     valid: <V>(root?: V | undefined, ctx?: import("gubu").Context) => root is V & {
-        folder: string;
+        folder: import("gubu").Node<StringConstructor>;
         meta: any;
         fs: any;
         now: any;
         log: any;
-        debug: string;
+        debug: import("gubu").Node<string>;
         exclude: boolean;
         existing: {
-            txt: {
-                write: boolean;
-                preserve: boolean;
-                present: boolean;
-                diff: boolean;
-                merge: boolean;
-            };
-            bin: {
-                write: boolean;
-                preserve: boolean;
-                present: boolean;
-            };
+            txt: {};
+            bin: {};
         };
         processing: {
             duplicate: boolean;
         };
-        model: {};
+        model: any;
         build: boolean;
         mem: boolean;
         vol: {};
@@ -123,31 +103,21 @@ declare const OptionsShape: {
     }[];
     spec(): any;
     node(): import("gubu").Node<{
-        folder: string;
+        folder: import("gubu").Node<StringConstructor>;
         meta: any;
         fs: any;
         now: any;
         log: any;
-        debug: string;
+        debug: import("gubu").Node<string>;
         exclude: boolean;
         existing: {
-            txt: {
-                write: boolean;
-                preserve: boolean;
-                present: boolean;
-                diff: boolean;
-                merge: boolean;
-            };
-            bin: {
-                write: boolean;
-                preserve: boolean;
-                present: boolean;
-            };
+            txt: {};
+            bin: {};
         };
         processing: {
             duplicate: boolean;
         };
-        model: {};
+        model: any;
         build: boolean;
         mem: boolean;
         vol: {};
@@ -165,10 +135,100 @@ declare const OptionsShape: {
         v$: string;
     };
 };
+declare const ExistingShape: {
+    <V>(root?: V | undefined, ctx?: import("gubu").Context): V & {
+        txt: {
+            write: boolean;
+            preserve: boolean;
+            present: boolean;
+            diff: boolean;
+            merge: boolean;
+        };
+        bin: {
+            write: boolean;
+            preserve: boolean;
+            present: boolean;
+        };
+    };
+    valid: <V>(root?: V | undefined, ctx?: import("gubu").Context) => root is V & {
+        txt: {
+            write: boolean;
+            preserve: boolean;
+            present: boolean;
+            diff: boolean;
+            merge: boolean;
+        };
+        bin: {
+            write: boolean;
+            preserve: boolean;
+            present: boolean;
+        };
+    };
+    match(root?: any, ctx?: import("gubu").Context): boolean;
+    error(root?: any, ctx?: import("gubu").Context): {
+        gubu: boolean;
+        code: string;
+        gname: string;
+        props: ({
+            path: string;
+            type: string;
+            value: any;
+        }[]);
+        desc: () => ({
+            name: string;
+            code: string;
+            err: {
+                key: string;
+                type: string;
+                node: import("gubu").Node<any>;
+                value: any;
+                path: string;
+                why: string;
+                check: string;
+                args: Record<string, any>;
+                mark: number;
+                text: string;
+                use: any;
+            }[];
+            ctx: any;
+        });
+        toJSON(): /*elided*/ any & {
+            err: any;
+            name: string;
+            message: string;
+        };
+        name: string;
+        message: string;
+        stack?: string;
+    }[];
+    spec(): any;
+    node(): import("gubu").Node<{
+        txt: {
+            write: boolean;
+            preserve: boolean;
+            present: boolean;
+            diff: boolean;
+            merge: boolean;
+        };
+        bin: {
+            write: boolean;
+            preserve: boolean;
+            present: boolean;
+        };
+    }>;
+    stringify(...rest: any[]): string;
+    jsonify(): any;
+    toString(this: any): string;
+    gubu: {
+        gubu$: symbol;
+        v$: string;
+    };
+};
 type JostracaOptions = ReturnType<typeof OptionsShape>;
+type ExistingOptions = ReturnType<typeof ExistingShape>;
 type Existing = {
-    txt: JostracaOptions["existing"]["txt"];
-    bin: JostracaOptions["existing"]["bin"];
+    txt: ExistingOptions["txt"];
+    bin: ExistingOptions["bin"];
 };
 declare function Jostraca(gopts_in?: JostracaOptions | {}): {
     generate: (opts_in: JostracaOptions | {}, root: Function) => Promise<JostracaResult>;

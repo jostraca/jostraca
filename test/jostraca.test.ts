@@ -87,11 +87,7 @@ describe('jostraca', () => {
       }
     })
 
-    // console.log('INFO', info)
     const voljson: any = vol.toJSON()
-
-    // console.log('VOL')
-    // console.log(voljson)
 
     expect(JSON.parse(voljson[TOP_META]).last > START_TIME).true()
 
@@ -124,7 +120,6 @@ describe('jostraca', () => {
       }
     )
 
-    // console.log('INFO', info)
     expect(info).equal({
       when: 1735689660000,
       files: {
@@ -143,16 +138,16 @@ describe('jostraca', () => {
     expect(JSON.parse(voljson[TOP_META]).last > 0).true()
     expect(voljson).equal({
       '/top/foo.txt': 'A',
-      '/top/.jostraca/generated/top/foo.txt': 'A',
+      '/top/.jostraca/generated/foo.txt': 'A',
       '/top/.jostraca/jostraca.meta.log': '{\n' +
         '  "foldername": ".jostraca",\n' +
         '  "filename": "jostraca.meta.log",\n' +
         '  "last": 1735689900000,\n' +
         '  "hlast": 2025010100050000,\n' +
         '  "files": {\n' +
-        '    "/top/foo.txt": {\n' +
+        '    "foo.txt": {\n' +
         '      "action": "write",\n' +
-        '      "path": "/top/foo.txt",\n' +
+        '      "path": "foo.txt",\n' +
         '      "exists": false,\n' +
         '      "actions": [\n' +
         '        "write"\n' +
@@ -204,7 +199,6 @@ describe('jostraca', () => {
       })
     )
 
-    // console.log('INFO', info)
     expect(info).equal({
       when: 1735689660000,
       files: {
@@ -299,8 +293,6 @@ describe('jostraca', () => {
         })
       })
     )
-
-    // console.log(info)
 
     expect(info).equal({
       when: 1735689660000,
@@ -630,7 +622,7 @@ describe('jostraca', () => {
     )
 
     expect(info1).includes({
-      when: 1735690140000,
+      when: 1735690200000,
       files: {
         preserved: ['/f01.txt'],
         written: ['/f01.txt', '/h01.txt'],
@@ -652,7 +644,6 @@ describe('jostraca', () => {
     })
 
 
-
     const info2 = await jostraca.generate(
       { folder: '/', existing: { txt: { write: false, present: true } } },
       cmp(() => {
@@ -665,7 +656,7 @@ describe('jostraca', () => {
     )
 
     expect(info2).includes({
-      when: 1735690920000,
+      when: 1735690980000,
       files: {
         preserved: [],
         written: [],
@@ -723,9 +714,6 @@ describe('jostraca', () => {
       })
     )
 
-    // console.log('INFO')
-    // console.dir(info, { depth: null })
-
     expect(info.files).equal({
       preserved: ['/top/p0/haz.bin'],
       written: ['/top/p0/foo.txt', '/top/p0/haz.bin', '/top/p0/qaz.bin'],
@@ -737,7 +725,6 @@ describe('jostraca', () => {
     })
 
     const voljson: any = vol.toJSON()
-    // console.dir(voljson, { depth: null })
 
     expect(JSON.parse(voljson[TOP_META]).last > 0).true()
     expect(voljson).includes({
@@ -772,11 +759,11 @@ describe('jostraca', () => {
       '/top/p0/haz.old.bin': '\t\b\x07\x06\x05',
       '/top/p0/qaz.bin': '\x00\x01\x02\x03\x04',
 
-      '/top/.jostraca/generated/top/p0/foo.txt': 'F0\nF1\nF2\n',
-      '/top/.jostraca/generated/top/p0/bar.txt': 'B0\nB1\nB2\n',
-      '/top/.jostraca/generated/top/p0/zed.txt': 'Z0\nZ1\nZ2\n',
-      '/top/.jostraca/generated/top/p0/haz.bin': '\x05\x06\x07\b\t',
-      '/top/.jostraca/generated/top/p0/qaz.bin': '\x00\x01\x02\x03\x04',
+      '/top/.jostraca/generated/p0/foo.txt': 'F0\nF1\nF2\n',
+      '/top/.jostraca/generated/p0/bar.txt': 'B0\nB1\nB2\n',
+      '/top/.jostraca/generated/p0/zed.txt': 'Z0\nZ1\nZ2\n',
+      '/top/.jostraca/generated/p0/haz.bin': '\x05\x06\x07\b\t',
+      '/top/.jostraca/generated/p0/qaz.bin': '\x00\x01\x02\x03\x04',
     })
   })
 

@@ -32,7 +32,8 @@ class BuildMeta {
         return this.prev.last;
     }
     add(file, meta) {
-        this.next.files[file] = meta;
+        const rfile = this.fh.relative(file, 'BuildMeta.add');
+        this.next.files[rfile] = meta;
     }
     done() {
         this.next.last = this.fh.now();

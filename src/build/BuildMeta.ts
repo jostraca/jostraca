@@ -65,7 +65,8 @@ class BuildMeta {
 
 
   add(file: string, meta: any) {
-    this.next.files[file] = meta
+    const rfile = this.fh.relative(file, 'BuildMeta.add')
+    this.next.files[rfile] = meta
   }
 
 

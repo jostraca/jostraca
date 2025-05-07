@@ -109,35 +109,20 @@ const DEFAULT_LOGGER = {
     fatal: (...args) => console.error(new Date().toISOString(), 'FATAL', ...args),
 };
 const OptionsShape = (0, gubu_1.Gubu)({
-    folder: '.', // Base output folder for generated files. Default: `.`.
+    folder: (0, gubu_1.Skip)(String), // Base output folder for generated files. Default: `.`.
     meta: {}, // Provide meta data to the generation process. Default: `{}`
-    fs: (() => undefined), // File system API. Default: `node:fs`.
+    fs: (0, gubu_1.Skip)(Function), // File system API. Default: `node:fs`.
     now: undefined, // Provide current time.
     log: DEFAULT_LOGGER, // Logging interface.
-    debug: 'info', // Generate additional debugging information.
+    debug: (0, gubu_1.Skip)('info'), // Generate additional debugging information.
     // TOOD: needs rethink
     exclude: false, // Exclude modified output files. Default: `false`.
-    // TODO: change to existing:{txt,bin}
-    existing: {
-        txt: {
-            write: true, // Overwrite existing files (unless present=true).
-            preserve: false, // Keep a backup copy (.old.) of overwritten files.
-            present: false, // Present the new file using .new. name annotation.
-            diff: false, // Annotated 2-way diff of new generate and existing file.
-            merge: false, // Annotated 3-way merge of new generate and existing file.
-        },
-        bin: {
-            write: true, // Overwrite existing files (unless present=true).
-            preserve: false, // Keep a backup copy (.old.) of overwritten files.
-            present: false, // Present the new file using .new. name annotation.
-            // No diff of binary files
-            // No merge of binary files
-        }
-    },
+    // Validated in separate shape to allow overriding.
+    existing: { txt: {}, bin: {} },
     processing: {
         duplicate: true,
     },
-    model: {},
+    model: (0, gubu_1.Skip)({}),
     build: true,
     mem: false,
     vol: {},
@@ -147,7 +132,23 @@ const OptionsShape = (0, gubu_1.Gubu)({
             ignore: []
         }
     }
-});
+}, { name: 'Jostraca Options' });
+const ExistingShape = (0, gubu_1.Gubu)({
+    txt: {
+        write: true, // Overwrite existing files (unless present=true).
+        preserve: false, // Keep a backup copy (.old.) of overwritten files.
+        present: false, // Present the new file using .new. name annotation.
+        diff: false, // Annotated 2-way diff of new generate and existing file.
+        merge: false, // Annotated 3-way merge of new generate and existing file.
+    },
+    bin: {
+        write: true, // Overwrite existing files (unless present=true).
+        preserve: false, // Keep a backup copy (.old.) of overwritten files.
+        present: false, // Present the new file using .new. name annotation.
+        // No diff of binary files
+        // No merge of binary files
+    }
+}, { name: 'Jostraca Options (`existing` property)' });
 function Jostraca(gopts_in) {
     GLOBAL.jostraca = new node_async_hooks_1.AsyncLocalStorage();
     const gopts = OptionsShape(gopts_in || {});
@@ -156,7 +157,7 @@ function Jostraca(gopts_in) {
         const useMemFS = opts.mem || gopts.mem;
         const vol = deep({}, gopts.vol, opts.vol);
         const memfs = useMemFS ? (0, memfs_1.memfs)(vol) : undefined;
-        const fs = opts.fs() || gopts.fs() || memfs?.fs || Fs;
+        const fs = (opts.fs || gopts.fs || (() => memfs?.fs) || (() => Fs))();
         const now = opts.now || gopts.now || Date.now;
         const meta = {
             ...(gopts?.meta || {}),
@@ -164,14 +165,17 @@ function Jostraca(gopts_in) {
         };
         const folder = opts.folder || gopts?.folder || '.';
         const log = opts.log || gopts?.log || DEFAULT_LOGGER;
-        const debug = !!(null == opts.debug ? gopts?.debug : opts.debug);
-        const existing = {
-            txt: deep(gopts.existing.txt, opts.existing.txt),
-            bin: deep(gopts.existing.bin, opts.existing.bin),
-        };
+        // const debug: boolean = !!(null == opts.debug ? gopts?.debug : opts.debug)
+        const debug = opts.debug || gopts.debug;
+        const existing = ExistingShape({
+            // FIX: this does not work as generate opts get defaults from OptionsShape
+            txt: deep({}, gopts.existing.txt, opts.existing.txt),
+            bin: deep({}, gopts.existing.bin, opts.existing.bin),
+        });
         const processing = opts.processing;
         const doBuild = null == gopts?.build ? false !== opts.build : false !== gopts?.build;
-        const model = deep({}, gopts.model, opts.model);
+        // const model = deep({}, gopts.model, opts.model)
+        const model = opts.model || gopts.model || {};
         // Component defaults.
         opts.cmp = deep({
             Copy: {
@@ -199,8 +203,6 @@ function Jostraca(gopts_in) {
             if (doBuild) {
                 await build(ctx$, buildctx);
             }
-            // console.log('END')
-            // console.dir(buildctx, { depth: null })
             const res = {
                 when: buildctx.when,
                 files: buildctx.fh.files
@@ -276,7 +278,6 @@ function cmp(component) {
         }
         props.ctx$ = ctx$;
         let parent = ctx$.node;
-        // console.log('BBB', component, props, parent?.filter?.({ props }))
         if (parent?.filter && !parent.filter({ props, children, component })) {
             return undefined;
         }

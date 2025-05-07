@@ -85,6 +85,22 @@ class FileHandler {
   }
 
 
+  relative(path: string, whence?: string) {
+    const FN = 'relative:'
+    const wstr = null == whence ? '' : whence + ':'
+
+    if ('string' !== typeof path) {
+      throw new Error(CN + FN + wstr + ' invalid path, path=' + path)
+
+    }
+
+    const withinFolder = path.startsWith(this.folder)
+    const rpath = withinFolder ? path.substring(this.folder.length).replace(/^\/+/, '') : path
+
+    return rpath
+  }
+
+
   save(path: string, content: string | Buffer, write?: boolean | string, whence?: string): void {
     const wstr = null == whence ? '' : whence + ':'
     const fs = this.fs()
@@ -104,12 +120,15 @@ class FileHandler {
     path = Path.normalize(path)
     const folder = Path.dirname(path)
 
+    const withinFolder = path.startsWith(this.folder)
+    const rpath = this.relative(path, FN + wstr)
+
     const exists = fs.existsSync(path)
     write = write || !exists
 
     const meta: any = {
       action: 'init',
-      path,
+      path: rpath,
       exists,
       actions: [],
       protect: false,
@@ -188,18 +207,22 @@ class FileHandler {
             this.audit.push([CN + FN + wstr + meta.action,
             { ...meta, action: meta.action, path }])
           }
+          else {
+            this.files.unchanged.push(path)
+          }
         }
         else if (existing.merge) {
-          write = false
-
           if (oldcontent.length !== content.length || oldcontent !== content) {
             const cstr = 'string' === typeof content ? content : content.toString('utf8')
 
             if (this.duplicate) {
               const dfolder = this.duplicateFolder()
 
-              const dpath = Path.join(dfolder, path)
+              const dpath = Path.join(dfolder, rpath)
+              // console.log('MERGE-DPATH', dpath)
+
               if (this.existsFile(dpath)) {
+                write = false
                 meta.action = 'merge'
 
                 const origcontent = this.loadFile(dpath, { encoding: 'utf8' }) as string
@@ -225,6 +248,7 @@ class FileHandler {
             }
           }
           else {
+            write = false
             this.files.unchanged.push(path)
           }
         }
@@ -239,6 +263,20 @@ class FileHandler {
       whenify(meta, this.now())
       this.audit.push([CN + FN + wstr + meta.action,
       { ...meta, action: meta.action, path }])
+    }
+
+    if (this.duplicate) {
+      if (withinFolder && (Path.basename(path) !== this.metafile())) {
+        const dfolder = this.duplicateFolder()
+        const dpath = Path.join(dfolder, rpath)
+        fs.mkdirSync(Path.dirname(dpath), { recursive: true })
+        const dopts = { flush: true }
+        fs.writeFileSync(dpath, content, dopts)
+
+        if (null == meta.when) {
+          whenify(meta, this.now())
+        }
+      }
     }
 
     this.addmeta(path, meta)
@@ -529,19 +567,25 @@ class FileHandler {
       this.audit.push([CN + FN + wstr,
       { path, when, existed, size: content.length }])
 
+
+      /*
       const withinFolder = path.startsWith(this.folder)
+      // const rpath = withinFolder ? path.substring(this.folder.length).replace(/^\/+/, '') : path
+      const rpath = this.relative(path, FN + wstr)
 
       if (this.duplicate &&
         (!isAbsolute || withinFolder) &&
         (Path.basename(path) !== this.metafile())
       ) {
         const dfolder = this.duplicateFolder()
-        const dpath = Path.join(dfolder, path)
+        // const dpath = Path.join(dfolder, path)
+        const dpath = Path.join(dfolder, rpath)
         fs.mkdirSync(Path.dirname(dpath), { recursive: true })
         const dopts = { ...opts, flush: true }
         const dcontent = null == original ? content : original
         fs.writeFileSync(dpath, dcontent, dopts)
       }
+      */
 
     }
     catch (err: any) {
