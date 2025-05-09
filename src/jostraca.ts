@@ -105,10 +105,6 @@ const OptionsShape = Gubu({
   // Validated in separate shape to allow overriding.
   existing: { txt: {}, bin: {} },
 
-  processing: {
-    duplicate: true,
-  },
-
   model: Skip({}) as any,
   build: true,
   mem: false,
@@ -119,7 +115,13 @@ const OptionsShape = Gubu({
     Copy: {
       ignore: [] as any[]
     }
-  }
+  },
+
+  control: {
+    duplicate: true,
+    version: false,
+  },
+
 }, { name: 'Jostraca Options' })
 
 
@@ -188,7 +190,7 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
       bin: deep({}, gopts.existing.bin, opts.existing.bin),
     })
 
-    const processing = opts.processing
+    const control = opts.control
 
     const doBuild: boolean = null == gopts?.build ? false !== opts.build : false !== gopts?.build
 
@@ -225,7 +227,7 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
       const buildctx = new BuildContext(
         folder,
         existing,
-        processing,
+        control,
         ctx$.fs,
         ctx$.now,
       )

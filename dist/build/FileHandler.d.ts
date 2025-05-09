@@ -11,7 +11,10 @@ declare class FileHandler {
         txt: any;
         bin: any;
     };
-    duplicate: boolean;
+    control: {
+        duplicate: boolean;
+        version: boolean;
+    };
     duplicateFolder: () => string;
     last: () => number;
     addmeta: (file: string, meta: any) => void;
@@ -28,7 +31,10 @@ declare class FileHandler {
     constructor(bctx: BuildContext, existing: {
         txt: any;
         bin: any;
-    }, duplicate: boolean);
+    }, control: {
+        duplicate: boolean;
+        version: boolean;
+    });
     relative(path: string, whence?: string): string;
     save(path: string, content: string | Buffer, write?: boolean | string, whence?: string): void;
     copy(frompath: string, topath: string, write?: boolean | string, whence?: string): void;
@@ -42,7 +48,7 @@ declare class FileHandler {
     loadJSON(path: string, opts?: any | string, whence?: string): any;
     saveJSON(path: string, json: any, opts?: any | string, whence?: string): any;
     loadFile(path: string, opts?: any | string, whence?: string): string | Buffer;
-    saveFile(path: string, content: string | Buffer, opts?: any | string, whence?: string, original?: string | Buffer): void;
+    saveFile(path: string, content: string | Buffer, opts?: any | string, whence?: string): void;
 }
 declare function validPath(path: string, maxdepth: number, errmark: string): void;
 export { validPath, FileHandler };

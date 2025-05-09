@@ -63,11 +63,12 @@ class BuildContext {
   constructor(
     folder: string,
     existing: Existing,
-    processing: {
-      duplicate: boolean
+    control: {
+      duplicate: boolean,
+      version: boolean,
     },
     fs: () => FST,
-    now: () => number
+    now: () => number,
   ) {
 
     this.fs = fs
@@ -96,7 +97,7 @@ class BuildContext {
     }
     this.log = { exclude: [], last: -1 }
 
-    this.fh = new FileHandler(this, existing, processing.duplicate)
+    this.fh = new FileHandler(this, existing, control)
     this.bmeta = new BuildMeta(this.fh)
   }
 

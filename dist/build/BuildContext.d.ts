@@ -28,8 +28,9 @@ declare class BuildContext {
         last: number;
     };
     dfolder?: string;
-    constructor(folder: string, existing: Existing, processing: {
+    constructor(folder: string, existing: Existing, control: {
         duplicate: boolean;
+        version: boolean;
     }, fs: () => FST, now: () => number);
     addmeta(file: string, meta: any): void;
     duplicateFolder(): string;

@@ -5,7 +5,7 @@ import type { Node } from '../jostraca'
 
 import { cmp, template, each, escre, Content } from '../jostraca'
 
-import { Gubu, One, Optional, Check } from 'gubu'
+import { Gubu, One, Optional, Check, Empty } from 'gubu'
 
 
 const From = (from: any, _: any, s: any) => s.ctx.fs().statSync(from)
@@ -14,7 +14,7 @@ const FragmentShape = Gubu({
   ctx$: Object,
   from: Check(From).String() as unknown as string,
   exclude: Optional(One(Boolean, [String])) as unknown as boolean | string[],
-  indent: Optional(One(String, Number)),
+  indent: Optional(One(Empty(String), Number)),
   replace: {} as any,
 }, { name: 'Fragment' })
 

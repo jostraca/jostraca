@@ -31,7 +31,10 @@ class FileHandler {
   audit: Audit
   maxdepth: number
   existing: { txt: any, bin: any }
-  duplicate: boolean
+  control: {
+    duplicate: boolean
+    version: boolean
+  }
   duplicateFolder: () => string
   last: () => number
   addmeta: (file: string, meta: any) => void
@@ -50,7 +53,10 @@ class FileHandler {
   constructor(
     bctx: BuildContext,
     existing: { txt: any, bin: any },
-    duplicate: boolean,
+    control: {
+      duplicate: boolean
+      version: boolean
+    }
   ) {
     this.fs = bctx.fs
     this.now = bctx.now
@@ -59,7 +65,7 @@ class FileHandler {
     this.folder = Path.normalize(bctx.folder)
     this.audit = bctx.audit
     this.existing = existing
-    this.duplicate = duplicate
+    this.control = control
 
     this.maxdepth = 22 // TODO: get from JostracaOptions
 
@@ -192,7 +198,7 @@ class FileHandler {
             const cstr = 'string' === typeof content ? content : content.toString('utf8')
             const diffcontent = this.diff(cstr, oldcontent.toString())
 
-            this.saveFile(path, diffcontent, { encoding: 'utf8' }, whence + meta.action, content)
+            this.saveFile(path, diffcontent, { encoding: 'utf8' }, whence + meta.action)
 
             this.files.diffed.push(path)
             const conflict = cstr !== diffcontent
@@ -215,7 +221,7 @@ class FileHandler {
           if (oldcontent.length !== content.length || oldcontent !== content) {
             const cstr = 'string' === typeof content ? content : content.toString('utf8')
 
-            if (this.duplicate) {
+            if (this.control.duplicate) {
               const dfolder = this.duplicateFolder()
 
               const dpath = Path.join(dfolder, rpath)
@@ -231,7 +237,7 @@ class FileHandler {
                 const conflict = mergeres.conflict
 
                 this.saveFile(path, diffcontent, { encoding: 'utf8' },
-                  whence + meta.action, content)
+                  whence + meta.action)
 
                 this.files.merged.push(path)
                 if (conflict) {
@@ -265,7 +271,7 @@ class FileHandler {
       { ...meta, action: meta.action, path }])
     }
 
-    if (this.duplicate) {
+    if (this.control.duplicate) {
       if (withinFolder && (Path.basename(path) !== this.metafile())) {
         const dfolder = this.duplicateFolder()
         const dpath = Path.join(dfolder, rpath)
@@ -532,7 +538,6 @@ class FileHandler {
     content: string | Buffer,
     opts?: any | string,
     whence?: string,
-    original?: string | Buffer,
   ): void {
     const when = this.now()
     const wstr = null == whence ? '' : whence + ':'
@@ -566,27 +571,6 @@ class FileHandler {
       fs.writeFileSync(fullpath, content, opts)
       this.audit.push([CN + FN + wstr,
       { path, when, existed, size: content.length }])
-
-
-      /*
-      const withinFolder = path.startsWith(this.folder)
-      // const rpath = withinFolder ? path.substring(this.folder.length).replace(/^\/+/, '') : path
-      const rpath = this.relative(path, FN + wstr)
-
-      if (this.duplicate &&
-        (!isAbsolute || withinFolder) &&
-        (Path.basename(path) !== this.metafile())
-      ) {
-        const dfolder = this.duplicateFolder()
-        // const dpath = Path.join(dfolder, path)
-        const dpath = Path.join(dfolder, rpath)
-        fs.mkdirSync(Path.dirname(dpath), { recursive: true })
-        const dopts = { ...opts, flush: true }
-        const dcontent = null == original ? content : original
-        fs.writeFileSync(dpath, dcontent, dopts)
-      }
-      */
-
     }
     catch (err: any) {
       this.audit.push(['ERROR:' + CN + FN + wstr,

@@ -10,7 +10,7 @@ const BuildMeta_1 = require("./BuildMeta");
 const CN = 'BuildContext:';
 // TODO: rename meta folder to build, move into build folder
 class BuildContext {
-    constructor(folder, existing, processing, fs, now) {
+    constructor(folder, existing, control, fs, now) {
         this.fs = fs;
         this.now = now;
         if (!this.fs().existsSync) {
@@ -33,7 +33,7 @@ class BuildContext {
             content: undefined,
         };
         this.log = { exclude: [], last: -1 };
-        this.fh = new FileHandler_1.FileHandler(this, existing, processing.duplicate);
+        this.fh = new FileHandler_1.FileHandler(this, existing, control);
         this.bmeta = new BuildMeta_1.BuildMeta(this.fh);
     }
     addmeta(file, meta) {

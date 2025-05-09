@@ -105,7 +105,8 @@ const START_TIME = 1735689600000;
                 '      "hwhen": 2025010100040000\n' +
                 '    }\n' +
                 '  }\n' +
-                '}'
+                '}',
+            '/top/.jostraca/.gitignore': '\njostraca.meta.log\ngenerated\n'
         });
     });
     (0, node_test_1.test)('basic-copy', async () => {
@@ -237,7 +238,7 @@ const START_TIME = 1735689600000;
             '/top/foo.txt': 'FOO\n#--START--#\nBAR\n#--END--#\nZED',
         });
         const jostraca = (0, __1.Jostraca)({ now });
-        const info = await jostraca.generate({ fs: () => fs, folder: '/top' }, (0, __1.cmp)((props) => {
+        const info = await jostraca.generate({ fs: () => fs, folder: '/top' }, (0, __1.cmp)((_props) => {
             (0, __1.Project)({}, () => {
                 (0, __1.Inject)({ name: 'foo.txt' }, () => {
                     (0, __1.Content)('QAZ');
@@ -267,7 +268,7 @@ const START_TIME = 1735689600000;
         const now = () => START_TIME + (++nowI * (60 * 1000));
         const { fs, vol } = (0, memfs_1.memfs)({});
         const jostraca = (0, __1.Jostraca)({ now });
-        const info = await jostraca.generate({ fs: () => fs, folder: '/top' }, (0, __1.cmp)((props) => {
+        const info = await jostraca.generate({ fs: () => fs, folder: '/top' }, (0, __1.cmp)((_props) => {
             (0, __1.Project)({}, () => {
                 (0, __1.File)({ name: 'foo.txt' }, () => {
                     (0, __1.Content)('ONE\n');
@@ -459,7 +460,7 @@ const START_TIME = 1735689600000;
             });
         }));
         (0, code_1.expect)(info1).includes({
-            when: 1735690200000,
+            when: 1735690260000,
             files: {
                 preserved: ['/f01.txt'],
                 written: ['/f01.txt', '/h01.txt'],
@@ -485,7 +486,7 @@ const START_TIME = 1735689600000;
             });
         }));
         (0, code_1.expect)(info2).includes({
-            when: 1735690980000,
+            when: 1735691100000,
             files: {
                 preserved: [],
                 written: [],

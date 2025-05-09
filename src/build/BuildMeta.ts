@@ -77,6 +77,13 @@ class BuildMeta {
     // save over previous
     saveMetaData(this.fh, this.next)
 
+    if (false === this.fh.control.version) {
+      this.fh.saveFile(Path.join(this.next.foldername, '.gitignore'), `
+${this.next.filename}
+generated
+`)
+    }
+
     return this.next
   }
 }

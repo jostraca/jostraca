@@ -119,9 +119,6 @@ const OptionsShape = (0, gubu_1.Gubu)({
     exclude: false, // Exclude modified output files. Default: `false`.
     // Validated in separate shape to allow overriding.
     existing: { txt: {}, bin: {} },
-    processing: {
-        duplicate: true,
-    },
     model: (0, gubu_1.Skip)({}),
     build: true,
     mem: false,
@@ -131,7 +128,11 @@ const OptionsShape = (0, gubu_1.Gubu)({
         Copy: {
             ignore: []
         }
-    }
+    },
+    control: {
+        duplicate: true,
+        version: false,
+    },
 }, { name: 'Jostraca Options' });
 const ExistingShape = (0, gubu_1.Gubu)({
     txt: {
@@ -172,7 +173,7 @@ function Jostraca(gopts_in) {
             txt: deep({}, gopts.existing.txt, opts.existing.txt),
             bin: deep({}, gopts.existing.bin, opts.existing.bin),
         });
-        const processing = opts.processing;
+        const control = opts.control;
         const doBuild = null == gopts?.build ? false !== opts.build : false !== gopts?.build;
         // const model = deep({}, gopts.model, opts.model)
         const model = opts.model || gopts.model || {};
@@ -199,7 +200,7 @@ function Jostraca(gopts_in) {
             root();
             const ctx$ = GLOBAL.jostraca.getStore();
             // Build phase
-            const buildctx = new BuildContext_1.BuildContext(folder, existing, processing, ctx$.fs, ctx$.now);
+            const buildctx = new BuildContext_1.BuildContext(folder, existing, control, ctx$.fs, ctx$.now);
             if (doBuild) {
                 await build(ctx$, buildctx);
             }

@@ -12,7 +12,7 @@ const FragmentShape = (0, gubu_1.Gubu)({
     ctx$: Object,
     from: (0, gubu_1.Check)(From).String(),
     exclude: (0, gubu_1.Optional)((0, gubu_1.One)(Boolean, [String])),
-    indent: (0, gubu_1.Optional)((0, gubu_1.One)(String, Number)),
+    indent: (0, gubu_1.Optional)((0, gubu_1.One)((0, gubu_1.Empty)(String), Number)),
     replace: {},
 }, { name: 'Fragment' });
 const Fragment = (0, jostraca_1.cmp)(function Fragment(props, children) {

@@ -40,6 +40,12 @@ class BuildMeta {
         this.next.hlast = (0, basic_1.humanify)(this.next.last);
         // save over previous
         saveMetaData(this.fh, this.next);
+        if (false === this.fh.control.version) {
+            this.fh.saveFile(node_path_1.default.join(this.next.foldername, '.gitignore'), `
+${this.next.filename}
+generated
+`);
+        }
         return this.next;
     }
 }

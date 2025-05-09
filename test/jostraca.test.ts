@@ -158,7 +158,8 @@ describe('jostraca', () => {
         '      "hwhen": 2025010100040000\n' +
         '    }\n' +
         '  }\n' +
-        '}'
+        '}',
+      '/top/.jostraca/.gitignore': '\njostraca.meta.log\ngenerated\n'
     })
   })
 
@@ -338,7 +339,7 @@ describe('jostraca', () => {
 
     const info = await jostraca.generate(
       { fs: () => fs, folder: '/top' },
-      cmp((props: any) => {
+      cmp((_props: any) => {
         Project({}, () => {
           Inject({ name: 'foo.txt' }, () => {
             Content('QAZ')
@@ -382,7 +383,7 @@ describe('jostraca', () => {
 
     const info = await jostraca.generate(
       { fs: () => fs, folder: '/top' },
-      cmp((props: any) => {
+      cmp((_props: any) => {
         Project({}, () => {
           File({ name: 'foo.txt' }, () => {
             Content('ONE\n')
@@ -622,7 +623,7 @@ describe('jostraca', () => {
     )
 
     expect(info1).includes({
-      when: 1735690200000,
+      when: 1735690260000,
       files: {
         preserved: ['/f01.txt'],
         written: ['/f01.txt', '/h01.txt'],
@@ -656,7 +657,7 @@ describe('jostraca', () => {
     )
 
     expect(info2).includes({
-      when: 1735690980000,
+      when: 1735691100000,
       files: {
         preserved: [],
         written: [],

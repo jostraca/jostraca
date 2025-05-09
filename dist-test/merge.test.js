@@ -119,13 +119,14 @@ const START_TIME = 1735689600000;
                 '      "hwhen": 2025010100040000\n' +
                 '    }\n' +
                 '  }\n' +
-                '}'
+                '}',
+            '/top/.jostraca/.gitignore': '\njostraca.meta.log\ngenerated\n'
         });
         m0.a = 1;
         const res1 = await jostraca.generate({}, root);
         // console.log(res1)
         (0, code_1.expect)(res1).equal({
-            when: 1735690080000,
+            when: 1735690140000,
             files: {
                 preserved: [],
                 written: [],
@@ -143,8 +144,8 @@ const START_TIME = 1735689600000;
             '/top/.jostraca/jostraca.meta.log': '{\n' +
                 '  "foldername": ".jostraca",\n' +
                 '  "filename": "jostraca.meta.log",\n' +
-                '  "last": 1735690620000,\n' +
-                '  "hlast": 2025010100170000,\n' +
+                '  "last": 1735690680000,\n' +
+                '  "hlast": 2025010100180000,\n' +
                 '  "files": {\n' +
                 '    "sdk/code/js/foo.js": {\n' +
                 '      "action": "merge",\n' +
@@ -155,17 +156,18 @@ const START_TIME = 1735689600000;
                 '      ],\n' +
                 '      "protect": false,\n' +
                 '      "conflict": false,\n' +
-                '      "when": 1735690560000,\n' +
-                '      "hwhen": 2025010100160000\n' +
+                '      "when": 1735690620000,\n' +
+                '      "hwhen": 2025010100170000\n' +
                 '    }\n' +
                 '  }\n' +
-                '}'
+                '}',
+            '/top/.jostraca/.gitignore': '\njostraca.meta.log\ngenerated\n'
         });
         mfs.fs.unlinkSync('/top/.jostraca/generated/sdk/code/js/foo.js');
         const res2 = await jostraca.generate({}, root);
         // console.log(res2)
         (0, code_1.expect)(res2).equal({
-            when: 1735690800000,
+            when: 1735690920000,
             files: {
                 preserved: [],
                 written: [],
@@ -183,8 +185,8 @@ const START_TIME = 1735689600000;
             '/top/.jostraca/jostraca.meta.log': '{\n' +
                 '  "foldername": ".jostraca",\n' +
                 '  "filename": "jostraca.meta.log",\n' +
-                '  "last": 1735691160000,\n' +
-                '  "hlast": 2025010100260000,\n' +
+                '  "last": 1735691280000,\n' +
+                '  "hlast": 2025010100280000,\n' +
                 '  "files": {\n' +
                 '    "sdk/code/js/foo.js": {\n' +
                 '      "action": "init",\n' +
@@ -193,16 +195,17 @@ const START_TIME = 1735689600000;
                 '      "actions": [],\n' +
                 '      "protect": false,\n' +
                 '      "conflict": false,\n' +
-                '      "when": 1735691100000,\n' +
-                '      "hwhen": 2025010100250000\n' +
+                '      "when": 1735691220000,\n' +
+                '      "hwhen": 2025010100270000\n' +
                 '    }\n' +
                 '  }\n' +
-                '}'
+                '}',
+            '/top/.jostraca/.gitignore': '\njostraca.meta.log\ngenerated\n'
         });
         mfs.fs.writeFileSync('/top/sdk/code/js/foo.js', '// FOO:a\n', { encoding: 'utf8' });
         const res3 = await jostraca.generate({}, root);
         (0, code_1.expect)(res3).equal({
-            when: 1735691340000,
+            when: 1735691520000,
             files: {
                 preserved: [],
                 written: [],
@@ -219,8 +222,8 @@ const START_TIME = 1735689600000;
             '/top/.jostraca/jostraca.meta.log': '{\n' +
                 '  "foldername": ".jostraca",\n' +
                 '  "filename": "jostraca.meta.log",\n' +
-                '  "last": 1735691880000,\n' +
-                '  "hlast": 2025010100380000,\n' +
+                '  "last": 1735692060000,\n' +
+                '  "hlast": 2025010100410000,\n' +
                 '  "files": {\n' +
                 '    "sdk/code/js/foo.js": {\n' +
                 '      "action": "merge",\n' +
@@ -231,16 +234,17 @@ const START_TIME = 1735689600000;
                 '      ],\n' +
                 '      "protect": false,\n' +
                 '      "conflict": false,\n' +
-                '      "when": 1735691820000,\n' +
-                '      "hwhen": 2025010100370000\n' +
+                '      "when": 1735692000000,\n' +
+                '      "hwhen": 2025010100400000\n' +
                 '    }\n' +
                 '  }\n' +
-                '}'
+                '}',
+            '/top/.jostraca/.gitignore': '\njostraca.meta.log\ngenerated\n'
         });
         m0.a = 2;
         const res4 = await jostraca.generate({}, root);
         (0, code_1.expect)(res4).equal({
-            when: 1735692060000,
+            when: 1735692300000,
             files: {
                 preserved: [],
                 written: [],
@@ -252,17 +256,17 @@ const START_TIME = 1735689600000;
             }
         });
         (0, code_1.expect)(vol.toJSON()).equal({
-            '/top/sdk/code/js/foo.js': '<<<<<<< EXISTING: 2025-01-01T00:38:00.000Z\n' +
+            '/top/sdk/code/js/foo.js': '<<<<<<< EXISTING: 2025-01-01T00:41:00.000Z\n' +
                 '// FOO:a\n' +
                 '=======\n' +
                 '// foo:2\n' +
-                '>>>>>>> GENERATED: 2025-01-01T00:41:00.000Z\n',
+                '>>>>>>> GENERATED: 2025-01-01T00:45:00.000Z\n',
             '/top/.jostraca/generated/sdk/code/js/foo.js': '// foo:2\n',
             '/top/.jostraca/jostraca.meta.log': '{\n' +
                 '  "foldername": ".jostraca",\n' +
                 '  "filename": "jostraca.meta.log",\n' +
-                '  "last": 1735692600000,\n' +
-                '  "hlast": 2025010100500000,\n' +
+                '  "last": 1735692840000,\n' +
+                '  "hlast": 2025010100540000,\n' +
                 '  "files": {\n' +
                 '    "sdk/code/js/foo.js": {\n' +
                 '      "action": "merge",\n' +
@@ -273,16 +277,17 @@ const START_TIME = 1735689600000;
                 '      ],\n' +
                 '      "protect": false,\n' +
                 '      "conflict": true,\n' +
-                '      "when": 1735692540000,\n' +
-                '      "hwhen": 2025010100490000\n' +
+                '      "when": 1735692780000,\n' +
+                '      "hwhen": 2025010100530000\n' +
                 '    }\n' +
                 '  }\n' +
-                '}'
+                '}',
+            '/top/.jostraca/.gitignore': '\njostraca.meta.log\ngenerated\n'
         });
         mfs.fs.writeFileSync('/top/sdk/code/js/foo.js', '// FOO:2\n', { encoding: 'utf8' });
         const res5 = await jostraca.generate({}, root);
         (0, code_1.expect)(res5).equal({
-            when: 1735692780000,
+            when: 1735693080000,
             files: {
                 preserved: [],
                 written: [],
@@ -299,8 +304,8 @@ const START_TIME = 1735689600000;
             '/top/.jostraca/jostraca.meta.log': '{\n' +
                 '  "foldername": ".jostraca",\n' +
                 '  "filename": "jostraca.meta.log",\n' +
-                '  "last": 1735693320000,\n' +
-                '  "hlast": 2025010101020000,\n' +
+                '  "last": 1735693620000,\n' +
+                '  "hlast": 2025010101070000,\n' +
                 '  "files": {\n' +
                 '    "sdk/code/js/foo.js": {\n' +
                 '      "action": "merge",\n' +
@@ -311,15 +316,16 @@ const START_TIME = 1735689600000;
                 '      ],\n' +
                 '      "protect": false,\n' +
                 '      "conflict": false,\n' +
-                '      "when": 1735693260000,\n' +
-                '      "hwhen": 2025010101010000\n' +
+                '      "when": 1735693560000,\n' +
+                '      "hwhen": 2025010101060000\n' +
                 '    }\n' +
                 '  }\n' +
-                '}'
+                '}',
+            '/top/.jostraca/.gitignore': '\njostraca.meta.log\ngenerated\n'
         });
         const res6 = await jostraca.generate({}, root);
         (0, code_1.expect)(res6).equal({
-            when: 1735693500000,
+            when: 1735693860000,
             files: {
                 preserved: [],
                 written: [],
@@ -336,8 +342,8 @@ const START_TIME = 1735689600000;
             '/top/.jostraca/jostraca.meta.log': '{\n' +
                 '  "foldername": ".jostraca",\n' +
                 '  "filename": "jostraca.meta.log",\n' +
-                '  "last": 1735694040000,\n' +
-                '  "hlast": 2025010101140000,\n' +
+                '  "last": 1735694400000,\n' +
+                '  "hlast": 2025010101200000,\n' +
                 '  "files": {\n' +
                 '    "sdk/code/js/foo.js": {\n' +
                 '      "action": "merge",\n' +
@@ -348,16 +354,17 @@ const START_TIME = 1735689600000;
                 '      ],\n' +
                 '      "protect": false,\n' +
                 '      "conflict": false,\n' +
-                '      "when": 1735693980000,\n' +
-                '      "hwhen": 2025010101130000\n' +
+                '      "when": 1735694340000,\n' +
+                '      "hwhen": 2025010101190000\n' +
                 '    }\n' +
                 '  }\n' +
-                '}'
+                '}',
+            '/top/.jostraca/.gitignore': '\njostraca.meta.log\ngenerated\n'
         });
         m0.a = 3;
         const res7 = await jostraca.generate({}, root);
         (0, code_1.expect)(res7).equal({
-            when: 1735694220000,
+            when: 1735694640000,
             files: {
                 preserved: [],
                 written: [],
@@ -369,17 +376,17 @@ const START_TIME = 1735689600000;
             }
         });
         (0, code_1.expect)(vol.toJSON()).equal({
-            '/top/sdk/code/js/foo.js': '<<<<<<< EXISTING: 2025-01-01T01:14:00.000Z\n' +
+            '/top/sdk/code/js/foo.js': '<<<<<<< EXISTING: 2025-01-01T01:20:00.000Z\n' +
                 '// FOO:2\n' +
                 '=======\n' +
                 '// foo:3\n' +
-                '>>>>>>> GENERATED: 2025-01-01T01:17:00.000Z\n',
+                '>>>>>>> GENERATED: 2025-01-01T01:24:00.000Z\n',
             '/top/.jostraca/generated/sdk/code/js/foo.js': '// foo:3\n',
             '/top/.jostraca/jostraca.meta.log': '{\n' +
                 '  "foldername": ".jostraca",\n' +
                 '  "filename": "jostraca.meta.log",\n' +
-                '  "last": 1735694760000,\n' +
-                '  "hlast": 2025010101260000,\n' +
+                '  "last": 1735695180000,\n' +
+                '  "hlast": 2025010101330000,\n' +
                 '  "files": {\n' +
                 '    "sdk/code/js/foo.js": {\n' +
                 '      "action": "merge",\n' +
@@ -390,16 +397,17 @@ const START_TIME = 1735689600000;
                 '      ],\n' +
                 '      "protect": false,\n' +
                 '      "conflict": true,\n' +
-                '      "when": 1735694700000,\n' +
-                '      "hwhen": 2025010101250000\n' +
+                '      "when": 1735695120000,\n' +
+                '      "hwhen": 2025010101320000\n' +
                 '    }\n' +
                 '  }\n' +
-                '}'
+                '}',
+            '/top/.jostraca/.gitignore': '\njostraca.meta.log\ngenerated\n'
         });
         mfs.fs.writeFileSync('/top/sdk/code/js/foo.js', '// foo:3\n// BAR:b\n', { encoding: 'utf8' });
         const res8 = await jostraca.generate({}, root);
         (0, code_1.expect)(res8).equal({
-            when: 1735694940000,
+            when: 1735695420000,
             files: {
                 preserved: [],
                 written: [],
@@ -416,8 +424,8 @@ const START_TIME = 1735689600000;
             '/top/.jostraca/jostraca.meta.log': '{\n' +
                 '  "foldername": ".jostraca",\n' +
                 '  "filename": "jostraca.meta.log",\n' +
-                '  "last": 1735695480000,\n' +
-                '  "hlast": 2025010101380000,\n' +
+                '  "last": 1735695960000,\n' +
+                '  "hlast": 2025010101460000,\n' +
                 '  "files": {\n' +
                 '    "sdk/code/js/foo.js": {\n' +
                 '      "action": "merge",\n' +
@@ -428,16 +436,17 @@ const START_TIME = 1735689600000;
                 '      ],\n' +
                 '      "protect": false,\n' +
                 '      "conflict": false,\n' +
-                '      "when": 1735695420000,\n' +
-                '      "hwhen": 2025010101370000\n' +
+                '      "when": 1735695900000,\n' +
+                '      "hwhen": 2025010101450000\n' +
                 '    }\n' +
                 '  }\n' +
-                '}'
+                '}',
+            '/top/.jostraca/.gitignore': '\njostraca.meta.log\ngenerated\n'
         });
         m0.a = 4;
         const res9 = await jostraca.generate({}, root);
         (0, code_1.expect)(res9).equal({
-            when: 1735695660000,
+            when: 1735696200000,
             files: {
                 preserved: [],
                 written: [],
@@ -449,18 +458,18 @@ const START_TIME = 1735689600000;
             }
         });
         (0, code_1.expect)(vol.toJSON()).equal({
-            '/top/sdk/code/js/foo.js': '<<<<<<< EXISTING: 2025-01-01T01:38:00.000Z\n' +
+            '/top/sdk/code/js/foo.js': '<<<<<<< EXISTING: 2025-01-01T01:46:00.000Z\n' +
                 '// foo:3\n' +
                 '// BAR:b\n' +
                 '=======\n' +
                 '// foo:4\n' +
-                '>>>>>>> GENERATED: 2025-01-01T01:41:00.000Z\n',
+                '>>>>>>> GENERATED: 2025-01-01T01:50:00.000Z\n',
             '/top/.jostraca/generated/sdk/code/js/foo.js': '// foo:4\n',
             '/top/.jostraca/jostraca.meta.log': '{\n' +
                 '  "foldername": ".jostraca",\n' +
                 '  "filename": "jostraca.meta.log",\n' +
-                '  "last": 1735696200000,\n' +
-                '  "hlast": 2025010101500000,\n' +
+                '  "last": 1735696740000,\n' +
+                '  "hlast": 2025010101590000,\n' +
                 '  "files": {\n' +
                 '    "sdk/code/js/foo.js": {\n' +
                 '      "action": "merge",\n' +
@@ -471,11 +480,12 @@ const START_TIME = 1735689600000;
                 '      ],\n' +
                 '      "protect": false,\n' +
                 '      "conflict": true,\n' +
-                '      "when": 1735696140000,\n' +
-                '      "hwhen": 2025010101490000\n' +
+                '      "when": 1735696680000,\n' +
+                '      "hwhen": 2025010101580000\n' +
                 '    }\n' +
                 '  }\n' +
-                '}'
+                '}',
+            '/top/.jostraca/.gitignore': '\njostraca.meta.log\ngenerated\n'
         });
     });
 });
@@ -496,7 +506,7 @@ const DATA_merge_basic_res0 = {
     }
 };
 const DATA_merge_basic_res1 = {
-    when: 1735690320000,
+    when: 1735690380000,
     files: {
         preserved: [],
         written: [],
@@ -512,7 +522,7 @@ const DATA_merge_basic_res1 = {
     }
 };
 const DATA_merge_basic_res2 = {
-    when: 1735691640000,
+    when: 1735691760000,
     files: {
         preserved: [],
         written: [],
@@ -574,7 +584,8 @@ const DATA_merge_basic_vol0 = {
         '      "hwhen": 2025010100080000\n' +
         '    }\n' +
         '  }\n' +
-        '}'
+        '}',
+    '/top/.jostraca/.gitignore': '\njostraca.meta.log\ngenerated\n'
 };
 const DATA_merge_basic_vol1 = {
     '/top/sdk/js/qaz.js': '// not-gen\n',
@@ -585,7 +596,7 @@ const DATA_merge_basic_vol1 = {
         '// added1\n' +
         '=======\n' +
         '// gen-extra1\n' +
-        '>>>>>>> GENERATED: 2025-01-01T00:12:00.000Z\n',
+        '>>>>>>> GENERATED: 2025-01-01T00:13:00.000Z\n',
     '/top/sdk/go/zed.go': '// custom-zed:1\n// EXTRA1',
     '/top/.jostraca/generated/sdk/js/foo.js': '// custom-foo:1\n// FOO\n',
     '/top/.jostraca/generated/sdk/js/bar.js': '// custom-bar\n// BAR\n// gen-extra1\n',
@@ -593,8 +604,8 @@ const DATA_merge_basic_vol1 = {
     '/top/.jostraca/jostraca.meta.log': '{\n' +
         '  "foldername": ".jostraca",\n' +
         '  "filename": "jostraca.meta.log",\n' +
-        '  "last": 1735691460000,\n' +
-        '  "hlast": 2025010100310000,\n' +
+        '  "last": 1735691520000,\n' +
+        '  "hlast": 2025010100320000,\n' +
         '  "files": {\n' +
         '    "sdk/js/foo.js": {\n' +
         '      "action": "merge",\n' +
@@ -605,8 +616,8 @@ const DATA_merge_basic_vol1 = {
         '      ],\n' +
         '      "protect": false,\n' +
         '      "conflict": false,\n' +
-        '      "when": 1735690800000,\n' +
-        '      "hwhen": 2025010100200000\n' +
+        '      "when": 1735690860000,\n' +
+        '      "hwhen": 2025010100210000\n' +
         '    },\n' +
         '    "sdk/js/bar.js": {\n' +
         '      "action": "merge",\n' +
@@ -617,8 +628,8 @@ const DATA_merge_basic_vol1 = {
         '      ],\n' +
         '      "protect": false,\n' +
         '      "conflict": true,\n' +
-        '      "when": 1735691100000,\n' +
-        '      "hwhen": 2025010100250000\n' +
+        '      "when": 1735691160000,\n' +
+        '      "hwhen": 2025010100260000\n' +
         '    },\n' +
         '    "sdk/go/zed.go": {\n' +
         '      "action": "merge",\n' +
@@ -629,11 +640,12 @@ const DATA_merge_basic_vol1 = {
         '      ],\n' +
         '      "protect": false,\n' +
         '      "conflict": false,\n' +
-        '      "when": 1735691400000,\n' +
-        '      "hwhen": 2025010100300000\n' +
+        '      "when": 1735691460000,\n' +
+        '      "hwhen": 2025010100310000\n' +
         '    }\n' +
         '  }\n' +
-        '}'
+        '}',
+    '/top/.jostraca/.gitignore': '\njostraca.meta.log\ngenerated\n'
 };
 const DATA_merge_basic_vol2 = {
     '/top/sdk/js/qaz.js': '// not-gen\n',
@@ -646,8 +658,8 @@ const DATA_merge_basic_vol2 = {
     '/top/.jostraca/jostraca.meta.log': '{\n' +
         '  "foldername": ".jostraca",\n' +
         '  "filename": "jostraca.meta.log",\n' +
-        '  "last": 1735692600000,\n' +
-        '  "hlast": 2025010100500000,\n' +
+        '  "last": 1735692720000,\n' +
+        '  "hlast": 2025010100520000,\n' +
         '  "files": {\n' +
         '    "sdk/js/foo.js": {\n' +
         '      "action": "merge",\n' +
@@ -658,8 +670,8 @@ const DATA_merge_basic_vol2 = {
         '      ],\n' +
         '      "protect": false,\n' +
         '      "conflict": false,\n' +
-        '      "when": 1735692120000,\n' +
-        '      "hwhen": 2025010100420000\n' +
+        '      "when": 1735692240000,\n' +
+        '      "hwhen": 2025010100440000\n' +
         '    },\n' +
         '    "sdk/js/bar.js": {\n' +
         '      "action": "merge",\n' +
@@ -670,8 +682,8 @@ const DATA_merge_basic_vol2 = {
         '      ],\n' +
         '      "protect": false,\n' +
         '      "conflict": false,\n' +
-        '      "when": 1735692420000,\n' +
-        '      "hwhen": 2025010100470000\n' +
+        '      "when": 1735692540000,\n' +
+        '      "hwhen": 2025010100490000\n' +
         '    },\n' +
         '    "sdk/go/zed.go": {\n' +
         '      "action": "init",\n' +
@@ -680,10 +692,11 @@ const DATA_merge_basic_vol2 = {
         '      "actions": [],\n' +
         '      "protect": false,\n' +
         '      "conflict": false,\n' +
-        '      "when": 1735692540000,\n' +
-        '      "hwhen": 2025010100490000\n' +
+        '      "when": 1735692660000,\n' +
+        '      "hwhen": 2025010100510000\n' +
         '    }\n' +
         '  }\n' +
-        '}'
+        '}',
+    '/top/.jostraca/.gitignore': '\njostraca.meta.log\ngenerated\n'
 };
 //# sourceMappingURL=merge.test.js.map

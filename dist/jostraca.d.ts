@@ -26,9 +26,6 @@ declare const OptionsShape: {
             txt: {};
             bin: {};
         };
-        processing: {
-            duplicate: boolean;
-        };
         model: any;
         build: boolean;
         mem: boolean;
@@ -37,6 +34,10 @@ declare const OptionsShape: {
             Copy: {
                 ignore: any[];
             };
+        };
+        control: {
+            duplicate: boolean;
+            version: boolean;
         };
     };
     valid: <V>(root?: V | undefined, ctx?: import("gubu").Context) => root is V & {
@@ -51,9 +52,6 @@ declare const OptionsShape: {
             txt: {};
             bin: {};
         };
-        processing: {
-            duplicate: boolean;
-        };
         model: any;
         build: boolean;
         mem: boolean;
@@ -62,6 +60,10 @@ declare const OptionsShape: {
             Copy: {
                 ignore: any[];
             };
+        };
+        control: {
+            duplicate: boolean;
+            version: boolean;
         };
     };
     match(root?: any, ctx?: import("gubu").Context): boolean;
@@ -114,9 +116,6 @@ declare const OptionsShape: {
             txt: {};
             bin: {};
         };
-        processing: {
-            duplicate: boolean;
-        };
         model: any;
         build: boolean;
         mem: boolean;
@@ -125,6 +124,10 @@ declare const OptionsShape: {
             Copy: {
                 ignore: any[];
             };
+        };
+        control: {
+            duplicate: boolean;
+            version: boolean;
         };
     }>;
     stringify(...rest: any[]): string;

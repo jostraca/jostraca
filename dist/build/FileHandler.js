@@ -13,14 +13,14 @@ const CN = 'FileHandler:';
 const JOSTRACA_PROTECT = 'JOSTRACA_PROTECT';
 // TODO: if EOL != '\n', normalize to '\n' in load,save 
 class FileHandler {
-    constructor(bctx, existing, duplicate) {
+    constructor(bctx, existing, control) {
         this.fs = bctx.fs;
         this.now = bctx.now;
         this.when = bctx.when;
         this.folder = node_path_1.default.normalize(bctx.folder);
         this.audit = bctx.audit;
         this.existing = existing;
-        this.duplicate = duplicate;
+        this.control = control;
         this.maxdepth = 22; // TODO: get from JostracaOptions
         this.files = {
             preserved: [],
@@ -121,7 +121,7 @@ class FileHandler {
                         meta.action = 'diff';
                         const cstr = 'string' === typeof content ? content : content.toString('utf8');
                         const diffcontent = this.diff(cstr, oldcontent.toString());
-                        this.saveFile(path, diffcontent, { encoding: 'utf8' }, whence + meta.action, content);
+                        this.saveFile(path, diffcontent, { encoding: 'utf8' }, whence + meta.action);
                         this.files.diffed.push(path);
                         const conflict = cstr !== diffcontent;
                         if (conflict) {
@@ -140,7 +140,7 @@ class FileHandler {
                 else if (existing.merge) {
                     if (oldcontent.length !== content.length || oldcontent !== content) {
                         const cstr = 'string' === typeof content ? content : content.toString('utf8');
-                        if (this.duplicate) {
+                        if (this.control.duplicate) {
                             const dfolder = this.duplicateFolder();
                             const dpath = node_path_1.default.join(dfolder, rpath);
                             // console.log('MERGE-DPATH', dpath)
@@ -151,7 +151,7 @@ class FileHandler {
                                 const mergeres = this.merge(cstr, oldcontent.toString(), origcontent);
                                 const diffcontent = mergeres.content;
                                 const conflict = mergeres.conflict;
-                                this.saveFile(path, diffcontent, { encoding: 'utf8' }, whence + meta.action, content);
+                                this.saveFile(path, diffcontent, { encoding: 'utf8' }, whence + meta.action);
                                 this.files.merged.push(path);
                                 if (conflict) {
                                     this.files.conflicted.push(path);
@@ -180,7 +180,7 @@ class FileHandler {
             this.audit.push([CN + FN + wstr + meta.action,
                 { ...meta, action: meta.action, path }]);
         }
-        if (this.duplicate) {
+        if (this.control.duplicate) {
             if (withinFolder && (node_path_1.default.basename(path) !== this.metafile())) {
                 const dfolder = this.duplicateFolder();
                 const dpath = node_path_1.default.join(dfolder, rpath);
@@ -388,7 +388,7 @@ class FileHandler {
             throw err;
         }
     }
-    saveFile(path, content, opts, whence, original) {
+    saveFile(path, content, opts, whence) {
         const when = this.now();
         const wstr = null == whence ? '' : whence + ':';
         const fs = this.fs();
@@ -416,24 +416,6 @@ class FileHandler {
             fs.writeFileSync(fullpath, content, opts);
             this.audit.push([CN + FN + wstr,
                 { path, when, existed, size: content.length }]);
-            /*
-            const withinFolder = path.startsWith(this.folder)
-            // const rpath = withinFolder ? path.substring(this.folder.length).replace(/^\/+/, '') : path
-            const rpath = this.relative(path, FN + wstr)
-      
-            if (this.duplicate &&
-              (!isAbsolute || withinFolder) &&
-              (Path.basename(path) !== this.metafile())
-            ) {
-              const dfolder = this.duplicateFolder()
-              // const dpath = Path.join(dfolder, path)
-              const dpath = Path.join(dfolder, rpath)
-              fs.mkdirSync(Path.dirname(dpath), { recursive: true })
-              const dopts = { ...opts, flush: true }
-              const dcontent = null == original ? content : original
-              fs.writeFileSync(dpath, dcontent, dopts)
-            }
-            */
         }
         catch (err) {
             this.audit.push(['ERROR:' + CN + FN + wstr,
