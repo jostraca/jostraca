@@ -37,7 +37,6 @@ describe('jostraca', () => {
   test('happy', async () => {
     let nowI = 0
     const now = () => START_TIME + (++nowI * (60 * 1000))
-
     expect(Jostraca).exist()
 
     const jostraca = Jostraca({ now })
