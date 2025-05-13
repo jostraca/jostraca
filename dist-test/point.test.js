@@ -135,5 +135,47 @@ function make_id(i) {
             '{"x":1,"s":5,"y":2,"z":3}',
         ]);
     });
+    (0, node_test_1.test)('declare', async () => {
+        const def0 = {
+            p: [
+                { k: 'Func', a: (pctx) => pctx.data.x = 1 },
+                {
+                    k: 'Serial', p: [
+                        { k: 'Func', a: function y2(pctx) { pctx.data.y = 2; } },
+                        { k: 'Func', a: function z3(pctx) { pctx.data.z = 3; } },
+                    ]
+                },
+            ]
+        };
+        const pm = {
+            Func: (id, pdef) => {
+                return new point_1.FuncPoint(id(), pdef.a);
+            },
+            Print: (id, pdef) => {
+                return new point_1.PrintPoint(id(), pdef.a);
+            },
+        };
+        const rp0 = (0, point_1.buildPoints)(def0, pm);
+        // console.dir(rp0, { depth: null })
+        const d0 = {};
+        const pc0 = await rp0.start(d0, make_sys());
+        // console.dir(pc0, { depth: null })
+        (0, code_1.expect)(pc0).includes({
+            log: [
+                { note: 'RootPoint:before:1', when: 1735689600100, depth: 0 },
+                { note: 'FuncPoint:before:2:a', when: 1735689600200, depth: 1 },
+                { note: 'FuncPoint:after:2:a', when: 1735689600300, depth: 1 },
+                { note: 'SerialPoint:before:3', when: 1735689600400, depth: 1 },
+                { note: 'FuncPoint:before:4:y2', when: 1735689600500, depth: 2 },
+                { note: 'FuncPoint:after:4:y2', when: 1735689600600, depth: 2 },
+                { note: 'FuncPoint:before:5:z3', when: 1735689600700, depth: 2 },
+                { note: 'FuncPoint:after:5:z3', when: 1735689600800, depth: 2 },
+                { note: 'SerialPoint:after:3', when: 1735689600900, depth: 1 },
+                { note: 'RootPoint:after:1', when: 1735689601000, depth: 0 }
+            ],
+            data: { x: 1, y: 2, z: 3 },
+            depth: 0,
+        });
+    });
 });
 //# sourceMappingURL=point.test.js.map

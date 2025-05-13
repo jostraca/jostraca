@@ -1,4 +1,6 @@
 
+import { Gubu, Skip, Any } from 'gubu'
+
 import { getx } from './basic'
 
 
@@ -77,9 +79,9 @@ class RootPoint extends SerialPoint {
     this.points = []
   }
 
-  add(p: Point) {
-    this.points.push(p)
-  }
+  // add(p: Point) {
+  //   this.points.push(p)
+  // }
 
   async start(data?: Record<string, any>, sys?: any): Promise<PointCtx> {
     const pctx: PointCtx = {
@@ -168,9 +170,67 @@ class PrintPoint extends Point {
 }
 
 
+const PointDefShape = Gubu({
+  k: Skip(String),
+  n: Skip(String),
+  p: Skip([]),
+  a: Any(),
+})
+
+type PointDef = Partial<ReturnType<typeof PointDefShape>>
+
+type MakePoint = (id: () => string, pdef: PointDef) => Point
+
+
+function buildPoints(pdef: PointDef, pm: Record<string, MakePoint>, id?: () => string): Point {
+  let idi = 0
+  id = id || (() => (++idi) + '')
+  let p: Point
+
+  pdef = PointDefShape(pdef)
+
+  const mp = pm[pdef.k]
+  if (null != mp) {
+    p = mp(id, pdef)
+  }
+  else if (null == pdef.k || 'Root' === pdef.k) {
+    const rp = new RootPoint(id())
+    let cp = pdef.p
+    for (let c of cp) {
+      rp.add(buildPoints(c, pm, id))
+    }
+    p = rp
+  }
+  else if ('Serial' === pdef.k) {
+    const sp = new SerialPoint(id())
+    let cp = pdef.p
+    for (let c of cp) {
+      sp.add(buildPoints(c, pm, id))
+    }
+    p = sp
+  }
+  else if ('Parallel' === pdef.k) {
+    const sp = new ParallelPoint(id())
+    let cp = pdef.p
+    for (let c of cp) {
+      sp.add(buildPoints(c, pm, id))
+    }
+    p = sp
+  }
+  else {
+    throw new Error('Unknown point kind: ' + JSON.stringify(pdef))
+  }
+
+  return p
+}
+
+
 export type {
   PointCtx,
+  MakePoint,
+  PointDef,
 }
+
 
 export {
   Point,
@@ -179,4 +239,5 @@ export {
   ParallelPoint,
   FuncPoint,
   PrintPoint,
+  buildPoints,
 }

@@ -31,7 +31,6 @@ declare class SerialPoint extends Point {
 declare class RootPoint extends SerialPoint {
     points: Point[];
     constructor(id: string);
-    add(p: Point): void;
     start(data?: Record<string, any>, sys?: any): Promise<PointCtx>;
 }
 declare class ParallelPoint extends Point {
@@ -50,5 +49,73 @@ declare class PrintPoint extends Point {
     constructor(id: string, path?: string);
     run(pctx: PointCtx): Promise<void>;
 }
-export type { PointCtx, };
-export { Point, RootPoint, SerialPoint, ParallelPoint, FuncPoint, PrintPoint, };
+declare const PointDefShape: {
+    <V>(root?: V | undefined, ctx?: import("gubu").Context): V & {
+        k: any;
+        n: any;
+        p: any;
+        a: any;
+    };
+    valid: <V>(root?: V | undefined, ctx?: import("gubu").Context) => root is V & {
+        k: import("gubu").Node<StringConstructor>;
+        n: import("gubu").Node<StringConstructor>;
+        p: import("gubu").Node<never[]>;
+        a: import("gubu").Node<unknown>;
+    };
+    match(root?: any, ctx?: import("gubu").Context): boolean;
+    error(root?: any, ctx?: import("gubu").Context): {
+        gubu: boolean;
+        code: string;
+        gname: string;
+        props: ({
+            path: string;
+            type: string;
+            value: any;
+        }[]);
+        desc: () => ({
+            name: string;
+            code: string;
+            err: {
+                key: string;
+                type: string;
+                node: import("gubu").Node<any>;
+                value: any;
+                path: string;
+                why: string;
+                check: string;
+                args: Record<string, any>;
+                mark: number;
+                text: string;
+                use: any;
+            }[];
+            ctx: any;
+        });
+        toJSON(): /*elided*/ any & {
+            err: any;
+            name: string;
+            message: string;
+        };
+        name: string;
+        message: string;
+        stack?: string;
+    }[];
+    spec(): any;
+    node(): import("gubu").Node<{
+        k: import("gubu").Node<StringConstructor>;
+        n: import("gubu").Node<StringConstructor>;
+        p: import("gubu").Node<never[]>;
+        a: import("gubu").Node<unknown>;
+    }>;
+    stringify(...rest: any[]): string;
+    jsonify(): any;
+    toString(this: any): string;
+    gubu: {
+        gubu$: symbol;
+        v$: string;
+    };
+};
+type PointDef = Partial<ReturnType<typeof PointDefShape>>;
+type MakePoint = (id: () => string, pdef: PointDef) => Point;
+declare function buildPoints(pdef: PointDef, pm: Record<string, MakePoint>, id?: () => string): Point;
+export type { PointCtx, MakePoint, PointDef, };
+export { Point, RootPoint, SerialPoint, ParallelPoint, FuncPoint, PrintPoint, buildPoints, };

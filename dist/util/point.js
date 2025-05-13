@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PrintPoint = exports.FuncPoint = exports.ParallelPoint = exports.SerialPoint = exports.RootPoint = exports.Point = void 0;
+exports.buildPoints = buildPoints;
+const gubu_1 = require("gubu");
 const basic_1 = require("./basic");
 class Point {
     constructor(id, name) {
@@ -43,9 +45,9 @@ class RootPoint extends SerialPoint {
         super(id);
         this.points = [];
     }
-    add(p) {
-        this.points.push(p);
-    }
+    // add(p: Point) {
+    //   this.points.push(p)
+    // }
     async start(data, sys) {
         const pctx = {
             log: [],
@@ -114,4 +116,48 @@ class PrintPoint extends Point {
     }
 }
 exports.PrintPoint = PrintPoint;
+const PointDefShape = (0, gubu_1.Gubu)({
+    k: (0, gubu_1.Skip)(String),
+    n: (0, gubu_1.Skip)(String),
+    p: (0, gubu_1.Skip)([]),
+    a: (0, gubu_1.Any)(),
+});
+function buildPoints(pdef, pm, id) {
+    let idi = 0;
+    id = id || (() => (++idi) + '');
+    let p;
+    pdef = PointDefShape(pdef);
+    const mp = pm[pdef.k];
+    if (null != mp) {
+        p = mp(id, pdef);
+    }
+    else if (null == pdef.k || 'Root' === pdef.k) {
+        const rp = new RootPoint(id());
+        let cp = pdef.p;
+        for (let c of cp) {
+            rp.add(buildPoints(c, pm, id));
+        }
+        p = rp;
+    }
+    else if ('Serial' === pdef.k) {
+        const sp = new SerialPoint(id());
+        let cp = pdef.p;
+        for (let c of cp) {
+            sp.add(buildPoints(c, pm, id));
+        }
+        p = sp;
+    }
+    else if ('Parallel' === pdef.k) {
+        const sp = new ParallelPoint(id());
+        let cp = pdef.p;
+        for (let c of cp) {
+            sp.add(buildPoints(c, pm, id));
+        }
+        p = sp;
+    }
+    else {
+        throw new Error('Unknown point kind: ' + JSON.stringify(pdef));
+    }
+    return p;
+}
 //# sourceMappingURL=point.js.map

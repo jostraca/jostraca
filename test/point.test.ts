@@ -5,14 +5,18 @@ import { expect } from '@hapi/code'
 
 import type {
   PointCtx,
+  MakePoint,
+  PointDef,
 } from '../dist/util/point'
 
 import {
+  Point,
   RootPoint,
   PrintPoint,
   FuncPoint,
   SerialPoint,
   ParallelPoint,
+  buildPoints,
 } from '../dist/util/point'
 
 
@@ -170,7 +174,55 @@ describe('point', () => {
       'POINTCTX:"',
       '{"x":1,"s":5,"y":2,"z":3}',
     ])
+  })
 
+
+  test('declare', async () => {
+
+    const def0: PointDef = {
+      p: [
+        { k: 'Func', a: (pctx: PointCtx) => pctx.data.x = 1 },
+        {
+          k: 'Serial', p: [
+            { k: 'Func', a: function y2(pctx: PointCtx) { pctx.data.y = 2 } },
+            { k: 'Func', a: function z3(pctx: PointCtx) { pctx.data.z = 3 } },
+          ]
+        },
+      ]
+    }
+
+    const pm: Record<string, MakePoint> = {
+      Func: (id: () => string, pdef: PointDef) => {
+        return new FuncPoint(id(), pdef.a)
+      },
+      Print: (id: () => string, pdef: PointDef) => {
+        return new PrintPoint(id(), pdef.a)
+      },
+    }
+
+    const rp0 = buildPoints(def0, pm) as RootPoint
+    // console.dir(rp0, { depth: null })
+
+    const d0 = {}
+    const pc0 = await rp0.start(d0, make_sys())
+    // console.dir(pc0, { depth: null })
+
+    expect(pc0).includes({
+      log: [
+        { note: 'RootPoint:before:1', when: 1735689600100, depth: 0 },
+        { note: 'FuncPoint:before:2:a', when: 1735689600200, depth: 1 },
+        { note: 'FuncPoint:after:2:a', when: 1735689600300, depth: 1 },
+        { note: 'SerialPoint:before:3', when: 1735689600400, depth: 1 },
+        { note: 'FuncPoint:before:4:y2', when: 1735689600500, depth: 2 },
+        { note: 'FuncPoint:after:4:y2', when: 1735689600600, depth: 2 },
+        { note: 'FuncPoint:before:5:z3', when: 1735689600700, depth: 2 },
+        { note: 'FuncPoint:after:5:z3', when: 1735689600800, depth: 2 },
+        { note: 'SerialPoint:after:3', when: 1735689600900, depth: 1 },
+        { note: 'RootPoint:after:1', when: 1735689601000, depth: 0 }
+      ],
+      data: { x: 1, y: 2, z: 3 },
+      depth: 0,
+    })
 
   })
 })
