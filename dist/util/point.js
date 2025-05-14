@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PrintPoint = exports.FuncPoint = exports.ParallelPoint = exports.SerialPoint = exports.RootPoint = exports.Point = void 0;
 exports.buildPoints = buildPoints;
+exports.makeFuncDef = makeFuncDef;
 const gubu_1 = require("gubu");
 const basic_1 = require("./basic");
 class Point {
@@ -11,14 +12,26 @@ class Point {
     }
     async runner(pctx) {
         const suffix = (null == this.name || '' === this.name) ? '' : ':' + this.name;
-        this.logger(pctx, { note: this.constructor.name + ':before:' + this.id + suffix });
-        await this.run(pctx);
-        this.logger(pctx, { note: this.constructor.name + ':after:' + this.id + suffix });
+        this.logger(pctx, {
+            note: this.constructor.name + ':before:' + this.id + suffix, args: this.args
+        });
+        if (pctx.async) {
+            await this.run(pctx);
+        }
+        else {
+            this.run(pctx);
+        }
+        this.logger(pctx, {
+            note: this.constructor.name + ':after:' + this.id + suffix, args: this.args
+        });
     }
     logger(pctx, entry) {
         entry.note = null == entry.note ? 'none' : entry.note;
         entry.when = pctx.sys().now();
         entry.depth = pctx.depth;
+        if (undefined === entry.args) {
+            delete entry.args;
+        }
         pctx.log.push(entry);
     }
 }
@@ -35,7 +48,12 @@ class SerialPoint extends Point {
         let childctx = { ...pctx };
         childctx.depth++;
         for (let p of this.points) {
-            await p.runner(childctx);
+            if (pctx.async) {
+                await p.runner(childctx);
+            }
+            else {
+                p.runner(childctx);
+            }
         }
     }
 }
@@ -45,11 +63,19 @@ class RootPoint extends SerialPoint {
         super(id);
         this.points = [];
     }
-    // add(p: Point) {
-    //   this.points.push(p)
-    // }
+    direct(data, sys) {
+        const pctx = this.makePointCtx(false, data, sys);
+        this.runner(pctx);
+        return pctx;
+    }
     async start(data, sys) {
+        const pctx = this.makePointCtx(true, data, sys);
+        await this.runner(pctx);
+        return pctx;
+    }
+    makePointCtx(async, data, sys) {
         const pctx = {
+            async,
             log: [],
             data: data || {},
             depth: 0,
@@ -65,7 +91,6 @@ class RootPoint extends SerialPoint {
                 }
             }))
         };
-        await this.runner(pctx);
         return pctx;
     }
 }
@@ -91,7 +116,12 @@ class FuncPoint extends Point {
         this.func = func;
     }
     async run(pctx) {
-        return this.func(pctx);
+        if (pctx.async) {
+            await this.func(pctx);
+        }
+        else {
+            this.func(pctx);
+        }
     }
 }
 exports.FuncPoint = FuncPoint;
@@ -125,8 +155,10 @@ const PointDefShape = (0, gubu_1.Gubu)({
 function buildPoints(pdef, pm, id) {
     let idi = 0;
     id = id || (() => (++idi) + '');
-    let p;
+    let p = undefined;
+    // TODO: fix point kind resolution to be more extensible
     pdef = PointDefShape(pdef);
+    let isSerial = 'Serial' === pdef.k || Array.isArray(pdef.p);
     const mp = pm[pdef.k];
     if (null != mp) {
         p = mp(id, pdef);
@@ -138,14 +170,7 @@ function buildPoints(pdef, pm, id) {
             rp.add(buildPoints(c, pm, id));
         }
         p = rp;
-    }
-    else if ('Serial' === pdef.k) {
-        const sp = new SerialPoint(id());
-        let cp = pdef.p;
-        for (let c of cp) {
-            sp.add(buildPoints(c, pm, id));
-        }
-        p = sp;
+        isSerial = false;
     }
     else if ('Parallel' === pdef.k) {
         const sp = new ParallelPoint(id());
@@ -154,10 +179,26 @@ function buildPoints(pdef, pm, id) {
             sp.add(buildPoints(c, pm, id));
         }
         p = sp;
+        isSerial = false;
     }
-    else {
+    if (isSerial) {
+        const sp = (p || new SerialPoint(id()));
+        let cp = pdef.p;
+        for (let c of cp) {
+            sp.add(buildPoints(c, pm, id));
+        }
+        p = sp;
+    }
+    if (null == p) {
         throw new Error('Unknown point kind: ' + JSON.stringify(pdef));
     }
     return p;
+}
+function makeFuncDef(fd) {
+    return (id, pdef) => {
+        const fp = new FuncPoint(id(), fd(pdef));
+        fp.args = pdef.a;
+        return fp;
+    };
 }
 //# sourceMappingURL=point.js.map

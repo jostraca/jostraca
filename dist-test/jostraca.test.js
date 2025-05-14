@@ -402,7 +402,7 @@ const START_TIME = 1735689600000;
                 unchanged: []
             },
         });
-        const voljson = info.vol.toJSON();
+        const voljson = info.vol().toJSON();
         (0, code_1.expect)(voljson).includes({
             '/f01.txt': '<foo>',
             '/foo.txt': '{<FOO[A:B:a=(11):b=(22)]>}',
@@ -442,7 +442,7 @@ const START_TIME = 1735689600000;
                 unchanged: []
             },
         });
-        const voljson0 = info0.vol.toJSON();
+        const voljson0 = info0.vol().toJSON();
         (0, code_1.expect)(voljson0).includes({
             '/f01.txt': 'a0',
             '/g01.txt': 'b1',
@@ -471,7 +471,7 @@ const START_TIME = 1735689600000;
                 unchanged: []
             },
         });
-        const voljson1 = info1.vol.toJSON();
+        const voljson1 = info1.vol().toJSON();
         (0, code_1.expect)(voljson1).includes({
             '/f01.txt': 'a1',
             '/f01.old.txt': 'a0',
@@ -497,7 +497,7 @@ const START_TIME = 1735689600000;
                 unchanged: []
             },
         });
-        const voljson2 = info2.vol.toJSON();
+        const voljson2 = info2.vol().toJSON();
         (0, code_1.expect)(voljson2).includes({
             '/f01.txt': 'a0',
             '/f01.new.txt': 'a1',

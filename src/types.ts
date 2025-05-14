@@ -44,7 +44,7 @@ type JostracaResult = {
     conflicted: string[],
     unchanged: string[],
   }
-  vol?: any
+  vol?: () => any
 }
 
 

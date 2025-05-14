@@ -547,7 +547,7 @@ describe('jostraca', () => {
       },
     })
 
-    const voljson: any = info.vol.toJSON()
+    const voljson: any = (info.vol as any)().toJSON()
 
     expect(voljson).includes({
       '/f01.txt': '<foo>',
@@ -597,7 +597,7 @@ describe('jostraca', () => {
       },
     })
 
-    const voljson0: any = info0.vol.toJSON()
+    const voljson0: any = (info0.vol as any)().toJSON()
 
     expect(voljson0).includes({
       '/f01.txt': 'a0',
@@ -634,7 +634,7 @@ describe('jostraca', () => {
       },
     })
 
-    const voljson1: any = info1.vol.toJSON()
+    const voljson1: any = (info1.vol as any)().toJSON()
 
     expect(voljson1).includes({
       '/f01.txt': 'a1',
@@ -668,7 +668,7 @@ describe('jostraca', () => {
       },
     })
 
-    const voljson2: any = info2.vol.toJSON()
+    const voljson2: any = (info2.vol as any)().toJSON()
 
     expect(voljson2).includes({
       '/f01.txt': 'a0',

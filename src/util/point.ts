@@ -5,6 +5,7 @@ import { getx } from './basic'
 
 
 type PointCtx = {
+  async: boolean
   log: LogEntry[]
   data: Record<string, any>
   depth: number,
@@ -19,29 +20,45 @@ type LogEntry = {
   note: string
   when: number
   depth: number
+  args: any
 }
 
 
 abstract class Point implements Point {
   id: string
   name?: string
+  args?: any
 
   constructor(id: string, name?: string) {
     this.id = id
     this.name = name
   }
 
+
   async runner(pctx: PointCtx): Promise<void> {
     const suffix = (null == this.name || '' === this.name) ? '' : ':' + this.name
-    this.logger(pctx, { note: this.constructor.name + ':before:' + this.id + suffix })
-    await this.run(pctx)
-    this.logger(pctx, { note: this.constructor.name + ':after:' + this.id + suffix })
+    this.logger(pctx, {
+      note: this.constructor.name + ':before:' + this.id + suffix, args: this.args
+    })
+    if (pctx.async) {
+      await this.run(pctx)
+    }
+    else {
+      this.run(pctx)
+    }
+    this.logger(pctx, {
+      note: this.constructor.name + ':after:' + this.id + suffix, args: this.args
+    })
   }
+
 
   logger(pctx: PointCtx, entry: Partial<LogEntry>) {
     entry.note = null == entry.note ? 'none' : entry.note
     entry.when = pctx.sys().now()
     entry.depth = pctx.depth
+    if (undefined === entry.args) {
+      delete entry.args
+    }
     pctx.log.push(entry as LogEntry)
   }
 
@@ -65,7 +82,12 @@ class SerialPoint extends Point {
     let childctx: PointCtx = { ...pctx }
     childctx.depth++
     for (let p of this.points) {
-      await p.runner(childctx)
+      if (pctx.async) {
+        await p.runner(childctx)
+      }
+      else {
+        p.runner(childctx)
+      }
     }
   }
 }
@@ -79,12 +101,22 @@ class RootPoint extends SerialPoint {
     this.points = []
   }
 
-  // add(p: Point) {
-  //   this.points.push(p)
-  // }
+  direct(data?: Record<string, any>, sys?: any): PointCtx {
+    const pctx = this.makePointCtx(false, data, sys)
+    this.runner(pctx)
+    return pctx
+  }
 
   async start(data?: Record<string, any>, sys?: any): Promise<PointCtx> {
+    const pctx = this.makePointCtx(true, data, sys)
+    await this.runner(pctx)
+    return pctx
+  }
+
+
+  makePointCtx(async: boolean, data?: Record<string, any>, sys?: any): PointCtx {
     const pctx: PointCtx = {
+      async,
       log: [],
       data: data || {},
       depth: 0,
@@ -100,8 +132,6 @@ class RootPoint extends SerialPoint {
         }
       }))
     }
-
-    await this.runner(pctx)
     return pctx
   }
 }
@@ -139,7 +169,12 @@ class FuncPoint extends Point {
   }
 
   async run(pctx: PointCtx): Promise<void> {
-    return this.func(pctx)
+    if (pctx.async) {
+      await this.func(pctx)
+    }
+    else {
+      this.func(pctx)
+    }
   }
 }
 
@@ -185,9 +220,12 @@ type MakePoint = (id: () => string, pdef: PointDef) => Point
 function buildPoints(pdef: PointDef, pm: Record<string, MakePoint>, id?: () => string): Point {
   let idi = 0
   id = id || (() => (++idi) + '')
-  let p: Point
+  let p: Point | undefined = undefined
+
+  // TODO: fix point kind resolution to be more extensible
 
   pdef = PointDefShape(pdef)
+  let isSerial = 'Serial' === pdef.k || Array.isArray(pdef.p)
 
   const mp = pm[pdef.k]
   if (null != mp) {
@@ -200,14 +238,7 @@ function buildPoints(pdef: PointDef, pm: Record<string, MakePoint>, id?: () => s
       rp.add(buildPoints(c, pm, id))
     }
     p = rp
-  }
-  else if ('Serial' === pdef.k) {
-    const sp = new SerialPoint(id())
-    let cp = pdef.p
-    for (let c of cp) {
-      sp.add(buildPoints(c, pm, id))
-    }
-    p = sp
+    isSerial = false
   }
   else if ('Parallel' === pdef.k) {
     const sp = new ParallelPoint(id())
@@ -216,13 +247,34 @@ function buildPoints(pdef: PointDef, pm: Record<string, MakePoint>, id?: () => s
       sp.add(buildPoints(c, pm, id))
     }
     p = sp
+    isSerial = false
   }
-  else {
+
+  if (isSerial) {
+    const sp = (p || new SerialPoint(id())) as SerialPoint
+    let cp = pdef.p
+    for (let c of cp) {
+      sp.add(buildPoints(c, pm, id))
+    }
+    p = sp
+  }
+
+  if (null == p) {
     throw new Error('Unknown point kind: ' + JSON.stringify(pdef))
   }
 
   return p
 }
+
+
+function makeFuncDef(fd: (pdef: PointDef) => (pctx: PointCtx) => any) {
+  return (id: () => string, pdef: PointDef) => {
+    const fp = new FuncPoint(id(), fd(pdef))
+    fp.args = pdef.a
+    return fp
+  }
+}
+
 
 
 export type {
@@ -240,4 +292,5 @@ export {
   FuncPoint,
   PrintPoint,
   buildPoints,
+  makeFuncDef,
 }

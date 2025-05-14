@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const node_test_1 = require("node:test");
 const code_1 = require("@hapi/code");
 const point_1 = require("../dist/util/point");
+const __1 = require("..");
 function make_now(s) {
     s = null == s ? 0 : s;
     // // 2025-01-01T00:00:00.000Z
@@ -176,6 +177,137 @@ function make_id(i) {
             data: { x: 1, y: 2, z: 3 },
             depth: 0,
         });
+    });
+    (0, node_test_1.test)('generate-basic', async () => {
+        const def0 = {
+            p: [
+                { k: 'Value', a: 11 },
+                { k: 'Operation', a: 'add' },
+                { k: 'Value', a: 22 },
+            ]
+        };
+        const pm = {
+            Value: (id, pdef) => new point_1.FuncPoint(id(), function value(_pctx) {
+                (0, __1.Content)('' + pdef.a);
+            }),
+            Operation: (id, pdef) => new point_1.FuncPoint(id(), function value(pctx) {
+                (0, __1.Content)(pctx.data.op[pdef.a]);
+            }),
+        };
+        const rp0 = (0, point_1.buildPoints)(def0, pm);
+        // console.dir(rp0, { depth: null })
+        const d0 = {
+            op: {
+                add: '+',
+                sub: '-',
+            }
+        };
+        let pc0;
+        const j0 = (0, __1.Jostraca)({ mem: true, folder: '/' });
+        const r0 = await j0.generate({}, async () => {
+            (0, __1.File)({ name: 'a.txt' }, async () => {
+                (0, __1.Content)('<');
+                pc0 = rp0.direct(d0, make_sys());
+                (0, __1.Content)('>');
+            });
+        });
+        //console.log('r0', r0)
+        //console.log('a.txt', (r0.vol as any)().toJSON()['/a.txt'])
+        (0, code_1.expect)(r0.vol().toJSON()['/a.txt']).equal('<11+22>');
+        (0, code_1.expect)(pc0).includes({
+            log: [
+                { note: 'RootPoint:before:1', when: 1735689600100, depth: 0 },
+                { note: 'FuncPoint:before:2:value', when: 1735689600200, depth: 1 },
+                { note: 'FuncPoint:after:2:value', when: 1735689600300, depth: 1 },
+                { note: 'FuncPoint:before:3:value', when: 1735689600400, depth: 1 },
+                { note: 'FuncPoint:after:3:value', when: 1735689600500, depth: 1 },
+                { note: 'FuncPoint:before:4:value', when: 1735689600600, depth: 1 },
+                { note: 'FuncPoint:after:4:value', when: 1735689600700, depth: 1 },
+                { note: 'RootPoint:after:1', when: 1735689600800, depth: 0 }
+            ],
+        });
+    });
+    (0, node_test_1.test)('generate-deep', async () => {
+        const def0 = {
+            p: [
+                {
+                    k: 'Expr', p: [
+                        { k: 'Value', a: 11 },
+                        { k: 'Operation', a: 'sub' },
+                        { k: 'Value', a: 22 },
+                    ]
+                },
+                { k: 'Operation', a: 'add' },
+                {
+                    k: 'Expr', p: [
+                        { k: 'Value', a: 33 },
+                        { k: 'Operation', a: 'add' },
+                        { k: 'Value', a: 44 },
+                    ]
+                },
+            ]
+        };
+        class ExprPoint extends point_1.SerialPoint {
+            constructor(id) {
+                super(id);
+            }
+            async run(pctx) {
+                (0, __1.Content)('(');
+                super.run(pctx);
+                (0, __1.Content)(')');
+            }
+        }
+        const pm = {
+            Value: (0, point_1.makeFuncDef)((pdef) => function value(_pctx) {
+                (0, __1.Content)('' + pdef.a);
+            }),
+            Operation: (0, point_1.makeFuncDef)((pdef) => function value(pctx) {
+                (0, __1.Content)(pctx.data.op[pdef.a]);
+            }),
+            Expr: (id, _pdef) => new ExprPoint(id()),
+        };
+        const rp0 = (0, point_1.buildPoints)(def0, pm);
+        // console.dir(rp0, { depth: null })
+        const d0 = {
+            op: {
+                add: '+',
+                sub: '-',
+            }
+        };
+        let pc0;
+        const j0 = (0, __1.Jostraca)({ mem: true, folder: '/' });
+        const r0 = await j0.generate({}, async () => {
+            (0, __1.File)({ name: 'a.txt' }, async () => {
+                (0, __1.Content)('<');
+                pc0 = rp0.direct(d0, make_sys());
+                (0, __1.Content)('>');
+            });
+        });
+        //console.log('r0', r0)
+        //console.log('a.txt', (r0.vol as any)().toJSON()['/a.txt'])
+        (0, code_1.expect)(r0.vol().toJSON()['/a.txt']).equal('<(11-22)+(33+44)>');
+        (0, code_1.expect)(pc0.log.map((n) => (delete n.when, delete n.depth, n))).includes([
+            { note: 'RootPoint:before:1' },
+            { note: 'ExprPoint:before:2' },
+            { note: 'FuncPoint:before:3:value', 'args': 11 },
+            { note: 'FuncPoint:after:3:value', 'args': 11 },
+            { note: 'FuncPoint:before:4:value', 'args': 'sub' },
+            { note: 'FuncPoint:after:4:value', 'args': 'sub' },
+            { note: 'FuncPoint:before:5:value', 'args': 22 },
+            { note: 'FuncPoint:after:5:value', 'args': 22 },
+            { note: 'ExprPoint:after:2' },
+            { note: 'FuncPoint:before:6:value', 'args': 'add' },
+            { note: 'FuncPoint:after:6:value', 'args': 'add' },
+            { note: 'ExprPoint:before:7' },
+            { note: 'FuncPoint:before:8:value', 'args': 33 },
+            { note: 'FuncPoint:after:8:value', 'args': 33 },
+            { note: 'FuncPoint:before:9:value', 'args': 'add' },
+            { note: 'FuncPoint:after:9:value', 'args': 'add' },
+            { note: 'FuncPoint:before:10:value', 'args': 44 },
+            { note: 'FuncPoint:after:10:value', 'args': 44 },
+            { note: 'ExprPoint:after:7' },
+            { note: 'RootPoint:after:1' }
+        ]);
     });
 });
 //# sourceMappingURL=point.test.js.map

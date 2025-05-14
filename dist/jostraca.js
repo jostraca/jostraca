@@ -209,7 +209,7 @@ function Jostraca(gopts_in) {
                 files: buildctx.fh.files
             };
             if (memfs) {
-                res.vol = memfs.vol;
+                res.vol = () => memfs.vol;
             }
             return res;
         });

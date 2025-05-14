@@ -1,4 +1,5 @@
 type PointCtx = {
+    async: boolean;
     log: LogEntry[];
     data: Record<string, any>;
     depth: number;
@@ -13,10 +14,12 @@ type LogEntry = {
     note: string;
     when: number;
     depth: number;
+    args: any;
 };
 declare abstract class Point implements Point {
     id: string;
     name?: string;
+    args?: any;
     constructor(id: string, name?: string);
     runner(pctx: PointCtx): Promise<void>;
     logger(pctx: PointCtx, entry: Partial<LogEntry>): void;
@@ -31,7 +34,9 @@ declare class SerialPoint extends Point {
 declare class RootPoint extends SerialPoint {
     points: Point[];
     constructor(id: string);
+    direct(data?: Record<string, any>, sys?: any): PointCtx;
     start(data?: Record<string, any>, sys?: any): Promise<PointCtx>;
+    makePointCtx(async: boolean, data?: Record<string, any>, sys?: any): PointCtx;
 }
 declare class ParallelPoint extends Point {
     points: Point[];
@@ -117,5 +122,6 @@ declare const PointDefShape: {
 type PointDef = Partial<ReturnType<typeof PointDefShape>>;
 type MakePoint = (id: () => string, pdef: PointDef) => Point;
 declare function buildPoints(pdef: PointDef, pm: Record<string, MakePoint>, id?: () => string): Point;
+declare function makeFuncDef(fd: (pdef: PointDef) => (pctx: PointCtx) => any): (id: () => string, pdef: PointDef) => FuncPoint;
 export type { PointCtx, MakePoint, PointDef, };
-export { Point, RootPoint, SerialPoint, ParallelPoint, FuncPoint, PrintPoint, buildPoints, };
+export { Point, RootPoint, SerialPoint, ParallelPoint, FuncPoint, PrintPoint, buildPoints, makeFuncDef, };

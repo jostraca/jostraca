@@ -10,14 +10,21 @@ import type {
 } from '../dist/util/point'
 
 import {
-  Point,
   RootPoint,
   PrintPoint,
   FuncPoint,
   SerialPoint,
   ParallelPoint,
   buildPoints,
+  makeFuncDef,
 } from '../dist/util/point'
+
+
+import {
+  Jostraca,
+  Content,
+  File,
+} from '..'
 
 
 
@@ -225,6 +232,166 @@ describe('point', () => {
     })
 
   })
+
+
+  test('generate-basic', async () => {
+
+    const def0: PointDef = {
+      p: [
+        { k: 'Value', a: 11 },
+        { k: 'Operation', a: 'add' },
+        { k: 'Value', a: 22 },
+      ]
+    }
+
+    const pm: Record<string, MakePoint> = {
+      Value: (id: () => string, pdef: PointDef) =>
+        new FuncPoint(id(), function value(_pctx: PointCtx) {
+          Content('' + pdef.a)
+        }),
+      Operation: (id: () => string, pdef: PointDef) =>
+        new FuncPoint(id(), function value(pctx: PointCtx) {
+          Content(pctx.data.op[pdef.a])
+        }),
+    }
+
+    const rp0 = buildPoints(def0, pm) as RootPoint
+    // console.dir(rp0, { depth: null })
+
+    const d0 = {
+      op: {
+        add: '+',
+        sub: '-',
+      }
+    }
+
+    let pc0: any
+    const j0 = Jostraca({ mem: true, folder: '/' })
+    const r0 = await j0.generate({}, async () => {
+      File({ name: 'a.txt' }, async () => {
+        Content('<')
+        pc0 = rp0.direct(d0, make_sys())
+        Content('>')
+      })
+    })
+
+    //console.log('r0', r0)
+    //console.log('a.txt', (r0.vol as any)().toJSON()['/a.txt'])
+
+    expect((r0.vol as any)().toJSON()['/a.txt']).equal('<11+22>')
+
+    expect(pc0).includes({
+      log: [
+        { note: 'RootPoint:before:1', when: 1735689600100, depth: 0 },
+        { note: 'FuncPoint:before:2:value', when: 1735689600200, depth: 1 },
+        { note: 'FuncPoint:after:2:value', when: 1735689600300, depth: 1 },
+        { note: 'FuncPoint:before:3:value', when: 1735689600400, depth: 1 },
+        { note: 'FuncPoint:after:3:value', when: 1735689600500, depth: 1 },
+        { note: 'FuncPoint:before:4:value', when: 1735689600600, depth: 1 },
+        { note: 'FuncPoint:after:4:value', when: 1735689600700, depth: 1 },
+        { note: 'RootPoint:after:1', when: 1735689600800, depth: 0 }
+      ],
+    })
+  })
+
+
+
+  test('generate-deep', async () => {
+
+    const def0: PointDef = {
+      p: [
+        {
+          k: 'Expr', p: [
+            { k: 'Value', a: 11 },
+            { k: 'Operation', a: 'sub' },
+            { k: 'Value', a: 22 },
+          ]
+        },
+        { k: 'Operation', a: 'add' },
+        {
+          k: 'Expr', p: [
+            { k: 'Value', a: 33 },
+            { k: 'Operation', a: 'add' },
+            { k: 'Value', a: 44 },
+          ]
+        },
+      ]
+    }
+
+    class ExprPoint extends SerialPoint {
+      constructor(id: string) {
+        super(id)
+      }
+
+      async run(pctx: PointCtx): Promise<void> {
+        Content('(')
+        super.run(pctx)
+        Content(')')
+      }
+
+    }
+
+    const pm: Record<string, MakePoint> = {
+      Value: makeFuncDef((pdef: PointDef) => function value(_pctx: PointCtx) {
+        Content('' + pdef.a)
+      }),
+      Operation: makeFuncDef((pdef: PointDef) => function value(pctx: PointCtx) {
+        Content(pctx.data.op[pdef.a])
+      }),
+      Expr: (id: () => string, _pdef: PointDef) => new ExprPoint(id()),
+    }
+
+    const rp0 = buildPoints(def0, pm) as RootPoint
+    // console.dir(rp0, { depth: null })
+
+    const d0 = {
+      op: {
+        add: '+',
+        sub: '-',
+      }
+    }
+
+    let pc0: any
+    const j0 = Jostraca({ mem: true, folder: '/' })
+    const r0 = await j0.generate({}, async () => {
+      File({ name: 'a.txt' }, async () => {
+        Content('<')
+        pc0 = rp0.direct(d0, make_sys())
+        Content('>')
+      })
+    })
+
+    //console.log('r0', r0)
+    //console.log('a.txt', (r0.vol as any)().toJSON()['/a.txt'])
+
+    expect((r0.vol as any)().toJSON()['/a.txt']).equal('<(11-22)+(33+44)>')
+
+    expect(pc0.log.map((n: any) => (delete n.when, delete n.depth, n))).includes([
+      { note: 'RootPoint:before:1' },
+      { note: 'ExprPoint:before:2' },
+      { note: 'FuncPoint:before:3:value', 'args': 11 },
+      { note: 'FuncPoint:after:3:value', 'args': 11 },
+      { note: 'FuncPoint:before:4:value', 'args': 'sub' },
+      { note: 'FuncPoint:after:4:value', 'args': 'sub' },
+      { note: 'FuncPoint:before:5:value', 'args': 22 },
+      { note: 'FuncPoint:after:5:value', 'args': 22 },
+      { note: 'ExprPoint:after:2' },
+      { note: 'FuncPoint:before:6:value', 'args': 'add' },
+      { note: 'FuncPoint:after:6:value', 'args': 'add' },
+      { note: 'ExprPoint:before:7' },
+      { note: 'FuncPoint:before:8:value', 'args': 33 },
+      { note: 'FuncPoint:after:8:value', 'args': 33 },
+      { note: 'FuncPoint:before:9:value', 'args': 'add' },
+      { note: 'FuncPoint:after:9:value', 'args': 'add' },
+      { note: 'FuncPoint:before:10:value', 'args': 44 },
+      { note: 'FuncPoint:after:10:value', 'args': 44 },
+      { note: 'ExprPoint:after:7' },
+      { note: 'RootPoint:after:1' }
+    ])
+
+  })
+
+
 })
 
 

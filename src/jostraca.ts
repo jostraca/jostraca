@@ -242,7 +242,7 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
       }
 
       if (memfs) {
-        res.vol = memfs.vol
+        res.vol = () => memfs.vol
       }
 
       return res
