@@ -151,6 +151,7 @@ const PointDefShape = (0, gubu_1.Gubu)({
     n: (0, gubu_1.Skip)(String),
     p: (0, gubu_1.Skip)([]),
     a: (0, gubu_1.Any)(),
+    m: {}
 });
 function buildPoints(pdef, pm, id) {
     let idi = 0;

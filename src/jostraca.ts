@@ -49,6 +49,8 @@ import {
 } from './util/basic'
 
 
+import * as PointUtil from './util/point'
+
 // TODO: the actual signatures
 const deep: (...args: any[]) => any = JsonicUtil.deep
 const omap: (...args: any[]) => any = JsonicUtil.omap
@@ -385,6 +387,7 @@ function cmp(component: Function): Component {
 // }
 
 
+
 export type {
   JostracaOptions,
   Component,
@@ -429,6 +432,8 @@ export {
   Line,
   Slot,
   List,
+
+  PointUtil,
 }
 
 

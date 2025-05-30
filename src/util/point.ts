@@ -34,7 +34,6 @@ abstract class Point implements Point {
     this.name = name
   }
 
-
   async runner(pctx: PointCtx): Promise<void> {
     const suffix = (null == this.name || '' === this.name) ? '' : ':' + this.name
     this.logger(pctx, {
@@ -210,6 +209,7 @@ const PointDefShape = Gubu({
   n: Skip(String),
   p: Skip([]),
   a: Any(),
+  m: {}
 })
 
 type PointDef = Partial<ReturnType<typeof PointDefShape>>

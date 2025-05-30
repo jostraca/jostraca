@@ -16,6 +16,7 @@ const FragmentShape = Gubu({
   exclude: Optional(One(Boolean, [String])) as unknown as boolean | string[],
   indent: Optional(One(Empty(String), Number)),
   replace: {} as any,
+  eject: Optional([One(String, RegExp)]) as unknown as any[]
 }, { name: 'Fragment' })
 
 
@@ -74,6 +75,7 @@ const Fragment = cmp(function Fragment(props: FragmentProps, children: any) {
 
   template(src, model, {
     replace,
+    eject: props?.eject,
     handle: (s?: string) => null == s ? null : Content(s)
   })
 })

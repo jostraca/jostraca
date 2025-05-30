@@ -350,12 +350,41 @@ function template(
     ref?: string,
     insert?: RegExp,
     replace?: Record<string, any>,
+    eject?: any[]
     handle?: (s?: string) => void
   },
 ) {
 
   src = null == src ? '' : '' + src
   model = null == model ? {} : model
+
+  let eject = spec?.eject
+  if (null != eject) {
+    const ejectStart: RegExp | null = null == eject[0] ? null :
+      eject[0] instanceof RegExp ? eject[0] :
+        new RegExp('[ \t]*' + escre('' + eject[0]) + '[ \t]*\\n?')
+    const ejectEnd: RegExp | null = null == eject[1] ? null :
+      eject[1] instanceof RegExp ? eject[1] :
+        new RegExp('[ \t]*' + escre('' + eject[1]) + '[ \t]*\\n?')
+
+    if (null != ejectStart && null != ejectEnd) {
+      let startIndex = 0
+      let endIndex = src.length
+
+      const startMatch = src.match(ejectStart)
+      if (startMatch) {
+        startIndex = (startMatch as any).index + startMatch[0].length
+      }
+
+      const endMatch = src.match(ejectEnd)
+      if (endMatch) {
+        endIndex = (endMatch as any).index
+      }
+
+      src = src.substring(startIndex, endIndex)
+    }
+  }
+
   let open = null == spec?.open ? '\\$\\$' : spec.open
   let close = null == spec?.close ? '\\$\\$' : spec.close
   let ref = null == spec?.ref ? '[^$]+' : spec.ref

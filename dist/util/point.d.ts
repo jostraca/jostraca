@@ -60,12 +60,14 @@ declare const PointDefShape: {
         n: any;
         p: any;
         a: any;
+        m: {};
     };
     valid: <V>(root?: V | undefined, ctx?: import("gubu").Context) => root is V & {
         k: import("gubu").Node<StringConstructor>;
         n: import("gubu").Node<StringConstructor>;
         p: import("gubu").Node<never[]>;
         a: import("gubu").Node<unknown>;
+        m: {};
     };
     match(root?: any, ctx?: import("gubu").Context): boolean;
     error(root?: any, ctx?: import("gubu").Context): {
@@ -110,6 +112,7 @@ declare const PointDefShape: {
         n: import("gubu").Node<StringConstructor>;
         p: import("gubu").Node<never[]>;
         a: import("gubu").Node<unknown>;
+        m: {};
     }>;
     stringify(...rest: any[]): string;
     jsonify(): any;

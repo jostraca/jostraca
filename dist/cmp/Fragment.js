@@ -14,6 +14,7 @@ const FragmentShape = (0, gubu_1.Gubu)({
     exclude: (0, gubu_1.Optional)((0, gubu_1.One)(Boolean, [String])),
     indent: (0, gubu_1.Optional)((0, gubu_1.One)((0, gubu_1.Empty)(String), Number)),
     replace: {},
+    eject: (0, gubu_1.Optional)([(0, gubu_1.One)(String, RegExp)])
 }, { name: 'Fragment' });
 const Fragment = (0, jostraca_1.cmp)(function Fragment(props, children) {
     props = FragmentShape(props, { fs: props.ctx$.fs });
@@ -51,6 +52,7 @@ const Fragment = (0, jostraca_1.cmp)(function Fragment(props, children) {
     });
     (0, jostraca_1.template)(src, model, {
         replace,
+        eject: props?.eject,
         handle: (s) => null == s ? null : (0, jostraca_1.Content)(s)
     });
 });

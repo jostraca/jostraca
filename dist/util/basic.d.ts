@@ -23,6 +23,7 @@ declare function template(src: string, model: any, spec?: {
     ref?: string;
     insert?: RegExp;
     replace?: Record<string, any>;
+    eject?: any[];
     handle?: (s?: string) => void;
 }): string;
 declare function indent(src: string, indent: string | number | undefined): string;
