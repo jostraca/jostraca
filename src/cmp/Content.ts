@@ -13,7 +13,12 @@ const Content = cmp(function Content(props: any, children: any) {
     null != props.src ? props.src :
       'string' === typeof children ? children : ''
 
-  src = template(src, props.ctx$.model, {
+  let model = {
+    ...props.ctx$.model,
+    ...(props.extra || {})
+  }
+
+  src = template(src, model, {
     replace: props.replace
   })
 

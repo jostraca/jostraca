@@ -9,7 +9,11 @@ const Content = (0, jostraca_1.cmp)(function Content(props, children) {
     let src = null != props.arg ? props.arg :
         null != props.src ? props.src :
             'string' === typeof children ? children : '';
-    src = (0, jostraca_1.template)(src, props.ctx$.model, {
+    let model = {
+        ...props.ctx$.model,
+        ...(props.extra || {})
+    };
+    src = (0, jostraca_1.template)(src, model, {
         replace: props.replace
     });
     node.content = src;
