@@ -1,6 +1,6 @@
 import type { Node, Component, JostracaResult } from './types';
 import { BuildContext } from './build/BuildContext';
-import { each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, isbinext, partify, lcf, ucf } from './util/basic';
+import { each, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, isbinext, partify, lcf, ucf } from './util/basic';
 import * as PointUtil from './util/point';
 declare const deep: (...args: any[]) => any;
 declare const omap: (...args: any[]) => any;
@@ -17,6 +17,17 @@ import { List } from './cmp/List';
 declare const OptionsShape: {
     <V>(root?: V | undefined, ctx?: import("gubu").Context): V & {
         folder: any;
+        name: {
+            file: {
+                prefix: any;
+                suffix: any;
+            };
+            folder: {
+                prefix: any;
+                suffix: any;
+            };
+            exclude: any;
+        };
         meta: any;
         fs: any;
         now: any;
@@ -43,6 +54,17 @@ declare const OptionsShape: {
     };
     valid: <V>(root?: V | undefined, ctx?: import("gubu").Context) => root is V & {
         folder: import("gubu").Node<StringConstructor>;
+        name: {
+            file: {
+                prefix: import("gubu").Node<StringConstructor>;
+                suffix: import("gubu").Node<StringConstructor>;
+            };
+            folder: {
+                prefix: import("gubu").Node<StringConstructor>;
+                suffix: import("gubu").Node<StringConstructor>;
+            };
+            exclude: import("gubu").Node<unknown>;
+        };
         meta: any;
         fs: any;
         now: any;
@@ -107,6 +129,17 @@ declare const OptionsShape: {
     spec(): any;
     node(): import("gubu").Node<{
         folder: import("gubu").Node<StringConstructor>;
+        name: {
+            file: {
+                prefix: import("gubu").Node<StringConstructor>;
+                suffix: import("gubu").Node<StringConstructor>;
+            };
+            folder: {
+                prefix: import("gubu").Node<StringConstructor>;
+                suffix: import("gubu").Node<StringConstructor>;
+            };
+            exclude: import("gubu").Node<unknown>;
+        };
         meta: any;
         fs: any;
         now: any;
@@ -239,4 +272,4 @@ declare function Jostraca(gopts_in?: JostracaOptions | {}): {
 };
 declare function cmp(component: Function): Component;
 export type { JostracaOptions, Component, Node, Existing, };
-export { Jostraca, BuildContext, cmp, each, select, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, isbinext, partify, lcf, ucf, deep, omap, Project, Content, File, Inject, Fragment, Folder, Copy, Line, Slot, List, PointUtil, };
+export { Jostraca, BuildContext, cmp, each, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, isbinext, partify, lcf, ucf, deep, omap, Project, Content, File, Inject, Fragment, Folder, Copy, Line, Slot, List, PointUtil, };

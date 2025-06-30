@@ -16,8 +16,8 @@
     "url": "git://github.com/jostraca/jostraca.git"
   },
   "scripts": {
-    "test": "node --enable-source-maps --test dist-test",
-    "test-some": "node --enable-source-maps --test-name-pattern=\"$npm_config_pattern\" --test dist-test",
+    "test": "node --enable-source-maps --test dist-test/**/*.test.js",
+    "test-some": "node --enable-source-maps --test-name-pattern=\"$npm_config_pattern\" --test dist-test/**/*.test.js",
     "watch": "tsc --build src test -w",
     "build": "tsc --build src test",
     "clean": "rm -rf dist dist-test node_modules yarn.lock package-lock.json",
@@ -35,9 +35,9 @@
   ],
   "devDependencies": {
     "@hapi/code": "^9.0.3",
-    "@types/node": "22.15.29",
+    "@types/node": "24.0.7",
     "esbuild": "^0.25.5",
-    "oxc-parser": "^0.72.2",
+    "oxc-parser": "^0.75.0",
     "typescript": "^5.8.3"
   },
   "peerDependencies": {

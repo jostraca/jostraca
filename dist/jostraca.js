@@ -34,7 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PointUtil = exports.List = exports.Slot = exports.Line = exports.Copy = exports.Folder = exports.Fragment = exports.Inject = exports.File = exports.Content = exports.Project = exports.omap = exports.deep = exports.ucf = exports.lcf = exports.partify = exports.isbinext = exports.indent = exports.escre = exports.template = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.select = exports.each = exports.BuildContext = void 0;
+exports.PointUtil = exports.List = exports.Slot = exports.Line = exports.Copy = exports.Folder = exports.Fragment = exports.Inject = exports.File = exports.Content = exports.Project = exports.omap = exports.deep = exports.ucf = exports.lcf = exports.partify = exports.isbinext = exports.indent = exports.escre = exports.template = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.each = exports.BuildContext = void 0;
 exports.Jostraca = Jostraca;
 exports.cmp = cmp;
 // TODO:
@@ -49,8 +49,9 @@ const BuildContext_1 = require("./build/BuildContext");
 Object.defineProperty(exports, "BuildContext", { enumerable: true, get: function () { return BuildContext_1.BuildContext; } });
 const basic_1 = require("./util/basic");
 Object.defineProperty(exports, "each", { enumerable: true, get: function () { return basic_1.each; } });
-Object.defineProperty(exports, "select", { enumerable: true, get: function () { return basic_1.select; } });
-Object.defineProperty(exports, "get", { enumerable: true, get: function () { return basic_1.get; } });
+Object.defineProperty(exports, "get", { enumerable: true, get: function () { return 
+    // select,
+    basic_1.get; } });
 Object.defineProperty(exports, "getx", { enumerable: true, get: function () { return basic_1.getx; } });
 Object.defineProperty(exports, "camelify", { enumerable: true, get: function () { return basic_1.camelify; } });
 Object.defineProperty(exports, "snakify", { enumerable: true, get: function () { return basic_1.snakify; } });
@@ -112,6 +113,19 @@ const DEFAULT_LOGGER = {
 };
 const OptionsShape = (0, gubu_1.Gubu)({
     folder: (0, gubu_1.Skip)(String), // Base output folder for generated files. Default: `.`.
+    // TODO: implement
+    name: {
+        file: {
+            prefix: (0, gubu_1.Skip)(String), // Prefix for all output file names
+            suffix: (0, gubu_1.Skip)(String), // Suffix for all output file names
+        },
+        folder: {
+            prefix: (0, gubu_1.Skip)(String), // Prefix for all output folder names
+            suffix: (0, gubu_1.Skip)(String), // Prefix for all output folder names
+        },
+        // Files excluded from prefixing and suffixing
+        exclude: (0, gubu_1.Skip)((0, gubu_1.One)(String, RegExp, [(0, gubu_1.One)(String, RegExp)]))
+    },
     meta: {}, // Provide meta data to the generation process. Default: `{}`
     fs: (0, gubu_1.Skip)(Function), // File system API. Default: `node:fs`.
     now: undefined, // Provide current time.
@@ -306,7 +320,6 @@ function cmp(component) {
         if ('string' === typeof props.name) {
             node.path.push(props.name);
         }
-        // ctx$.props = () => props
         let out = component(props, children);
         ctx$.children = siblings;
         ctx$.node = parent;

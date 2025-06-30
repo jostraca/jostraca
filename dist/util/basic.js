@@ -17,7 +17,6 @@ exports.isbinext = isbinext;
 exports.kebabify = kebabify;
 exports.names = names;
 exports.partify = partify;
-exports.select = select;
 exports.snakify = snakify;
 exports.template = template;
 exports.vmap = vmap;
@@ -88,10 +87,12 @@ spec, apply) {
     }
     return out;
 }
-function select(key, map) {
-    const fn = map && map[key];
-    return fn ? fn() : undefined;
+/*
+function select(key: any, map: Record<string, Function>) {
+  const fn = map && map[key]
+  return fn ? fn() : undefined
 }
+*/
 function getx(root, path) {
     if (null == root || 'object' !== typeof root) {
         return undefined;

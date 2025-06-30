@@ -6,7 +6,6 @@ spec?: {
     call?: boolean;
     args?: any;
 } | ((...a: any[]) => any), apply?: (...a: any[]) => any): any[];
-declare function select(key: any, map: Record<string, Function>): any;
 declare function getx(root: any, path: string | string[]): any;
 declare function get(root: any, path: string | string[]): any;
 declare function camelify(input: any[] | string): string;
@@ -45,4 +44,4 @@ declare function humanify(when?: number, flags?: {
 }): any;
 declare const BINARY_EXT: string[];
 declare function isbinext(path: string): boolean;
-export { camelify, cmap, each, escre, get, getx, humanify, indent, isbinext, kebabify, names, partify, select, snakify, template, vmap, ucf, lcf, BINARY_EXT, };
+export { camelify, cmap, each, escre, get, getx, humanify, indent, isbinext, kebabify, names, partify, snakify, template, vmap, ucf, lcf, BINARY_EXT, };

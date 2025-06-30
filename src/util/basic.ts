@@ -107,12 +107,12 @@ function each(
 }
 
 
-
+/*
 function select(key: any, map: Record<string, Function>) {
   const fn = map && map[key]
   return fn ? fn() : undefined
 }
-
+*/
 
 
 function getx(root: any, path: string | string[]): any {
@@ -667,7 +667,7 @@ export {
   kebabify,
   names,
   partify,
-  select,
+  // select,
   snakify,
   template,
   vmap,

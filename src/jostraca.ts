@@ -11,7 +11,7 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 
 import { util as JsonicUtil } from 'jsonic'
 
-import { Gubu, Skip } from 'gubu'
+import { Gubu, Skip, One } from 'gubu'
 
 import { memfs as MemFs } from 'memfs'
 
@@ -30,7 +30,7 @@ import {
 
 import {
   each,
-  select,
+  // select,
   get,
   getx,
   camelify,
@@ -93,6 +93,21 @@ const DEFAULT_LOGGER = {
 
 const OptionsShape = Gubu({
   folder: Skip(String), // Base output folder for generated files. Default: `.`.
+
+  // TODO: implement
+  name: {
+    file: {
+      prefix: Skip(String), // Prefix for all output file names
+      suffix: Skip(String), // Suffix for all output file names
+    },
+    folder: {
+      prefix: Skip(String), // Prefix for all output folder names
+      suffix: Skip(String), // Prefix for all output folder names
+    },
+    // Files excluded from prefixing and suffixing
+    exclude: Skip(One(String, RegExp, [One(String, RegExp)]))
+  },
+
   meta: {} as any, // Provide meta data to the generation process. Default: `{}`
 
   fs: Skip(Function) as any, // File system API. Default: `node:fs`.
@@ -368,8 +383,6 @@ function cmp(component: Function): Component {
       node.path.push(props.name)
     }
 
-    // ctx$.props = () => props
-
     let out = component(props, children)
 
     ctx$.children = siblings
@@ -402,7 +415,7 @@ export {
   cmp,
 
   each,
-  select,
+  // select,
   get,
   getx,
   camelify,
