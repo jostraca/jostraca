@@ -307,11 +307,11 @@ describe('merge', () => {
       }
     })
     expect(vol.toJSON()).equal({
-      '/top/sdk/code/js/foo.js': '<<<<<<< EXISTING: 2025-01-01T00:41:00.000Z\n' +
+      '/top/sdk/code/js/foo.js': '<<<<<<< EXISTING: 2025-01-01T00:41:00.000Z/merge\n' +
         '// FOO:a\n' +
         '=======\n' +
         '// foo:2\n' +
-        '>>>>>>> GENERATED: 2025-01-01T00:45:00.000Z\n',
+        '>>>>>>> GENERATED: 2025-01-01T00:45:00.000Z/merge\n',
       '/top/.jostraca/generated/sdk/code/js/foo.js': '// foo:2\n',
       '/top/.jostraca/jostraca.meta.log': '{\n' +
         '  "foldername": ".jostraca",\n' +
@@ -434,11 +434,11 @@ describe('merge', () => {
       }
     })
     expect(vol.toJSON()).equal({
-      '/top/sdk/code/js/foo.js': '<<<<<<< EXISTING: 2025-01-01T01:20:00.000Z\n' +
+      '/top/sdk/code/js/foo.js': '<<<<<<< EXISTING: 2025-01-01T01:20:00.000Z/merge\n' +
         '// FOO:2\n' +
         '=======\n' +
         '// foo:3\n' +
-        '>>>>>>> GENERATED: 2025-01-01T01:24:00.000Z\n',
+        '>>>>>>> GENERATED: 2025-01-01T01:24:00.000Z/merge\n',
       '/top/.jostraca/generated/sdk/code/js/foo.js': '// foo:3\n',
       '/top/.jostraca/jostraca.meta.log': '{\n' +
         '  "foldername": ".jostraca",\n' +
@@ -520,12 +520,12 @@ describe('merge', () => {
       }
     })
     expect(vol.toJSON()).equal({
-      '/top/sdk/code/js/foo.js': '<<<<<<< EXISTING: 2025-01-01T01:46:00.000Z\n' +
+      '/top/sdk/code/js/foo.js': '<<<<<<< EXISTING: 2025-01-01T01:46:00.000Z/merge\n' +
         '// foo:3\n' +
         '// BAR:b\n' +
         '=======\n' +
         '// foo:4\n' +
-        '>>>>>>> GENERATED: 2025-01-01T01:50:00.000Z\n',
+        '>>>>>>> GENERATED: 2025-01-01T01:50:00.000Z/merge\n',
       '/top/.jostraca/generated/sdk/code/js/foo.js': '// foo:4\n',
       '/top/.jostraca/jostraca.meta.log': '{\n' +
         '  "foldername": ".jostraca",\n' +
@@ -550,6 +550,88 @@ describe('merge', () => {
       '/top/.jostraca/.gitignore': '\njostraca.meta.log\ngenerated\n'
     })
   })
+
+
+
+  // test('edge', async () => {
+  //   let nowI = 0
+  //   const now = () => START_TIME + (++nowI * (60 * 1000))
+
+  //   const jostraca = Jostraca({ now })
+
+  //   const root = () => Project({ folder: '.' }, (props: any) => {
+  //     const model = props.ctx$.model
+  //     File({ name: 'foo.txt' }, () => {
+  //       Content(model.foo)
+  //     })
+  //   })
+
+  //   const model = { foo: 'aaa\n' }
+  //   const mfs = memfs({})
+  //   const fs: any = mfs.fs
+  //   const vol: any = mfs.vol
+
+  //   const jopts = {
+  //     fs: () => fs, folder: '/', model,
+  //     existing: { txt: { merge: true } }
+  //   }
+
+  //   let res = await jostraca.generate(jopts, root)
+  //   console.log(res)
+  //   console.log(vol.toJSON())
+
+  //   fs.appendFileSync('/foo.txt', 'bbb\n', { encoding: 'utf8' })
+
+  //   res = await jostraca.generate(jopts, root)
+  //   console.log(res)
+  //   console.log(vol.toJSON())
+
+  //   model.foo = 'aaa\n\nbbb\n'
+
+  //   res = await jostraca.generate(jopts, root)
+  //   console.log(res)
+  //   console.log(vol.toJSON())
+
+
+
+  //   /*
+  //   fs.appendFileSync('/foo.txt', 'ccc\n', { encoding: 'utf8' })
+  //   res = await jostraca.generate(jopts, root)
+  //   console.log(res)
+  //   console.log(vol.toJSON())
+
+  //   fs.writeFileSync('/foo.txt',
+  //     fs.readFileSync('/foo.txt', 'utf8').replace('bbb\n', 'bbb\n\n'), { encoding: 'utf8' })
+
+  //   res = await jostraca.generate(jopts, root)
+  //   console.log(res)
+  //   console.log(vol.toJSON())
+  //   */
+
+  //   /*
+  //   const m1 = { a: 1 }
+  //   const res1 = await jostraca.generate({
+  //     fs: () => fs, folder: '/top', model: m1,
+  //     existing: { txt: { merge: true } }
+  //   }, root)
+  //   expect(res1).includes(DATA_merge_basic_res1)
+
+  //   expect(vol.toJSON()).equal(DATA_merge_basic_vol1)
+
+  //   fs.writeFileSync('/top/sdk/js/bar.js', '// custom-bar\n// BAR\n// added1-resolve\n',
+  //     { encoding: 'utf8' })
+
+  //   const m12 = { a: 1 }
+  //   const res2 = await jostraca.generate({
+  //     fs: () => fs, folder: '/top', model: m12,
+  //     existing: { txt: { merge: true } }
+  //   }, root)
+  //   expect(res2).includes(DATA_merge_basic_res2)
+
+  //   expect(vol.toJSON()).equal(DATA_merge_basic_vol2)
+  //   */
+  // })
+
 
 })
 
@@ -664,11 +746,11 @@ const DATA_merge_basic_vol1 = {
   '/top/sdk/js/foo.js': '// custom-foo:1\n// FOO\n// added1\n',
   '/top/sdk/js/bar.js': '// custom-bar\n' +
     '// BAR\n' +
-    '<<<<<<< EXISTING: 2025-01-01T00:09:00.000Z\n' +
+    '<<<<<<< EXISTING: 2025-01-01T00:09:00.000Z/merge\n' +
     '// added1\n' +
     '=======\n' +
     '// gen-extra1\n' +
-    '>>>>>>> GENERATED: 2025-01-01T00:13:00.000Z\n',
+    '>>>>>>> GENERATED: 2025-01-01T00:13:00.000Z/merge\n',
   '/top/sdk/go/zed.go': '// custom-zed:1\n// EXTRA1',
   '/top/.jostraca/generated/sdk/js/foo.js': '// custom-foo:1\n// FOO\n',
   '/top/.jostraca/generated/sdk/js/bar.js': '// custom-bar\n// BAR\n// gen-extra1\n',

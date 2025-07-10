@@ -325,11 +325,12 @@ class FileHandler {
     // .jostraca/generated to be the "original". That preserves
     // manual edits in the main generated output.
     const diffres = Diff3.merge(oldcontent, origcontent, newcontent, {
-      stringSeparator: '\n',
+      // stringSeparator: '\n',
+      stringSeparator: /\r?\n/,
       excludeFalseConflicts: true,
       label: {
-        a: 'EXISTING: ' + isolast,
-        b: 'GENERATED: ' + isowhen,
+        a: 'EXISTING: ' + isolast + '/merge',
+        b: 'GENERATED: ' + isowhen + '/merge',
       }
     })
 
@@ -342,6 +343,13 @@ class FileHandler {
     //     diffres
     //   )
     // }
+
+    // console.log('%%%%%%%%%%%', {
+    //   oldcontent,
+    //   origcontent,
+    //   newcontent,
+    // })
+    // console.log(diffres)
 
     const conflict = diffres.conflict
     const content = diffres.result.join('\n')
@@ -359,14 +367,14 @@ class FileHandler {
 
     difflines.forEach((part: any) => {
       if (part.added) {
-        out.push('<<<<<<< GENERATED: ' + isowhen + '\n')
+        out.push('<<<<<<< GENERATED: ' + isowhen + '/diff\n')
         out.push(part.value)
-        out.push('>>>>>>> GENERATED: ' + isowhen + '\n')
+        out.push('>>>>>>> GENERATED: ' + isowhen + '/diff\n')
       }
       else if (part.removed) {
-        out.push('<<<<<<< EXISTING: ' + isolast + '\n')
+        out.push('<<<<<<< EXISTING: ' + isolast + '/diff\n')
         out.push(part.value)
-        out.push('>>>>>>> EXISTING: ' + isolast + '\n')
+        out.push('>>>>>>> EXISTING: ' + isolast + '/diff\n')
       }
       else {
         out.push(part.value)

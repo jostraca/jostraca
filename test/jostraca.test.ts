@@ -737,23 +737,23 @@ describe('jostraca', () => {
       '/top/tm2/qaz.bin': '\x00\x01\x02\x03\x04',
 
       '/top/p0/bar.txt': 'B0\n' +
-        '<<<<<<< EXISTING: 1969-12-31T23:59:59.999Z\n' +
+        '<<<<<<< EXISTING: 1969-12-31T23:59:59.999Z/diff\n' +
         'B8\n' +
         'B9\n' +
-        '>>>>>>> EXISTING: 1969-12-31T23:59:59.999Z\n' +
-        '<<<<<<< GENERATED: 2025-01-01T00:01:00.000Z\n' +
+        '>>>>>>> EXISTING: 1969-12-31T23:59:59.999Z/diff\n' +
+        '<<<<<<< GENERATED: 2025-01-01T00:01:00.000Z/diff\n' +
         'B1\n' +
         'B2\n' +
-        '>>>>>>> GENERATED: 2025-01-01T00:01:00.000Z\n',
+        '>>>>>>> GENERATED: 2025-01-01T00:01:00.000Z/diff\n',
       '/top/p0/zed.txt': 'Z0\n' +
-        '<<<<<<< EXISTING: 1969-12-31T23:59:59.999Z\n' +
+        '<<<<<<< EXISTING: 1969-12-31T23:59:59.999Z/diff\n' +
         'Z7\n' +
         'Z8\n' +
-        'Z9>>>>>>> EXISTING: 1969-12-31T23:59:59.999Z\n' +
-        '<<<<<<< GENERATED: 2025-01-01T00:01:00.000Z\n' +
+        'Z9>>>>>>> EXISTING: 1969-12-31T23:59:59.999Z/diff\n' +
+        '<<<<<<< GENERATED: 2025-01-01T00:01:00.000Z/diff\n' +
         'Z1\n' +
         'Z2\n' +
-        '>>>>>>> GENERATED: 2025-01-01T00:01:00.000Z\n',
+        '>>>>>>> GENERATED: 2025-01-01T00:01:00.000Z/diff\n',
       '/top/p0/haz.bin': '\x05\x06\x07\b\t',
       '/top/p0/foo.txt': 'F0\nF1\nF2\n',
       '/top/p0/haz.old.bin': '\t\b\x07\x06\x05',

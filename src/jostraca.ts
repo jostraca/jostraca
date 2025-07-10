@@ -402,6 +402,7 @@ function cmp(component: Function): Component {
 
 
 export type {
+  JostracaResult,
   JostracaOptions,
   Component,
   Node,

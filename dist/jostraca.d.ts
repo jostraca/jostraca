@@ -271,5 +271,5 @@ declare function Jostraca(gopts_in?: JostracaOptions | {}): {
     generate: (opts_in: JostracaOptions | {}, root: Function) => Promise<JostracaResult>;
 };
 declare function cmp(component: Function): Component;
-export type { JostracaOptions, Component, Node, Existing, };
+export type { JostracaResult, JostracaOptions, Component, Node, Existing, };
 export { Jostraca, BuildContext, cmp, each, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, isbinext, partify, lcf, ucf, deep, omap, Project, Content, File, Inject, Fragment, Folder, Copy, Line, Slot, List, PointUtil, };
