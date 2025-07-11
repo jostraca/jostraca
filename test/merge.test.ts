@@ -552,85 +552,131 @@ describe('merge', () => {
   })
 
 
+  test('retain', async () => {
+    let nowI = 0
+    const now = () => START_TIME + (++nowI * (60 * 1000))
 
-  // test('edge', async () => {
-  //   let nowI = 0
-  //   const now = () => START_TIME + (++nowI * (60 * 1000))
+    const jostraca = Jostraca({ now })
 
-  //   const jostraca = Jostraca({ now })
+    const root = () => Project({ folder: '.' }, (props: any) => {
+      const model = props.ctx$.model
+      File({ name: 'foo.txt' }, () => {
+        Content(model.foo)
+      })
+    })
 
-  //   const root = () => Project({ folder: '.' }, (props: any) => {
-  //     const model = props.ctx$.model
-  //     File({ name: 'foo.txt' }, () => {
-  //       Content(model.foo)
-  //     })
-  //   })
+    const model = { foo: 'aaa\n' }
+    const mfs = memfs({})
+    const fs: any = mfs.fs
+    const vol: any = mfs.vol
 
-  //   const model = { foo: 'aaa\n' }
-  //   const mfs = memfs({})
-  //   const fs: any = mfs.fs
-  //   const vol: any = mfs.vol
-
-  //   const jopts = {
-  //     fs: () => fs, folder: '/', model,
-  //     existing: { txt: { merge: true } }
-  //   }
-
-  //   let res = await jostraca.generate(jopts, root)
-  //   console.log(res)
-  //   console.log(vol.toJSON())
-
-  //   fs.appendFileSync('/foo.txt', 'bbb\n', { encoding: 'utf8' })
-
-  //   res = await jostraca.generate(jopts, root)
-  //   console.log(res)
-  //   console.log(vol.toJSON())
-
-  //   model.foo = 'aaa\n\nbbb\n'
-
-  //   res = await jostraca.generate(jopts, root)
-  //   console.log(res)
-  //   console.log(vol.toJSON())
+    const jopts = {
+      fs: () => fs, folder: '/', model,
+      existing: { txt: { merge: true } }
+    }
 
 
+    // console.log('%%% G-0 %%%')
+    let res = await jostraca.generate(jopts, root)
+    // console.log(res)
+    // console.log(vol.toJSON())
+    expect(vol.toJSON()['/foo.txt']).equal('aaa\n')
 
-  //   /*
-  //   fs.appendFileSync('/foo.txt', 'ccc\n', { encoding: 'utf8' })
-  //   res = await jostraca.generate(jopts, root)
-  //   console.log(res)
-  //   console.log(vol.toJSON())
 
-  //   fs.writeFileSync('/foo.txt',
-  //     fs.readFileSync('/foo.txt', 'utf8').replace('bbb\n', 'bbb\n\n'), { encoding: 'utf8' })
+    // console.log('%%% G-1 %%%')
+    res = await jostraca.generate(jopts, root)
+    // console.log(res)
+    // console.log(vol.toJSON())
+    expect(vol.toJSON()['/foo.txt']).equal('aaa\n')
 
-  //   res = await jostraca.generate(jopts, root)
-  //   console.log(res)
-  //   console.log(vol.toJSON())
-  //   */
 
-  //   /*
-  //   const m1 = { a: 1 }
-  //   const res1 = await jostraca.generate({
-  //     fs: () => fs, folder: '/top', model: m1,
-  //     existing: { txt: { merge: true } }
-  //   }, root)
-  //   expect(res1).includes(DATA_merge_basic_res1)
+    // console.log('%%% G-2 %%%')
+    fs.appendFileSync('/foo.txt', 'bbb\n', { encoding: 'utf8' })
+    res = await jostraca.generate(jopts, root)
+    // console.log(res)
+    // console.log(vol.toJSON())
+    expect(vol.toJSON()['/foo.txt']).equal('aaa\nbbb\n')
 
-  //   expect(vol.toJSON()).equal(DATA_merge_basic_vol1)
 
-  //   fs.writeFileSync('/top/sdk/js/bar.js', '// custom-bar\n// BAR\n// added1-resolve\n',
-  //     { encoding: 'utf8' })
+    // console.log('%%% G-3 %%%')
+    res = await jostraca.generate(jopts, root)
+    // console.log(res)
+    // console.log(vol.toJSON())
+    expect(vol.toJSON()['/foo.txt']).equal('aaa\nbbb\n')
 
-  //   const m12 = { a: 1 }
-  //   const res2 = await jostraca.generate({
-  //     fs: () => fs, folder: '/top', model: m12,
-  //     existing: { txt: { merge: true } }
-  //   }, root)
-  //   expect(res2).includes(DATA_merge_basic_res2)
 
-  //   expect(vol.toJSON()).equal(DATA_merge_basic_vol2)
-  //   */
-  // })
+    // console.log('%%% G-4 %%%')
+    res = await jostraca.generate(jopts, root)
+    // console.log(res)
+    // console.log(vol.toJSON())
+    expect(vol.toJSON()['/foo.txt']).equal('aaa\nbbb\n')
+
+
+    // console.log('%%% G-5 %%%')
+    model.foo = 'aaa\nccc\n'
+    res = await jostraca.generate(jopts, root)
+    // console.log(res)
+    // console.log(vol.toJSON())
+    expect(vol.toJSON()['/foo.txt']).equal(`aaa
+<<<<<<< EXISTING: 2025-01-01T00:54:00.000Z/merge
+bbb
+=======
+ccc
+>>>>>>> GENERATED: 2025-01-01T00:58:00.000Z/merge
+`)
+
+
+    // console.log('%%% G-6 %%%')
+    fs.writeFileSync('/foo.txt', 'aaa\nbbb\nccc\n', { encoding: 'utf8' })
+    res = await jostraca.generate(jopts, root)
+    // console.log(res)
+    // console.log(vol.toJSON())
+    expect(vol.toJSON()['/foo.txt']).equal('aaa\nbbb\nccc\n')
+
+
+    // console.log('%%% G-7 %%%')
+    model.foo = 'aaa\nddd\n'
+    res = await jostraca.generate(jopts, root)
+    // console.log(res)
+    // console.log(vol.toJSON())
+    expect(vol.toJSON()['/foo.txt']).equal(`aaa
+<<<<<<< EXISTING: 2025-01-01T01:20:00.000Z/merge
+bbb
+ccc
+=======
+ddd
+>>>>>>> GENERATED: 2025-01-01T01:24:00.000Z/merge
+`)
+
+
+    // console.log('%%% G-8 %%%')
+    res = await jostraca.generate(jopts, root)
+    // console.log(res)
+    // console.log(vol.toJSON())
+    expect(vol.toJSON()['/foo.txt']).equal(`aaa
+<<<<<<< EXISTING: 2025-01-01T01:20:00.000Z/merge
+bbb
+ccc
+=======
+ddd
+>>>>>>> GENERATED: 2025-01-01T01:24:00.000Z/merge
+`)
+
+
+    // console.log('%%% G-9 %%%')
+    model.foo = 'aaa\neee\n'
+    res = await jostraca.generate(jopts, root)
+    // console.log(res)
+    // console.log(vol.toJSON())
+    expect(vol.toJSON()['/foo.txt']).equal(`aaa
+<<<<<<< EXISTING: 2025-01-01T01:20:00.000Z/merge
+bbb
+ccc
+=======
+ddd
+>>>>>>> GENERATED: 2025-01-01T01:24:00.000Z/merge
+`)
+  })
 
 
 })

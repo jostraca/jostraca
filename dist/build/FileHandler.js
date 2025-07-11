@@ -138,6 +138,7 @@ class FileHandler {
                     }
                 }
                 else if (existing.merge) {
+                    // console.log('EXISTING:', oldcontent.length, content.length, oldcontent === content)
                     if (oldcontent.length !== content.length || oldcontent !== content) {
                         const cstr = 'string' === typeof content ? content : content.toString('utf8');
                         if (this.control.duplicate) {
@@ -209,42 +210,73 @@ class FileHandler {
         const content = this.loadFile(frompath, { encoding: isBinary ? null : 'utf8' }, whence);
         this.save(topath, content, whence);
     }
-    // TODO: need to record if diffed, merged
     merge(newcontent, oldcontent, origcontent) {
-        const isowhen = new Date(this.when).toISOString();
-        const isolast = new Date(this.last()).toISOString();
-        // Consider the previously generated pure version, stored in
-        // .jostraca/generated to be the "original". That preserves
-        // manual edits in the main generated output.
-        const diffres = Diff3.merge(oldcontent, origcontent, newcontent, {
-            // stringSeparator: '\n',
-            stringSeparator: /\r?\n/,
-            excludeFalseConflicts: true,
-            label: {
-                a: 'EXISTING: ' + isolast + '/merge',
-                b: 'GENERATED: ' + isowhen + '/merge',
-            }
-        });
-        // if (oldcontent.includes('foo js')) {
-        //   console.log(
-        //     'DIFF======',
-        //     '\no=', JSON.stringify(oldcontent),
-        //     '\ng=', JSON.stringify(origcontent),
-        //     '\nn=', JSON.stringify(newcontent),
-        //     diffres
-        //   )
-        // }
-        // console.log('%%%%%%%%%%%', {
-        //   oldcontent,
-        //   origcontent,
-        //   newcontent,
-        // })
-        // console.log(diffres)
-        const conflict = diffres.conflict;
-        const content = diffres.result.join('\n');
-        return { content, conflict };
+        const out = { content: oldcontent, conflict: false };
+        let done = false;
+        let why = 'same';
+        // Only merge if needed
+        if (origcontent.length === newcontent.length &&
+            origcontent === newcontent) {
+            done = true;
+        }
+        // Don't stack conflicts
+        if (oldcontent.includes('<<<<<<< EXISTING:')
+            || oldcontent.includes('<<<<<<< GENERATED:')) {
+            why = 'unresolved';
+            done = true;
+            // TODO: should this be a error, or collected?
+        }
+        if (!done) {
+            why = 'merge';
+            const isowhen = new Date(this.when).toISOString();
+            const isolast = new Date(this.last()).toISOString();
+            // Consider the previously generated pure version, stored in
+            // .jostraca/generated to be the "original". That preserves
+            // manual edits in the main generated output.
+            const diffres = Diff3.merge(oldcontent, origcontent, newcontent, {
+                // stringSeparator: '\n',
+                stringSeparator: /\r?\n/,
+                excludeFalseConflicts: true,
+                label: {
+                    a: 'EXISTING: ' + isolast + '/merge',
+                    b: 'GENERATED: ' + isowhen + '/merge',
+                }
+            });
+            // if (oldcontent.includes('foo js')) {
+            //   console.log(
+            //     'DIFF======',
+            //     '\no=', JSON.stringify(oldcontent),
+            //     '\ng=', JSON.stringify(origcontent),
+            //     '\nn=', JSON.stringify(newcontent),
+            //     diffres
+            //   )
+            // }
+            // console.log('%%%%%%%%%%%', {
+            //   oldcontent,
+            //   origcontent,
+            //   newcontent,
+            // })
+            // console.log(diffres)
+            const conflict = diffres.conflict;
+            const content = diffres.result.join('\n');
+            out.content = content;
+            out.conflict = conflict;
+        }
+        // console.log(
+        //   'MERGE: ', why, '\n',
+        //   'OLD:', oldcontent,
+        //   'RIG:', origcontent,
+        //   'NEW:', newcontent,
+        //   'OUT:', out.content,
+        // )
+        return out;
     }
     diff(oldcontent, newcontent) {
+        // Only diff if needed
+        if (oldcontent.length === newcontent.length &&
+            oldcontent === newcontent) {
+            return newcontent;
+        }
         const isowhen = new Date(this.when).toISOString();
         const isolast = new Date(this.last()).toISOString();
         const difflines = Diff.diffLines(newcontent, oldcontent);
