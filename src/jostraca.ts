@@ -4,6 +4,7 @@
 // Need to check file existence in define phase, otherwise error stack is useless
 // Options for each cmp; for copy, option to exclude ~ backups
 
+console.log('J0')
 
 import * as Fs from 'node:fs'
 

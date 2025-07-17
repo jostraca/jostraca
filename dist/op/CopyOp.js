@@ -50,26 +50,23 @@ const CopyOp = {
         const kind = node.after.kind;
         const frompath = node.from;
         let topath = buildctx.current.folder.path.join('/');
-        // let exclude = node.exclude
-        // if (true === exclude) {
-        //   return
-        // }
+        const state = {
+            fileCount: 0,
+            folderCount: 0,
+            tmCount: 0,
+            ctx$,
+            buildctx,
+            node,
+            excludes: 'string' === node.exclude ? [node.exclude] :
+                Array.isArray(node.exclude) ? node.exclude :
+                    []
+        };
+        topath = null == node.name ? topath : node_path_1.default.join(topath, node.name);
         if ('file' === kind) {
-            FileOp_1.FileOp.after(node, ctx$, buildctx);
+            copyFile(frompath, topath, state, buildctx, fs);
+            // FileOp.after(node, ctx$, buildctx)
         }
         else if ('copy' === kind) {
-            const state = {
-                fileCount: 0,
-                folderCount: 0,
-                tmCount: 0,
-                ctx$,
-                buildctx,
-                node,
-                excludes: 'string' === node.exclude ? [node.exclude] :
-                    Array.isArray(node.exclude) ? node.exclude :
-                        []
-            };
-            topath = null == node.name ? topath : node_path_1.default.join(topath, node.name);
             walk(fs, state, node.path, frompath, topath);
         }
         else {
@@ -100,12 +97,10 @@ function walk(fs, state, nodepath, from, to) {
             if (excluded) {
                 continue;
             }
-            const src = fs.readFileSync(frompath, 'utf8');
-            // const out = genTemplate(state, src, { name, frompath, topath })
-            const out = (0, jostraca_1.template)(src, state.ctx$.model, { replace: state.node.replace });
-            // buildctx.util.save(topath, out)
-            // writeFileSync(fs, topath, out)
-            buildctx.fh.save(topath, out, ON + FN);
+            copyFile(frompath, topath, state, buildctx, fs);
+            //   const src = fs.readFileSync(frompath, 'utf8')
+            // const out = template(src, state.ctx$.model, { replace: state.node.replace })
+            // buildctx.fh.save(topath, out, ON + FN)
             state.fileCount++;
             state.tmCount++;
         }
@@ -119,6 +114,12 @@ function walk(fs, state, nodepath, from, to) {
             state.fileCount++;
         }
     }
+}
+function copyFile(frompath, topath, state, buildctx, fs) {
+    const FN = 'copyFile:';
+    const src = fs.readFileSync(frompath, 'utf8');
+    const out = (0, jostraca_1.template)(src, state.ctx$.model, { replace: state.node.replace });
+    buildctx.fh.save(topath, out, ON + FN);
 }
 // TODO: needs an option
 function ignored(state, nodepath, name, topath) {
