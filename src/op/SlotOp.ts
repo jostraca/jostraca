@@ -1,12 +1,12 @@
 
 import Path from 'node:path'
 
-import type { Node } from '../jostraca'
+import type { Node, BuildContext } from '../jostraca'
 
 
 const SlotOp = {
 
-  before(node: Node, _ctx$: any, buildctx: any) {
+  before(node: Node, _ctx$: any, buildctx: BuildContext) {
     node.meta.fragment_file = buildctx.current.file
 
     const cfile: any = buildctx.current.file = node
@@ -15,7 +15,7 @@ const SlotOp = {
   },
 
 
-  after(node: Node, ctx$: any, buildctx: any) {
+  after(node: Node, _ctx$: any, buildctx: BuildContext) {
     let src = node.content?.join('') || ''
 
     buildctx.current.file = node.meta.fragment_file

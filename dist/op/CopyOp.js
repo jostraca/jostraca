@@ -14,7 +14,6 @@ const CopyOp = {
         // TODO: do these need null checks here?
         let name = node.name;
         const from = node.from;
-        // console.log('COPY-OP', node, buildctx.current)
         const fromStat = fs.statSync(from);
         if (fromStat.isFile()) {
             if (null == node.name || '' === node.name) {
@@ -93,20 +92,15 @@ function walk(fs, state, nodepath, from, to) {
         }
         else if (isTemplateFile) {
             const excluded = excludeFile(fs, state, nodepath, name, topath);
-            // console.log('COPY template', frompath, excluded)
             if (excluded) {
                 continue;
             }
             copyFile(frompath, topath, state, buildctx, fs);
-            //   const src = fs.readFileSync(frompath, 'utf8')
-            // const out = template(src, state.ctx$.model, { replace: state.node.replace })
-            // buildctx.fh.save(topath, out, ON + FN)
             state.fileCount++;
             state.tmCount++;
         }
         else if (!isIgnored) {
             const excluded = excludeFile(fs, state, nodepath, name, topath);
-            // console.log('COPY copy', frompath, excluded)
             if (excluded) {
                 continue;
             }

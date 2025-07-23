@@ -48,6 +48,7 @@ declare const OptionsShape: {
             };
         };
         control: {
+            dryrun: boolean;
             duplicate: boolean;
             version: boolean;
         };
@@ -85,6 +86,7 @@ declare const OptionsShape: {
             };
         };
         control: {
+            dryrun: boolean;
             duplicate: boolean;
             version: boolean;
         };
@@ -160,6 +162,7 @@ declare const OptionsShape: {
             };
         };
         control: {
+            dryrun: boolean;
             duplicate: boolean;
             version: boolean;
         };

@@ -19,8 +19,6 @@ const CopyOp = {
     let name = node.name as string
     const from = node.from as string
 
-    // console.log('COPY-OP', node, buildctx.current)
-
     const fromStat = fs.statSync(from)
 
     if (fromStat.isFile()) {
@@ -117,23 +115,15 @@ function walk(fs: any, state: any, nodepath: string[], from: string, to: string)
     }
     else if (isTemplateFile) {
       const excluded = excludeFile(fs, state, nodepath, name, topath)
-      // console.log('COPY template', frompath, excluded)
-
       if (excluded) { continue }
 
       copyFile(frompath, topath, state, buildctx, fs)
-
-      //   const src = fs.readFileSync(frompath, 'utf8')
-      // const out = template(src, state.ctx$.model, { replace: state.node.replace })
-      // buildctx.fh.save(topath, out, ON + FN)
-
 
       state.fileCount++
       state.tmCount++
     }
     else if (!isIgnored) {
       const excluded = excludeFile(fs, state, nodepath, name, topath)
-      // console.log('COPY copy', frompath, excluded)
 
       if (excluded) { continue }
 

@@ -1,6 +1,6 @@
-import type { Node } from '../jostraca';
+import type { Node, BuildContext } from '../jostraca';
 declare const FolderOp: {
-    before(node: Node, ctx$: any, buildctx: any): void;
+    before(node: Node, _ctx$: any, buildctx: BuildContext): void;
     after(_node: Node, _ctx$: any, buildctx: any): void;
 };
 export { FolderOp };

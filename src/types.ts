@@ -6,7 +6,7 @@ import * as Fs from 'node:fs'
 
 type FST = typeof Fs
 
-
+/*
 // For calling code.
 type JostracaOptions = {
   folder?: string // Base output folder for generated files. Default: `.`.
@@ -23,6 +23,10 @@ type JostracaOptions = {
   mem?: boolean
   vol?: any
 
+  run?: {
+    dry?: boolean
+  }
+
   // Component specific options.
   cmp?: {
     Copy?: {
@@ -30,6 +34,7 @@ type JostracaOptions = {
     }
   }
 }
+*/
 
 
 // For calling code.
@@ -98,7 +103,7 @@ type FileEntry = {
 type Audit = [string, any][]
 
 export type {
-  JostracaOptions,
+  // JostracaOptions,
   JostracaResult,
   Node,
   OpStep,

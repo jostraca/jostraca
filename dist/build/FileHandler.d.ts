@@ -12,6 +12,7 @@ declare class FileHandler {
         bin: any;
     };
     control: {
+        dryrun: boolean;
         duplicate: boolean;
         version: boolean;
     };
@@ -32,6 +33,7 @@ declare class FileHandler {
         txt: any;
         bin: any;
     }, control: {
+        dryrun: boolean;
         duplicate: boolean;
         version: boolean;
     });
@@ -48,6 +50,7 @@ declare class FileHandler {
     loadJSON(path: string, opts?: any | string, whence?: string): any;
     saveJSON(path: string, json: any, opts?: any | string, whence?: string): any;
     loadFile(path: string, opts?: any | string, whence?: string): string | Buffer;
+    ensureFolder(path: string): void;
     saveFile(path: string, content: string | Buffer, opts?: any | string, whence?: string): void;
 }
 declare function validPath(path: string, maxdepth: number, errmark: string): void;

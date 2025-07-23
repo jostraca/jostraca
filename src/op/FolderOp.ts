@@ -1,22 +1,23 @@
 
 import Path from 'node:path'
 
-import type { Node } from '../jostraca'
+import type { Node, BuildContext } from '../jostraca'
 
 
 const FolderOp = {
 
-  before(node: Node, ctx$: any, buildctx: any) {
+  before(node: Node, _ctx$: any, buildctx: BuildContext) {
     const cfolder = buildctx.current.folder = (buildctx.current.folder || {})
 
     cfolder.node = node
     cfolder.path = (0 < cfolder.path.length ? cfolder.path : [buildctx.current.folder.parent])
-    cfolder.path.push(node.name)
+    cfolder.path.push(node.name as string)
 
     let fullpath = cfolder.path.join(Path.sep)
 
     if ('' !== fullpath) {
-      ctx$.fs().mkdirSync(fullpath, { recursive: true })
+      // ctx$.fs().mkdirSync(fullpath, { recursive: true )}
+      buildctx.fh.ensureFolder(fullpath)
     }
   },
 

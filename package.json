@@ -35,9 +35,9 @@
   ],
   "devDependencies": {
     "@hapi/code": "^9.0.3",
-    "@types/node": "24.0.12",
-    "esbuild": "^0.25.6",
-    "oxc-parser": "^0.76.0",
+    "@types/node": "24.1.0",
+    "esbuild": "^0.25.8",
+    "oxc-parser": "^0.77.3",
     "typescript": "^5.8.3"
   },
   "peerDependencies": {

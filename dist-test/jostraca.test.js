@@ -245,11 +245,12 @@ const START_TIME = 1735689600000;
                 });
             });
         }));
+        const voljson = vol.toJSON();
         (0, code_1.expect)(info).equal({
             when: 1735689660000,
             files: {
                 preserved: [],
-                written: [],
+                written: ['/top/foo.txt'],
                 presented: [],
                 diffed: [],
                 merged: [],
@@ -257,7 +258,6 @@ const START_TIME = 1735689600000;
                 unchanged: []
             }
         });
-        const voljson = vol.toJSON();
         (0, code_1.expect)(voljson).includes({
             [TOP_META]: voljson[TOP_META],
             '/top/foo.txt': 'FOO\n#--START--#\nQAZ\n#--END--#\nZED',

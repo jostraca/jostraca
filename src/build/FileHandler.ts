@@ -32,6 +32,7 @@ class FileHandler {
   maxdepth: number
   existing: { txt: any, bin: any }
   control: {
+    dryrun: boolean
     duplicate: boolean
     version: boolean
   }
@@ -54,6 +55,7 @@ class FileHandler {
     bctx: BuildContext,
     existing: { txt: any, bin: any },
     control: {
+      dryrun: boolean
       duplicate: boolean
       version: boolean
     }
@@ -142,7 +144,6 @@ class FileHandler {
     }
 
     if (exists) {
-      // let oldcontent = fs.readFileSync(path, 'utf8').toString()
       let oldcontent = this.loadFile(path)
 
       const protect = 0 <= oldcontent.indexOf(JOSTRACA_PROTECT)
@@ -218,7 +219,6 @@ class FileHandler {
           }
         }
         else if (existing.merge) {
-          // console.log('EXISTING:', oldcontent.length, content.length, oldcontent === content)
           if (oldcontent.length !== content.length || oldcontent !== content) {
             const cstr = 'string' === typeof content ? content : content.toString('utf8')
 
@@ -226,7 +226,6 @@ class FileHandler {
               const dfolder = this.duplicateFolder()
 
               const dpath = Path.join(dfolder, rpath)
-              // console.log('MERGE-DPATH', dpath)
 
               if (this.existsFile(dpath)) {
                 write = false
@@ -276,9 +275,12 @@ class FileHandler {
       if (withinFolder && (Path.basename(path) !== this.metafile())) {
         const dfolder = this.duplicateFolder()
         const dpath = Path.join(dfolder, rpath)
-        fs.mkdirSync(Path.dirname(dpath), { recursive: true })
-        const dopts = { flush: true }
-        fs.writeFileSync(dpath, content, dopts)
+
+        if (!this.control.dryrun) {
+          fs.mkdirSync(Path.dirname(dpath), { recursive: true })
+          const dopts = { flush: true }
+          fs.writeFileSync(dpath, content, dopts)
+        }
 
         if (null == meta.when) {
           whenify(meta, this.now())
@@ -474,7 +476,11 @@ class FileHandler {
       const existed = fs.existsSync(fulltopath)
       fs.mkdirSync(Path.dirname(fulltopath), { recursive: true })
       const content = fs.readFileSync(fullfrompath, isBinary ? undefined : 'utf8')
-      fs.writeFileSync(topath, content, { flush: true })
+
+      if (!this.control.dryrun) {
+        fs.writeFileSync(topath, content, { flush: true })
+      }
+
       this.audit.push([CN + FN + wstr,
       { topath, frompath, when, existed, size: content.length }])
     }
@@ -585,6 +591,14 @@ class FileHandler {
   }
 
 
+  ensureFolder(path: string) {
+    const fs = this.fs()
+    if (!this.control.dryrun) {
+      fs.mkdirSync(path, { recursive: true })
+    }
+  }
+
+
   saveFile(
     path: string,
     content: string | Buffer,
@@ -619,8 +633,12 @@ class FileHandler {
       const fullpath = isAbsolute ? path : Path.join(this.folder, path)
       const parentfolder = Path.dirname(fullpath)
       const existed = fs.existsSync(fullpath)
-      fs.mkdirSync(parentfolder, { recursive: true })
-      fs.writeFileSync(fullpath, content, opts)
+
+      if (!this.control.dryrun) {
+        fs.mkdirSync(parentfolder, { recursive: true })
+        fs.writeFileSync(fullpath, content, opts)
+      }
+
       this.audit.push([CN + FN + wstr,
       { path, when, existed, size: content.length }])
     }

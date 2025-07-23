@@ -8,7 +8,7 @@ const SlotOp = {
         cfile.filepath = buildctx.current.folder.path.join('/') + '?slot=' + node.name;
         cfile.content = [];
     },
-    after(node, ctx$, buildctx) {
+    after(node, _ctx$, buildctx) {
         let src = node.content?.join('') || '';
         buildctx.current.file = node.meta.fragment_file;
         buildctx.current.file.content.push(src);

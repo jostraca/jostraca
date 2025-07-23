@@ -1,22 +1,5 @@
 import * as Fs from 'node:fs';
 type FST = typeof Fs;
-type JostracaOptions = {
-    folder?: string;
-    meta?: any;
-    fs?: any;
-    log?: Log;
-    debug?: boolean;
-    exclude?: boolean;
-    model?: any;
-    build?: boolean;
-    mem?: boolean;
-    vol?: any;
-    cmp?: {
-        Copy?: {
-            ignore?: RegExp[];
-        };
-    };
-};
 type JostracaResult = {
     when: number;
     files: {
@@ -66,4 +49,4 @@ type FileEntry = {
     copy?: string;
 };
 type Audit = [string, any][];
-export type { JostracaOptions, JostracaResult, Node, OpStep, OpDef, Component, Log, FileEntry, FST, Audit, };
+export type { JostracaResult, Node, OpStep, OpDef, Component, Log, FileEntry, FST, Audit, };

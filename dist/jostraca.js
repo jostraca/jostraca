@@ -40,7 +40,6 @@ exports.cmp = cmp;
 // TODO:
 // Need to check file existence in define phase, otherwise error stack is useless
 // Options for each cmp; for copy, option to exclude ~ backups
-console.log('J0');
 const Fs = __importStar(require("node:fs"));
 const node_async_hooks_1 = require("node:async_hooks");
 const jsonic_1 = require("jsonic");
@@ -147,7 +146,11 @@ const OptionsShape = (0, gubu_1.Gubu)({
         }
     },
     control: {
+        // Do not modify any files or folders.
+        dryrun: false,
+        // Create duplicate of generated output (for 3diff).
         duplicate: true,
+        // Allow .jostraca files to be added to git.
         version: false,
     },
 }, { name: 'Jostraca Options' });

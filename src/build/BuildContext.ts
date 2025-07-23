@@ -64,6 +64,7 @@ class BuildContext {
     folder: string,
     existing: Existing,
     control: {
+      dryrun: boolean,
       duplicate: boolean,
       version: boolean,
     },

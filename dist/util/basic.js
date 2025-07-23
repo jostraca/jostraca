@@ -332,7 +332,6 @@ function template(src, model, spec) {
                 (a.includes('-') ? b.includes('-') ? b.length - a.length : -1 : b.length - a.length) :
                 b.length - a.length)
                 .map((k, _) => (
-            // console.log(k),
             // Normalize key for use as group name as key could be a regexp ('/foo/' format).
             _ = idenstr(k).replace(/_+/g, '_'),
                 specReplaceCanon[_] = specReplaceMap[k],
@@ -367,12 +366,10 @@ function template(src, model, spec) {
     let handle = spec?.handle || ((s) => out += (null == s ? '' : s));
     while (nextm) {
         let m = remain.match(insertRE);
-        // console.log('M', m)
         if (m) {
             let mi = m.index || 0;
             handle(remain.substring(0, mi));
             let mg = m.groups || {};
-            // console.log('MG', mg)
             let insert;
             let skip = 0;
             let ref = mg.J_R; // m[2]

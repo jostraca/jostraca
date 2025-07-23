@@ -347,11 +347,13 @@ describe('jostraca', () => {
       })
     )
 
+    const voljson: any = vol.toJSON()
+
     expect(info).equal({
       when: 1735689660000,
       files: {
         preserved: [],
-        written: [],
+        written: ['/top/foo.txt'],
         presented: [],
         diffed: [],
         merged: [],
@@ -359,8 +361,6 @@ describe('jostraca', () => {
         unchanged: []
       }
     })
-
-    const voljson: any = vol.toJSON()
 
     expect(voljson).includes({
       [TOP_META]: voljson[TOP_META],

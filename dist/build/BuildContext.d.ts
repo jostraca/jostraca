@@ -29,6 +29,7 @@ declare class BuildContext {
     };
     dfolder?: string;
     constructor(folder: string, existing: Existing, control: {
+        dryrun: boolean;
         duplicate: boolean;
         version: boolean;
     }, fs: () => FST, now: () => number);

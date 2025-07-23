@@ -78,7 +78,6 @@ class FileHandler {
             conflict: false,
         };
         if (exists) {
-            // let oldcontent = fs.readFileSync(path, 'utf8').toString()
             let oldcontent = this.loadFile(path);
             const protect = 0 <= oldcontent.indexOf(JOSTRACA_PROTECT);
             meta.protect = protect;
@@ -138,13 +137,11 @@ class FileHandler {
                     }
                 }
                 else if (existing.merge) {
-                    // console.log('EXISTING:', oldcontent.length, content.length, oldcontent === content)
                     if (oldcontent.length !== content.length || oldcontent !== content) {
                         const cstr = 'string' === typeof content ? content : content.toString('utf8');
                         if (this.control.duplicate) {
                             const dfolder = this.duplicateFolder();
                             const dpath = node_path_1.default.join(dfolder, rpath);
-                            // console.log('MERGE-DPATH', dpath)
                             if (this.existsFile(dpath)) {
                                 write = false;
                                 meta.action = 'merge';
@@ -185,9 +182,11 @@ class FileHandler {
             if (withinFolder && (node_path_1.default.basename(path) !== this.metafile())) {
                 const dfolder = this.duplicateFolder();
                 const dpath = node_path_1.default.join(dfolder, rpath);
-                fs.mkdirSync(node_path_1.default.dirname(dpath), { recursive: true });
-                const dopts = { flush: true };
-                fs.writeFileSync(dpath, content, dopts);
+                if (!this.control.dryrun) {
+                    fs.mkdirSync(node_path_1.default.dirname(dpath), { recursive: true });
+                    const dopts = { flush: true };
+                    fs.writeFileSync(dpath, content, dopts);
+                }
                 if (null == meta.when) {
                     whenify(meta, this.now());
                 }
@@ -334,7 +333,9 @@ class FileHandler {
             const existed = fs.existsSync(fulltopath);
             fs.mkdirSync(node_path_1.default.dirname(fulltopath), { recursive: true });
             const content = fs.readFileSync(fullfrompath, isBinary ? undefined : 'utf8');
-            fs.writeFileSync(topath, content, { flush: true });
+            if (!this.control.dryrun) {
+                fs.writeFileSync(topath, content, { flush: true });
+            }
             this.audit.push([CN + FN + wstr,
                 { topath, frompath, when, existed, size: content.length }]);
         }
@@ -427,6 +428,12 @@ class FileHandler {
             throw err;
         }
     }
+    ensureFolder(path) {
+        const fs = this.fs();
+        if (!this.control.dryrun) {
+            fs.mkdirSync(path, { recursive: true });
+        }
+    }
     saveFile(path, content, opts, whence) {
         const when = this.now();
         const wstr = null == whence ? '' : whence + ':';
@@ -451,8 +458,10 @@ class FileHandler {
             const fullpath = isAbsolute ? path : node_path_1.default.join(this.folder, path);
             const parentfolder = node_path_1.default.dirname(fullpath);
             const existed = fs.existsSync(fullpath);
-            fs.mkdirSync(parentfolder, { recursive: true });
-            fs.writeFileSync(fullpath, content, opts);
+            if (!this.control.dryrun) {
+                fs.mkdirSync(parentfolder, { recursive: true });
+                fs.writeFileSync(fullpath, content, opts);
+            }
             this.audit.push([CN + FN + wstr,
                 { path, when, existed, size: content.length }]);
         }

@@ -405,7 +405,6 @@ function template(
           (a.includes('-') ? b.includes('-') ? b.length - a.length : -1 : b.length - a.length) :
           b.length - a.length)
         .map((k: string, _: any) => (
-          // console.log(k),
 
           // Normalize key for use as group name as key could be a regexp ('/foo/' format).
           _ = idenstr(k).replace(/_+/g, '_'),
@@ -452,14 +451,12 @@ function template(
 
   while (nextm) {
     let m = remain.match(insertRE)
-    // console.log('M', m)
 
     if (m) {
       let mi = m.index || 0
       handle(remain.substring(0, mi))
 
       let mg = m.groups || {}
-      // console.log('MG', mg)
 
       let insert
       let skip = 0

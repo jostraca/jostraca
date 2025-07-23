@@ -4,8 +4,6 @@
 // Need to check file existence in define phase, otherwise error stack is useless
 // Options for each cmp; for copy, option to exclude ~ backups
 
-console.log('J0')
-
 import * as Fs from 'node:fs'
 
 import { AsyncLocalStorage } from 'node:async_hooks'
@@ -136,7 +134,13 @@ const OptionsShape = Gubu({
   },
 
   control: {
+    // Do not modify any files or folders.
+    dryrun: false,
+
+    // Create duplicate of generated output (for 3diff).
     duplicate: true,
+
+    // Allow .jostraca files to be added to git.
     version: false,
   },
 

@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FileOp = void 0;
 const node_path_1 = __importDefault(require("node:path"));
-const ON = 'File:';
+const ON = 'FileOp:';
 const FileOp = {
     before(node, _ctx$, buildctx) {
         // TODO: error if not inside a folder
