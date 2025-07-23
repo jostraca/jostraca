@@ -40,8 +40,8 @@ declare const OptionsShape: {
         };
         model: any;
         build: boolean;
-        mem: boolean;
-        vol: {};
+        mem: any;
+        vol: any;
         cmp: {
             Copy: {
                 ignore: any[];
@@ -78,8 +78,8 @@ declare const OptionsShape: {
         };
         model: any;
         build: boolean;
-        mem: boolean;
-        vol: {};
+        mem: import("gubu").Node<BooleanConstructor>;
+        vol: import("gubu").Node<{}>;
         cmp: {
             Copy: {
                 ignore: any[];
@@ -154,8 +154,8 @@ declare const OptionsShape: {
         };
         model: any;
         build: boolean;
-        mem: boolean;
-        vol: {};
+        mem: import("gubu").Node<BooleanConstructor>;
+        vol: import("gubu").Node<{}>;
         cmp: {
             Copy: {
                 ignore: any[];

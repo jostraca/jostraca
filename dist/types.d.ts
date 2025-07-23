@@ -11,7 +11,9 @@ type JostracaResult = {
         conflicted: string[];
         unchanged: string[];
     };
+    audit: () => Audit[];
     vol?: () => any;
+    fs?: () => FST;
 };
 type Node = {
     kind: string;

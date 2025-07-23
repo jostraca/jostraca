@@ -114,6 +114,8 @@ class FileHandler {
     const fs = this.fs()
     const FN = 'save:'
 
+    let why = []
+
     if ('string' === typeof write) {
       whence = write
       write = false
@@ -134,6 +136,8 @@ class FileHandler {
     const exists = fs.existsSync(path)
     write = write || !exists
 
+    why.push(`start<${write ? 'w' : 'W'}${exists ? 'x' : 'X'}>`)
+
     const meta: any = {
       action: 'init',
       path: rpath,
@@ -144,16 +148,22 @@ class FileHandler {
     }
 
     if (exists) {
+      why.push('exists-0')
       let oldcontent = this.loadFile(path)
 
       const protect = 0 <= oldcontent.indexOf(JOSTRACA_PROTECT)
       meta.protect = protect
 
       if (existing.preserve) {
+        why.push('preserve-0')
+
         if (protect) {
+          why.push('protect-0')
           write = false
         }
         else if (oldcontent.length !== content.length || oldcontent !== content) {
+          why.push('content-0')
+
           let oldpath =
             Path.join(folder, Path.basename(path).replace(/\.[^.]+$/, '') +
               '.old' + Path.extname(path))
@@ -165,15 +175,20 @@ class FileHandler {
           meta.actions.push(meta.action)
 
           this.audit.push([CN + FN + wstr + meta.action,
-          { ...meta, action: meta.action, path }])
+          { ...meta, why, action: meta.action, path }])
         }
       }
 
       if (existing.write && !protect) {
+        why.push('write-0')
         write = true
       }
       else if (existing.present) {
+        why.push('present-0')
+
         if (oldcontent.length !== content.length || oldcontent !== content) {
+          why.push('content-1')
+
           let newpath =
             Path.join(folder, Path.basename(path).replace(/\.[^.]+$/, '') +
               '.new' + Path.extname(path))
@@ -185,15 +200,21 @@ class FileHandler {
           meta.actions.push(meta.action)
 
           this.audit.push([CN + FN + wstr + meta.action,
-          { ...meta, action: meta.action, path }])
+          { ...meta, why, action: meta.action, path }])
         }
       }
 
       if (!protect) {
+        why.push('not-protect-1')
+
         if (existing.diff) {
+          why.push('diff-0')
+
           write = false
 
           if (oldcontent.length !== content.length || oldcontent !== content) {
+            why.push('content-2')
+
             meta.action = 'diff'
 
             const cstr = 'string' === typeof content ? content : content.toString('utf8')
@@ -212,17 +233,22 @@ class FileHandler {
             meta.conflict = conflict
 
             this.audit.push([CN + FN + wstr + meta.action,
-            { ...meta, action: meta.action, path }])
+            { ...meta, why, action: meta.action, path }])
           }
           else {
             this.files.unchanged.push(path)
           }
         }
         else if (existing.merge) {
+          why.push('merge-0')
+
           if (oldcontent.length !== content.length || oldcontent !== content) {
+            why.push('content-3')
+
             const cstr = 'string' === typeof content ? content : content.toString('utf8')
 
             if (this.control.duplicate) {
+              why.push('duplicate-0')
               const dfolder = this.duplicateFolder()
 
               const dpath = Path.join(dfolder, rpath)
@@ -249,11 +275,13 @@ class FileHandler {
                 meta.conflict = conflict
 
                 this.audit.push([CN + FN + wstr + meta.action,
-                { ...meta, action: meta.action, path }])
+                { ...meta, why, action: meta.action, path }])
               }
             }
           }
+
           else {
+            why.push('unchanged-0')
             write = false
             this.files.unchanged.push(path)
           }
@@ -262,17 +290,29 @@ class FileHandler {
     }
 
     if (write) {
+      why.push('write-1')
       meta.action = 'write'
       this.saveFile(path, content, whence + meta.action)
       this.files.written.push(path)
       meta.actions.push(meta.action)
       whenify(meta, this.now())
       this.audit.push([CN + FN + wstr + meta.action,
-      { ...meta, action: meta.action, path }])
+      { ...meta, why, action: meta.action, path }])
+    }
+    else if (0 === meta.actions.length) {
+      why.push('skip-0')
+      meta.action = 'skip'
+      meta.actions.push(meta.action)
+      this.audit.push([CN + FN + wstr + meta.action,
+      { ...meta, why, action: meta.action, path }])
     }
 
     if (this.control.duplicate) {
+      why.push('duplicate-1')
+
       if (withinFolder && (Path.basename(path) !== this.metafile())) {
+        why.push('within-0')
+
         const dfolder = this.duplicateFolder()
         const dpath = Path.join(dfolder, rpath)
 

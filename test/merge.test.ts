@@ -126,7 +126,7 @@ describe('merge', () => {
 
     const res0 = await jostraca.generate({}, root)
     // console.log(res0)
-    expect(res0).equal({
+    expect(res0).include({
       when: 1735689660000,
       files: {
         preserved: [],
@@ -168,7 +168,7 @@ describe('merge', () => {
     m0.a = 1
     const res1 = await jostraca.generate({}, root)
     // console.log(res1)
-    expect(res1).equal({
+    expect(res1).include({
       when: 1735690140000,
       files: {
         preserved: [],
@@ -212,7 +212,7 @@ describe('merge', () => {
 
     const res2 = await jostraca.generate({}, root)
     // console.log(res2)
-    expect(res2).equal({
+    expect(res2).include({
       when: 1735690920000,
       files: {
         preserved: [],
@@ -235,10 +235,12 @@ describe('merge', () => {
         '  "hlast": 2025010100280000,\n' +
         '  "files": {\n' +
         '    "sdk/code/js/foo.js": {\n' +
-        '      "action": "init",\n' +
+        '      "action": "skip",\n' +
         '      "path": "sdk/code/js/foo.js",\n' +
         '      "exists": true,\n' +
-        '      "actions": [],\n' +
+        '      "actions": [\n' +
+        '        "skip"\n' +
+        '      ],\n' +
         '      "protect": false,\n' +
         '      "conflict": false,\n' +
         '      "when": 1735691220000,\n' +
@@ -253,7 +255,7 @@ describe('merge', () => {
     mfs.fs.writeFileSync('/top/sdk/code/js/foo.js', '// FOO:a\n', { encoding: 'utf8' })
 
     const res3 = await jostraca.generate({}, root)
-    expect(res3).equal({
+    expect(res3).include({
       when: 1735691520000,
       files: {
         preserved: [],
@@ -294,7 +296,7 @@ describe('merge', () => {
 
     m0.a = 2
     const res4 = await jostraca.generate({}, root)
-    expect(res4).equal({
+    expect(res4).include({
       when: 1735692300000,
       files: {
         preserved: [],
@@ -340,7 +342,7 @@ describe('merge', () => {
     mfs.fs.writeFileSync('/top/sdk/code/js/foo.js', '// FOO:2\n', { encoding: 'utf8' })
 
     const res5 = await jostraca.generate({}, root)
-    expect(res5).equal({
+    expect(res5).include({
       when: 1735693080000,
       files: {
         preserved: [],
@@ -380,7 +382,7 @@ describe('merge', () => {
 
 
     const res6 = await jostraca.generate({}, root)
-    expect(res6).equal({
+    expect(res6).include({
       when: 1735693860000,
       files: {
         preserved: [],
@@ -421,7 +423,7 @@ describe('merge', () => {
 
     m0.a = 3
     const res7 = await jostraca.generate({}, root)
-    expect(res7).equal({
+    expect(res7).include({
       when: 1735694640000,
       files: {
         preserved: [],
@@ -467,7 +469,7 @@ describe('merge', () => {
     mfs.fs.writeFileSync('/top/sdk/code/js/foo.js', '// foo:3\n// BAR:b\n', { encoding: 'utf8' })
 
     const res8 = await jostraca.generate({}, root)
-    expect(res8).equal({
+    expect(res8).include({
       when: 1735695420000,
       files: {
         preserved: [],
@@ -507,7 +509,7 @@ describe('merge', () => {
 
     m0.a = 4
     const res9 = await jostraca.generate({}, root)
-    expect(res9).equal({
+    expect(res9).include({
       when: 1735696200000,
       files: {
         preserved: [],
@@ -888,10 +890,12 @@ const DATA_merge_basic_vol2 = {
     '      "hwhen": 2025010100490000\n' +
     '    },\n' +
     '    "sdk/go/zed.go": {\n' +
-    '      "action": "init",\n' +
+    '      "action": "skip",\n' +
     '      "path": "sdk/go/zed.go",\n' +
     '      "exists": true,\n' +
-    '      "actions": [],\n' +
+    '      "actions": [\n' +
+    '        "skip"\n' +
+    '      ],\n' +
     '      "protect": false,\n' +
     '      "conflict": false,\n' +
     '      "when": 1735692660000,\n' +

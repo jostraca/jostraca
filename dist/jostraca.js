@@ -137,8 +137,8 @@ const OptionsShape = (0, gubu_1.Gubu)({
     existing: { txt: {}, bin: {} },
     model: (0, gubu_1.Skip)({}),
     build: true,
-    mem: false,
-    vol: {},
+    mem: (0, gubu_1.Skip)(Boolean),
+    vol: (0, gubu_1.Skip)({}),
     // Component specific options.
     cmp: {
         Copy: {
@@ -170,39 +170,49 @@ const ExistingShape = (0, gubu_1.Gubu)({
         // No merge of binary files
     }
 }, { name: 'Jostraca Options (`existing` property)' });
+const sysFs = () => Fs;
 function Jostraca(gopts_in) {
     GLOBAL.jostraca = new node_async_hooks_1.AsyncLocalStorage();
-    const gopts = OptionsShape(gopts_in || {});
+    // Global options are shared by calls to `generate`.
+    const gOpts = OptionsShape(gopts_in || {});
+    const gUseMemFs = !!gOpts.mem;
+    const gVol = deep({}, gOpts.vol);
+    const gMemFs = gUseMemFs ? (0, memfs_1.memfs)(gVol) : undefined;
+    function get_gMemFs() { return gMemFs ? gMemFs.fs : undefined; }
+    const gGetFs = gOpts.fs || get_gMemFs || undefined;
     async function generate(opts_in, root) {
         const opts = OptionsShape(opts_in);
-        const useMemFS = opts.mem || gopts.mem;
-        const vol = deep({}, gopts.vol, opts.vol);
-        const memfs = useMemFS ? (0, memfs_1.memfs)(vol) : undefined;
-        const fs = (opts.fs || gopts.fs || (() => memfs?.fs) || (() => Fs))();
-        const now = opts.now || gopts.now || Date.now;
+        // Parameters to `generate` override any global options.
+        const useMemFS = null == opts.mem ? gUseMemFs : !!opts.mem;
+        const vol = null == opts.vol ? gVol : deep({}, gVol, opts.vol);
+        const memfs = useMemFS ? (null == opts.vol ? gMemFs : (0, memfs_1.memfs)(vol)) : undefined;
+        const fs = (opts.fs || (memfs && (() => memfs.fs)) || gGetFs || sysFs)();
+        const now = opts.now || gOpts.now || Date.now;
         const meta = {
-            ...(gopts?.meta || {}),
+            ...(gOpts?.meta || {}),
             ...(opts.meta || {}),
         };
-        const folder = opts.folder || gopts?.folder || '.';
-        const log = opts.log || gopts?.log || DEFAULT_LOGGER;
-        // const debug: boolean = !!(null == opts.debug ? gopts?.debug : opts.debug)
-        const debug = opts.debug || gopts.debug;
+        const folder = null == opts.folder ? (null == gOpts.folder ? '.' : gOpts.folder) :
+            opts.folder;
+        const log = null == opts.log ? (null == gOpts.log ? DEFAULT_LOGGER : gOpts.log) :
+            opts.log;
+        const debug = null == opts.debug ? (null == gOpts.debug ? '.' : gOpts.debug) :
+            opts.debug;
+        // build=true unless explicitly false
+        const doBuild = null == opts.build ? false !== gOpts.build : false !== opts.build;
+        const model = null == opts.model ? null == gOpts.model ? {} : gOpts.model : opts.model;
         const existing = ExistingShape({
             // FIX: this does not work as generate opts get defaults from OptionsShape
-            txt: deep({}, gopts.existing.txt, opts.existing.txt),
-            bin: deep({}, gopts.existing.bin, opts.existing.bin),
+            txt: deep({}, gOpts.existing.txt, opts.existing.txt),
+            bin: deep({}, gOpts.existing.bin, opts.existing.bin),
         });
         const control = opts.control;
-        const doBuild = null == gopts?.build ? false !== opts.build : false !== gopts?.build;
-        // const model = deep({}, gopts.model, opts.model)
-        const model = opts.model || gopts.model || {};
         // Component defaults.
         opts.cmp = deep({
             Copy: {
                 ignore: [/~$/]
             }
-        }, gopts?.cmp, opts.cmp);
+        }, gOpts?.cmp, opts.cmp);
         const ctx$ = {
             fs: () => fs,
             now: () => now(),
@@ -226,10 +236,12 @@ function Jostraca(gopts_in) {
             }
             const res = {
                 when: buildctx.when,
-                files: buildctx.fh.files
+                files: buildctx.fh.files,
+                audit: () => buildctx.audit,
             };
             if (memfs) {
                 res.vol = () => memfs.vol;
+                res.fs = () => fs;
             }
             return res;
         });

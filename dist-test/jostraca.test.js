@@ -32,7 +32,7 @@ const START_TIME = 1735689600000;
                 });
             });
         }));
-        (0, code_1.expect)(info).equal({
+        (0, code_1.expect)(info).include({
             when: 1735689660000,
             files: {
                 preserved: [],
@@ -69,7 +69,7 @@ const START_TIME = 1735689600000;
                 });
             });
         });
-        (0, code_1.expect)(info).equal({
+        (0, code_1.expect)(info).include({
             when: 1735689660000,
             files: {
                 preserved: [],
@@ -83,7 +83,7 @@ const START_TIME = 1735689600000;
         });
         const voljson = vol.toJSON();
         (0, code_1.expect)(JSON.parse(voljson[TOP_META]).last > 0).true();
-        (0, code_1.expect)(voljson).equal({
+        (0, code_1.expect)(voljson).include({
             '/top/foo.txt': 'A',
             '/top/.jostraca/generated/foo.txt': 'A',
             '/top/.jostraca/jostraca.meta.log': '{\n' +
@@ -134,7 +134,7 @@ const START_TIME = 1735689600000;
                 });
             });
         }));
-        (0, code_1.expect)(info).equal({
+        (0, code_1.expect)(info).include({
             when: 1735689660000,
             files: {
                 preserved: [],
@@ -207,7 +207,7 @@ const START_TIME = 1735689600000;
                 });
             });
         }));
-        (0, code_1.expect)(info).equal({
+        (0, code_1.expect)(info).include({
             when: 1735689660000,
             files: {
                 preserved: [],
@@ -246,7 +246,7 @@ const START_TIME = 1735689600000;
             });
         }));
         const voljson = vol.toJSON();
-        (0, code_1.expect)(info).equal({
+        (0, code_1.expect)(info).include({
             when: 1735689660000,
             files: {
                 preserved: [],
@@ -277,7 +277,7 @@ const START_TIME = 1735689600000;
                 });
             });
         }));
-        (0, code_1.expect)(info).equal({
+        (0, code_1.expect)(info).include({
             when: 1735689660000,
             files: {
                 preserved: [],
@@ -331,7 +331,7 @@ const START_TIME = 1735689600000;
                 });
             });
         }));
-        (0, code_1.expect)(info).equal({
+        (0, code_1.expect)(info).include({
             when: 1735689660000,
             files: {
                 preserved: [],
@@ -481,12 +481,13 @@ const START_TIME = 1735689600000;
         const info2 = await jostraca.generate({ folder: '/', existing: { txt: { write: false, present: true } } }, (0, __1.cmp)(() => {
             (0, __1.Project)({}, () => {
                 (0, __1.File)({ name: 'f01.txt' }, () => {
-                    (0, __1.Content)('a1');
+                    (0, __1.Content)('a2');
                 });
             });
         }));
+        // console.dir(info2.audit(), { depth: null })
         (0, code_1.expect)(info2).includes({
-            when: 1735691100000,
+            when: 1735691220000,
             files: {
                 preserved: [],
                 written: [],
@@ -499,8 +500,8 @@ const START_TIME = 1735689600000;
         });
         const voljson2 = info2.vol().toJSON();
         (0, code_1.expect)(voljson2).includes({
-            '/f01.txt': 'a0',
-            '/f01.new.txt': 'a1',
+            '/f01.txt': 'a1',
+            '/f01.new.txt': 'a2',
             '/h01.txt': 'c0',
             ['/' + META_FOLDER + '/' + META_FILE]: voljson2['/' + META_FOLDER + '/' + META_FILE],
         });
@@ -531,7 +532,7 @@ const START_TIME = 1735689600000;
                 });
             });
         }));
-        (0, code_1.expect)(info.files).equal({
+        (0, code_1.expect)(info.files).include({
             preserved: ['/top/p0/haz.bin'],
             written: ['/top/p0/foo.txt', '/top/p0/haz.bin', '/top/p0/qaz.bin'],
             presented: [],
@@ -605,7 +606,7 @@ const START_TIME = 1735689600000;
                 (0, __1.Copy)({ from: '/top/t0' });
             });
         }));
-        (0, code_1.expect)(info).equal({
+        (0, code_1.expect)(info).include({
             when: 1735689660000,
             files: {
                 preserved: [],

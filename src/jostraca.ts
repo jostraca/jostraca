@@ -123,8 +123,8 @@ const OptionsShape = Gubu({
 
   model: Skip({}) as any,
   build: true,
-  mem: false,
-  vol: {},
+  mem: Skip(Boolean),
+  vol: Skip({}),
 
   // Component specific options.
   cmp: {
@@ -176,10 +176,23 @@ type Existing = {
 }
 
 
+const sysFs = () => Fs
+
+
 function Jostraca(gopts_in?: JostracaOptions | {}) {
   GLOBAL.jostraca = new AsyncLocalStorage()
 
-  const gopts = OptionsShape(gopts_in || {})
+  // Global options are shared by calls to `generate`.
+  const gOpts = OptionsShape(gopts_in || {})
+
+  const gUseMemFs = !!gOpts.mem
+  const gVol = deep({}, gOpts.vol)
+  const gMemFs = gUseMemFs ? MemFs(gVol) : undefined
+
+  function get_gMemFs() { return gMemFs ? gMemFs.fs : undefined }
+  const gGetFs = gOpts.fs || get_gMemFs || undefined
+
+
 
   async function generate(
     opts_in: JostracaOptions | {},
@@ -187,44 +200,49 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
     Promise<JostracaResult> {
     const opts = OptionsShape(opts_in)
 
-    const useMemFS = opts.mem || gopts.mem
+    // Parameters to `generate` override any global options.
+    const useMemFS = null == opts.mem ? gUseMemFs : !!opts.mem
 
-    const vol = deep({}, gopts.vol, opts.vol)
-    const memfs = useMemFS ? MemFs(vol) : undefined
+    const vol = null == opts.vol ? gVol : deep({}, gVol, opts.vol)
+    const memfs = useMemFS ? (null == opts.vol ? gMemFs : MemFs(vol)) : undefined
 
-    const fs = (opts.fs || gopts.fs || (() => memfs?.fs) || (() => Fs))()
-    const now = opts.now || gopts.now || Date.now
+    const fs = (opts.fs || (memfs && (() => memfs.fs)) || gGetFs || sysFs)()
+    const now = opts.now || gOpts.now || Date.now
 
     const meta = {
-      ...(gopts?.meta || {}),
+      ...(gOpts?.meta || {}),
       ...(opts.meta || {}),
     }
 
-    const folder = opts.folder || gopts?.folder || '.'
+    const folder = null == opts.folder ? (null == gOpts.folder ? '.' : gOpts.folder) :
+      opts.folder
 
-    const log: Log = opts.log || gopts?.log || DEFAULT_LOGGER
-    // const debug: boolean = !!(null == opts.debug ? gopts?.debug : opts.debug)
-    const debug = opts.debug || gopts.debug
+    const log: Log = null == opts.log ? (null == gOpts.log ? DEFAULT_LOGGER : gOpts.log) :
+      opts.log
+
+    const debug = null == opts.debug ? (null == gOpts.debug ? '.' : gOpts.debug) :
+      opts.debug
+
+    // build=true unless explicitly false
+    const doBuild: boolean = null == opts.build ? false !== gOpts.build : false !== opts.build
+
+    const model = null == opts.model ? null == gOpts.model ? {} : gOpts.model : opts.model
+
 
     const existing = ExistingShape({
       // FIX: this does not work as generate opts get defaults from OptionsShape
-      txt: deep({}, gopts.existing.txt, opts.existing.txt),
-      bin: deep({}, gopts.existing.bin, opts.existing.bin),
+      txt: deep({}, gOpts.existing.txt, opts.existing.txt),
+      bin: deep({}, gOpts.existing.bin, opts.existing.bin),
     })
 
     const control = opts.control
-
-    const doBuild: boolean = null == gopts?.build ? false !== opts.build : false !== gopts?.build
-
-    // const model = deep({}, gopts.model, opts.model)
-    const model = opts.model || gopts.model || {}
 
     // Component defaults.
     opts.cmp = deep({
       Copy: {
         ignore: [/~$/]
       }
-    }, gopts?.cmp, opts.cmp)
+    }, gOpts?.cmp, opts.cmp)
 
     const ctx$ = {
       fs: () => fs,
@@ -260,11 +278,13 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
 
       const res: JostracaResult = {
         when: buildctx.when,
-        files: buildctx.fh.files
+        files: buildctx.fh.files,
+        audit: () => buildctx.audit,
       }
 
       if (memfs) {
         res.vol = () => memfs.vol
+        res.fs = () => fs
       }
 
       return res

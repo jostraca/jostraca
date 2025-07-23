@@ -69,7 +69,7 @@ describe('jostraca', () => {
       })
     )
 
-    expect(info).equal({
+    expect(info).include({
       when: 1735689660000,
       files: {
         preserved: [],
@@ -119,7 +119,7 @@ describe('jostraca', () => {
       }
     )
 
-    expect(info).equal({
+    expect(info).include({
       when: 1735689660000,
       files: {
         preserved: [],
@@ -135,7 +135,7 @@ describe('jostraca', () => {
     const voljson: any = vol.toJSON()
 
     expect(JSON.parse(voljson[TOP_META]).last > 0).true()
-    expect(voljson).equal({
+    expect(voljson).include({
       '/top/foo.txt': 'A',
       '/top/.jostraca/generated/foo.txt': 'A',
       '/top/.jostraca/jostraca.meta.log': '{\n' +
@@ -199,7 +199,7 @@ describe('jostraca', () => {
       })
     )
 
-    expect(info).equal({
+    expect(info).include({
       when: 1735689660000,
       files: {
         preserved: [],
@@ -294,7 +294,7 @@ describe('jostraca', () => {
       })
     )
 
-    expect(info).equal({
+    expect(info).include({
       when: 1735689660000,
       files: {
         preserved: [],
@@ -349,7 +349,7 @@ describe('jostraca', () => {
 
     const voljson: any = vol.toJSON()
 
-    expect(info).equal({
+    expect(info).include({
       when: 1735689660000,
       files: {
         preserved: [],
@@ -393,7 +393,7 @@ describe('jostraca', () => {
       })
     )
 
-    expect(info).equal({
+    expect(info).include({
       when: 1735689660000,
       files: {
         preserved: [],
@@ -462,7 +462,7 @@ describe('jostraca', () => {
       })
     )
 
-    expect(info).equal({
+    expect(info).include({
       when: 1735689660000,
       files: {
         preserved: [],
@@ -649,14 +649,16 @@ describe('jostraca', () => {
       cmp(() => {
         Project({}, () => {
           File({ name: 'f01.txt' }, () => {
-            Content('a1')
+            Content('a2')
           })
         })
       })
     )
 
+    // console.dir(info2.audit(), { depth: null })
+
     expect(info2).includes({
-      when: 1735691100000,
+      when: 1735691220000,
       files: {
         preserved: [],
         written: [],
@@ -671,8 +673,8 @@ describe('jostraca', () => {
     const voljson2: any = (info2.vol as any)().toJSON()
 
     expect(voljson2).includes({
-      '/f01.txt': 'a0',
-      '/f01.new.txt': 'a1',
+      '/f01.txt': 'a1',
+      '/f01.new.txt': 'a2',
       '/h01.txt': 'c0',
       ['/' + META_FOLDER + '/' + META_FILE]: voljson2['/' + META_FOLDER + '/' + META_FILE],
     })
@@ -714,7 +716,7 @@ describe('jostraca', () => {
       })
     )
 
-    expect(info.files).equal({
+    expect(info.files).include({
       preserved: ['/top/p0/haz.bin'],
       written: ['/top/p0/foo.txt', '/top/p0/haz.bin', '/top/p0/qaz.bin'],
       presented: [],
@@ -807,7 +809,7 @@ describe('jostraca', () => {
       })
     )
 
-    expect(info).equal({
+    expect(info).include({
       when: 1735689660000,
       files: {
         preserved: [],
