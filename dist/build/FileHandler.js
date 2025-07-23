@@ -66,7 +66,7 @@ class FileHandler {
         const existing = 'string' === typeof content ? this.existing.txt : this.existing.bin;
         path = node_path_1.default.normalize(path);
         const folder = node_path_1.default.dirname(path);
-        const withinFolder = path.startsWith(this.folder);
+        const withinFolder = path.startsWith(this.folder) || ('.' === this.folder && !node_path_1.default.isAbsolute(path));
         const rpath = this.relative(path, FN + wstr);
         const exists = fs.existsSync(path);
         write = write || !exists;
@@ -157,7 +157,11 @@ class FileHandler {
                             why.push('duplicate-0');
                             const dfolder = this.duplicateFolder();
                             const dpath = node_path_1.default.join(dfolder, rpath);
+                            if (rpath.includes('LICENSE')) {
+                                console.log('DPATH', dfolder, dpath);
+                            }
                             if (this.existsFile(dpath)) {
+                                why.push('dupexists-0');
                                 write = false;
                                 meta.action = 'merge';
                                 const origcontent = this.loadFile(dpath, { encoding: 'utf8' });
@@ -204,6 +208,9 @@ class FileHandler {
         }
         if (this.control.duplicate) {
             why.push('duplicate-1');
+            if (rpath.includes('LICENSE')) {
+                console.log('DUP', this.control, path, this.folder, withinFolder, node_path_1.default.basename(path), this.metafile());
+            }
             if (withinFolder && (node_path_1.default.basename(path) !== this.metafile())) {
                 why.push('within-0');
                 const dfolder = this.duplicateFolder();

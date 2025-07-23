@@ -130,7 +130,10 @@ class FileHandler {
     path = Path.normalize(path)
     const folder = Path.dirname(path)
 
-    const withinFolder = path.startsWith(this.folder)
+    const withinFolder = path.startsWith(this.folder) || (
+      '.' === this.folder && !Path.isAbsolute(path)
+    )
+
     const rpath = this.relative(path, FN + wstr)
 
     const exists = fs.existsSync(path)
@@ -253,7 +256,13 @@ class FileHandler {
 
               const dpath = Path.join(dfolder, rpath)
 
+              if (rpath.includes('LICENSE')) {
+                console.log('DPATH', dfolder, dpath)
+              }
+
               if (this.existsFile(dpath)) {
+                why.push('dupexists-0')
+
                 write = false
                 meta.action = 'merge'
 
@@ -309,6 +318,11 @@ class FileHandler {
 
     if (this.control.duplicate) {
       why.push('duplicate-1')
+
+      if (rpath.includes('LICENSE')) {
+        console.log('DUP', this.control, path, this.folder, withinFolder, Path.basename(path), this.metafile())
+      }
+
 
       if (withinFolder && (Path.basename(path) !== this.metafile())) {
         why.push('within-0')
