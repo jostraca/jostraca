@@ -113,7 +113,6 @@ class BuildContext {
       this.dfolder =
         Path.normalize(
           Path.join(this.folder, this.bmeta.next.foldername, 'generated'))
-      console.log('DF', this.dfolder, this.folder, this.bmeta.next.foldername)
     }
 
     return this.dfolder

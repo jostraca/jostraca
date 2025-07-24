@@ -180,10 +180,8 @@ function Jostraca(gopts_in) {
     const gMemFs = gUseMemFs ? (0, memfs_1.memfs)(gVol) : undefined;
     function get_gMemFs() { return gMemFs ? gMemFs.fs : undefined; }
     const gGetFs = gOpts.fs || get_gMemFs || undefined;
-    console.log('J-GOPTS-control', gOpts.control);
     async function generate(opts_in, root) {
         const opts = OptionsShape(opts_in);
-        console.log('J-generate-control', opts.control);
         // Parameters to `generate` override any global options.
         const useMemFS = null == opts.mem ? gUseMemFs : !!opts.mem;
         const vol = null == opts.vol ? gVol : deep({}, gVol, opts.vol);
@@ -209,7 +207,6 @@ function Jostraca(gopts_in) {
             bin: deep({}, gOpts.existing.bin, opts.existing.bin),
         });
         const control = deep({}, opts.control, gOpts.control);
-        console.log('JGEN', control, existing.txt);
         // Component defaults.
         opts.cmp = deep({
             Copy: {

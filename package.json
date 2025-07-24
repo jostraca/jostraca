@@ -1,6 +1,6 @@
 {
   "name": "jostraca",
-  "version": "0.21.0",
+  "version": "0.22.0",
   "main": "dist/jostraca.js",
   "type": "commonjs",
   "types": "dist/jostraca.d.ts",
@@ -37,7 +37,7 @@
     "@hapi/code": "^9.0.3",
     "@types/node": "24.1.0",
     "esbuild": "^0.25.8",
-    "oxc-parser": "^0.77.3",
+    "oxc-parser": "^0.78.0",
     "typescript": "^5.8.3"
   },
   "peerDependencies": {

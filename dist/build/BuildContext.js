@@ -43,7 +43,6 @@ class BuildContext {
         if (null == this.dfolder) {
             this.dfolder =
                 node_path_1.default.normalize(node_path_1.default.join(this.folder, this.bmeta.next.foldername, 'generated'));
-            console.log('DF', this.dfolder, this.folder, this.bmeta.next.foldername);
         }
         return this.dfolder;
     }
