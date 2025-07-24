@@ -256,10 +256,6 @@ class FileHandler {
 
               const dpath = Path.join(dfolder, rpath)
 
-              if (rpath.includes('LICENSE')) {
-                console.log('DPATH', dfolder, dpath)
-              }
-
               if (this.existsFile(dpath)) {
                 why.push('dupexists-0')
 
@@ -318,11 +314,6 @@ class FileHandler {
 
     if (this.control.duplicate) {
       why.push('duplicate-1')
-
-      if (rpath.includes('LICENSE')) {
-        console.log('DUP', this.control, path, this.folder, withinFolder, Path.basename(path), this.metafile())
-      }
-
 
       if (withinFolder && (Path.basename(path) !== this.metafile())) {
         why.push('within-0')
@@ -413,38 +404,12 @@ class FileHandler {
         }
       })
 
-      // if (oldcontent.includes('foo js')) {
-      //   console.log(
-      //     'DIFF======',
-      //     '\no=', JSON.stringify(oldcontent),
-      //     '\ng=', JSON.stringify(origcontent),
-      //     '\nn=', JSON.stringify(newcontent),
-      //     diffres
-      //   )
-      // }
-
-      // console.log('%%%%%%%%%%%', {
-      //   oldcontent,
-      //   origcontent,
-      //   newcontent,
-      // })
-      // console.log(diffres)
-
       const conflict = diffres.conflict
       const content = diffres.result.join('\n')
 
       out.content = content
       out.conflict = conflict
     }
-
-    // console.log(
-    //   'MERGE: ', why, '\n',
-    //   'OLD:', oldcontent,
-    //   'RIG:', origcontent,
-    //   'NEW:', newcontent,
-    //   'OUT:', out.content,
-    // )
-
 
     return out
   }

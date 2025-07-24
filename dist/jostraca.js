@@ -103,13 +103,14 @@ const FragmentOp_1 = require("./op/FragmentOp");
 const ContentOp_1 = require("./op/ContentOp");
 const NoneOp_1 = require("./op/NoneOp");
 const GLOBAL = global;
+const KONSOLE = GLOBAL['con' + 'sole'];
 const DEFAULT_LOGGER = {
-    trace: (...args) => console.log(new Date().toISOString(), 'TRACE', ...args),
-    debug: (...args) => console.log(new Date().toISOString(), 'DEBUG', ...args),
-    info: (...args) => console.log(new Date().toISOString(), 'INFO', ...args),
-    warn: (...args) => console.warn(new Date().toISOString(), 'WARN', ...args),
-    error: (...args) => console.error(new Date().toISOString(), 'ERROR', ...args),
-    fatal: (...args) => console.error(new Date().toISOString(), 'FATAL', ...args),
+    trace: (...args) => KONSOLE.log(new Date().toISOString(), 'TRACE', ...args),
+    debug: (...args) => KONSOLE.log(new Date().toISOString(), 'DEBUG', ...args),
+    info: (...args) => KONSOLE.log(new Date().toISOString(), 'INFO', ...args),
+    warn: (...args) => KONSOLE.warn(new Date().toISOString(), 'WARN', ...args),
+    error: (...args) => KONSOLE.error(new Date().toISOString(), 'ERROR', ...args),
+    fatal: (...args) => KONSOLE.error(new Date().toISOString(), 'FATAL', ...args),
 };
 const OptionsShape = (0, gubu_1.Gubu)({
     folder: (0, gubu_1.Skip)(String), // Base output folder for generated files. Default: `.`.

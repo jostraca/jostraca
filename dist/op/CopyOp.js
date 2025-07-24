@@ -171,23 +171,10 @@ function excluded(path, excludes) {
     return out;
 }
 function processTemplate(state, src, spec) {
-    // console.log('PT', src, state.ctx$.model)
     if (isTemplate(spec.name)) {
-        // return genTemplate(state, src, spec)
         return (0, jostraca_1.template)(src, state.ctx$.model, {
             replace: {
                 ...(state.node?.replace || {}),
-                // // TODO: make $$ markers an option
-                // '/\\$\\$(?<ref>[^$]+)\\$\\$/': ({ ref }: any) => {
-                //   let insert = getx(state.ctx$.model, ref)
-                //   console.log('COPYTM', ref, insert)
-                //   if (null == insert) {
-                //     return '$$' + ref + '$$'
-                //   }
-                //   else {
-                //     return insert
-                //   }
-                // }
             }
         });
     }

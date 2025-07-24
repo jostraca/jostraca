@@ -157,9 +157,6 @@ class FileHandler {
                             why.push('duplicate-0');
                             const dfolder = this.duplicateFolder();
                             const dpath = node_path_1.default.join(dfolder, rpath);
-                            if (rpath.includes('LICENSE')) {
-                                console.log('DPATH', dfolder, dpath);
-                            }
                             if (this.existsFile(dpath)) {
                                 why.push('dupexists-0');
                                 write = false;
@@ -208,9 +205,6 @@ class FileHandler {
         }
         if (this.control.duplicate) {
             why.push('duplicate-1');
-            if (rpath.includes('LICENSE')) {
-                console.log('DUP', this.control, path, this.folder, withinFolder, node_path_1.default.basename(path), this.metafile());
-            }
             if (withinFolder && (node_path_1.default.basename(path) !== this.metafile())) {
                 why.push('within-0');
                 const dfolder = this.duplicateFolder();
@@ -274,33 +268,11 @@ class FileHandler {
                     b: 'GENERATED: ' + isowhen + '/merge',
                 }
             });
-            // if (oldcontent.includes('foo js')) {
-            //   console.log(
-            //     'DIFF======',
-            //     '\no=', JSON.stringify(oldcontent),
-            //     '\ng=', JSON.stringify(origcontent),
-            //     '\nn=', JSON.stringify(newcontent),
-            //     diffres
-            //   )
-            // }
-            // console.log('%%%%%%%%%%%', {
-            //   oldcontent,
-            //   origcontent,
-            //   newcontent,
-            // })
-            // console.log(diffres)
             const conflict = diffres.conflict;
             const content = diffres.result.join('\n');
             out.content = content;
             out.conflict = conflict;
         }
-        // console.log(
-        //   'MERGE: ', why, '\n',
-        //   'OLD:', oldcontent,
-        //   'RIG:', origcontent,
-        //   'NEW:', newcontent,
-        //   'OUT:', out.content,
-        // )
         return out;
     }
     diff(oldcontent, newcontent) {

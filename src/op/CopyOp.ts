@@ -220,27 +220,10 @@ function processTemplate(
   src: any,
   spec: { name: string, frompath: string, topath: string }) {
 
-  // console.log('PT', src, state.ctx$.model)
-
   if (isTemplate(spec.name)) {
-    // return genTemplate(state, src, spec)
     return template(src, state.ctx$.model, {
       replace: {
         ...(state.node?.replace || {}),
-
-        // // TODO: make $$ markers an option
-        // '/\\$\\$(?<ref>[^$]+)\\$\\$/': ({ ref }: any) => {
-        //   let insert = getx(state.ctx$.model, ref)
-
-        //   console.log('COPYTM', ref, insert)
-
-        //   if (null == insert) {
-        //     return '$$' + ref + '$$'
-        //   }
-        //   else {
-        //     return insert
-        //   }
-        // }
       }
     })
   }

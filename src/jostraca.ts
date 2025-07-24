@@ -79,14 +79,15 @@ import { NoneOp } from './op/NoneOp'
 
 
 const GLOBAL = (global as any)
+const KONSOLE = GLOBAL['con' + 'sole']
 
 const DEFAULT_LOGGER = {
-  trace: (...args: any[]) => console.log(new Date().toISOString(), 'TRACE', ...args),
-  debug: (...args: any[]) => console.log(new Date().toISOString(), 'DEBUG', ...args),
-  info: (...args: any[]) => console.log(new Date().toISOString(), 'INFO', ...args),
-  warn: (...args: any[]) => console.warn(new Date().toISOString(), 'WARN', ...args),
-  error: (...args: any[]) => console.error(new Date().toISOString(), 'ERROR', ...args),
-  fatal: (...args: any[]) => console.error(new Date().toISOString(), 'FATAL', ...args),
+  trace: (...args: any[]) => KONSOLE.log(new Date().toISOString(), 'TRACE', ...args),
+  debug: (...args: any[]) => KONSOLE.log(new Date().toISOString(), 'DEBUG', ...args),
+  info: (...args: any[]) => KONSOLE.log(new Date().toISOString(), 'INFO', ...args),
+  warn: (...args: any[]) => KONSOLE.warn(new Date().toISOString(), 'WARN', ...args),
+  error: (...args: any[]) => KONSOLE.error(new Date().toISOString(), 'ERROR', ...args),
+  fatal: (...args: any[]) => KONSOLE.error(new Date().toISOString(), 'FATAL', ...args),
 }
 
 

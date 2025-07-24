@@ -424,7 +424,7 @@ function template(
             // provides {Tag:<identifer>}
             // See template utility unit test!
             (_ = k.match(/^#([A-Za-z0-9]+)(-[A-Z][a-z0-9]+)?$/)) ?
-              (/*console.log('QQQ', _),*/ `(?<J_N${ngI++}_indent>[ \t]*)` +
+              (`(?<J_N${ngI++}_indent>[ \t]*)` +
                 '\\/\\/' +
                 '[ \t]*#' +
                 (_[1] ?
@@ -438,8 +438,6 @@ function template(
         ))
         .join(''))) :
     spec.insert
-
-  // console.log('RE', insertRE)
 
   let remain = src
   let nextm = true
