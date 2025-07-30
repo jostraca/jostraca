@@ -112,6 +112,8 @@ const DEFAULT_LOGGER = {
     error: (...args) => KONSOLE.error(new Date().toISOString(), 'ERROR', ...args),
     fatal: (...args) => KONSOLE.error(new Date().toISOString(), 'FATAL', ...args),
 };
+// Log non-fatal wierdness.
+const dlog = (0, basic_1.getdlog)('jostraca', __filename);
 const OptionsShape = (0, gubu_1.Gubu)({
     folder: (0, gubu_1.Skip)(String), // Base output folder for generated files. Default: `.`.
     // TODO: implement
@@ -130,7 +132,7 @@ const OptionsShape = (0, gubu_1.Gubu)({
     meta: {}, // Provide meta data to the generation process. Default: `{}`
     fs: (0, gubu_1.Skip)(Function), // File system API. Default: `node:fs`.
     now: undefined, // Provide current time.
-    log: DEFAULT_LOGGER, // Logging interface.
+    log: (0, gubu_1.Skip)(), // Logging interface.
     debug: (0, gubu_1.Skip)('info'), // Generate additional debugging information.
     // TOOD: needs rethink
     exclude: false, // Exclude modified output files. Default: `false`.
@@ -243,6 +245,12 @@ function Jostraca(gopts_in) {
             if (memfs) {
                 res.vol = () => memfs.vol;
                 res.fs = () => fs;
+            }
+            const dlogs = dlog.log();
+            if (0 < dlogs.length) {
+                for (let dlogentry of dlogs) {
+                    log.debug({ point: 'jostraca-warning', dlogentry, note: String(dlogentry) });
+                }
             }
             return res;
         });

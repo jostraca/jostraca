@@ -22,6 +22,7 @@ exports.template = template;
 exports.vmap = vmap;
 exports.ucf = ucf;
 exports.lcf = lcf;
+exports.getdlog = getdlog;
 const node_path_1 = __importDefault(require("node:path"));
 // Iterate over arrays and objects (opinionated mutation!).
 function each(subject, // Iterate over subject.
@@ -505,6 +506,21 @@ function humanify(when, flags = {}) {
         return out;
     }
     return +(iso.replace(/[^\d]/g, '').replace(/\d$/, ''));
+}
+function getdlog(tagin, filepath) {
+    const tag = tagin || '-';
+    const file = node_path_1.default.basename(filepath || '-');
+    const g = global;
+    g.__dlog__ = (g.__dlog__ || []);
+    const dlog = (...args) => {
+        const stack = '' + new Error().stack;
+        g.__dlog__.push([tag, file, Date.now(), ...args, stack]);
+    };
+    dlog.tag = tag;
+    dlog.file = file;
+    dlog.log = (filepath, __f) => (__f = null == filepath ? null : node_path_1.default.basename(filepath),
+        g.__dlog__.filter((n) => n[0] === tag && (null == __f || n[2] === __f)));
+    return dlog;
 }
 /*
   MIT License

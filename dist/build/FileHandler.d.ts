@@ -52,6 +52,7 @@ declare class FileHandler {
     loadFile(path: string, opts?: any | string, whence?: string): string | Buffer;
     ensureFolder(path: string): void;
     saveFile(path: string, content: string | Buffer, opts?: any | string, whence?: string): void;
+    filelog(kind: string, path: string): void;
 }
 declare function validPath(path: string, maxdepth: number, errmark: string): void;
 export { validPath, FileHandler };

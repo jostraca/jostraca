@@ -12,6 +12,7 @@ import { FST, Audit } from '../types'
 import {
   humanify,
   isbinext,
+  getdlog,
 } from '../util/basic'
 
 
@@ -20,6 +21,9 @@ const CN = 'FileHandler:'
 const JOSTRACA_PROTECT = 'JOSTRACA_PROTECT'
 
 // TODO: if EOL != '\n', normalize to '\n' in load,save 
+
+// Log non-fatal wierdness.
+const dlog = getdlog('jostraca', __filename)
 
 
 class FileHandler {
@@ -171,7 +175,8 @@ class FileHandler {
             Path.join(folder, Path.basename(path).replace(/\.[^.]+$/, '') +
               '.old' + Path.extname(path))
           this.copyFile(path, oldpath, whence + 'preserve:')
-          this.files.preserved.push(path)
+          // this.files.preserved.push(path)
+          this.filelog('preserved', path)
 
           meta.action = 'preserve'
           whenify(meta, this.now())
@@ -196,7 +201,8 @@ class FileHandler {
             Path.join(folder, Path.basename(path).replace(/\.[^.]+$/, '') +
               '.new' + Path.extname(path))
           this.saveFile(newpath, content, { flush: true }, whence + 'present:')
-          this.files.presented.push(path)
+          // this.files.presented.push(path)
+          this.filelog('presented', path)
 
           meta.action = 'present'
           whenify(meta, this.now())
@@ -225,10 +231,13 @@ class FileHandler {
 
             this.saveFile(path, diffcontent, { encoding: 'utf8' }, whence + meta.action)
 
-            this.files.diffed.push(path)
+            // this.files.diffed.push(path)
+            this.filelog('diffed', path)
+
             const conflict = cstr !== diffcontent
             if (conflict) {
-              this.files.conflicted.push(path)
+              // this.files.conflicted.push(path)
+              this.filelog('conflicted', path)
             }
 
             whenify(meta, this.now())
@@ -239,7 +248,8 @@ class FileHandler {
             { ...meta, why, action: meta.action, path }])
           }
           else {
-            this.files.unchanged.push(path)
+            // this.files.unchanged.push(path)
+            this.filelog('unchanged', path)
           }
         }
         else if (existing.merge) {
@@ -270,9 +280,12 @@ class FileHandler {
                 this.saveFile(path, diffcontent, { encoding: 'utf8' },
                   whence + meta.action)
 
-                this.files.merged.push(path)
+                // this.files.merged.push(path)
+                this.filelog('merged', path)
+
                 if (conflict) {
-                  this.files.conflicted.push(path)
+                  // this.files.conflicted.push(path)
+                  this.filelog('conflicted', path)
                 }
 
                 whenify(meta, this.now())
@@ -288,7 +301,8 @@ class FileHandler {
           else {
             why.push('unchanged-0')
             write = false
-            this.files.unchanged.push(path)
+            // this.files.unchanged.push(path)
+            this.filelog('unchanged', path)
           }
         }
       }
@@ -298,7 +312,10 @@ class FileHandler {
       why.push('write-1')
       meta.action = 'write'
       this.saveFile(path, content, whence + meta.action)
-      this.files.written.push(path)
+
+      // this.files.written.push(path)
+      this.filelog('written', path)
+
       meta.actions.push(meta.action)
       whenify(meta, this.now())
       this.audit.push([CN + FN + wstr + meta.action,
@@ -666,6 +683,23 @@ class FileHandler {
       { path, when, size: content.length, err }])
       err.message = CN + FN + wstr + ' path=' + path + ':' + err.message
       throw err
+    }
+  }
+
+
+  filelog(kind: string, path: string): void {
+    let files: any = this.files
+    if (files[kind]) {
+      const kindlog = files[kind]
+      if (path === kindlog[kindlog.length - 1]) {
+        dlog('filelog', kind, 'duplicate: ' + path)
+      }
+      else {
+        kindlog.push(path)
+      }
+    }
+    else {
+      dlog('filelog', 'invalid kind: ' + kind)
     }
   }
 }

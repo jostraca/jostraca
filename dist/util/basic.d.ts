@@ -42,6 +42,11 @@ declare function humanify(when?: number, flags?: {
     parts?: boolean;
     terse?: boolean;
 }): any;
+declare function getdlog(tagin?: string, filepath?: string): ((...args: any[]) => void) & {
+    tag: string;
+    file: string;
+    log: (fp?: string) => any[];
+};
 declare const BINARY_EXT: string[];
 declare function isbinext(path: string): boolean;
-export { camelify, cmap, each, escre, get, getx, humanify, indent, isbinext, kebabify, names, partify, snakify, template, vmap, ucf, lcf, BINARY_EXT, };
+export { camelify, cmap, each, escre, get, getx, humanify, indent, isbinext, kebabify, names, partify, snakify, template, vmap, ucf, lcf, getdlog, BINARY_EXT, };

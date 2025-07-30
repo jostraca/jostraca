@@ -592,7 +592,14 @@ const START_TIME = 1735689600000;
             '/top/s0/p1/z0.txt': 'z0 old',
             '/top/s0/p1/z1.txt': 'z1 old # JOSTRACA_PROTECT',
         });
-        const jostraca = (0, __1.Jostraca)({ now });
+        const debugs = [];
+        const log = {
+            info: (...args) => { },
+            debug: (...args) => {
+                debugs.push(args);
+            },
+        };
+        const jostraca = (0, __1.Jostraca)({ now, log });
         const info = await jostraca.generate({ fs: () => fs, folder: '/top' }, (0, __1.cmp)((_props) => {
             (0, __1.Project)({ folder: 's0' }, () => {
                 (0, __1.Folder)({ name: 'p0' }, () => {
@@ -606,11 +613,13 @@ const START_TIME = 1735689600000;
                 (0, __1.Copy)({ from: '/top/t0' });
             });
         }));
+        // NOTE: this is a deliberate duplicate file write due to the Copy
+        (0, code_1.expect)(debugs[0][0].point).equal('jostraca-warning');
         (0, code_1.expect)(info).include({
             when: 1735689660000,
             files: {
                 preserved: [],
-                written: ['/top/s0/p0/bar.txt', '/top/s0/p0/bar.txt', '/top/s0/p1/z0.txt'],
+                written: ['/top/s0/p0/bar.txt', '/top/s0/p1/z0.txt'],
                 presented: [],
                 diffed: [],
                 merged: [],

@@ -12,6 +12,8 @@ const basic_1 = require("../util/basic");
 const CN = 'FileHandler:';
 const JOSTRACA_PROTECT = 'JOSTRACA_PROTECT';
 // TODO: if EOL != '\n', normalize to '\n' in load,save 
+// Log non-fatal wierdness.
+const dlog = (0, basic_1.getdlog)('jostraca', __filename);
 class FileHandler {
     constructor(bctx, existing, control) {
         this.fs = bctx.fs;
@@ -95,7 +97,8 @@ class FileHandler {
                     let oldpath = node_path_1.default.join(folder, node_path_1.default.basename(path).replace(/\.[^.]+$/, '') +
                         '.old' + node_path_1.default.extname(path));
                     this.copyFile(path, oldpath, whence + 'preserve:');
-                    this.files.preserved.push(path);
+                    // this.files.preserved.push(path)
+                    this.filelog('preserved', path);
                     meta.action = 'preserve';
                     whenify(meta, this.now());
                     meta.actions.push(meta.action);
@@ -114,7 +117,8 @@ class FileHandler {
                     let newpath = node_path_1.default.join(folder, node_path_1.default.basename(path).replace(/\.[^.]+$/, '') +
                         '.new' + node_path_1.default.extname(path));
                     this.saveFile(newpath, content, { flush: true }, whence + 'present:');
-                    this.files.presented.push(path);
+                    // this.files.presented.push(path)
+                    this.filelog('presented', path);
                     meta.action = 'present';
                     whenify(meta, this.now());
                     meta.actions.push(meta.action);
@@ -133,10 +137,12 @@ class FileHandler {
                         const cstr = 'string' === typeof content ? content : content.toString('utf8');
                         const diffcontent = this.diff(cstr, oldcontent.toString());
                         this.saveFile(path, diffcontent, { encoding: 'utf8' }, whence + meta.action);
-                        this.files.diffed.push(path);
+                        // this.files.diffed.push(path)
+                        this.filelog('diffed', path);
                         const conflict = cstr !== diffcontent;
                         if (conflict) {
-                            this.files.conflicted.push(path);
+                            // this.files.conflicted.push(path)
+                            this.filelog('conflicted', path);
                         }
                         whenify(meta, this.now());
                         meta.actions.push(meta.action);
@@ -145,7 +151,8 @@ class FileHandler {
                             { ...meta, why, action: meta.action, path }]);
                     }
                     else {
-                        this.files.unchanged.push(path);
+                        // this.files.unchanged.push(path)
+                        this.filelog('unchanged', path);
                     }
                 }
                 else if (existing.merge) {
@@ -166,9 +173,11 @@ class FileHandler {
                                 const diffcontent = mergeres.content;
                                 const conflict = mergeres.conflict;
                                 this.saveFile(path, diffcontent, { encoding: 'utf8' }, whence + meta.action);
-                                this.files.merged.push(path);
+                                // this.files.merged.push(path)
+                                this.filelog('merged', path);
                                 if (conflict) {
-                                    this.files.conflicted.push(path);
+                                    // this.files.conflicted.push(path)
+                                    this.filelog('conflicted', path);
                                 }
                                 whenify(meta, this.now());
                                 meta.actions.push(meta.action);
@@ -181,7 +190,8 @@ class FileHandler {
                     else {
                         why.push('unchanged-0');
                         write = false;
-                        this.files.unchanged.push(path);
+                        // this.files.unchanged.push(path)
+                        this.filelog('unchanged', path);
                     }
                 }
             }
@@ -190,7 +200,8 @@ class FileHandler {
             why.push('write-1');
             meta.action = 'write';
             this.saveFile(path, content, whence + meta.action);
-            this.files.written.push(path);
+            // this.files.written.push(path)
+            this.filelog('written', path);
             meta.actions.push(meta.action);
             whenify(meta, this.now());
             this.audit.push([CN + FN + wstr + meta.action,
@@ -475,6 +486,21 @@ class FileHandler {
                 { path, when, size: content.length, err }]);
             err.message = CN + FN + wstr + ' path=' + path + ':' + err.message;
             throw err;
+        }
+    }
+    filelog(kind, path) {
+        let files = this.files;
+        if (files[kind]) {
+            const kindlog = files[kind];
+            if (path === kindlog[kindlog.length - 1]) {
+                dlog('filelog', kind, 'duplicate: ' + path);
+            }
+            else {
+                kindlog.push(path);
+            }
+        }
+        else {
+            dlog('filelog', 'invalid kind: ' + kind);
         }
     }
 }

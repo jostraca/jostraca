@@ -45,6 +45,7 @@ import {
   partify,
   lcf,
   ucf,
+  getdlog,
 } from './util/basic'
 
 
@@ -91,6 +92,10 @@ const DEFAULT_LOGGER = {
 }
 
 
+// Log non-fatal wierdness.
+const dlog = getdlog('jostraca', __filename)
+
+
 const OptionsShape = Gubu({
   folder: Skip(String), // Base output folder for generated files. Default: `.`.
 
@@ -113,7 +118,7 @@ const OptionsShape = Gubu({
   fs: Skip(Function) as any, // File system API. Default: `node:fs`.
   now: undefined as any, // Provide current time.
 
-  log: DEFAULT_LOGGER as any, // Logging interface.
+  log: Skip() as any, // Logging interface.
   debug: Skip('info'), // Generate additional debugging information.
 
   // TOOD: needs rethink
@@ -192,6 +197,7 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
 
   function get_gMemFs() { return gMemFs ? gMemFs.fs : undefined }
   const gGetFs = gOpts.fs || get_gMemFs || undefined
+
 
   async function generate(
     opts_in: JostracaOptions | {},
@@ -286,6 +292,12 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
         res.fs = () => fs
       }
 
+      const dlogs = dlog.log()
+      if (0 < dlogs.length) {
+        for (let dlogentry of dlogs) {
+          log.debug({ point: 'jostraca-warning', dlogentry, note: String(dlogentry) })
+        }
+      }
       return res
     })
   }

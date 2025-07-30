@@ -629,6 +629,28 @@ function humanify(when?: number, flags: {
 }
 
 
+function getdlog(
+  tagin?: string,
+  filepath?: string)
+  : ((...args: any[]) => void) &
+  { tag: string, file: string, log: (fp?: string) => any[] } {
+  const tag = tagin || '-'
+  const file = Path.basename(filepath || '-')
+  const g = global as any
+  g.__dlog__ = (g.__dlog__ || [])
+  const dlog = (...args: any[]) => {
+    const stack = '' + new Error().stack
+    g.__dlog__.push([tag, file, Date.now(), ...args, stack])
+  }
+  dlog.tag = tag
+  dlog.file = file
+  dlog.log = (filepath?: string, __f?: string | null) =>
+  (__f = null == filepath ? null : Path.basename(filepath),
+    g.__dlog__.filter((n: any[]) => n[0] === tag && (null == __f || n[2] === __f)))
+  return dlog
+}
+
+
 
 /*
   MIT License
@@ -644,6 +666,7 @@ const BINARY_EXT = '3dm;3ds;3g2;3gp;7z;a;aac;adp;afdesign;afphoto;afpub;ai;aif;a
 function isbinext(path: string) {
   return BINARY_EXT.includes(Path.extname(path || '').substring(1).toLowerCase())
 }
+
 
 
 
@@ -668,6 +691,7 @@ export {
   vmap,
   ucf,
   lcf,
+  getdlog,
 
   BINARY_EXT,
 }

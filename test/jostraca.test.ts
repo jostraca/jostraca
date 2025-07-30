@@ -786,7 +786,15 @@ describe('jostraca', () => {
       '/top/s0/p1/z1.txt': 'z1 old # JOSTRACA_PROTECT',
     })
 
-    const jostraca = Jostraca({ now })
+    const debugs: any[] = []
+
+    const log = {
+      info: (...args: any[]) => { },
+      debug: (...args: any[]) => {
+        debugs.push(args)
+      },
+    }
+    const jostraca = Jostraca({ now, log })
 
     const info = await jostraca.generate(
       { fs: () => fs, folder: '/top' },
@@ -809,11 +817,14 @@ describe('jostraca', () => {
       })
     )
 
+    // NOTE: this is a deliberate duplicate file write due to the Copy
+    expect(debugs[0][0].point).equal('jostraca-warning')
+
     expect(info).include({
       when: 1735689660000,
       files: {
         preserved: [],
-        written: ['/top/s0/p0/bar.txt', '/top/s0/p0/bar.txt', '/top/s0/p1/z0.txt'],
+        written: ['/top/s0/p0/bar.txt', '/top/s0/p1/z0.txt'],
         presented: [],
         diffed: [],
         merged: [],
