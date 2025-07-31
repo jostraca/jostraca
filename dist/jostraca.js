@@ -188,7 +188,9 @@ function Jostraca(gopts_in) {
         // Parameters to `generate` override any global options.
         const useMemFS = null == opts.mem ? gUseMemFs : !!opts.mem;
         const vol = null == opts.vol ? gVol : deep({}, gVol, opts.vol);
-        const memfs = useMemFS ? (null == opts.vol ? gMemFs : (0, memfs_1.memfs)(vol)) : undefined;
+        const memfs = useMemFS ?
+            (null == opts.vol && null != gMemFs ? gMemFs : (0, memfs_1.memfs)(vol)) :
+            undefined;
         const fs = (opts.fs || (memfs && (() => memfs.fs)) || gGetFs || sysFs)();
         const now = opts.now || gOpts.now || Date.now;
         const meta = {
@@ -209,6 +211,7 @@ function Jostraca(gopts_in) {
             txt: deep({}, gOpts.existing.txt, opts.existing.txt),
             bin: deep({}, gOpts.existing.bin, opts.existing.bin),
         });
+        // console.log('EXISTING', existing)
         const control = deep({}, opts.control, gOpts.control);
         // Component defaults.
         opts.cmp = deep({

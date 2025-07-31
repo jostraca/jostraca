@@ -94,6 +94,52 @@ describe('merge', () => {
   })
 
 
+  test('update', async () => {
+    let nowI = 0
+    const now = () => START_TIME + (++nowI * (60 * 1000))
+
+    const jostraca = Jostraca({ now, mem: true, existing: { txt: { merge: true } } })
+
+    const root = () => Project({}, (props: any) => {
+      const m = props.ctx$.model
+      File({ name: 'aaa.txt' }, () => {
+        Content('A=' + m.a + '\n\n')
+      })
+    })
+
+    const m0 = { a: 0 }
+    const res0: any = await jostraca.generate({ folder: '/', model: m0 }, root)
+    // console.log(res0, res0.vol().toJSON())
+    expect(res0.files.written).equal(['/aaa.txt'])
+    expect(res0.vol().toJSON()['/aaa.txt']).equal('A=0\n\n')
+
+
+    m0.a = 1
+    const res1: any = await jostraca.generate({ folder: '/', model: m0 }, root)
+    // console.log(res1, res1.vol().toJSON())
+    expect(res1.files.merged).equal(['/aaa.txt'])
+    expect(res1.vol().toJSON()['/aaa.txt']).equal('A=1\n\n')
+
+
+    const fs = res1.fs()
+    fs.appendFileSync('/aaa.txt', 'Z\n', { encoding: 'utf8' })
+    // console.log(res1.vol().toJSON())
+
+    const res2: any = await jostraca.generate({ folder: '/', model: m0 }, root)
+    // console.log(res2, res2.vol().toJSON())
+    expect(res2.files.merged).equal(['/aaa.txt'])
+    expect(res2.vol().toJSON()['/aaa.txt']).equal('A=1\n\nZ\n')
+
+
+    m0.a = 2
+    const res3: any = await jostraca.generate({ folder: '/', model: m0 }, root)
+    // console.log(res3, res2.vol().toJSON())
+    expect(res3.files.merged).equal(['/aaa.txt'])
+    expect(res3.vol().toJSON()['/aaa.txt']).equal('A=2\n\nZ\n')
+  })
+
+
+
   test('path', async () => {
     let nowI = 0
     const now = () => START_TIME + (++nowI * (60 * 1000))
@@ -309,11 +355,13 @@ describe('merge', () => {
       }
     })
     expect(vol.toJSON()).equal({
-      '/top/sdk/code/js/foo.js': '<<<<<<< EXISTING: 2025-01-01T00:41:00.000Z/merge\n' +
-        '// FOO:a\n' +
-        '=======\n' +
+      '/top/sdk/code/js/foo.js':
+        '<<<<<<< GENERATED: 2025-01-01T00:45:00.000Z/merge\n' +
         '// foo:2\n' +
-        '>>>>>>> GENERATED: 2025-01-01T00:45:00.000Z/merge\n',
+        '=======\n' +
+        '// FOO:a\n' +
+        '>>>>>>> EXISTING: 2025-01-01T00:41:00.000Z/merge\n' +
+        '',
       '/top/.jostraca/generated/sdk/code/js/foo.js': '// foo:2\n',
       '/top/.jostraca/jostraca.meta.log': '{\n' +
         '  "foldername": ".jostraca",\n' +
@@ -436,11 +484,13 @@ describe('merge', () => {
       }
     })
     expect(vol.toJSON()).equal({
-      '/top/sdk/code/js/foo.js': '<<<<<<< EXISTING: 2025-01-01T01:20:00.000Z/merge\n' +
-        '// FOO:2\n' +
-        '=======\n' +
+      '/top/sdk/code/js/foo.js':
+        '<<<<<<< GENERATED: 2025-01-01T01:24:00.000Z/merge\n' +
         '// foo:3\n' +
-        '>>>>>>> GENERATED: 2025-01-01T01:24:00.000Z/merge\n',
+        '=======\n' +
+        '// FOO:2\n' +
+        '>>>>>>> EXISTING: 2025-01-01T01:20:00.000Z/merge\n' +
+        '',
       '/top/.jostraca/generated/sdk/code/js/foo.js': '// foo:3\n',
       '/top/.jostraca/jostraca.meta.log': '{\n' +
         '  "foldername": ".jostraca",\n' +
@@ -522,12 +572,14 @@ describe('merge', () => {
       }
     })
     expect(vol.toJSON()).equal({
-      '/top/sdk/code/js/foo.js': '<<<<<<< EXISTING: 2025-01-01T01:46:00.000Z/merge\n' +
+      '/top/sdk/code/js/foo.js':
+        '<<<<<<< GENERATED: 2025-01-01T01:50:00.000Z/merge\n' +
+        '// foo:4\n' +
+        '=======\n' +
         '// foo:3\n' +
         '// BAR:b\n' +
-        '=======\n' +
-        '// foo:4\n' +
-        '>>>>>>> GENERATED: 2025-01-01T01:50:00.000Z/merge\n',
+        '>>>>>>> EXISTING: 2025-01-01T01:46:00.000Z/merge\n' +
+        '',
       '/top/.jostraca/generated/sdk/code/js/foo.js': '// foo:4\n',
       '/top/.jostraca/jostraca.meta.log': '{\n' +
         '  "foldername": ".jostraca",\n' +
@@ -620,11 +672,11 @@ describe('merge', () => {
     // console.log(res)
     // console.log(vol.toJSON())
     expect(vol.toJSON()['/foo.txt']).equal(`aaa
-<<<<<<< EXISTING: 2025-01-01T00:54:00.000Z/merge
-bbb
-=======
+<<<<<<< GENERATED: 2025-01-01T00:58:00.000Z/merge
 ccc
->>>>>>> GENERATED: 2025-01-01T00:58:00.000Z/merge
+=======
+bbb
+>>>>>>> EXISTING: 2025-01-01T00:54:00.000Z/merge
 `)
 
 
@@ -642,12 +694,12 @@ ccc
     // console.log(res)
     // console.log(vol.toJSON())
     expect(vol.toJSON()['/foo.txt']).equal(`aaa
-<<<<<<< EXISTING: 2025-01-01T01:20:00.000Z/merge
+<<<<<<< GENERATED: 2025-01-01T01:24:00.000Z/merge
+ddd
+=======
 bbb
 ccc
-=======
-ddd
->>>>>>> GENERATED: 2025-01-01T01:24:00.000Z/merge
+>>>>>>> EXISTING: 2025-01-01T01:20:00.000Z/merge
 `)
 
 
@@ -656,12 +708,12 @@ ddd
     // console.log(res)
     // console.log(vol.toJSON())
     expect(vol.toJSON()['/foo.txt']).equal(`aaa
-<<<<<<< EXISTING: 2025-01-01T01:20:00.000Z/merge
+<<<<<<< GENERATED: 2025-01-01T01:24:00.000Z/merge
+ddd
+=======
 bbb
 ccc
-=======
-ddd
->>>>>>> GENERATED: 2025-01-01T01:24:00.000Z/merge
+>>>>>>> EXISTING: 2025-01-01T01:20:00.000Z/merge
 `)
 
 
@@ -671,12 +723,12 @@ ddd
     // console.log(res)
     // console.log(vol.toJSON())
     expect(vol.toJSON()['/foo.txt']).equal(`aaa
-<<<<<<< EXISTING: 2025-01-01T01:20:00.000Z/merge
+<<<<<<< GENERATED: 2025-01-01T01:24:00.000Z/merge
+ddd
+=======
 bbb
 ccc
-=======
-ddd
->>>>>>> GENERATED: 2025-01-01T01:24:00.000Z/merge
+>>>>>>> EXISTING: 2025-01-01T01:20:00.000Z/merge
 `)
   })
 
@@ -794,11 +846,11 @@ const DATA_merge_basic_vol1 = {
   '/top/sdk/js/foo.js': '// custom-foo:1\n// FOO\n// added1\n',
   '/top/sdk/js/bar.js': '// custom-bar\n' +
     '// BAR\n' +
-    '<<<<<<< EXISTING: 2025-01-01T00:09:00.000Z/merge\n' +
-    '// added1\n' +
-    '=======\n' +
+    '<<<<<<< GENERATED: 2025-01-01T00:13:00.000Z/merge\n' +
     '// gen-extra1\n' +
-    '>>>>>>> GENERATED: 2025-01-01T00:13:00.000Z/merge\n',
+    '=======\n' +
+    '// added1\n' +
+    '>>>>>>> EXISTING: 2025-01-01T00:09:00.000Z/merge\n',
   '/top/sdk/go/zed.go': '// custom-zed:1\n// EXTRA1',
   '/top/.jostraca/generated/sdk/js/foo.js': '// custom-foo:1\n// FOO\n',
   '/top/.jostraca/generated/sdk/js/bar.js': '// custom-bar\n// BAR\n// gen-extra1\n',

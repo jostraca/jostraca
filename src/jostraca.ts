@@ -209,7 +209,9 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
     const useMemFS = null == opts.mem ? gUseMemFs : !!opts.mem
 
     const vol = null == opts.vol ? gVol : deep({}, gVol, opts.vol)
-    const memfs = useMemFS ? (null == opts.vol ? gMemFs : MemFs(vol)) : undefined
+    const memfs = useMemFS ?
+      (null == opts.vol && null != gMemFs ? gMemFs : MemFs(vol)) :
+      undefined
 
     const fs = (opts.fs || (memfs && (() => memfs.fs)) || gGetFs || sysFs)()
     const now = opts.now || gOpts.now || Date.now
@@ -239,6 +241,8 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
       txt: deep({}, gOpts.existing.txt, opts.existing.txt),
       bin: deep({}, gOpts.existing.bin, opts.existing.bin),
     })
+
+    // console.log('EXISTING', existing)
 
     const control = deep({}, opts.control, gOpts.control)
 

@@ -38,9 +38,9 @@ declare class FileHandler {
         version: boolean;
     });
     relative(path: string, whence?: string): string;
-    save(path: string, content: string | Buffer, write?: boolean | string, whence?: string): void;
+    save(path: string, newContentSource: string | Buffer, write?: boolean | string, whence?: string): void;
     copy(frompath: string, topath: string, write?: boolean | string, whence?: string): void;
-    merge(newcontent: string, oldcontent: string, origcontent: string): {
+    merge(editA: string, orig: string, editB: string, why: string[]): {
         content: string;
         conflict: boolean;
     };

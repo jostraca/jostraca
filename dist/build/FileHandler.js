@@ -52,7 +52,7 @@ class FileHandler {
         const rpath = withinFolder ? path.substring(this.folder.length).replace(/^\/+/, '') : path;
         return rpath;
     }
-    save(path, content, write, whence) {
+    save(path, newContentSource, write, whence) {
         const wstr = null == whence ? '' : whence + ':';
         const fs = this.fs();
         const FN = 'save:';
@@ -65,7 +65,7 @@ class FileHandler {
             write = false;
         }
         whence = null == whence ? '' : whence;
-        const existing = 'string' === typeof content ? this.existing.txt : this.existing.bin;
+        const existing = 'string' === typeof newContentSource ? this.existing.txt : this.existing.bin;
         path = node_path_1.default.normalize(path);
         const folder = node_path_1.default.dirname(path);
         const withinFolder = path.startsWith(this.folder) || ('.' === this.folder && !node_path_1.default.isAbsolute(path));
@@ -83,8 +83,8 @@ class FileHandler {
         };
         if (exists) {
             why.push('exists-0');
-            let oldcontent = this.loadFile(path);
-            const protect = 0 <= oldcontent.indexOf(JOSTRACA_PROTECT);
+            let currentContent = this.loadFile(path);
+            const protect = 0 <= currentContent.indexOf(JOSTRACA_PROTECT);
             meta.protect = protect;
             if (existing.preserve) {
                 why.push('preserve-0');
@@ -92,7 +92,8 @@ class FileHandler {
                     why.push('protect-0');
                     write = false;
                 }
-                else if (oldcontent.length !== content.length || oldcontent !== content) {
+                else if (currentContent.length !== newContentSource.length ||
+                    currentContent !== newContentSource) {
                     why.push('content-0');
                     let oldpath = node_path_1.default.join(folder, node_path_1.default.basename(path).replace(/\.[^.]+$/, '') +
                         '.old' + node_path_1.default.extname(path));
@@ -112,12 +113,11 @@ class FileHandler {
             }
             else if (existing.present) {
                 why.push('present-0');
-                if (oldcontent.length !== content.length || oldcontent !== content) {
+                if (currentContent.length !== newContentSource.length || currentContent !== newContentSource) {
                     why.push('content-1');
                     let newpath = node_path_1.default.join(folder, node_path_1.default.basename(path).replace(/\.[^.]+$/, '') +
                         '.new' + node_path_1.default.extname(path));
-                    this.saveFile(newpath, content, { flush: true }, whence + 'present:');
-                    // this.files.presented.push(path)
+                    this.saveFile(newpath, newContentSource, { flush: true }, whence + 'present:');
                     this.filelog('presented', path);
                     meta.action = 'present';
                     whenify(meta, this.now());
@@ -131,15 +131,17 @@ class FileHandler {
                 if (existing.diff) {
                     why.push('diff-0');
                     write = false;
-                    if (oldcontent.length !== content.length || oldcontent !== content) {
+                    if (currentContent.length !== newContentSource.length ||
+                        currentContent !== newContentSource) {
                         why.push('content-2');
                         meta.action = 'diff';
-                        const cstr = 'string' === typeof content ? content : content.toString('utf8');
-                        const diffcontent = this.diff(cstr, oldcontent.toString());
-                        this.saveFile(path, diffcontent, { encoding: 'utf8' }, whence + meta.action);
+                        const newContent = 'string' === typeof newContentSource ? newContentSource :
+                            newContentSource.toString('utf8');
+                        const diffContent = this.diff(newContent, currentContent.toString());
+                        this.saveFile(path, diffContent, { encoding: 'utf8' }, whence + meta.action);
                         // this.files.diffed.push(path)
                         this.filelog('diffed', path);
-                        const conflict = cstr !== diffcontent;
+                        const conflict = newContent !== diffContent;
                         if (conflict) {
                             // this.files.conflicted.push(path)
                             this.filelog('conflicted', path);
@@ -157,9 +159,9 @@ class FileHandler {
                 }
                 else if (existing.merge) {
                     why.push('merge-0');
-                    if (oldcontent.length !== content.length || oldcontent !== content) {
+                    if (currentContent.length !== newContentSource.length ||
+                        currentContent !== newContentSource) {
                         why.push('content-3');
-                        const cstr = 'string' === typeof content ? content : content.toString('utf8');
                         if (this.control.duplicate) {
                             why.push('duplicate-0');
                             const dfolder = this.duplicateFolder();
@@ -168,8 +170,10 @@ class FileHandler {
                                 why.push('dupexists-0');
                                 write = false;
                                 meta.action = 'merge';
-                                const origcontent = this.loadFile(dpath, { encoding: 'utf8' });
-                                const mergeres = this.merge(cstr, oldcontent.toString(), origcontent);
+                                const newContent = 'string' === typeof newContentSource ? newContentSource :
+                                    newContentSource.toString('utf8');
+                                const prevGenContent = this.loadFile(dpath, { encoding: 'utf8' });
+                                const mergeres = this.merge(newContent, prevGenContent, currentContent.toString(), why);
                                 const diffcontent = mergeres.content;
                                 const conflict = mergeres.conflict;
                                 this.saveFile(path, diffcontent, { encoding: 'utf8' }, whence + meta.action);
@@ -199,7 +203,7 @@ class FileHandler {
         if (write) {
             why.push('write-1');
             meta.action = 'write';
-            this.saveFile(path, content, whence + meta.action);
+            this.saveFile(path, newContentSource, whence + meta.action);
             // this.files.written.push(path)
             this.filelog('written', path);
             meta.actions.push(meta.action);
@@ -223,13 +227,14 @@ class FileHandler {
                 if (!this.control.dryrun) {
                     fs.mkdirSync(node_path_1.default.dirname(dpath), { recursive: true });
                     const dopts = { flush: true };
-                    fs.writeFileSync(dpath, content, dopts);
+                    fs.writeFileSync(dpath, newContentSource, dopts);
                 }
                 if (null == meta.when) {
                     whenify(meta, this.now());
                 }
             }
         }
+        // console.log('WHY', path, why)
         this.addmeta(path, meta);
     }
     copy(frompath, topath, write, whence) {
@@ -247,36 +252,35 @@ class FileHandler {
         const content = this.loadFile(frompath, { encoding: isBinary ? null : 'utf8' }, whence);
         this.save(topath, content, whence);
     }
-    merge(newcontent, oldcontent, origcontent) {
-        const out = { content: oldcontent, conflict: false };
+    merge(editA, orig, editB, why) {
+        const out = { content: editB, conflict: false };
         let done = false;
-        let why = 'same';
         // Only merge if needed
-        if (origcontent.length === newcontent.length &&
-            origcontent === newcontent) {
-            done = true;
-        }
+        // if (origcontent.length === newcontent.length &&
+        //   origcontent === newcontent
+        // ) {
+        //   done = true
+        // }
         // Don't stack conflicts
-        if (oldcontent.includes('<<<<<<< EXISTING:')
-            || oldcontent.includes('<<<<<<< GENERATED:')) {
-            why = 'unresolved';
+        if (editB.includes('>>>>>>> EXISTING:')) {
+            why.push('merge-unresolved-0');
             done = true;
             // TODO: should this be a error, or collected?
         }
         if (!done) {
-            why = 'merge';
+            why.push('merge-run-0');
             const isowhen = new Date(this.when).toISOString();
             const isolast = new Date(this.last()).toISOString();
             // Consider the previously generated pure version, stored in
             // .jostraca/generated to be the "original". That preserves
             // manual edits in the main generated output.
-            const diffres = Diff3.merge(oldcontent, origcontent, newcontent, {
+            const diffres = Diff3.merge(editA, orig, editB, {
                 // stringSeparator: '\n',
                 stringSeparator: /\r?\n/,
                 excludeFalseConflicts: true,
                 label: {
-                    a: 'EXISTING: ' + isolast + '/merge',
-                    b: 'GENERATED: ' + isowhen + '/merge',
+                    a: 'GENERATED: ' + isowhen + '/merge',
+                    b: 'EXISTING: ' + isolast + '/merge',
                 }
             });
             const conflict = diffres.conflict;
