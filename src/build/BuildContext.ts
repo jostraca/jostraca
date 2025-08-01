@@ -71,7 +71,6 @@ class BuildContext {
     fs: () => FST,
     now: () => number,
   ) {
-
     this.fs = fs
     this.now = now
 

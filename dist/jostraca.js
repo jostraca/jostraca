@@ -203,6 +203,7 @@ function Jostraca(gopts_in) {
             opts.log;
         const debug = null == opts.debug ? (null == gOpts.debug ? '.' : gOpts.debug) :
             opts.debug;
+        // TODO: this is no actual connection between debug and logging!
         // build=true unless explicitly false
         const doBuild = null == opts.build ? false !== gOpts.build : false !== opts.build;
         const model = null == opts.model ? null == gOpts.model ? {} : gOpts.model : opts.model;
@@ -212,7 +213,7 @@ function Jostraca(gopts_in) {
             bin: deep({}, gOpts.existing.bin, opts.existing.bin),
         });
         // console.log('EXISTING', existing)
-        const control = deep({}, opts.control, gOpts.control);
+        const control = deep({}, gOpts.control, opts.control);
         // Component defaults.
         opts.cmp = deep({
             Copy: {
