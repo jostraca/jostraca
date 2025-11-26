@@ -35,18 +35,16 @@
   ],
   "devDependencies": {
     "@hapi/code": "^9.0.3",
-    "@types/node": "24.1.0",
-    "esbuild": "^0.25.8",
-    "oxc-parser": "^0.79.1",
-    "typescript": "^5.9.2"
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3"
   },
   "peerDependencies": {
-    "jsonic": ">=2.16.0",
+    "jsonic": ">=2.18.0",
     "memfs": ">=4"
   },
   "dependencies": {
-    "diff": "^8.0.2",
-    "gubu": "^9.0.0",
-    "node-diff3": "^3.1.2"
+    "diff": "8.0.2",
+    "gubu": "9.0.0",
+    "node-diff3": "3.2.0"
   }
 }

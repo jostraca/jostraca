@@ -264,6 +264,7 @@ describe('util', () => {
     expect(snakify('foo_bar')).equal('foo_bar')
     expect(snakify('foo-bar')).equal('foo_bar')
     expect(snakify('fooBar')).equal('foo_bar')
+    expect(snakify('foo bar')).equal('foo_bar')
     expect(snakify('')).equal('')
     expect(snakify(['foo'])).equal('foo')
     expect(snakify(['foo', 'bar'])).equal('foo_bar')

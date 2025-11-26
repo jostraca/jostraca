@@ -188,6 +188,7 @@ const __1 = require("../");
         (0, code_1.expect)((0, __1.snakify)('foo_bar')).equal('foo_bar');
         (0, code_1.expect)((0, __1.snakify)('foo-bar')).equal('foo_bar');
         (0, code_1.expect)((0, __1.snakify)('fooBar')).equal('foo_bar');
+        (0, code_1.expect)((0, __1.snakify)('foo bar')).equal('foo_bar');
         (0, code_1.expect)((0, __1.snakify)('')).equal('');
         (0, code_1.expect)((0, __1.snakify)(['foo'])).equal('foo');
         (0, code_1.expect)((0, __1.snakify)(['foo', 'bar'])).equal('foo_bar');

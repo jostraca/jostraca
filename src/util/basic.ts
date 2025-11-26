@@ -310,7 +310,7 @@ function lcf(s: string) {
 
 function partify(input: any[] | string): string[] {
   return 'string' == typeof input ?
-    input.split(/[-_]|([A-Z])/)
+    input.split(/[-_ ]|([A-Z])/)
       .filter(p => null != p && '' !== p)
       .reduce((a: string[], p: string) =>
       (((0 < a.length && 1 === a[a.length - 1].length) ?
