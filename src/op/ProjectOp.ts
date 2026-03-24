@@ -14,7 +14,7 @@ const ProjectOp = {
 
     buildctx.current.project = { node }
     buildctx.current.folder.node = node
-    buildctx.current.folder.path = node.folder.split('/')
+    buildctx.current.folder.path = node.folder.replace(/\/+$/, '').split('/')
 
     // ctx$.fs().mkdirSync(node.folder, { recursive: true })
     buildctx.fh.ensureFolder(node.folder)
