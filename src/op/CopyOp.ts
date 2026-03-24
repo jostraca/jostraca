@@ -10,6 +10,8 @@ import { FileOp } from './FileOp'
 
 const ON = 'Copy:'
 
+const IGNORED_RE = /(~|-jostraca-off)$/
+
 const CopyOp = {
 
   before(node: Node, ctx$: any, buildctx: BuildContext) {
@@ -146,7 +148,7 @@ function copyFile(frompath: string, topath: string, state: any, buildctx: any, f
 
 // TODO: needs an option
 function ignored(state: any, nodepath: string[], name: string, topath: string) {
-  return !!name.match(/(~|-jostraca-off)$/)
+  return IGNORED_RE.test(name)
 }
 
 
@@ -156,7 +158,7 @@ function excludeFile(fs: any, state: any, nodepath: string[], name: string, topa
   let exclude = false
 
   for (let ignoreRE of opts.cmp.Copy.ignore) {
-    if (name.match(ignoreRE)) {
+    if (ignoreRE.test(name)) {
       return true
     }
   }
@@ -201,17 +203,15 @@ function excludeFile(fs: any, state: any, nodepath: string[], name: string, topa
 
 
 function excluded(path: string, excludes: (string | RegExp)[]) {
-  let out = false
-  if (excludes.filter(exc => 'string' === typeof exc).includes(path)) {
-    out = true
+  for (const exc of excludes) {
+    if ('string' === typeof exc) {
+      if (exc === path) return true
+    }
+    else if (exc instanceof RegExp) {
+      if (exc.test(path)) return true
+    }
   }
-  else if (excludes
-    .filter(exc => 'object' === typeof exc)
-    .reduce((a, exc) => (a ? a : (a || !!path.match(exc))), false)) {
-    out = true
-  }
-
-  return out
+  return false
 }
 
 

@@ -29,6 +29,7 @@ declare class FileHandler {
         conflicted: string[];
         unchanged: string[];
     };
+    createdDirs: Set<string>;
     constructor(bctx: BuildContext, existing: {
         txt: any;
         bin: any;
@@ -51,6 +52,7 @@ declare class FileHandler {
     saveJSON(path: string, json: any, opts?: any | string, whence?: string): any;
     loadFile(path: string, opts?: any | string, whence?: string): string | Buffer;
     ensureFolder(path: string): void;
+    private ensureDir;
     saveFile(path: string, content: string | Buffer, opts?: any | string, whence?: string): void;
     filelog(kind: string, path: string): void;
 }

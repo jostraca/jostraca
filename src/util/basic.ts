@@ -115,6 +115,16 @@ function select(key: any, map: Record<string, Function>) {
 */
 
 
+// Hoisted from getx() to avoid recompilation on every call.
+//         A   B               C        D   E
+const GETX_TOKEN_RE = /\s*("(\\.|[^"\\])*"|[\w\d_]+|\s+|[^\w\d_]+)\s*/g
+// A: prefixing space and/or comma
+// B: quoted string
+// C: atom
+// D: space
+// E: operator
+
+
 function getx(root: any, path: string | string[]): any {
   if (null == root || 'object' !== typeof root) {
     return undefined
@@ -127,13 +137,8 @@ function getx(root: any, path: string | string[]): any {
   }
   else if ('string' === typeof path) {
 
-    //         A   B               C        D   E
-    let tre = /\s*("(\\.|[^"\\])*"|[\w\d_]+|\s+|[^\w\d_]+)\s*/g
-    // A: prefixing space and/or comma
-    // B: quoted string
-    // C: atom
-    // D: space
-    // E: operator
+    GETX_TOKEN_RE.lastIndex = 0
+    let tre = GETX_TOKEN_RE
 
     tokens = []
     let t = null
@@ -341,6 +346,15 @@ function escre(s: string) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') }
 function idenstr(s: string) { return s.replace(/[^\w\d]/g, '_') }
 
 
+// Cache for compiled template RegExps to avoid recompilation on repeated calls.
+// Stores regex and the mapping from original keys to normalized canon keys.
+const templateRECache = new Map<string, { re: RegExp, canonKeys: [string, string][] }>()
+const TEMPLATE_RE_CACHE_MAX = 100
+
+// Cache for eject RegExps.
+const ejectRECache = new Map<string, RegExp>()
+
+
 // NOTE: $$foo.bar$$ format used as explicit start and end markers mean regex can be used
 // unambiguously ($fooa would not match `foo`)
 function template(
@@ -364,10 +378,10 @@ function template(
   if (null != eject) {
     const ejectStart: RegExp | null = null == eject[0] ? null :
       eject[0] instanceof RegExp ? eject[0] :
-        new RegExp('[ \t]*' + escre('' + eject[0]) + '[ \t]*\\n?')
+        getCachedEjectRE('' + eject[0])
     const ejectEnd: RegExp | null = null == eject[1] ? null :
       eject[1] instanceof RegExp ? eject[1] :
-        new RegExp('[ \t]*' + escre('' + eject[1]) + '[ \t]*\\n?')
+        getCachedEjectRE('' + eject[1])
 
     if (null != ejectStart && null != ejectEnd) {
       let startIndex = 0
@@ -392,62 +406,89 @@ function template(
   let ref = null == spec?.ref ? '[^$]+' : spec.ref
   let specReplaceMap = spec?.replace || {}
   let specReplaceCanon: any = {}
-  let ngI = 1
-  let insertRE = null == spec?.insert ?
-    new RegExp(
 
-      // Match alternate for `$$foo.bar$$` model replacements.
-      '(?<J_O>' + open + ')' +
-      '(?<J_R>' + ref + ')' +
-      '(?<J_C>' + close + ')' +
+  let insertRE: RegExp
+  if (null != spec?.insert) {
+    insertRE = spec.insert
+  }
+  else {
+    const cacheKey = open + '\0' + close + '\0' + ref + '\0' +
+      Object.keys(specReplaceMap).sort().join('\0')
+    const cached = templateRECache.get(cacheKey)
+    if (cached) {
+      insertRE = cached.re
+      // Rebuild specReplaceCanon from current values using cached key mapping.
+      for (const [origKey, canonKey] of cached.canonKeys) {
+        specReplaceCanon[canonKey] = specReplaceMap[origKey]
+      }
+    }
+    else {
+      let ngI = 1
+      const canonKeys: [string, string][] = []
+      insertRE = new RegExp(
 
-      // Template replace entries.
-      ((Object.keys(specReplaceMap))
-        .sort((a, b) => a.startsWith('#') ?
-          (a.includes('-') ? b.includes('-') ? b.length - a.length : -1 : b.length - a.length) :
-          b.length - a.length)
-        .map((k: string, _: any) => (
+        // Match alternate for `$$foo.bar$$` model replacements.
+        '(?<J_O>' + open + ')' +
+        '(?<J_R>' + ref + ')' +
+        '(?<J_C>' + close + ')' +
 
-          // Normalize key for use as group name as key could be a regexp ('/foo/' format).
-          _ = idenstr(k).replace(/_+/g, '_'),
-          specReplaceCanon[_] = specReplaceMap[k],
+        // Template replace entries.
+        ((Object.keys(specReplaceMap))
+          .sort((a, b) => a.startsWith('#') ?
+            (a.includes('-') ? b.includes('-') ? b.length - a.length : -1 : b.length - a.length) :
+            b.length - a.length)
+          .map((k: string, _: any) => (
 
-          // match alternate per key.
-          `|(?<J_K${ngI++}_${_}>` +
+            // Normalize key for use as group name as key could be a regexp ('/foo/' format).
+            _ = idenstr(k).replace(/_+/g, '_'),
+            specReplaceCanon[_] = specReplaceMap[k],
+            canonKeys.push([k, _]),
 
-          // Custom regexp.
-          (k.match(/^\/.+\/$/) ? k.substring(1, k.length - 1)
+            // match alternate per key.
+            `|(?<J_K${ngI++}_${_}>` +
 
-            // Prepend a counter to custom group names to ensure they are unique.
-            .replace(/\(\?<([\w\d_]+)>/g, (_, p1) => `(?<J_N${ngI++}_${p1}>`) :
+            // Custom regexp.
+            (k.match(/^\/.+\/$/) ? k.substring(1, k.length - 1)
 
-            // Tags: #Name matches <indent><comment><space>#Name<space><newline>
-            // #Name-Tag matches same, but inner: #<Identifer>-Tag, and
-            // provides {Tag:<identifer>}
-            // See template utility unit test!
-            (_ = k.match(/^#([A-Za-z0-9]+)(-[A-Z][a-z0-9]+)?$/)) ?
-              (`(?<J_N${ngI++}_indent>[ \t]*)` +
-                '\\/\\/' +
-                '[ \t]*#' +
-                (_[1] ?
-                  `(?<J_T${ngI++}_${_[2]?.substring(1) || 'TAG'}>` +
-                  (_[2] ? '[A-Za-z0-9]+' : _[1]) + ')' : '') +
-                (_[2] ? `-(?<J_N${ngI++}_TAG>${_[2].substring(1)})` : '') +
-                '[ \t]*\\n?') :
+              // Prepend a counter to custom group names to ensure they are unique.
+              .replace(/\(\?<([\w\d_]+)>/g, (_, p1) => `(?<J_N${ngI++}_${p1}>`) :
 
-              // Just a key string.
-              escre(k)) + ')'
-        ))
-        .join(''))) :
-    spec.insert
+              // Tags: #Name matches <indent><comment><space>#Name<space><newline>
+              // #Name-Tag matches same, but inner: #<Identifer>-Tag, and
+              // provides {Tag:<identifer>}
+              // See template utility unit test!
+              (_ = k.match(/^#([A-Za-z0-9]+)(-[A-Z][a-z0-9]+)?$/)) ?
+                (`(?<J_N${ngI++}_indent>[ \t]*)` +
+                  '\\/\\/' +
+                  '[ \t]*#' +
+                  (_[1] ?
+                    `(?<J_T${ngI++}_${_[2]?.substring(1) || 'TAG'}>` +
+                    (_[2] ? '[A-Za-z0-9]+' : _[1]) + ')' : '') +
+                  (_[2] ? `-(?<J_N${ngI++}_TAG>${_[2].substring(1)})` : '') +
+                  '[ \t]*\\n?') :
+
+                // Just a key string.
+                escre(k)) + ')'
+          ))
+          .join('')))
+
+      if (templateRECache.size >= TEMPLATE_RE_CACHE_MAX) {
+        templateRECache.clear()
+      }
+      templateRECache.set(cacheKey, { re: insertRE, canonKeys })
+    }
+  }
 
   let remain = src
   let nextm = true
 
+  const hasCustomHandle = null != spec?.handle
   let out = ''
+  let parts: string[] = hasCustomHandle ? [] : []
 
-  // By default, just append to a string, but allow for custom handling.
-  let handle = spec?.handle || ((s: string) => out += (null == s ? '' : s))
+  // By default, collect into array (O(n) join), but allow for custom handling.
+  let handle = hasCustomHandle ? spec!.handle! :
+    ((s: string) => parts.push(null == s ? '' : s))
 
   while (nextm) {
     let m = remain.match(insertRE)
@@ -536,7 +577,17 @@ function template(
   }
 
 
-  return out
+  return hasCustomHandle ? out : parts.join('')
+}
+
+
+function getCachedEjectRE(s: string): RegExp {
+  let re = ejectRECache.get(s)
+  if (!re) {
+    re = new RegExp('[ \t]*' + escre(s) + '[ \t]*\\n?')
+    ejectRECache.set(s, re)
+  }
+  return re
 }
 
 

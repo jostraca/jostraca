@@ -14,7 +14,7 @@ const CN = 'FileHandler:';
 // memfs and canonical paths require forward slashes; Path.normalize/join/dirname
 // produce backslashes on Windows.
 function fwd(p) {
-    return p.replace(/\\/g, '/');
+    return p.includes('\\') ? p.replace(/\\/g, '/') : p;
 }
 const JOSTRACA_PROTECT = 'JOSTRACA_PROTECT';
 // TODO: if EOL != '\n', normalize to '\n' in load,save 
@@ -39,6 +39,7 @@ class FileHandler {
             conflicted: [],
             unchanged: [],
         };
+        this.createdDirs = new Set();
         // Yikes!
         this.duplicateFolder = bctx.duplicateFolder.bind(bctx);
         this.last = () => bctx.bmeta.prev.last;
@@ -232,7 +233,7 @@ class FileHandler {
                 const dfolder = this.duplicateFolder();
                 const dpath = fwd(node_path_1.default.join(dfolder, rpath));
                 if (!this.control.dryrun) {
-                    fs.mkdirSync(fwd(node_path_1.default.dirname(dpath)), { recursive: true });
+                    this.ensureDir(fwd(node_path_1.default.dirname(dpath)));
                     const dopts = { flush: true };
                     fs.writeFileSync(dpath, newContentSource, dopts);
                 }
@@ -358,7 +359,7 @@ class FileHandler {
         const fullfrompath = node_path_1.default.isAbsolute(frompath) ? frompath : fwd(node_path_1.default.join(this.folder, frompath));
         try {
             const existed = fs.existsSync(fulltopath);
-            fs.mkdirSync(fwd(node_path_1.default.dirname(fulltopath)), { recursive: true });
+            this.ensureDir(fwd(node_path_1.default.dirname(fulltopath)));
             const content = fs.readFileSync(fullfrompath, isBinary ? undefined : 'utf8');
             if (!this.control.dryrun) {
                 fs.writeFileSync(topath, content, { flush: true });
@@ -456,9 +457,14 @@ class FileHandler {
         }
     }
     ensureFolder(path) {
-        const fs = this.fs();
         if (!this.control.dryrun) {
-            fs.mkdirSync(path, { recursive: true });
+            this.ensureDir(path);
+        }
+    }
+    ensureDir(dir) {
+        if (!this.createdDirs.has(dir)) {
+            this.fs().mkdirSync(dir, { recursive: true });
+            this.createdDirs.add(dir);
         }
     }
     saveFile(path, content, opts, whence) {
@@ -486,7 +492,7 @@ class FileHandler {
             const parentfolder = fwd(node_path_1.default.dirname(fullpath));
             const existed = fs.existsSync(fullpath);
             if (!this.control.dryrun) {
-                fs.mkdirSync(parentfolder, { recursive: true });
+                this.ensureDir(parentfolder);
                 fs.writeFileSync(fullpath, content, opts);
             }
             this.audit.push([CN + FN + wstr,
@@ -525,7 +531,18 @@ function validPath(path, maxdepth, errmark) {
     if (null == path || '' == path || 'string' !== typeof path) {
         throw new Error('ERROR:' + errmark + ' invalid path, path=' + path);
     }
-    const depth = fwd(node_path_1.default.normalize(node_path_1.default.dirname(path))).split('/').filter(Boolean).length;
+    const normalized = fwd(node_path_1.default.normalize(node_path_1.default.dirname(path)));
+    let depth = 0;
+    let inSegment = false;
+    for (let i = 0; i < normalized.length; i++) {
+        if (normalized[i] === '/') {
+            inSegment = false;
+        }
+        else if (!inSegment) {
+            depth++;
+            inSegment = true;
+        }
+    }
     if (maxdepth < depth) {
         throw new Error(errmark + ' path too deep, path=' + path);
     }

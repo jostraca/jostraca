@@ -22,7 +22,7 @@ const CN = 'FileHandler:'
 // memfs and canonical paths require forward slashes; Path.normalize/join/dirname
 // produce backslashes on Windows.
 function fwd(p: string): string {
-  return p.replace(/\\/g, '/')
+  return p.includes('\\') ? p.replace(/\\/g, '/') : p
 }
 
 const JOSTRACA_PROTECT = 'JOSTRACA_PROTECT'
@@ -60,6 +60,7 @@ class FileHandler {
     conflicted: string[]
     unchanged: string[]
   }
+  createdDirs: Set<string>
 
 
   constructor(
@@ -91,6 +92,8 @@ class FileHandler {
       conflicted: [],
       unchanged: [],
     }
+
+    this.createdDirs = new Set()
 
     // Yikes!
     this.duplicateFolder = bctx.duplicateFolder.bind(bctx)
@@ -365,7 +368,7 @@ class FileHandler {
         const dpath = fwd(Path.join(dfolder, rpath))
 
         if (!this.control.dryrun) {
-          fs.mkdirSync(fwd(Path.dirname(dpath)), { recursive: true })
+          this.ensureDir(fwd(Path.dirname(dpath)))
           const dopts = { flush: true }
           fs.writeFileSync(dpath, newContentSource, dopts)
         }
@@ -541,7 +544,7 @@ class FileHandler {
 
     try {
       const existed = fs.existsSync(fulltopath)
-      fs.mkdirSync(fwd(Path.dirname(fulltopath)), { recursive: true })
+      this.ensureDir(fwd(Path.dirname(fulltopath)))
       const content = fs.readFileSync(fullfrompath, isBinary ? undefined : 'utf8')
 
       if (!this.control.dryrun) {
@@ -659,9 +662,15 @@ class FileHandler {
 
 
   ensureFolder(path: string) {
-    const fs = this.fs()
     if (!this.control.dryrun) {
-      fs.mkdirSync(path, { recursive: true })
+      this.ensureDir(path)
+    }
+  }
+
+  private ensureDir(dir: string) {
+    if (!this.createdDirs.has(dir)) {
+      this.fs().mkdirSync(dir, { recursive: true })
+      this.createdDirs.add(dir)
     }
   }
 
@@ -702,7 +711,7 @@ class FileHandler {
       const existed = fs.existsSync(fullpath)
 
       if (!this.control.dryrun) {
-        fs.mkdirSync(parentfolder, { recursive: true })
+        this.ensureDir(parentfolder)
         fs.writeFileSync(fullpath, content, opts)
       }
 
@@ -748,7 +757,18 @@ function validPath(path: string, maxdepth: number, errmark: string) {
     throw new Error('ERROR:' + errmark + ' invalid path, path=' + path)
   }
 
-  const depth = fwd(Path.normalize(Path.dirname(path))).split('/').filter(Boolean).length
+  const normalized = fwd(Path.normalize(Path.dirname(path)))
+  let depth = 0
+  let inSegment = false
+  for (let i = 0; i < normalized.length; i++) {
+    if (normalized[i] === '/') {
+      inSegment = false
+    }
+    else if (!inSegment) {
+      depth++
+      inSegment = true
+    }
+  }
 
   if (maxdepth < depth) {
     throw new Error(errmark + ' path too deep, path=' + path)
