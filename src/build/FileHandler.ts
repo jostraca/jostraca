@@ -107,9 +107,10 @@ class FileHandler {
     }
 
     const withinFolder = path.startsWith(this.folder)
-    const rpath = withinFolder ? path.substring(this.folder.length).replace(/^\/+/, '') : path
+    const rpath = withinFolder ? path.substring(this.folder.length).replace(/^[/\\]+/, '') : path
 
-    return rpath
+    // Canonical paths use forward slashes, NOT Path.sep
+    return rpath.replace(/\\/g, '/')
   }
 
 
