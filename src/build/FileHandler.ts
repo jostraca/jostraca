@@ -18,6 +18,13 @@ import {
 
 const CN = 'FileHandler:'
 
+// Normalize path separators to forward slashes for cross-platform consistency.
+// memfs and canonical paths require forward slashes; Path.normalize/join/dirname
+// produce backslashes on Windows.
+function fwd(p: string): string {
+  return p.replace(/\\/g, '/')
+}
+
 const JOSTRACA_PROTECT = 'JOSTRACA_PROTECT'
 
 // TODO: if EOL != '\n', normalize to '\n' in load,save 
@@ -68,7 +75,7 @@ class FileHandler {
     this.now = bctx.now
 
     this.when = bctx.when
-    this.folder = Path.normalize(bctx.folder)
+    this.folder = fwd(Path.normalize(bctx.folder))
     this.audit = bctx.audit
     this.existing = existing
     this.control = control
@@ -137,8 +144,8 @@ class FileHandler {
     whence = null == whence ? '' : whence
 
     const existing = 'string' === typeof newContentSource ? this.existing.txt : this.existing.bin
-    path = Path.normalize(path)
-    const folder = Path.dirname(path)
+    path = fwd(Path.normalize(path))
+    const folder = fwd(Path.dirname(path))
 
     const withinFolder = path.startsWith(this.folder) || (
       '.' === this.folder && !Path.isAbsolute(path)
@@ -179,8 +186,8 @@ class FileHandler {
           why.push('content-0')
 
           let oldpath =
-            Path.join(folder, Path.basename(path).replace(/\.[^.]+$/, '') +
-              '.old' + Path.extname(path))
+            fwd(Path.join(folder, Path.basename(path).replace(/\.[^.]+$/, '') +
+              '.old' + Path.extname(path)))
           this.copyFile(path, oldpath, whence + 'preserve:')
           // this.files.preserved.push(path)
           this.filelog('preserved', path)
@@ -205,8 +212,8 @@ class FileHandler {
           why.push('content-1')
 
           let newpath =
-            Path.join(folder, Path.basename(path).replace(/\.[^.]+$/, '') +
-              '.new' + Path.extname(path))
+            fwd(Path.join(folder, Path.basename(path).replace(/\.[^.]+$/, '') +
+              '.new' + Path.extname(path)))
           this.saveFile(newpath, newContentSource, { flush: true }, whence + 'present:')
           this.filelog('presented', path)
 
@@ -273,7 +280,7 @@ class FileHandler {
               why.push('duplicate-0')
               const dfolder = this.duplicateFolder()
 
-              const dpath = Path.join(dfolder, rpath)
+              const dpath = fwd(Path.join(dfolder, rpath))
 
               if (this.existsFile(dpath)) {
                 why.push('dupexists-0')
@@ -355,10 +362,10 @@ class FileHandler {
         why.push('within-0')
 
         const dfolder = this.duplicateFolder()
-        const dpath = Path.join(dfolder, rpath)
+        const dpath = fwd(Path.join(dfolder, rpath))
 
         if (!this.control.dryrun) {
-          fs.mkdirSync(Path.dirname(dpath), { recursive: true })
+          fs.mkdirSync(fwd(Path.dirname(dpath)), { recursive: true })
           const dopts = { flush: true }
           fs.writeFileSync(dpath, newContentSource, dopts)
         }
@@ -501,7 +508,7 @@ class FileHandler {
 
     validPath(path, this.maxdepth, CN + FN + 'from:' + wstr)
 
-    const fullpath = Path.isAbsolute(path) ? path : Path.join(this.folder, path)
+    const fullpath = Path.isAbsolute(path) ? path : fwd(Path.join(this.folder, path))
 
     try {
       const exists = fs.existsSync(fullpath)
@@ -529,12 +536,12 @@ class FileHandler {
     validPath(topath, this.maxdepth, CN + FN + 'to:' + wstr)
 
     const isBinary = isbinext(frompath)
-    const fulltopath = Path.isAbsolute(topath) ? topath : Path.join(this.folder, topath)
-    const fullfrompath = Path.isAbsolute(frompath) ? frompath : Path.join(this.folder, frompath)
+    const fulltopath = Path.isAbsolute(topath) ? topath : fwd(Path.join(this.folder, topath))
+    const fullfrompath = Path.isAbsolute(frompath) ? frompath : fwd(Path.join(this.folder, frompath))
 
     try {
       const existed = fs.existsSync(fulltopath)
-      fs.mkdirSync(Path.dirname(fulltopath), { recursive: true })
+      fs.mkdirSync(fwd(Path.dirname(fulltopath)), { recursive: true })
       const content = fs.readFileSync(fullfrompath, isBinary ? undefined : 'utf8')
 
       if (!this.control.dryrun) {
@@ -636,7 +643,7 @@ class FileHandler {
     validPath(path, this.maxdepth, CN + FN + wstr)
 
     try {
-      const fullpath = Path.isAbsolute(path) ? path : Path.join(this.folder, path)
+      const fullpath = Path.isAbsolute(path) ? path : fwd(Path.join(this.folder, path))
       const content = fs.readFileSync(fullpath, opts)
       this.audit.push([CN + FN + wstr,
       { path, when, size: content.length }])
@@ -688,10 +695,10 @@ class FileHandler {
     }
 
     try {
-      path = Path.normalize(path)
+      path = fwd(Path.normalize(path))
       const isAbsolute = Path.isAbsolute(path)
-      const fullpath = isAbsolute ? path : Path.join(this.folder, path)
-      const parentfolder = Path.dirname(fullpath)
+      const fullpath = isAbsolute ? path : fwd(Path.join(this.folder, path))
+      const parentfolder = fwd(Path.dirname(fullpath))
       const existed = fs.existsSync(fullpath)
 
       if (!this.control.dryrun) {
@@ -712,6 +719,7 @@ class FileHandler {
 
 
   filelog(kind: string, path: string): void {
+    path = fwd(path)
     let files: any = this.files
     if (files[kind]) {
       const kindlog = files[kind]
@@ -740,7 +748,7 @@ function validPath(path: string, maxdepth: number, errmark: string) {
     throw new Error('ERROR:' + errmark + ' invalid path, path=' + path)
   }
 
-  const depth = Path.normalize(Path.dirname(path)).split(Path.sep).filter(Boolean).length
+  const depth = fwd(Path.normalize(Path.dirname(path))).split('/').filter(Boolean).length
 
   if (maxdepth < depth) {
     throw new Error(errmark + ' path too deep, path=' + path)
