@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.PrintPoint = exports.FuncPoint = exports.ParallelPoint = exports.SerialPoint = exports.RootPoint = exports.Point = void 0;
 exports.buildPoints = buildPoints;
 exports.makeFuncDef = makeFuncDef;
-const gubu_1 = require("gubu");
+const shape_1 = require("shape");
 const basic_1 = require("./basic");
 class Point {
     constructor(id, name) {
@@ -146,11 +146,11 @@ class PrintPoint extends Point {
     }
 }
 exports.PrintPoint = PrintPoint;
-const PointDefShape = (0, gubu_1.Gubu)({
-    k: (0, gubu_1.Skip)(String),
-    n: (0, gubu_1.Skip)(String),
-    p: (0, gubu_1.Skip)([]),
-    a: (0, gubu_1.Any)(),
+const PointDefShape = (0, shape_1.Shape)({
+    k: (0, shape_1.Skip)(String),
+    n: (0, shape_1.Skip)(String),
+    p: (0, shape_1.Skip)([]),
+    a: (0, shape_1.Any)(),
     m: {}
 });
 function buildPoints(pdef, pm, id) {

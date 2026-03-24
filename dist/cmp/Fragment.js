@@ -6,15 +6,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Fragment = void 0;
 const node_path_1 = __importDefault(require("node:path"));
 const jostraca_1 = require("../jostraca");
-const gubu_1 = require("gubu");
+const shape_1 = require("shape");
 const From = (from, _, s) => s.ctx.fs().statSync(from);
-const FragmentShape = (0, gubu_1.Gubu)({
+const FragmentShape = (0, shape_1.Shape)({
     ctx$: Object,
-    from: (0, gubu_1.Check)(From).String(),
-    exclude: (0, gubu_1.Optional)((0, gubu_1.One)(Boolean, [String])),
-    indent: (0, gubu_1.Optional)((0, gubu_1.One)((0, gubu_1.Empty)(String), Number)),
+    from: (0, shape_1.Check)(From).String(),
+    exclude: (0, shape_1.Optional)((0, shape_1.One)(Boolean, [String])),
+    indent: (0, shape_1.Optional)((0, shape_1.One)((0, shape_1.Empty)(String), Number)),
     replace: {},
-    eject: (0, gubu_1.Optional)([(0, gubu_1.One)(String, RegExp)])
+    eject: (0, shape_1.Optional)([(0, shape_1.One)(String, RegExp)])
 }, { name: 'Fragment' });
 const Fragment = (0, jostraca_1.cmp)(function Fragment(props, children) {
     props = FragmentShape(props, { fs: props.ctx$.fs });

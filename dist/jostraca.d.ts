@@ -15,7 +15,7 @@ import { Folder } from './cmp/Folder';
 import { Project } from './cmp/Project';
 import { List } from './cmp/List';
 declare const OptionsShape: {
-    <V>(root?: V | undefined, ctx?: import("gubu").Context): V & {
+    <V>(root?: V | undefined, ctx?: import("shape").Context): V & {
         folder: any;
         name: {
             file: {
@@ -53,24 +53,24 @@ declare const OptionsShape: {
             version: boolean;
         };
     };
-    valid: <V>(root?: V | undefined, ctx?: import("gubu").Context) => root is V & {
-        folder: import("gubu").Node<StringConstructor>;
+    valid: <V>(root?: V | undefined, ctx?: import("shape").Context) => root is V & {
+        folder: import("shape").Node<StringConstructor>;
         name: {
             file: {
-                prefix: import("gubu").Node<StringConstructor>;
-                suffix: import("gubu").Node<StringConstructor>;
+                prefix: import("shape").Node<StringConstructor>;
+                suffix: import("shape").Node<StringConstructor>;
             };
             folder: {
-                prefix: import("gubu").Node<StringConstructor>;
-                suffix: import("gubu").Node<StringConstructor>;
+                prefix: import("shape").Node<StringConstructor>;
+                suffix: import("shape").Node<StringConstructor>;
             };
-            exclude: import("gubu").Node<unknown>;
+            exclude: import("shape").Node<unknown>;
         };
         meta: any;
         fs: any;
         now: any;
         log: any;
-        debug: import("gubu").Node<string>;
+        debug: import("shape").Node<string>;
         exclude: boolean;
         existing: {
             txt: {};
@@ -78,8 +78,8 @@ declare const OptionsShape: {
         };
         model: any;
         build: boolean;
-        mem: import("gubu").Node<BooleanConstructor>;
-        vol: import("gubu").Node<{}>;
+        mem: import("shape").Node<BooleanConstructor>;
+        vol: import("shape").Node<{}>;
         cmp: {
             Copy: {
                 ignore: any[];
@@ -91,9 +91,9 @@ declare const OptionsShape: {
             version: boolean;
         };
     };
-    match(root?: any, ctx?: import("gubu").Context): boolean;
-    error(root?: any, ctx?: import("gubu").Context): {
-        gubu: boolean;
+    match(root?: any, ctx?: import("shape").Context): boolean;
+    error(root?: any, ctx?: import("shape").Context): {
+        shape: boolean;
         code: string;
         gname: string;
         props: ({
@@ -107,7 +107,7 @@ declare const OptionsShape: {
             err: {
                 key: string;
                 type: string;
-                node: import("gubu").Node<any>;
+                node: import("shape").Node<any>;
                 value: any;
                 path: string;
                 why: string;
@@ -129,24 +129,24 @@ declare const OptionsShape: {
         stack?: string;
     }[];
     spec(): any;
-    node(): import("gubu").Node<{
-        folder: import("gubu").Node<StringConstructor>;
+    node(): import("shape").Node<{
+        folder: import("shape").Node<StringConstructor>;
         name: {
             file: {
-                prefix: import("gubu").Node<StringConstructor>;
-                suffix: import("gubu").Node<StringConstructor>;
+                prefix: import("shape").Node<StringConstructor>;
+                suffix: import("shape").Node<StringConstructor>;
             };
             folder: {
-                prefix: import("gubu").Node<StringConstructor>;
-                suffix: import("gubu").Node<StringConstructor>;
+                prefix: import("shape").Node<StringConstructor>;
+                suffix: import("shape").Node<StringConstructor>;
             };
-            exclude: import("gubu").Node<unknown>;
+            exclude: import("shape").Node<unknown>;
         };
         meta: any;
         fs: any;
         now: any;
         log: any;
-        debug: import("gubu").Node<string>;
+        debug: import("shape").Node<string>;
         exclude: boolean;
         existing: {
             txt: {};
@@ -154,8 +154,8 @@ declare const OptionsShape: {
         };
         model: any;
         build: boolean;
-        mem: import("gubu").Node<BooleanConstructor>;
-        vol: import("gubu").Node<{}>;
+        mem: import("shape").Node<BooleanConstructor>;
+        vol: import("shape").Node<{}>;
         cmp: {
             Copy: {
                 ignore: any[];
@@ -170,13 +170,13 @@ declare const OptionsShape: {
     stringify(...rest: any[]): string;
     jsonify(): any;
     toString(this: any): string;
-    gubu: {
-        gubu$: symbol;
+    shape: {
+        shape$: symbol;
         v$: string;
     };
 };
 declare const ExistingShape: {
-    <V>(root?: V | undefined, ctx?: import("gubu").Context): V & {
+    <V>(root?: V | undefined, ctx?: import("shape").Context): V & {
         txt: {
             write: boolean;
             preserve: boolean;
@@ -190,7 +190,7 @@ declare const ExistingShape: {
             present: boolean;
         };
     };
-    valid: <V>(root?: V | undefined, ctx?: import("gubu").Context) => root is V & {
+    valid: <V>(root?: V | undefined, ctx?: import("shape").Context) => root is V & {
         txt: {
             write: boolean;
             preserve: boolean;
@@ -204,9 +204,9 @@ declare const ExistingShape: {
             present: boolean;
         };
     };
-    match(root?: any, ctx?: import("gubu").Context): boolean;
-    error(root?: any, ctx?: import("gubu").Context): {
-        gubu: boolean;
+    match(root?: any, ctx?: import("shape").Context): boolean;
+    error(root?: any, ctx?: import("shape").Context): {
+        shape: boolean;
         code: string;
         gname: string;
         props: ({
@@ -220,7 +220,7 @@ declare const ExistingShape: {
             err: {
                 key: string;
                 type: string;
-                node: import("gubu").Node<any>;
+                node: import("shape").Node<any>;
                 value: any;
                 path: string;
                 why: string;
@@ -242,7 +242,7 @@ declare const ExistingShape: {
         stack?: string;
     }[];
     spec(): any;
-    node(): import("gubu").Node<{
+    node(): import("shape").Node<{
         txt: {
             write: boolean;
             preserve: boolean;
@@ -259,8 +259,8 @@ declare const ExistingShape: {
     stringify(...rest: any[]): string;
     jsonify(): any;
     toString(this: any): string;
-    gubu: {
-        gubu$: symbol;
+    shape: {
+        shape$: symbol;
         v$: string;
     };
 };

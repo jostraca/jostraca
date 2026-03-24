@@ -3,12 +3,12 @@ import type { Node } from '../jostraca'
 
 import { cmp } from '../jostraca'
 
-import { Gubu, One, Optional, Check } from 'gubu'
+import { Shape, One, Optional, Check } from 'shape'
 
 
 const From = (from: any, _: any, s: any) => s.ctx.meta.fs().statSync(from)
 
-const CopyShape = Gubu({
+const CopyShape = Shape({
   ctx$: Object,
 
   // The From path is independent of the project folder.
@@ -31,18 +31,17 @@ const Copy = cmp(function Copy(props: CopyProps, _children: any) {
   const ctx = props.ctx$
   const node: Node = ctx.node
 
+  // TODO: expand this to support a file extract and/or source mapping back to ts
+  const errstk: any = new Error()
+  const suffixLines = errstk.stack.split('\n')
+    .filter((n: string) => !n.includes('/shape/'))
+    .filter((n: string) => !n.includes('/jostraca/'))
+  const suffix = '[' + (suffixLines[1] || '').trim() + ']'
+
   props = CopyShape(props, {
     prefix: `(${ctx.model.name}: ${node.path.join('/')})`,
     meta: { fs: props.ctx$.fs },
-
-    // TODO: expand this to support a file extract and/or source mapping back to ts
-    suffix: () => {
-      const errstk: any = new Error()
-      const lines = errstk.stack.split('\n')
-        .filter((n: string) => !n.includes('/gubu/'))
-        .filter((n: string) => !n.includes('/jostraca/'))
-      return '[' + (lines[1] || '').trim() + ']'
-    }
+    suffix,
   })
 
   node.kind = 'copy'

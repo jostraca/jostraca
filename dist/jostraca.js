@@ -43,7 +43,7 @@ exports.cmp = cmp;
 const Fs = __importStar(require("node:fs"));
 const node_async_hooks_1 = require("node:async_hooks");
 const jsonic_1 = require("jsonic");
-const gubu_1 = require("gubu");
+const shape_1 = require("shape");
 const memfs_1 = require("memfs");
 const BuildContext_1 = require("./build/BuildContext");
 Object.defineProperty(exports, "BuildContext", { enumerable: true, get: function () { return BuildContext_1.BuildContext; } });
@@ -114,34 +114,34 @@ const DEFAULT_LOGGER = {
 };
 // Log non-fatal wierdness.
 const dlog = (0, basic_1.getdlog)('jostraca', __filename);
-const OptionsShape = (0, gubu_1.Gubu)({
-    folder: (0, gubu_1.Skip)(String), // Base output folder for generated files. Default: `.`.
+const OptionsShape = (0, shape_1.Shape)({
+    folder: (0, shape_1.Skip)(String), // Base output folder for generated files. Default: `.`.
     // TODO: implement
     name: {
         file: {
-            prefix: (0, gubu_1.Skip)(String), // Prefix for all output file names
-            suffix: (0, gubu_1.Skip)(String), // Suffix for all output file names
+            prefix: (0, shape_1.Skip)(String), // Prefix for all output file names
+            suffix: (0, shape_1.Skip)(String), // Suffix for all output file names
         },
         folder: {
-            prefix: (0, gubu_1.Skip)(String), // Prefix for all output folder names
-            suffix: (0, gubu_1.Skip)(String), // Prefix for all output folder names
+            prefix: (0, shape_1.Skip)(String), // Prefix for all output folder names
+            suffix: (0, shape_1.Skip)(String), // Prefix for all output folder names
         },
         // Files excluded from prefixing and suffixing
-        exclude: (0, gubu_1.Skip)((0, gubu_1.One)(String, RegExp, [(0, gubu_1.One)(String, RegExp)]))
+        exclude: (0, shape_1.Skip)((0, shape_1.One)(String, RegExp, [(0, shape_1.One)(String, RegExp)]))
     },
     meta: {}, // Provide meta data to the generation process. Default: `{}`
-    fs: (0, gubu_1.Skip)(Function), // File system API. Default: `node:fs`.
+    fs: (0, shape_1.Skip)(Function), // File system API. Default: `node:fs`.
     now: undefined, // Provide current time.
-    log: (0, gubu_1.Skip)(), // Logging interface.
-    debug: (0, gubu_1.Skip)('info'), // Generate additional debugging information.
+    log: (0, shape_1.Skip)(), // Logging interface.
+    debug: (0, shape_1.Skip)('info'), // Generate additional debugging information.
     // TOOD: needs rethink
     exclude: false, // Exclude modified output files. Default: `false`.
     // Validated in separate shape to allow overriding.
     existing: { txt: {}, bin: {} },
-    model: (0, gubu_1.Skip)({}),
+    model: (0, shape_1.Skip)({}),
     build: true,
-    mem: (0, gubu_1.Skip)(Boolean),
-    vol: (0, gubu_1.Skip)({}),
+    mem: (0, shape_1.Skip)(Boolean),
+    vol: (0, shape_1.Skip)({}),
     // Component specific options.
     cmp: {
         Copy: {
@@ -157,7 +157,7 @@ const OptionsShape = (0, gubu_1.Gubu)({
         version: false,
     },
 }, { name: 'Jostraca Options' });
-const ExistingShape = (0, gubu_1.Gubu)({
+const ExistingShape = (0, shape_1.Shape)({
     txt: {
         write: true, // Overwrite existing files (unless present=true).
         preserve: false, // Keep a backup copy (.old.) of overwritten files.

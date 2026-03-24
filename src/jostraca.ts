@@ -10,7 +10,7 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 
 import { util as JsonicUtil } from 'jsonic'
 
-import { Gubu, Skip, One } from 'gubu'
+import { Shape, Skip, One } from 'shape'
 
 import { memfs as MemFs } from 'memfs'
 
@@ -96,7 +96,7 @@ const DEFAULT_LOGGER = {
 const dlog = getdlog('jostraca', __filename)
 
 
-const OptionsShape = Gubu({
+const OptionsShape = Shape({
   folder: Skip(String), // Base output folder for generated files. Default: `.`.
 
   // TODO: implement
@@ -153,7 +153,7 @@ const OptionsShape = Gubu({
 }, { name: 'Jostraca Options' })
 
 
-const ExistingShape = Gubu({
+const ExistingShape = Shape({
   txt: {
     write: true, // Overwrite existing files (unless present=true).
     preserve: false, // Keep a backup copy (.old.) of overwritten files.
