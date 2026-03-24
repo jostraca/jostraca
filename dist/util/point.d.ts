@@ -55,23 +55,23 @@ declare class PrintPoint extends Point {
     run(pctx: PointCtx): Promise<void>;
 }
 declare const PointDefShape: {
-    <V>(root?: V | undefined, ctx?: import("gubu").Context): V & {
+    <V>(root?: V | undefined, ctx?: import("shape").Context): V & {
         k: any;
         n: any;
         p: any;
         a: any;
         m: {};
     };
-    valid: <V>(root?: V | undefined, ctx?: import("gubu").Context) => root is V & {
-        k: import("gubu").Node<StringConstructor>;
-        n: import("gubu").Node<StringConstructor>;
-        p: import("gubu").Node<never[]>;
-        a: import("gubu").Node<unknown>;
+    valid: <V>(root?: V | undefined, ctx?: import("shape").Context) => root is V & {
+        k: import("shape").Node<StringConstructor>;
+        n: import("shape").Node<StringConstructor>;
+        p: import("shape").Node<never[]>;
+        a: import("shape").Node<unknown>;
         m: {};
     };
-    match(root?: any, ctx?: import("gubu").Context): boolean;
-    error(root?: any, ctx?: import("gubu").Context): {
-        gubu: boolean;
+    match(root?: any, ctx?: import("shape").Context): boolean;
+    error(root?: any, ctx?: import("shape").Context): {
+        shape: boolean;
         code: string;
         gname: string;
         props: ({
@@ -85,7 +85,7 @@ declare const PointDefShape: {
             err: {
                 key: string;
                 type: string;
-                node: import("gubu").Node<any>;
+                node: import("shape").Node<any>;
                 value: any;
                 path: string;
                 why: string;
@@ -107,18 +107,18 @@ declare const PointDefShape: {
         stack?: string;
     }[];
     spec(): any;
-    node(): import("gubu").Node<{
-        k: import("gubu").Node<StringConstructor>;
-        n: import("gubu").Node<StringConstructor>;
-        p: import("gubu").Node<never[]>;
-        a: import("gubu").Node<unknown>;
+    node(): import("shape").Node<{
+        k: import("shape").Node<StringConstructor>;
+        n: import("shape").Node<StringConstructor>;
+        p: import("shape").Node<never[]>;
+        a: import("shape").Node<unknown>;
         m: {};
     }>;
     stringify(...rest: any[]): string;
     jsonify(): any;
     toString(this: any): string;
-    gubu: {
-        gubu$: symbol;
+    shape: {
+        shape$: symbol;
         v$: string;
     };
 };

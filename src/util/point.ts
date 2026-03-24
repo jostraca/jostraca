@@ -1,5 +1,5 @@
 
-import { Gubu, Skip, Any } from 'gubu'
+import { Shape, Skip, Any } from 'shape'
 
 import { getx } from './basic'
 
@@ -204,7 +204,7 @@ class PrintPoint extends Point {
 }
 
 
-const PointDefShape = Gubu({
+const PointDefShape = Shape({
   k: Skip(String),
   n: Skip(String),
   p: Skip([]),
