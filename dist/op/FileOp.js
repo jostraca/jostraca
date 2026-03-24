@@ -1,17 +1,13 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FileOp = void 0;
-const node_path_1 = __importDefault(require("node:path"));
 const ON = 'FileOp:';
 const FileOp = {
     before(node, _ctx$, buildctx) {
         // TODO: error if not inside a folder
         const cfile = buildctx.current.file = node;
         const name = node.name;
-        cfile.fullpath = node_path_1.default.join(buildctx.current.folder.path.join(node_path_1.default.sep), name);
+        cfile.fullpath = buildctx.current.folder.path.join('/') + '/' + name;
         cfile.content = [];
     },
     after(node, ctx$, buildctx) {

@@ -13,7 +13,7 @@ const FolderOp = {
     cfolder.path = (0 < cfolder.path.length ? cfolder.path : [buildctx.current.folder.parent])
     cfolder.path.push(node.name as string)
 
-    let fullpath = cfolder.path.join(Path.sep)
+    let fullpath = cfolder.path.join('/')
 
     if ('' !== fullpath) {
       // ctx$.fs().mkdirSync(fullpath, { recursive: true )}

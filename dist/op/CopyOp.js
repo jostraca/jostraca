@@ -28,7 +28,7 @@ const CopyOp = {
                 ctx$,
                 buildctx,
             };
-            const spec = { name, frompath: from, topath: node_path_1.default.join(...topath) };
+            const spec = { name, frompath: from, topath: topath.join('/') };
             let content = processTemplate(state, fs.readFileSync(from).toString(), spec);
             buildctx.current.file.content.push(content);
             node.after = node.after || {};
@@ -60,7 +60,7 @@ const CopyOp = {
                 Array.isArray(node.exclude) ? node.exclude :
                     []
         };
-        topath = null == node.name ? topath : node_path_1.default.join(topath, node.name);
+        topath = null == node.name ? topath : topath + '/' + node.name;
         if ('file' === kind) {
             copyFile(frompath, topath, state, buildctx, fs);
             // FileOp.after(node, ctx$, buildctx)
@@ -78,10 +78,10 @@ exports.CopyOp = CopyOp;
 function walk(fs, state, nodepath, from, to) {
     const FN = 'walk:';
     const buildctx = state.buildctx;
-    const entries = fs.readdirSync(from);
+    const entries = fs.readdirSync(from).sort();
     for (let name of entries) {
-        const frompath = node_path_1.default.join(from, name);
-        const topath = node_path_1.default.join(to, name);
+        const frompath = from + '/' + name;
+        const topath = to + '/' + name;
         const stat = fs.statSync(frompath);
         const isDirectory = stat.isDirectory();
         const isTemplateFile = isTemplate(name);

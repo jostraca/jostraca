@@ -10,6 +10,12 @@ const Diff3 = require('node-diff3');
 const node_path_1 = __importDefault(require("node:path"));
 const basic_1 = require("../util/basic");
 const CN = 'FileHandler:';
+// Normalize path separators to forward slashes for cross-platform consistency.
+// memfs and canonical paths require forward slashes; Path.normalize/join/dirname
+// produce backslashes on Windows.
+function fwd(p) {
+    return p.replace(/\\/g, '/');
+}
 const JOSTRACA_PROTECT = 'JOSTRACA_PROTECT';
 // TODO: if EOL != '\n', normalize to '\n' in load,save 
 // Log non-fatal wierdness.
@@ -19,7 +25,7 @@ class FileHandler {
         this.fs = bctx.fs;
         this.now = bctx.now;
         this.when = bctx.when;
-        this.folder = node_path_1.default.normalize(bctx.folder);
+        this.folder = fwd(node_path_1.default.normalize(bctx.folder));
         this.audit = bctx.audit;
         this.existing = existing;
         this.control = control;
@@ -49,8 +55,9 @@ class FileHandler {
             throw new Error(CN + FN + wstr + ' invalid path, path=' + path);
         }
         const withinFolder = path.startsWith(this.folder);
-        const rpath = withinFolder ? path.substring(this.folder.length).replace(/^\/+/, '') : path;
-        return rpath;
+        const rpath = withinFolder ? path.substring(this.folder.length).replace(/^[/\\]+/, '') : path;
+        // Canonical paths use forward slashes, NOT Path.sep
+        return rpath.replace(/\\/g, '/');
     }
     save(path, newContentSource, write, whence) {
         const wstr = null == whence ? '' : whence + ':';
@@ -66,8 +73,8 @@ class FileHandler {
         }
         whence = null == whence ? '' : whence;
         const existing = 'string' === typeof newContentSource ? this.existing.txt : this.existing.bin;
-        path = node_path_1.default.normalize(path);
-        const folder = node_path_1.default.dirname(path);
+        path = fwd(node_path_1.default.normalize(path));
+        const folder = fwd(node_path_1.default.dirname(path));
         const withinFolder = path.startsWith(this.folder) || ('.' === this.folder && !node_path_1.default.isAbsolute(path));
         const rpath = this.relative(path, FN + wstr);
         const exists = fs.existsSync(path);
@@ -95,8 +102,8 @@ class FileHandler {
                 else if (currentContent.length !== newContentSource.length ||
                     currentContent !== newContentSource) {
                     why.push('content-0');
-                    let oldpath = node_path_1.default.join(folder, node_path_1.default.basename(path).replace(/\.[^.]+$/, '') +
-                        '.old' + node_path_1.default.extname(path));
+                    let oldpath = fwd(node_path_1.default.join(folder, node_path_1.default.basename(path).replace(/\.[^.]+$/, '') +
+                        '.old' + node_path_1.default.extname(path)));
                     this.copyFile(path, oldpath, whence + 'preserve:');
                     // this.files.preserved.push(path)
                     this.filelog('preserved', path);
@@ -115,8 +122,8 @@ class FileHandler {
                 why.push('present-0');
                 if (currentContent.length !== newContentSource.length || currentContent !== newContentSource) {
                     why.push('content-1');
-                    let newpath = node_path_1.default.join(folder, node_path_1.default.basename(path).replace(/\.[^.]+$/, '') +
-                        '.new' + node_path_1.default.extname(path));
+                    let newpath = fwd(node_path_1.default.join(folder, node_path_1.default.basename(path).replace(/\.[^.]+$/, '') +
+                        '.new' + node_path_1.default.extname(path)));
                     this.saveFile(newpath, newContentSource, { flush: true }, whence + 'present:');
                     this.filelog('presented', path);
                     meta.action = 'present';
@@ -165,7 +172,7 @@ class FileHandler {
                         if (this.control.duplicate) {
                             why.push('duplicate-0');
                             const dfolder = this.duplicateFolder();
-                            const dpath = node_path_1.default.join(dfolder, rpath);
+                            const dpath = fwd(node_path_1.default.join(dfolder, rpath));
                             if (this.existsFile(dpath)) {
                                 why.push('dupexists-0');
                                 write = false;
@@ -223,9 +230,9 @@ class FileHandler {
             if (withinFolder && (node_path_1.default.basename(path) !== this.metafile())) {
                 why.push('within-0');
                 const dfolder = this.duplicateFolder();
-                const dpath = node_path_1.default.join(dfolder, rpath);
+                const dpath = fwd(node_path_1.default.join(dfolder, rpath));
                 if (!this.control.dryrun) {
-                    fs.mkdirSync(node_path_1.default.dirname(dpath), { recursive: true });
+                    fs.mkdirSync(fwd(node_path_1.default.dirname(dpath)), { recursive: true });
                     const dopts = { flush: true };
                     fs.writeFileSync(dpath, newContentSource, dopts);
                 }
@@ -324,7 +331,7 @@ class FileHandler {
         const fs = this.fs();
         const FN = 'existsFile:';
         validPath(path, this.maxdepth, CN + FN + 'from:' + wstr);
-        const fullpath = node_path_1.default.isAbsolute(path) ? path : node_path_1.default.join(this.folder, path);
+        const fullpath = node_path_1.default.isAbsolute(path) ? path : fwd(node_path_1.default.join(this.folder, path));
         try {
             const exists = fs.existsSync(fullpath);
             this.audit.push([CN + FN + wstr,
@@ -347,11 +354,11 @@ class FileHandler {
         validPath(frompath, this.maxdepth, CN + FN + 'from:' + wstr);
         validPath(topath, this.maxdepth, CN + FN + 'to:' + wstr);
         const isBinary = (0, basic_1.isbinext)(frompath);
-        const fulltopath = node_path_1.default.isAbsolute(topath) ? topath : node_path_1.default.join(this.folder, topath);
-        const fullfrompath = node_path_1.default.isAbsolute(frompath) ? frompath : node_path_1.default.join(this.folder, frompath);
+        const fulltopath = node_path_1.default.isAbsolute(topath) ? topath : fwd(node_path_1.default.join(this.folder, topath));
+        const fullfrompath = node_path_1.default.isAbsolute(frompath) ? frompath : fwd(node_path_1.default.join(this.folder, frompath));
         try {
             const existed = fs.existsSync(fulltopath);
-            fs.mkdirSync(node_path_1.default.dirname(fulltopath), { recursive: true });
+            fs.mkdirSync(fwd(node_path_1.default.dirname(fulltopath)), { recursive: true });
             const content = fs.readFileSync(fullfrompath, isBinary ? undefined : 'utf8');
             if (!this.control.dryrun) {
                 fs.writeFileSync(topath, content, { flush: true });
@@ -435,7 +442,7 @@ class FileHandler {
         opts.encoding = undefined === opts.encoding ? 'utf8' : opts.encoding;
         validPath(path, this.maxdepth, CN + FN + wstr);
         try {
-            const fullpath = node_path_1.default.isAbsolute(path) ? path : node_path_1.default.join(this.folder, path);
+            const fullpath = node_path_1.default.isAbsolute(path) ? path : fwd(node_path_1.default.join(this.folder, path));
             const content = fs.readFileSync(fullpath, opts);
             this.audit.push([CN + FN + wstr,
                 { path, when, size: content.length }]);
@@ -473,10 +480,10 @@ class FileHandler {
                 ' content=' + content);
         }
         try {
-            path = node_path_1.default.normalize(path);
+            path = fwd(node_path_1.default.normalize(path));
             const isAbsolute = node_path_1.default.isAbsolute(path);
-            const fullpath = isAbsolute ? path : node_path_1.default.join(this.folder, path);
-            const parentfolder = node_path_1.default.dirname(fullpath);
+            const fullpath = isAbsolute ? path : fwd(node_path_1.default.join(this.folder, path));
+            const parentfolder = fwd(node_path_1.default.dirname(fullpath));
             const existed = fs.existsSync(fullpath);
             if (!this.control.dryrun) {
                 fs.mkdirSync(parentfolder, { recursive: true });
@@ -493,6 +500,7 @@ class FileHandler {
         }
     }
     filelog(kind, path) {
+        path = fwd(path);
         let files = this.files;
         if (files[kind]) {
             const kindlog = files[kind];
@@ -517,7 +525,7 @@ function validPath(path, maxdepth, errmark) {
     if (null == path || '' == path || 'string' !== typeof path) {
         throw new Error('ERROR:' + errmark + ' invalid path, path=' + path);
     }
-    const depth = node_path_1.default.normalize(node_path_1.default.dirname(path)).split(node_path_1.default.sep).filter(Boolean).length;
+    const depth = fwd(node_path_1.default.normalize(node_path_1.default.dirname(path))).split('/').filter(Boolean).length;
     if (maxdepth < depth) {
         throw new Error(errmark + ' path too deep, path=' + path);
     }

@@ -1,17 +1,13 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FolderOp = void 0;
-const node_path_1 = __importDefault(require("node:path"));
 const FolderOp = {
     before(node, _ctx$, buildctx) {
         const cfolder = buildctx.current.folder = (buildctx.current.folder || {});
         cfolder.node = node;
         cfolder.path = (0 < cfolder.path.length ? cfolder.path : [buildctx.current.folder.parent]);
         cfolder.path.push(node.name);
-        let fullpath = cfolder.path.join(node_path_1.default.sep);
+        let fullpath = cfolder.path.join('/');
         if ('' !== fullpath) {
             // ctx$.fs().mkdirSync(fullpath, { recursive: true )}
             buildctx.fh.ensureFolder(fullpath);
