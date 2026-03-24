@@ -65,3 +65,5 @@ typings/
 tsconfig.tsbuildinfo
 
 .jostraca
+package-lock.json
+
