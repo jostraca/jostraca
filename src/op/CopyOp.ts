@@ -35,7 +35,7 @@ const CopyOp = {
         ctx$,
         buildctx,
       }
-      const spec = { name, frompath: from, topath: Path.join(...topath) }
+      const spec = { name, frompath: from, topath: topath.join('/') }
 
       let content = processTemplate(state, fs.readFileSync(from).toString(), spec)
 
@@ -76,7 +76,7 @@ const CopyOp = {
           []
     }
 
-    topath = null == node.name ? topath : Path.join(topath, node.name)
+    topath = null == node.name ? topath : topath + '/' + node.name
 
     if ('file' === kind) {
       copyFile(frompath, topath, state, buildctx, fs)
@@ -98,11 +98,11 @@ function walk(fs: any, state: any, nodepath: string[], from: string, to: string)
   const FN = 'walk:'
   const buildctx = state.buildctx as BuildContext
 
-  const entries = fs.readdirSync(from)
+  const entries = fs.readdirSync(from).sort()
 
   for (let name of entries) {
-    const frompath = Path.join(from, name)
-    const topath = Path.join(to, name)
+    const frompath = from + '/' + name
+    const topath = to + '/' + name
     const stat = fs.statSync(frompath)
 
     const isDirectory = stat.isDirectory()

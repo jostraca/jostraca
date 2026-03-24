@@ -10,10 +10,11 @@ const ProjectOp = {
     node.folder = null == node.folder || '' === node.folder ? '.' : node.folder
     node.folder =
       Path.isAbsolute(node.folder) ? node.folder : Path.join(ctx$.folder, node.folder)
+    node.folder = node.folder.replace(/\\/g, '/')
 
     buildctx.current.project = { node }
     buildctx.current.folder.node = node
-    buildctx.current.folder.path = node.folder.split(Path.sep)
+    buildctx.current.folder.path = node.folder.split('/')
 
     // ctx$.fs().mkdirSync(node.folder, { recursive: true })
     buildctx.fh.ensureFolder(node.folder)

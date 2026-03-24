@@ -13,7 +13,7 @@ const FileOp = {
 
     const cfile: any = buildctx.current.file = node
     const name = node.name as string
-    cfile.fullpath = Path.join(buildctx.current.folder.path.join(Path.sep), name)
+    cfile.fullpath = buildctx.current.folder.path.join('/') + '/' + name
     cfile.content = []
   },
 

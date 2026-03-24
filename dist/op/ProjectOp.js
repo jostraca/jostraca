@@ -10,9 +10,10 @@ const ProjectOp = {
         node.folder = null == node.folder || '' === node.folder ? '.' : node.folder;
         node.folder =
             node_path_1.default.isAbsolute(node.folder) ? node.folder : node_path_1.default.join(ctx$.folder, node.folder);
+        node.folder = node.folder.replace(/\\/g, '/');
         buildctx.current.project = { node };
         buildctx.current.folder.node = node;
-        buildctx.current.folder.path = node.folder.split(node_path_1.default.sep);
+        buildctx.current.folder.path = node.folder.split('/');
         // ctx$.fs().mkdirSync(node.folder, { recursive: true })
         buildctx.fh.ensureFolder(node.folder);
     },
