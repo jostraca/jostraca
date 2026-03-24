@@ -1,6 +1,6 @@
 {
   "name": "jostraca",
-  "version": "0.25.1",
+  "version": "0.26.0",
   "main": "dist/jostraca.js",
   "type": "commonjs",
   "types": "dist/jostraca.d.ts",
@@ -35,7 +35,7 @@
   ],
   "devDependencies": {
     "@hapi/code": "^9.0.3",
-    "@types/node": "^24.10.1",
+    "@types/node": "^25.5.0",
     "typescript": "^5.9.3"
   },
   "peerDependencies": {
@@ -43,7 +43,7 @@
     "memfs": ">=4"
   },
   "dependencies": {
-    "diff": "8.0.2",
+    "diff": "8.0.4",
     "gubu": "9.0.0",
     "node-diff3": "3.2.0"
   }
