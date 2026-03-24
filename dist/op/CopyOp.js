@@ -8,6 +8,7 @@ const node_path_1 = __importDefault(require("node:path"));
 const jostraca_1 = require("../jostraca");
 const FileOp_1 = require("./FileOp");
 const ON = 'Copy:';
+const IGNORED_RE = /(~|-jostraca-off)$/;
 const CopyOp = {
     before(node, ctx$, buildctx) {
         const fs = ctx$.fs();
@@ -117,14 +118,14 @@ function copyFile(frompath, topath, state, buildctx, fs) {
 }
 // TODO: needs an option
 function ignored(state, nodepath, name, topath) {
-    return !!name.match(/(~|-jostraca-off)$/);
+    return IGNORED_RE.test(name);
 }
 function excludeFile(fs, state, nodepath, name, topath) {
     const { opts } = state.ctx$;
     const { log } = state.buildctx;
     let exclude = false;
     for (let ignoreRE of opts.cmp.Copy.ignore) {
-        if (name.match(ignoreRE)) {
+        if (ignoreRE.test(name)) {
             return true;
         }
     }
@@ -159,16 +160,17 @@ function excludeFile(fs, state, nodepath, name, topath) {
     return exclude;
 }
 function excluded(path, excludes) {
-    let out = false;
-    if (excludes.filter(exc => 'string' === typeof exc).includes(path)) {
-        out = true;
+    for (const exc of excludes) {
+        if ('string' === typeof exc) {
+            if (exc === path)
+                return true;
+        }
+        else if (exc instanceof RegExp) {
+            if (exc.test(path))
+                return true;
+        }
     }
-    else if (excludes
-        .filter(exc => 'object' === typeof exc)
-        .reduce((a, exc) => (a ? a : (a || !!path.match(exc))), false)) {
-        out = true;
-    }
-    return out;
+    return false;
 }
 function processTemplate(state, src, spec) {
     if (isTemplate(spec.name)) {
