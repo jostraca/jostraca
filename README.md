@@ -277,3 +277,7 @@ option, and utility function.
 ## License
 
 MIT. Copyright (c) Richard Rodger.
+
+## Go Port
+
+A Go template utility port is available under [`go/`](./go), using `github.com/rjrodger/shape/go` from release `go/v0.1.0`.
