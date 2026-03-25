@@ -1,6 +1,6 @@
 {
   "name": "jostraca",
-  "version": "0.27.0",
+  "version": "0.28.0",
   "main": "dist/jostraca.js",
   "type": "commonjs",
   "types": "dist/jostraca.d.ts",
@@ -39,7 +39,7 @@
     "typescript": "^5.9.3"
   },
   "peerDependencies": {
-    "jsonic": ">=2.18.0",
+    "jsonic": ">=2.19.0",
     "memfs": ">=4"
   },
   "dependencies": {

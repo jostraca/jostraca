@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/rjrodger/shape/go/shape"
 )
 
 // ReplaceFunc generates replacement text for regex/literal replacements.
@@ -17,6 +19,42 @@ type TemplateSpec struct {
 }
 
 var macroRe = regexp.MustCompile(`\$\$([^$]+)\$\$`)
+
+// templateSpecSchema validates TemplateSpec fields when provided as a map.
+var templateSpecSchema = shape.MustShape(map[string]any{
+	"replace": shape.Optional(map[string]any{}),
+	"eject":   shape.Optional([]any{shape.String, shape.String}),
+})
+
+// ParseTemplateSpec validates and builds a TemplateSpec from a raw map.
+func ParseTemplateSpec(raw map[string]any) (*TemplateSpec, error) {
+	result, err := templateSpecSchema.Validate(raw)
+	if err != nil {
+		return nil, fmt.Errorf("invalid template spec: %w", err)
+	}
+
+	validated, ok := result.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("invalid template spec: expected map, got %T", result)
+	}
+
+	spec := &TemplateSpec{}
+
+	if r, ok := validated["replace"].(map[string]any); ok {
+		spec.Replace = r
+	}
+
+	if e, ok := validated["eject"].([]any); ok && len(e) == 2 {
+		if s0, ok := e[0].(string); ok {
+			spec.Eject[0] = s0
+		}
+		if s1, ok := e[1].(string); ok {
+			spec.Eject[1] = s1
+		}
+	}
+
+	return spec, nil
+}
 
 // Template renders src using $$path.to.value$$ placeholders and optional replacements.
 func Template(src string, model any, spec *TemplateSpec) (string, error) {
