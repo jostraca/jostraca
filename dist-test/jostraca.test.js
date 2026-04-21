@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const node_test_1 = require("node:test");
-const code_1 = require("@hapi/code");
+const expect_1 = require("./expect");
 const memfs_1 = require("memfs");
 const __1 = require("../");
 const META_FOLDER = '.jostraca';
@@ -13,9 +13,9 @@ const START_TIME = 1735689600000;
     (0, node_test_1.test)('happy', async () => {
         let nowI = 0;
         const now = () => START_TIME + (++nowI * (60 * 1000));
-        (0, code_1.expect)(__1.Jostraca).exist();
+        (0, expect_1.expect)(__1.Jostraca).exist();
         const jostraca = (0, __1.Jostraca)({ now });
-        (0, code_1.expect)(jostraca).exist();
+        (0, expect_1.expect)(jostraca).exist();
         const { fs, vol } = (0, memfs_1.memfs)({});
         const info = await jostraca.generate({ fs: () => fs, folder: '/top' }, () => (0, __1.Project)({ folder: 'sdk' }, () => {
             (0, __1.Folder)({ name: 'js' }, () => {
@@ -32,7 +32,7 @@ const START_TIME = 1735689600000;
                 });
             });
         }));
-        (0, code_1.expect)(info).include({
+        (0, expect_1.expect)(info).include({
             when: 1735689660000,
             files: {
                 preserved: [],
@@ -49,8 +49,8 @@ const START_TIME = 1735689600000;
             }
         });
         const voljson = vol.toJSON();
-        (0, code_1.expect)(JSON.parse(voljson[TOP_META]).last > START_TIME).true();
-        (0, code_1.expect)(voljson).includes({
+        (0, expect_1.expect)(JSON.parse(voljson[TOP_META]).last > START_TIME).true();
+        (0, expect_1.expect)(voljson).includes({
             [TOP_META]: voljson[TOP_META],
             '/top/sdk/js/foo.js': '// custom-foo\n',
             '/top/sdk/js/bar.js': '// custom-bar\n',
@@ -69,7 +69,7 @@ const START_TIME = 1735689600000;
                 });
             });
         });
-        (0, code_1.expect)(info).include({
+        (0, expect_1.expect)(info).include({
             when: 1735689660000,
             files: {
                 preserved: [],
@@ -82,8 +82,8 @@ const START_TIME = 1735689600000;
             }
         });
         const voljson = vol.toJSON();
-        (0, code_1.expect)(JSON.parse(voljson[TOP_META]).last > 0).true();
-        (0, code_1.expect)(voljson).include({
+        (0, expect_1.expect)(JSON.parse(voljson[TOP_META]).last > 0).true();
+        (0, expect_1.expect)(voljson).include({
             '/top/foo.txt': 'A',
             '/top/.jostraca/generated/foo.txt': 'A',
             '/top/.jostraca/jostraca.meta.log': '{\n' +
@@ -134,7 +134,7 @@ const START_TIME = 1735689600000;
                 });
             });
         }));
-        (0, code_1.expect)(info).include({
+        (0, expect_1.expect)(info).include({
             when: 1735689660000,
             files: {
                 preserved: [],
@@ -153,8 +153,8 @@ const START_TIME = 1735689600000;
             }
         });
         const voljson = vol.toJSON();
-        (0, code_1.expect)(JSON.parse(voljson[TOP_META]).last > 0).true();
-        (0, code_1.expect)(voljson).includes({
+        (0, expect_1.expect)(JSON.parse(voljson[TOP_META]).last > 0).true();
+        (0, expect_1.expect)(voljson).includes({
             [TOP_META]: voljson[TOP_META],
             '/tm/bar.txt': '// BAR $$x.z$$ TXT\n',
             '/tm/bar.txt~': '// BAR TXT\n',
@@ -207,7 +207,7 @@ const START_TIME = 1735689600000;
                 });
             });
         }));
-        (0, code_1.expect)(info).include({
+        (0, expect_1.expect)(info).include({
             when: 1735689660000,
             files: {
                 preserved: [],
@@ -220,7 +220,7 @@ const START_TIME = 1735689600000;
             }
         });
         const voljson = vol.toJSON();
-        (0, code_1.expect)(voljson).includes({
+        (0, expect_1.expect)(voljson).includes({
             '/tmp/foo.txt': 'FOO\n',
             '/tmp/bar.txt': 'BAR\n',
             '/tmp/zed.txt': 'ZED+<[SLOT]> \n',
@@ -246,7 +246,7 @@ const START_TIME = 1735689600000;
             });
         }));
         const voljson = vol.toJSON();
-        (0, code_1.expect)(info).include({
+        (0, expect_1.expect)(info).include({
             when: 1735689660000,
             files: {
                 preserved: [],
@@ -258,7 +258,7 @@ const START_TIME = 1735689600000;
                 unchanged: []
             }
         });
-        (0, code_1.expect)(voljson).includes({
+        (0, expect_1.expect)(voljson).includes({
             [TOP_META]: voljson[TOP_META],
             '/top/foo.txt': 'FOO\n#--START--#\nQAZ\n#--END--#\nZED',
         });
@@ -277,7 +277,7 @@ const START_TIME = 1735689600000;
                 });
             });
         }));
-        (0, code_1.expect)(info).include({
+        (0, expect_1.expect)(info).include({
             when: 1735689660000,
             files: {
                 preserved: [],
@@ -290,7 +290,7 @@ const START_TIME = 1735689600000;
             }
         });
         const voljson = vol.toJSON();
-        (0, code_1.expect)(voljson).includes({
+        (0, expect_1.expect)(voljson).includes({
             [TOP_META]: voljson[TOP_META],
             '/top/foo.txt': 'ONE\nTWO\nTHREE\n',
         });
@@ -331,7 +331,7 @@ const START_TIME = 1735689600000;
                 });
             });
         }));
-        (0, code_1.expect)(info).include({
+        (0, expect_1.expect)(info).include({
             when: 1735689660000,
             files: {
                 preserved: [],
@@ -344,7 +344,7 @@ const START_TIME = 1735689600000;
             }
         });
         const voljson = vol.toJSON();
-        (0, code_1.expect)(voljson).includes({
+        (0, expect_1.expect)(voljson).includes({
             [TOP_META]: voljson[TOP_META],
             '/f01.txt': 'TWO-$$a$$-bar-zed-con-foo+<[SLOT]>\n',
             '/top/foo.txt': 'ONE\nTWO-A-BAR-ZED-CON-FOO[B]+S\nTHREE\n',
@@ -390,7 +390,7 @@ const START_TIME = 1735689600000;
                 });
             });
         }));
-        (0, code_1.expect)(info).includes({
+        (0, expect_1.expect)(info).includes({
             when: 1735689660000,
             files: {
                 preserved: [],
@@ -403,7 +403,7 @@ const START_TIME = 1735689600000;
             },
         });
         const voljson = info.vol().toJSON();
-        (0, code_1.expect)(voljson).includes({
+        (0, expect_1.expect)(voljson).includes({
             '/f01.txt': '<foo>',
             '/foo.txt': '{<FOO[A:B:a=(11):b=(22)]>}',
             ['/' + META_FOLDER + '/' + META_FILE]: voljson['/' + META_FOLDER + '/' + META_FILE],
@@ -430,7 +430,7 @@ const START_TIME = 1735689600000;
                 });
             });
         }));
-        (0, code_1.expect)(info0).includes({
+        (0, expect_1.expect)(info0).includes({
             when: 1735689660000,
             files: {
                 preserved: [],
@@ -443,7 +443,7 @@ const START_TIME = 1735689600000;
             },
         });
         const voljson0 = info0.vol().toJSON();
-        (0, code_1.expect)(voljson0).includes({
+        (0, expect_1.expect)(voljson0).includes({
             '/f01.txt': 'a0',
             '/g01.txt': 'b1',
             '/h01.txt': 'c0',
@@ -459,7 +459,7 @@ const START_TIME = 1735689600000;
                 });
             });
         }));
-        (0, code_1.expect)(info1).includes({
+        (0, expect_1.expect)(info1).includes({
             when: 1735690260000,
             files: {
                 preserved: ['/f01.txt'],
@@ -472,7 +472,7 @@ const START_TIME = 1735689600000;
             },
         });
         const voljson1 = info1.vol().toJSON();
-        (0, code_1.expect)(voljson1).includes({
+        (0, expect_1.expect)(voljson1).includes({
             '/f01.txt': 'a1',
             '/f01.old.txt': 'a0',
             '/h01.txt': 'c0',
@@ -486,7 +486,7 @@ const START_TIME = 1735689600000;
             });
         }));
         // console.dir(info2.audit(), { depth: null })
-        (0, code_1.expect)(info2).includes({
+        (0, expect_1.expect)(info2).includes({
             when: 1735691220000,
             files: {
                 preserved: [],
@@ -499,7 +499,7 @@ const START_TIME = 1735689600000;
             },
         });
         const voljson2 = info2.vol().toJSON();
-        (0, code_1.expect)(voljson2).includes({
+        (0, expect_1.expect)(voljson2).includes({
             '/f01.txt': 'a1',
             '/f01.new.txt': 'a2',
             '/h01.txt': 'c0',
@@ -532,7 +532,7 @@ const START_TIME = 1735689600000;
                 });
             });
         }));
-        (0, code_1.expect)(info.files).include({
+        (0, expect_1.expect)(info.files).include({
             preserved: ['/top/p0/haz.bin'],
             written: ['/top/p0/foo.txt', '/top/p0/haz.bin', '/top/p0/qaz.bin'],
             presented: [],
@@ -542,8 +542,8 @@ const START_TIME = 1735689600000;
             unchanged: []
         });
         const voljson = vol.toJSON();
-        (0, code_1.expect)(JSON.parse(voljson[TOP_META]).last > 0).true();
-        (0, code_1.expect)(voljson).includes({
+        (0, expect_1.expect)(JSON.parse(voljson[TOP_META]).last > 0).true();
+        (0, expect_1.expect)(voljson).includes({
             [TOP_META]: voljson[TOP_META],
             '/top/tm0/foo.txt': 'F0\nF1\nF2\n',
             '/top/tm0/bar.txt': 'B0\nB1\nB2\n',
@@ -614,8 +614,8 @@ const START_TIME = 1735689600000;
             });
         }));
         // NOTE: this is a deliberate duplicate file write due to the Copy
-        (0, code_1.expect)(debugs[0][0].point).equal('jostraca-warning');
-        (0, code_1.expect)(info).include({
+        (0, expect_1.expect)(debugs[0][0].point).equal('jostraca-warning');
+        (0, expect_1.expect)(info).include({
             when: 1735689660000,
             files: {
                 preserved: [],
@@ -628,8 +628,8 @@ const START_TIME = 1735689600000;
             }
         });
         const voljson = vol.toJSON();
-        (0, code_1.expect)(JSON.parse(voljson[TOP_META]).last > 0).true();
-        (0, code_1.expect)(voljson).includes({
+        (0, expect_1.expect)(JSON.parse(voljson[TOP_META]).last > 0).true();
+        (0, expect_1.expect)(voljson).includes({
             [TOP_META]: voljson[TOP_META],
             '/top/t0/p0/foo.txt': 'FOO new',
             '/top/t0/p0/bar.txt': 'BAR new',

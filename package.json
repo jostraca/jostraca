@@ -34,17 +34,16 @@
     "LICENSE"
   ],
   "devDependencies": {
-    "@hapi/code": "^9.0.3",
-    "@types/node": "^25.5.0",
-    "typescript": "^5.9.3"
+    "@types/node": "25.6.0",
+    "typescript": "5.9.3"
   },
   "peerDependencies": {
-    "jsonic": ">=2.19.0",
-    "memfs": ">=4"
+    "jsonic": ">=2",
+    "memfs": ">=4",
+    "shape": ">=10"
   },
   "dependencies": {
     "diff": "8.0.4",
-    "node-diff3": "3.2.0",
-    "shape": "^10.0.1"
+    "node-diff3": "3.2.0"
   }
 }

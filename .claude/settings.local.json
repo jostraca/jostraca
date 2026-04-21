@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm test:*)",
+      "Bash(npm run:*)",
+      "Bash(npm ls:*)",
+      "Bash(node:*)",
+      "Bash(npm install:*)",
+      "Bash(find /Users/richard/Projects/jostraca/jostraca -name *.md -path */src/* -o -name *.md -path */gen/*)",
+      "WebFetch(domain:github.com)",
+      "Bash(gh api:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(go version:*)",
+      "Bash(/usr/local/go/bin/go version:*)",
+      "Read(//usr/local/go/bin/**)",
+      "Read(//opt/homebrew/**)",
+      "Read(//usr/local/bin/**)",
+      "Bash(GOTOOLCHAIN=local go mod tidy 2>&1)",
+      "Bash(GOROOT=/usr/local/go PATH=\"/usr/local/go/bin:$PATH\" go mod tidy 2>&1)",
+      "Bash(GOROOT=/usr/local/go PATH=\"/usr/local/go/bin:$PATH\" go test ./jostraca/ -v 2>&1)",
+      "Bash(GOROOT=/usr/local/go PATH=\"/usr/local/go/bin:$PATH\" go doc github.com/rjrodger/shape/go/shape 2>&1)",
+      "Bash(GOROOT=/usr/local/go PATH=\"/usr/local/go/bin:$PATH\" go doc github.com/rjrodger/shape/go/shape Schema.Validate 2>&1)",
+      "Bash(npm uninstall *)",
+      "Bash(echo \"exit:$?\")"
+    ]
+  }
+}

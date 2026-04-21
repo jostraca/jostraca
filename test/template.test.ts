@@ -1,6 +1,6 @@
 
 import { test, describe } from 'node:test'
-import { expect } from '@hapi/code'
+import { expect } from './expect'
 
 
 import {

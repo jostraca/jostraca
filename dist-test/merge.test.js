@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const node_test_1 = require("node:test");
-const code_1 = require("@hapi/code");
+const expect_1 = require("./expect");
 const memfs_1 = require("memfs");
 const __1 = require("../");
 const START_TIME = 1735689600000;
@@ -41,8 +41,8 @@ const START_TIME = 1735689600000;
         const vol = mfs.vol;
         const m0 = { a: 0 };
         const res0 = await jostraca.generate({ fs: () => fs, folder: '/top', model: m0 }, root);
-        (0, code_1.expect)(res0).includes(DATA_merge_basic_res0);
-        (0, code_1.expect)(vol.toJSON()).equal(DATA_merge_basic_vol0);
+        (0, expect_1.expect)(res0).includes(DATA_merge_basic_res0);
+        (0, expect_1.expect)(vol.toJSON()).equal(DATA_merge_basic_vol0);
         fs.appendFileSync('/top/sdk/js/foo.js', '// added1\n', { encoding: 'utf8' });
         fs.appendFileSync('/top/sdk/js/bar.js', '// added1\n', { encoding: 'utf8' });
         const m1 = { a: 1 };
@@ -50,16 +50,16 @@ const START_TIME = 1735689600000;
             fs: () => fs, folder: '/top', model: m1,
             existing: { txt: { merge: true } }
         }, root);
-        (0, code_1.expect)(res1).includes(DATA_merge_basic_res1);
-        (0, code_1.expect)(vol.toJSON()).equal(DATA_merge_basic_vol1);
+        (0, expect_1.expect)(res1).includes(DATA_merge_basic_res1);
+        (0, expect_1.expect)(vol.toJSON()).equal(DATA_merge_basic_vol1);
         fs.writeFileSync('/top/sdk/js/bar.js', '// custom-bar\n// BAR\n// added1-resolve\n', { encoding: 'utf8' });
         const m12 = { a: 1 };
         const res2 = await jostraca.generate({
             fs: () => fs, folder: '/top', model: m12,
             existing: { txt: { merge: true } }
         }, root);
-        (0, code_1.expect)(res2).includes(DATA_merge_basic_res2);
-        (0, code_1.expect)(vol.toJSON()).equal(DATA_merge_basic_vol2);
+        (0, expect_1.expect)(res2).includes(DATA_merge_basic_res2);
+        (0, expect_1.expect)(vol.toJSON()).equal(DATA_merge_basic_vol2);
     });
     (0, node_test_1.test)('update', async () => {
         let nowI = 0;
@@ -74,25 +74,25 @@ const START_TIME = 1735689600000;
         const m0 = { a: 0 };
         const res0 = await jostraca.generate({ folder: '/', model: m0 }, root);
         // console.log(res0, res0.vol().toJSON())
-        (0, code_1.expect)(res0.files.written).equal(['/aaa.txt']);
-        (0, code_1.expect)(res0.vol().toJSON()['/aaa.txt']).equal('A=0\n\n');
+        (0, expect_1.expect)(res0.files.written).equal(['/aaa.txt']);
+        (0, expect_1.expect)(res0.vol().toJSON()['/aaa.txt']).equal('A=0\n\n');
         m0.a = 1;
         const res1 = await jostraca.generate({ folder: '/', model: m0 }, root);
         // console.log(res1, res1.vol().toJSON())
-        (0, code_1.expect)(res1.files.merged).equal(['/aaa.txt']);
-        (0, code_1.expect)(res1.vol().toJSON()['/aaa.txt']).equal('A=1\n\n');
+        (0, expect_1.expect)(res1.files.merged).equal(['/aaa.txt']);
+        (0, expect_1.expect)(res1.vol().toJSON()['/aaa.txt']).equal('A=1\n\n');
         const fs = res1.fs();
         fs.appendFileSync('/aaa.txt', 'Z\n', { encoding: 'utf8' });
         // console.log(res1.vol().toJSON())
         const res2 = await jostraca.generate({ folder: '/', model: m0 }, root);
         // console.log(res2, res2.vol().toJSON())
-        (0, code_1.expect)(res2.files.merged).equal(['/aaa.txt']);
-        (0, code_1.expect)(res2.vol().toJSON()['/aaa.txt']).equal('A=1\n\nZ\n');
+        (0, expect_1.expect)(res2.files.merged).equal(['/aaa.txt']);
+        (0, expect_1.expect)(res2.vol().toJSON()['/aaa.txt']).equal('A=1\n\nZ\n');
         m0.a = 2;
         const res3 = await jostraca.generate({ folder: '/', model: m0 }, root);
         // console.log(res3, res2.vol().toJSON())
-        (0, code_1.expect)(res3.files.merged).equal(['/aaa.txt']);
-        (0, code_1.expect)(res3.vol().toJSON()['/aaa.txt']).equal('A=2\n\nZ\n');
+        (0, expect_1.expect)(res3.files.merged).equal(['/aaa.txt']);
+        (0, expect_1.expect)(res3.vol().toJSON()['/aaa.txt']).equal('A=2\n\nZ\n');
     });
     (0, node_test_1.test)('path', async () => {
         let nowI = 0;
@@ -117,7 +117,7 @@ const START_TIME = 1735689600000;
         });
         const res0 = await jostraca.generate({}, root);
         // console.log(res0)
-        (0, code_1.expect)(res0).include({
+        (0, expect_1.expect)(res0).include({
             when: 1735689660000,
             files: {
                 preserved: [],
@@ -130,7 +130,7 @@ const START_TIME = 1735689600000;
             }
         });
         // console.log(vol.toJSON())
-        (0, code_1.expect)(vol.toJSON()).equal({
+        (0, expect_1.expect)(vol.toJSON()).equal({
             '/top/sdk/code/js/foo.js': '// foo:0\n',
             '/top/.jostraca/generated/sdk/code/js/foo.js': '// foo:0\n',
             '/top/.jostraca/jostraca.meta.log': '{\n' +
@@ -158,7 +158,7 @@ const START_TIME = 1735689600000;
         m0.a = 1;
         const res1 = await jostraca.generate({}, root);
         // console.log(res1)
-        (0, code_1.expect)(res1).include({
+        (0, expect_1.expect)(res1).include({
             when: 1735690140000,
             files: {
                 preserved: [],
@@ -171,7 +171,7 @@ const START_TIME = 1735689600000;
             }
         });
         // console.log(vol.toJSON())
-        (0, code_1.expect)(vol.toJSON()).equal({
+        (0, expect_1.expect)(vol.toJSON()).equal({
             '/top/sdk/code/js/foo.js': '// foo:1\n',
             '/top/.jostraca/generated/sdk/code/js/foo.js': '// foo:1\n',
             '/top/.jostraca/jostraca.meta.log': '{\n' +
@@ -199,7 +199,7 @@ const START_TIME = 1735689600000;
         mfs.fs.unlinkSync('/top/.jostraca/generated/sdk/code/js/foo.js');
         const res2 = await jostraca.generate({}, root);
         // console.log(res2)
-        (0, code_1.expect)(res2).include({
+        (0, expect_1.expect)(res2).include({
             when: 1735690920000,
             files: {
                 preserved: [],
@@ -212,7 +212,7 @@ const START_TIME = 1735689600000;
             }
         });
         // console.log(vol.toJSON())
-        (0, code_1.expect)(vol.toJSON()).equal({
+        (0, expect_1.expect)(vol.toJSON()).equal({
             '/top/sdk/code/js/foo.js': '// foo:1\n',
             '/top/.jostraca/generated/sdk/code/js/foo.js': '// foo:1\n',
             '/top/.jostraca/jostraca.meta.log': '{\n' +
@@ -239,7 +239,7 @@ const START_TIME = 1735689600000;
         });
         mfs.fs.writeFileSync('/top/sdk/code/js/foo.js', '// FOO:a\n', { encoding: 'utf8' });
         const res3 = await jostraca.generate({}, root);
-        (0, code_1.expect)(res3).include({
+        (0, expect_1.expect)(res3).include({
             when: 1735691520000,
             files: {
                 preserved: [],
@@ -251,7 +251,7 @@ const START_TIME = 1735689600000;
                 unchanged: []
             }
         });
-        (0, code_1.expect)(vol.toJSON()).equal({
+        (0, expect_1.expect)(vol.toJSON()).equal({
             '/top/sdk/code/js/foo.js': '// FOO:a\n',
             '/top/.jostraca/generated/sdk/code/js/foo.js': '// foo:1\n',
             '/top/.jostraca/jostraca.meta.log': '{\n' +
@@ -278,7 +278,7 @@ const START_TIME = 1735689600000;
         });
         m0.a = 2;
         const res4 = await jostraca.generate({}, root);
-        (0, code_1.expect)(res4).include({
+        (0, expect_1.expect)(res4).include({
             when: 1735692300000,
             files: {
                 preserved: [],
@@ -290,7 +290,7 @@ const START_TIME = 1735689600000;
                 unchanged: []
             }
         });
-        (0, code_1.expect)(vol.toJSON()).equal({
+        (0, expect_1.expect)(vol.toJSON()).equal({
             '/top/sdk/code/js/foo.js': '<<<<<<< GENERATED: 2025-01-01T00:45:00.000Z/merge\n' +
                 '// foo:2\n' +
                 '=======\n' +
@@ -322,7 +322,7 @@ const START_TIME = 1735689600000;
         });
         mfs.fs.writeFileSync('/top/sdk/code/js/foo.js', '// FOO:2\n', { encoding: 'utf8' });
         const res5 = await jostraca.generate({}, root);
-        (0, code_1.expect)(res5).include({
+        (0, expect_1.expect)(res5).include({
             when: 1735693080000,
             files: {
                 preserved: [],
@@ -334,7 +334,7 @@ const START_TIME = 1735689600000;
                 unchanged: []
             }
         });
-        (0, code_1.expect)(vol.toJSON()).equal({
+        (0, expect_1.expect)(vol.toJSON()).equal({
             '/top/sdk/code/js/foo.js': '// FOO:2\n',
             '/top/.jostraca/generated/sdk/code/js/foo.js': '// foo:2\n',
             '/top/.jostraca/jostraca.meta.log': '{\n' +
@@ -360,7 +360,7 @@ const START_TIME = 1735689600000;
             '/top/.jostraca/.gitignore': '\njostraca.meta.log\ngenerated\n'
         });
         const res6 = await jostraca.generate({}, root);
-        (0, code_1.expect)(res6).include({
+        (0, expect_1.expect)(res6).include({
             when: 1735693860000,
             files: {
                 preserved: [],
@@ -372,7 +372,7 @@ const START_TIME = 1735689600000;
                 unchanged: []
             }
         });
-        (0, code_1.expect)(vol.toJSON()).equal({
+        (0, expect_1.expect)(vol.toJSON()).equal({
             '/top/sdk/code/js/foo.js': '// FOO:2\n',
             '/top/.jostraca/generated/sdk/code/js/foo.js': '// foo:2\n',
             '/top/.jostraca/jostraca.meta.log': '{\n' +
@@ -399,7 +399,7 @@ const START_TIME = 1735689600000;
         });
         m0.a = 3;
         const res7 = await jostraca.generate({}, root);
-        (0, code_1.expect)(res7).include({
+        (0, expect_1.expect)(res7).include({
             when: 1735694640000,
             files: {
                 preserved: [],
@@ -411,7 +411,7 @@ const START_TIME = 1735689600000;
                 unchanged: []
             }
         });
-        (0, code_1.expect)(vol.toJSON()).equal({
+        (0, expect_1.expect)(vol.toJSON()).equal({
             '/top/sdk/code/js/foo.js': '<<<<<<< GENERATED: 2025-01-01T01:24:00.000Z/merge\n' +
                 '// foo:3\n' +
                 '=======\n' +
@@ -443,7 +443,7 @@ const START_TIME = 1735689600000;
         });
         mfs.fs.writeFileSync('/top/sdk/code/js/foo.js', '// foo:3\n// BAR:b\n', { encoding: 'utf8' });
         const res8 = await jostraca.generate({}, root);
-        (0, code_1.expect)(res8).include({
+        (0, expect_1.expect)(res8).include({
             when: 1735695420000,
             files: {
                 preserved: [],
@@ -455,7 +455,7 @@ const START_TIME = 1735689600000;
                 unchanged: []
             }
         });
-        (0, code_1.expect)(vol.toJSON()).equal({
+        (0, expect_1.expect)(vol.toJSON()).equal({
             '/top/sdk/code/js/foo.js': '// foo:3\n// BAR:b\n',
             '/top/.jostraca/generated/sdk/code/js/foo.js': '// foo:3\n',
             '/top/.jostraca/jostraca.meta.log': '{\n' +
@@ -482,7 +482,7 @@ const START_TIME = 1735689600000;
         });
         m0.a = 4;
         const res9 = await jostraca.generate({}, root);
-        (0, code_1.expect)(res9).include({
+        (0, expect_1.expect)(res9).include({
             when: 1735696200000,
             files: {
                 preserved: [],
@@ -494,7 +494,7 @@ const START_TIME = 1735689600000;
                 unchanged: []
             }
         });
-        (0, code_1.expect)(vol.toJSON()).equal({
+        (0, expect_1.expect)(vol.toJSON()).equal({
             '/top/sdk/code/js/foo.js': '<<<<<<< GENERATED: 2025-01-01T01:50:00.000Z/merge\n' +
                 '// foo:4\n' +
                 '=======\n' +
@@ -548,34 +548,34 @@ const START_TIME = 1735689600000;
         let res = await jostraca.generate(jopts, root);
         // console.log(res)
         // console.log(vol.toJSON())
-        (0, code_1.expect)(vol.toJSON()['/foo.txt']).equal('aaa\n');
+        (0, expect_1.expect)(vol.toJSON()['/foo.txt']).equal('aaa\n');
         // console.log('%%% G-1 %%%')
         res = await jostraca.generate(jopts, root);
         // console.log(res)
         // console.log(vol.toJSON())
-        (0, code_1.expect)(vol.toJSON()['/foo.txt']).equal('aaa\n');
+        (0, expect_1.expect)(vol.toJSON()['/foo.txt']).equal('aaa\n');
         // console.log('%%% G-2 %%%')
         fs.appendFileSync('/foo.txt', 'bbb\n', { encoding: 'utf8' });
         res = await jostraca.generate(jopts, root);
         // console.log(res)
         // console.log(vol.toJSON())
-        (0, code_1.expect)(vol.toJSON()['/foo.txt']).equal('aaa\nbbb\n');
+        (0, expect_1.expect)(vol.toJSON()['/foo.txt']).equal('aaa\nbbb\n');
         // console.log('%%% G-3 %%%')
         res = await jostraca.generate(jopts, root);
         // console.log(res)
         // console.log(vol.toJSON())
-        (0, code_1.expect)(vol.toJSON()['/foo.txt']).equal('aaa\nbbb\n');
+        (0, expect_1.expect)(vol.toJSON()['/foo.txt']).equal('aaa\nbbb\n');
         // console.log('%%% G-4 %%%')
         res = await jostraca.generate(jopts, root);
         // console.log(res)
         // console.log(vol.toJSON())
-        (0, code_1.expect)(vol.toJSON()['/foo.txt']).equal('aaa\nbbb\n');
+        (0, expect_1.expect)(vol.toJSON()['/foo.txt']).equal('aaa\nbbb\n');
         // console.log('%%% G-5 %%%')
         model.foo = 'aaa\nccc\n';
         res = await jostraca.generate(jopts, root);
         // console.log(res)
         // console.log(vol.toJSON())
-        (0, code_1.expect)(vol.toJSON()['/foo.txt']).equal(`aaa
+        (0, expect_1.expect)(vol.toJSON()['/foo.txt']).equal(`aaa
 <<<<<<< GENERATED: 2025-01-01T00:58:00.000Z/merge
 ccc
 =======
@@ -587,13 +587,13 @@ bbb
         res = await jostraca.generate(jopts, root);
         // console.log(res)
         // console.log(vol.toJSON())
-        (0, code_1.expect)(vol.toJSON()['/foo.txt']).equal('aaa\nbbb\nccc\n');
+        (0, expect_1.expect)(vol.toJSON()['/foo.txt']).equal('aaa\nbbb\nccc\n');
         // console.log('%%% G-7 %%%')
         model.foo = 'aaa\nddd\n';
         res = await jostraca.generate(jopts, root);
         // console.log(res)
         // console.log(vol.toJSON())
-        (0, code_1.expect)(vol.toJSON()['/foo.txt']).equal(`aaa
+        (0, expect_1.expect)(vol.toJSON()['/foo.txt']).equal(`aaa
 <<<<<<< GENERATED: 2025-01-01T01:24:00.000Z/merge
 ddd
 =======
@@ -605,7 +605,7 @@ ccc
         res = await jostraca.generate(jopts, root);
         // console.log(res)
         // console.log(vol.toJSON())
-        (0, code_1.expect)(vol.toJSON()['/foo.txt']).equal(`aaa
+        (0, expect_1.expect)(vol.toJSON()['/foo.txt']).equal(`aaa
 <<<<<<< GENERATED: 2025-01-01T01:24:00.000Z/merge
 ddd
 =======
@@ -618,7 +618,7 @@ ccc
         res = await jostraca.generate(jopts, root);
         // console.log(res)
         // console.log(vol.toJSON())
-        (0, code_1.expect)(vol.toJSON()['/foo.txt']).equal(`aaa
+        (0, expect_1.expect)(vol.toJSON()['/foo.txt']).equal(`aaa
 <<<<<<< GENERATED: 2025-01-01T01:24:00.000Z/merge
 ddd
 =======

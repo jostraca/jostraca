@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const node_test_1 = require("node:test");
-const code_1 = require("@hapi/code");
+const expect_1 = require("./expect");
 const point_1 = require("../dist/util/point");
 const __1 = require("..");
 function make_now(s) {
@@ -31,7 +31,7 @@ function make_id(i) {
         // console.log(pp1)
         const d1 = { x: 1 };
         const pc1 = await rp1.start(d1, make_sys());
-        (0, code_1.expect)(pc1).includes({
+        (0, expect_1.expect)(pc1).includes({
             log: [
                 { note: 'RootPoint:before:1', when: 1735689600100, depth: 0 },
                 { note: 'PrintPoint:before:2', when: 1735689600200, depth: 1 },
@@ -40,13 +40,13 @@ function make_id(i) {
             ],
             data: { x: 1 },
         });
-        (0, code_1.expect)(pc1.sys.plog).equals(['POINTCTX:"', '{"x":1}']);
+        (0, expect_1.expect)(pc1.sys.plog).equals(['POINTCTX:"', '{"x":1}']);
         rp1.add(new point_1.FuncPoint(id(), (pctx) => {
             pctx.data.y = 2;
         }));
         const d2 = { x: 1 };
         const pc2 = await rp1.start(d2, make_sys());
-        (0, code_1.expect)(pc2).includes({
+        (0, expect_1.expect)(pc2).includes({
             log: [
                 { note: 'RootPoint:before:1', when: 1735689600100, depth: 0 },
                 { note: 'PrintPoint:before:2', when: 1735689600200, depth: 1 },
@@ -57,7 +57,7 @@ function make_id(i) {
             ],
             data: { x: 1, y: 2 },
         });
-        (0, code_1.expect)(pc2.sys.plog).equals(['POINTCTX:"', '{"x":1}']);
+        (0, expect_1.expect)(pc2.sys.plog).equals(['POINTCTX:"', '{"x":1}']);
         const sp1 = new point_1.SerialPoint(id());
         sp1.add(new point_1.FuncPoint(id(), (pctx) => {
             pctx.data.z = 3;
@@ -66,7 +66,7 @@ function make_id(i) {
         rp1.add(sp1);
         const d3 = { x: 1 };
         const pc3 = await rp1.start(d3, make_sys());
-        (0, code_1.expect)(pc3).includes({
+        (0, expect_1.expect)(pc3).includes({
             log: [
                 { note: 'RootPoint:before:1', when: 1735689600100, depth: 0 },
                 { note: 'PrintPoint:before:2', when: 1735689600200, depth: 1 },
@@ -84,7 +84,7 @@ function make_id(i) {
             data: { x: 1, y: 2, z: 3 },
             depth: 0,
         });
-        (0, code_1.expect)(pc3.sys.plog).equals([
+        (0, expect_1.expect)(pc3.sys.plog).equals([
             'POINTCTX:"',
             '{"x":1}',
             'POINTCTX:"',
@@ -101,7 +101,7 @@ function make_id(i) {
         rp1.add(new point_1.PrintPoint(id()));
         const d4 = { x: 1, s: 0 };
         const pc4 = await rp1.start(d4, make_sys());
-        (0, code_1.expect)(pc4).includes({
+        (0, expect_1.expect)(pc4).includes({
             log: [
                 { note: 'RootPoint:before:1', when: 1735689600100, depth: 0 },
                 { note: 'PrintPoint:before:2', when: 1735689600200, depth: 1 },
@@ -127,7 +127,7 @@ function make_id(i) {
             data: { x: 1, s: 5, y: 2, z: 3 },
             depth: 0,
         });
-        (0, code_1.expect)(pc4.sys.plog).equals([
+        (0, expect_1.expect)(pc4.sys.plog).equals([
             'POINTCTX:"',
             '{"x":1,"s":0}',
             'POINTCTX:"',
@@ -161,7 +161,7 @@ function make_id(i) {
         const d0 = {};
         const pc0 = await rp0.start(d0, make_sys());
         // console.dir(pc0, { depth: null })
-        (0, code_1.expect)(pc0).includes({
+        (0, expect_1.expect)(pc0).includes({
             log: [
                 { note: 'RootPoint:before:1', when: 1735689600100, depth: 0 },
                 { note: 'FuncPoint:before:2:a', when: 1735689600200, depth: 1 },
@@ -213,8 +213,8 @@ function make_id(i) {
         });
         //console.log('r0', r0)
         //console.log('a.txt', (r0.vol as any)().toJSON()['/a.txt'])
-        (0, code_1.expect)(r0.vol().toJSON()['/a.txt']).equal('<11+22>');
-        (0, code_1.expect)(pc0).includes({
+        (0, expect_1.expect)(r0.vol().toJSON()['/a.txt']).equal('<11+22>');
+        (0, expect_1.expect)(pc0).includes({
             log: [
                 { note: 'RootPoint:before:1', when: 1735689600100, depth: 0 },
                 { note: 'FuncPoint:before:2:value', when: 1735689600200, depth: 1 },
@@ -285,8 +285,8 @@ function make_id(i) {
         });
         //console.log('r0', r0)
         //console.log('a.txt', (r0.vol as any)().toJSON()['/a.txt'])
-        (0, code_1.expect)(r0.vol().toJSON()['/a.txt']).equal('<(11-22)+(33+44)>');
-        (0, code_1.expect)(pc0.log.map((n) => (delete n.when, delete n.depth, n))).includes([
+        (0, expect_1.expect)(r0.vol().toJSON()['/a.txt']).equal('<(11-22)+(33+44)>');
+        (0, expect_1.expect)(pc0.log.map((n) => (delete n.when, delete n.depth, n))).includes([
             { note: 'RootPoint:before:1' },
             { note: 'ExprPoint:before:2' },
             { note: 'FuncPoint:before:3:value', 'args': 11 },

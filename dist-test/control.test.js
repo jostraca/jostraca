@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const node_test_1 = require("node:test");
-const code_1 = require("@hapi/code");
+const expect_1 = require("./expect");
 const __1 = require("../");
 const START_TIME = 1735689600000;
 (0, node_test_1.describe)('control', () => {
@@ -41,7 +41,7 @@ const START_TIME = 1735689600000;
         const res0 = await j0.generate({}, root);
         //console.log(res0)
         // console.log(res0.vol().toJSON())
-        (0, code_1.expect)(res0).includes({
+        (0, expect_1.expect)(res0).includes({
             when: 1735689660000,
             files: {
                 preserved: [],
@@ -60,7 +60,7 @@ const START_TIME = 1735689600000;
         const res1 = await j0.generate({ control: { dryrun: true } }, root);
         // console.log(res1)
         // console.log(res1.vol().toJSON())
-        (0, code_1.expect)(res1).includes({
+        (0, expect_1.expect)(res1).includes({
             when: 1735690500000,
             files: {
                 preserved: [],
@@ -72,7 +72,7 @@ const START_TIME = 1735689600000;
                 unchanged: ['/x/b']
             },
         });
-        (0, code_1.expect)({ ...res0.vol().toJSON() }).equal(res1.vol().toJSON());
+        (0, expect_1.expect)({ ...res0.vol().toJSON() }).equal(res1.vol().toJSON());
     });
 });
 //# sourceMappingURL=control.test.js.map
