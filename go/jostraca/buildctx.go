@@ -9,6 +9,7 @@ type buildCtx struct {
 	audit   Audit
 	current currentRefs
 	logx    buildLog
+	fh      *fileHandler
 }
 
 type currentRefs struct {
@@ -29,9 +30,16 @@ type buildLog struct {
 }
 
 func newBuildCtx(st *jstate) *buildCtx {
+	folder := st.folder
+	if folder == "" {
+		folder = "."
+	}
 	return &buildCtx{
 		st:    st,
 		when:  st.now(),
 		audit: Audit{},
+		current: currentRefs{
+			folder: folderRef{path: []string{}, parent: folder},
+		},
 	}
 }

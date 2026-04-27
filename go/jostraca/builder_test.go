@@ -11,7 +11,8 @@ import (
 func TestBuilderProjectShape(t *testing.T) {
 	j := New()
 	var capturedRoot *Node
-	_, err := j.Generate(Options{}, func(j *J) {
+	build := false
+	_, err := j.Generate(Options{Build: &build}, func(j *J) {
 		j.Project(ProjectProps{Folder: "sdk"}, func(j *J) {
 			j.Folder("src", func(j *J) {
 				j.File("main.go", func(j *J) {
@@ -56,7 +57,8 @@ func TestBuilderProjectShape(t *testing.T) {
 func TestBuilderPathAccumulates(t *testing.T) {
 	j := New()
 	var captured *Node
-	_, _ = j.Generate(Options{}, func(j *J) {
+	build := false
+	_, _ = j.Generate(Options{Build: &build}, func(j *J) {
 		j.Project(ProjectProps{Folder: "p"}, func(j *J) {
 			j.Folder("a", func(j *J) {
 				j.Folder("b", func(j *J) {
@@ -82,7 +84,8 @@ func TestBuilderPathAccumulates(t *testing.T) {
 func TestBuilderLineAddsNewline(t *testing.T) {
 	j := New()
 	var captured *Node
-	_, _ = j.Generate(Options{}, func(j *J) {
+	build := false
+	_, _ = j.Generate(Options{Build: &build}, func(j *J) {
 		j.File("x.txt", func(j *J) {
 			j.Line("hello")
 		})
@@ -97,7 +100,8 @@ func TestBuilderLineAddsNewline(t *testing.T) {
 func TestBuilderContentTemplating(t *testing.T) {
 	j := New(WithModel(map[string]any{"name": "Acme"}))
 	var captured *Node
-	_, _ = j.Generate(Options{}, func(j *J) {
+	build := false
+	_, _ = j.Generate(Options{Build: &build}, func(j *J) {
 		j.File("x.txt", func(j *J) {
 			j.Content("hello $$name$$")
 		})
@@ -112,7 +116,8 @@ func TestBuilderContentTemplating(t *testing.T) {
 func TestBuilderErrorShortCircuit(t *testing.T) {
 	j := New()
 	called := false
-	_, err := j.Generate(Options{}, func(j *J) {
+	build := false
+	_, err := j.Generate(Options{Build: &build}, func(j *J) {
 		j.File("x.txt", func(j *J) {
 			j.st.err = ErrInvalidPath // simulate error
 			j.Content("after error")
@@ -132,7 +137,8 @@ func TestBuilderErrorShortCircuit(t *testing.T) {
 func TestBuilderCmpDoesNotAddNode(t *testing.T) {
 	j := New()
 	var captured *Node
-	_, _ = j.Generate(Options{}, func(j *J) {
+	build := false
+	_, _ = j.Generate(Options{Build: &build}, func(j *J) {
 		j.File("x.txt", func(j *J) {
 			j.Cmp("greet", func(j *J) {
 				j.Content("hi")
@@ -160,7 +166,8 @@ func TestBuildPhaseRunsWithNoOps(t *testing.T) {
 	// are stubs until Phase 6. The build phase should run without error
 	// for a happy-path tree.
 	j := New(WithMem())
-	_, err := j.Generate(Options{}, func(j *J) {
+	build := false
+	_, err := j.Generate(Options{Build: &build}, func(j *J) {
 		j.Project(ProjectProps{Folder: "p"}, func(j *J) {
 			j.File("a.txt", func(j *J) {
 				j.Content("hello")

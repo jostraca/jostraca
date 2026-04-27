@@ -53,14 +53,20 @@ func step(n *Node, st *jstate, b *buildCtx) error {
 }
 
 // runBuild is the entry point used by Generate after the define phase.
-// Phase 5 wires this in but ops are stubs that don't write to disk.
+// Phase 6 onward: ops actually touch the filesystem via fileHandler.
 func runBuild(st *jstate) (*buildCtx, error) {
 	if st.root == nil {
 		return nil, nil
 	}
 	b := newBuildCtx(st)
+	b.fh = newFileHandler(b)
 	if err := step(st.root, st, b); err != nil {
 		return b, err
+	}
+	if b.fh != nil && b.fh.bmeta != nil {
+		if err := b.fh.bmeta.done(); err != nil {
+			return b, err
+		}
 	}
 	return b, nil
 }
@@ -69,10 +75,23 @@ func runBuild(st *jstate) (*buildCtx, error) {
 
 func projectBefore(n *Node, st *jstate, b *buildCtx) error {
 	b.current.project = n
+	folder := st.folder
+	if folder == "" {
+		folder = "."
+	}
+	parent := folder
+	if n.Folder != "" {
+		parent = folder + "/" + n.Folder
+	}
+	parent = fwd(parent)
+	parent = strings.TrimRight(parent, "/")
 	b.current.folder = folderRef{
 		node:   n,
 		path:   []string{},
-		parent: st.folder,
+		parent: parent,
+	}
+	if b.fh != nil {
+		_ = b.fh.ensureDirOf(parent + "/x") // ensure the project folder exists
 	}
 	return nil
 }
@@ -94,23 +113,19 @@ func folderAfter(_ *Node, _ *jstate, b *buildCtx) error {
 
 func fileBefore(n *Node, st *jstate, b *buildCtx) error {
 	b.current.file = n
+	parent := b.current.folder.parent
 	dir := strings.Join(b.current.folder.path, "/")
 	if dir != "" {
-		n.FullPath = b.current.folder.parent + "/" + dir + "/" + n.Name
+		n.FullPath = parent + "/" + dir + "/" + n.Name
 	} else {
-		n.FullPath = b.current.folder.parent + "/" + n.Name
+		n.FullPath = parent + "/" + n.Name
 	}
-	n.FullPath = strings.TrimPrefix(n.FullPath, "/")
-	if st.folder != "" && st.folder != "." {
-		// Path stays canonical; the FS wrapper handles OS conversion.
-	}
+	n.FullPath = fwd(n.FullPath)
+	_ = st
 	return nil
 }
 
 func fileAfter(n *Node, st *jstate, b *buildCtx) error {
-	// Phase 5 stub: FileHandler.save lands in Phase 6. For now, just
-	// concatenate any accumulated Content node bodies into a single
-	// stash on the node so tests can introspect.
 	var sb strings.Builder
 	for _, c := range n.Children {
 		if c.Kind == KindContent {
@@ -119,10 +134,20 @@ func fileAfter(n *Node, st *jstate, b *buildCtx) error {
 			}
 		}
 	}
-	n.Content = []string{sb.String()}
-	_ = st
-	_ = b
-	return nil
+	body := sb.String()
+	n.Content = []string{body}
+
+	if b.fh == nil {
+		return nil
+	}
+	if n.FullPath == "" {
+		return nil
+	}
+	// Honour Exclude=true (skip).
+	if ex, ok := n.Exclude.(bool); ok && ex && b.fh.fs.Exists(n.FullPath) {
+		return nil
+	}
+	return b.fh.save(n.FullPath, []byte(body), "FileOp:after")
 }
 
 func contentBefore(n *Node, _ *jstate, b *buildCtx) error {

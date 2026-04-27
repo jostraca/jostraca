@@ -133,6 +133,14 @@ func (j *J) Generate(opts Options, root func(*J)) (Result, error) {
 		res.When = b.when
 		audit := b.audit
 		res.Audit = func() Audit { return audit }
+		if b.fh != nil {
+			res.Files = b.fh.files
+		}
+	}
+	if mfs, ok := st.fs.(*MemFS); ok {
+		fsRef := st.fs
+		res.Vol = func() map[string][]byte { return mfs.Vol() }
+		res.FS = func() FS { return fsRef }
 	}
 	return res, nil
 }
