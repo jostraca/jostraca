@@ -650,3 +650,28 @@ one fixup (folder.parent seeding for Project-less trees and Phase 5
 test Build:&false). Total: 2 commits.
 
 **Next.** Phase 7 — Concurrency regression test (small).
+
+---
+
+## Phase 7 — Concurrency regression
+
+**Plan reference.** `PORT_PLAN.md` §12 Step 7, §11.6.
+
+**Test committed** (`concurrency_test.go`, commit `79cbede`):
+`TestGenerateConcurrentIsolated` runs 10 goroutines, each with its own
+`*MemFS` and a distinct `Project` folder. Asserts each goroutine's
+`Vol` contains exactly its own files, and that no foreign goroutine's
+path leaks into any other's `Vol`.
+
+**Verification.**
+- `go test -run TestGenerateConcurrent -race -count=10` — green
+  over all 10 iterations on the first attempt after a one-line path
+  fix-up (MemFS strips leading `/`, so `wantPath` had to drop it).
+
+**Outcome.** The §2 receiver-shadowing approach holds. No globals
+were needed, no goroutine-local hacks, no `context.Context`
+threading — concurrent `Generate` calls are isolated by construction.
+
+**Time-to-land.** Single test, single fixup. Total: 1 commit.
+
+**Next.** Phase 8 — Inject, Fragment, List components and ops.
