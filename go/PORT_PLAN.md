@@ -2338,18 +2338,168 @@ Repeat-run on the concurrency test (`-count=10`) to flush out any rare races. `s
 - §17 verification commands run these tests.
 
 ### 12. Phasing (v1 single milestone, ordered)
-1. Skeleton: `Options`, `J`, `Node`, dispatch table, error type.
-2. `OsFS` + `MemFS` + `FS` interface.
-3. Template feature parity (close §9 gaps).
-4. Utilities port (§10).
-5. Components: `Project`/`Folder`/`File`/`Content`/`Line`/`Slot`/`None`.
-6. `FileHandler` (write/preserve/present) + `BuildMeta`.
-7. Concurrency regression test + happy-path tests pass.
-8. `Inject`, `Fragment`, `List`.
-9. `Copy` full feature set (directory walk, ignore, binary detect).
-10. 2-way `diff` mode.
-11. `node-diff3` port + 3-way `merge` mode.
-12. Doc pass: `go/README.md` rewrite with full examples, deviation list.
+
+V1 ships full TS parity (including 3-way merge — user opted into the diff3 hand-port). Steps are ordered so each lands on top of compiled-and-tested predecessors. Earlier steps unblock later steps; no step requires later code to compile.
+
+#### Step 1 — Skeleton
+**Lands.** `jostraca.go`, `options.go`, `node.go`, `errors.go`, `log.go`, empty `build.go` with the dispatch table sized but `noopOp` everywhere.
+
+- `Options` struct + functional `WithX` + `OptionsFromMap` (§4.3) using existing `shape` dependency.
+- `Kind` enum + `Node` struct (§4.1). `kindCount` sentinel set.
+- `J` + `jstate` (§4.2). `New(opts...) *J` and `(*J).Generate(opts, root) (Result, error)`.
+- `Log` interface, `DefaultLog` writing to `io.Writer` with ISO-8601 timestamp (§4.4).
+- `NodeError` + sentinels `ErrMissingOp`, `ErrInvalidPath`, `ErrEmptyMatchRegex`, `ErrLookbehind`, `ErrMergeConflict` (§4.6).
+- `Result`/`Files`/`Audit`/`AuditEntry` (§4.5).
+
+**Tests.** `errors_test.go` (sentinel matching), basic `New().Generate({}, func(j *J){})` returns empty Result.
+
+**Done when.** `go build ./...` succeeds; trivial test passes.
+
+#### Step 2 — Filesystem layer
+**Lands.** `fs.go`.
+
+- `FS`, `FileInfo`, `DirEntry` (§7.1).
+- `OsFS` adapter; `MemFS` with `sync.RWMutex` + `Vol()`.
+
+**Tests.** `fs_test.go` round-trips bytes through both implementations; `MkdirAll` + `ReadDir` shape on `MemFS`; concurrent reads/writes on `MemFS` under `-race`.
+
+**Done when.** Both implementations satisfy the `FS` interface and pass round-trip tests.
+
+#### Step 3 — Template feature parity
+**Lands.** Rewrite `template.go` to close all 14 gaps from §9.
+
+- Extended `TemplateSpec` fields: `Open`, `Close`, `Ref`, `Insert`, `Handle`.
+- Tag matching (#Tag / #Tag-Name regex synthesis).
+- Custom regex with named-group rewriting.
+- `__JOSTRACA_REPLACE__` sentinel; quoted ref; function refs; JSON stringification.
+- `Handle` streaming; eject regex variant; empty-match guard.
+- LRU caches for template and eject regexes.
+- Replace-key ordering matching TS exactly.
+- `Indent` lands here (used by Content/Fragment) but is exported from `util.go`.
+
+**Tests.** `template_test.go` extends to ~35 rows mirroring `test/template.test.ts` (§9.4).
+
+**Done when.** Every TS template case produces byte-equal output via the table runner.
+
+#### Step 4 — Utilities
+**Lands.** `util.go`.
+
+- `Each` (reflection), `Get`, `GetX` (test-first parser port), `Camelify`/`Snakify`/`Kebabify`/`Partify`/`LCF`/`UCF`/`Names`, `EscRE`, `Indent`, `IsBinExt`, `CMap`/`VMap`, `Humanify`, `Deep`/`OMap`.
+- Internal `dLog` package-level log + `newDLog`.
+
+**Tests.** `util_test.go` ports `test/utility.test.ts` row-by-row. Each utility has its own `t.Run("name", ...)` table.
+
+**Done when.** `test/utility.test.ts` cases all green.
+
+#### Step 5 — Leaf components and basic ops
+**Lands.** First half of `builder.go` and `build.go`.
+
+- `*J.Project`, `*J.Folder`, `*J.File`, `*J.Content`, `*J.Line`, `*J.Slot`, `*J.Cmp` from §5.
+- Ops: `projectBefore`, `folderBefore`/`folderAfter`, `fileBefore`/`fileAfter`, `contentBefore`, `slotBefore`/`slotAfter`, `noopOp`.
+- `buildCtx` skeleton in `buildctx.go` with `currentRefs`.
+- `step()` walker in `build.go` dispatching against the table.
+
+**Tests.** `builder_test.go` validates node-tree shape for Project/Folder/File/Content. Build phase still no-ops on `FileOp.after` because `fileHandler` not yet wired (Step 6).
+
+**Done when.** Compiles; `Generate` builds a tree of the right shape; build phase runs without errors but produces no output.
+
+#### Step 6 — FileHandler core (write/preserve/present) + BuildMeta
+**Lands.** `filehandler.go`, `buildmeta.go`, finalises `buildctx.go`.
+
+- `fileHandler` (§7.3) with `save`, `loadFile`, `saveFile`, `ensureFolder`, `ensureDir`, `relative`, `filelog`, `validPath`.
+- Modes implemented: `write`, `preserve`, `present`. (Diff/merge stubbed to no-op + `nil` error; wired in Step 10/11.)
+- `JOSTRACA_PROTECT` sentinel.
+- `buildMeta` JSON load/save under `<folder>/.jostraca/jostraca.meta.log` + `.gitignore` stub. `done()` called from `Generate` end.
+- `duplicateFolder` produces side-copies when `Control.Duplicate` is on (used as merge baseline in Step 11).
+- Wire ops to `fh.save(...)`. `FileOp.after` actually writes now.
+
+**Tests.** `filehandler_test.go` per-mode (write/preserve/present/protect/unchanged); `jostraca_test.go` happy paths from `test/jostraca.test.ts`. Parity snapshots from `testdata/parity/quickstart.json`.
+
+**Done when.** Quick-start example from README produces byte-equal output to TS via parity snapshot; preserve/present modes verified.
+
+#### Step 7 — Concurrency regression
+**Lands.** `concurrency_test.go`.
+
+- 10-goroutine isolation test from §11.6.
+- Run with `-race -count=10` in CI.
+
+**Done when.** `go test -race -count=10 -run TestGenerateConcurrent` is green over 10 iterations.
+
+#### Step 8 — Inject, Fragment, List
+**Lands.** Second half of `builder.go`, op handlers in `build.go`.
+
+- `*J.Inject` + `*J.InjectP` + `injectBefore`/`injectAfter`. After-op: read existing, replace between markers, `fh.save`.
+- `*J.Fragment` + `*J.FragmentP` + `fragmentBefore`/`fragmentAfter`. Streaming via Template `Handle` per §5.
+- `*J.List` + `*J.ListP`.
+
+**Tests.** Subtests under `builder_test.go` for inject markers, fragment slot replay, list iteration order. Use `testdata/fixtures/template.html` and `snippet.go` for Fragment cases.
+
+**Done when.** README "Fragments and Slots" + "Inject" examples produce byte-equal output via parity snapshots.
+
+#### Step 9 — Copy full feature set
+**Lands.** `*J.Copy` + `copyBefore`/`copyAfter` in `build.go`.
+
+- Single-file mode (calls `fh.copy`).
+- Directory walk: enumerate via `fs.ReadDir`, recurse, route through `fh.save`/`fh.copy` per entry.
+- Apply `Replace` template substitution to text files; binary files copied verbatim (`IsBinExt`).
+- Honor `Exclude` (bool/string/regexp/list) and `Options.Cmp.Copy.Ignore` (default `[~$]`).
+
+**Tests.** `testdata/fixtures/assets/` with mixed text/binary entries and a `~b.tmp` confirming default ignore. Round-trip into MemFS and assert resulting `Vol()`.
+
+**Done when.** README "Copy" example matches TS output byte-for-byte.
+
+#### Step 10 — 2-way diff mode
+**Lands.** `diff.go`, wires `saveDiff` into `fileHandler.save` switch.
+
+- `renderDiff(new, existing)` using `sergi/go-diff/diffmatchpatch` line mode (§8.1).
+- `annotatedPath(target, "diff")` helper.
+- `fileHandler.saveDiff` writes to `.diff.<ext>` and updates `Files.Diffed`/`Files.Conflicted`.
+
+**Tests.** `diff_test.go` with multi-section golden files in `testdata/diff/case_*.txt`.
+
+**Done when.** Conflict-marker output is byte-equal to TS for every shared corpus case.
+
+#### Step 11 — node-diff3 port + 3-way merge mode
+**Lands.** `merge.go`, wires `saveMerge` into `fileHandler.save` switch.
+
+- `splitLines` + `lcs` (Hunt–McIlroy) — unit-tested in isolation against goldens (§8.2 implementation order step 1).
+- `patchFrom` (LCS → hunks) — unit-tested.
+- `reconcile` (three-way region splitter) — unit-tested.
+- `assembleRegions` (regions → bytes with conflict markers).
+- `merge3(new, prev, existing) mergeResult`.
+- `fileHandler.saveMerge` reads duplicate baseline from `<folder>/.jostraca/generated/<rpath>` and runs `merge3`.
+
+**Tests.** `merge_test.go` loads every JSON corpus file under `testdata/merge/` (one per `test/merge.test.ts` case) and asserts byte-equal output and conflict flag.
+
+**Done when.** Every TS merge case passes; `Files.Merged`/`Files.Conflicted` populated correctly.
+
+#### Step 12 — Documentation pass
+**Lands.** Rewrite `go/README.md`; add doc.go; update root `README.md` Go-port section.
+
+- Replace template-only README with a full quick-start mirroring the JS quick-start.
+- Document the `*J` receiver-shadowing pattern with a side-by-side TS-vs-Go example (cribs §2).
+- List public API, deviations from TS (§14), RE2 caveat, lookbehind rejection.
+- Code samples for: quickstart, fragments+slots, copy, inject, custom components, mem mode, all five existing-file modes.
+- `doc.go` with the package-level godoc summary.
+
+**Done when.** New README compiles its examples (extracted via `_test.go` Example funcs) and passes `go vet ./...`.
+
+#### Sequencing rationale
+
+- Steps 1–4 are foundation: nothing else compiles without them. Independent of each other within reason — Template (3) and Utilities (4) can be parallelised by two implementers.
+- Steps 5–6 are the minimum end-to-end skeleton; Step 7 immediately *proves* the §2 design once the skeleton exists.
+- Steps 8–9 add the rest of the components without touching the file-handler modes.
+- Steps 10–11 add the existing-file modes; ordered so 2-way diff (cheaper, library-backed) lands before the harder 3-way merge port.
+- Step 12 is the consumer-facing surface — leaves until the API is stable.
+
+#### Definition of done for v1
+
+- `go build ./...` clean.
+- `go vet ./...` clean.
+- `go test ./... -race -count=1` green; concurrency test passes 10× consecutive.
+- All TS test files (except `point.test.ts`) ported; every parity snapshot byte-equal.
+- `go/README.md` covers every component and option.
+- The repo-root `README.md` Go-port section advertises full parity (not "template utility port").
 
 ### 13. File-by-file mapping (TS → Go)
 Table mapping each `src/**/*.ts` and `test/**/*.ts` to its target `go/jostraca/*.go` file.
