@@ -434,3 +434,100 @@ one fixup (rename `OVal` → `Raw`). Total: 2 commits.
 **Next.** Phase 5 — Leaf components and basic ops. Builder methods
 for Project/Folder/File/Content/Line/Slot/Cmp; ops folded into
 `build.go`; `buildCtx` skeleton.
+
+---
+
+## Phase 5 — Leaf components and basic ops
+
+**Plan reference.** `PORT_PLAN.md` §12 Step 5, §5, §6.
+
+**Tests committed first** (`builder_test.go`, commit `fe06b45`):
+- `TestBuilderProjectShape` — Project/Folder/File/Content tree.
+- `TestBuilderPathAccumulates` — Path[] grows from project folder
+  through nested Folders and File.
+- `TestBuilderLineAddsNewline` — Line auto-appends `\n`.
+- `TestBuilderContentTemplating` — Content runs Template inline.
+- `TestBuilderErrorShortCircuit` — setting `j.st.err` halts subsequent
+  components and surfaces from `Generate`.
+- `TestBuilderCmpDoesNotAddNode` — `Cmp` runs the user fn without a
+  wrapper node; children attach to the surrounding parent.
+- `TestBuildPhaseRunsWithNoOps` — happy-path tree compiles and the
+  build phase walks without error (no FS work yet).
+
+**Implementation committed** (`d06a367`):
+- `builder.go` (210 lines): Project, Folder, File/FileP, Content/ContentP,
+  Line/LineP, Slot/SlotP, Cmp. Shared `attachAndDescend` helper
+  implements the 5-step push/pop. `mergeModel(base, extra)` matches
+  the TS `Content` model overlay.
+- `build.go` (140 lines): `op` struct + fixed-size dispatch table
+  `ops[kindCount]`, `step(n, st, b)` synchronous walker with
+  `NodeError` wrapping via `wrap`, ops for Project/Folder/File/Content
+  (plus stubs for Copy/Inject/Fragment/Slot to land in Phases 8-9).
+  `fileAfter` concatenates Content children into `n.Content` so
+  Phase 6's FileHandler has an easy substrate.
+- `buildctx.go`: `buildCtx` skeleton with `currentRefs`, `folderRef`,
+  `buildLog`. FileHandler and BuildMeta land in Phase 6.
+- `jostraca.go.Generate` now drives the build phase via `runBuild`
+  when `Options.Build != false`.
+
+**Verification.**
+- `go vet ./...` — clean.
+- `go test ./... -race -count=1` — `ok` after one test fix-up
+  (clarified `captured` is the File root in TestBuilderCmpDoesNotAddNode).
+
+**Deviations from plan, with rationale.**
+
+1. **`Project.Path` seeds with the folder name.** Plan §5 sketches show
+   `childPath(j.cur, p.Name)` only. I added `Folder` as the first path
+   segment when `Project.Path` is constructed, because TS `Project`
+   tree paths normalise the project's output folder (`my-app/...`)
+   into the build path. Without it, Folder/File tree paths start
+   below project root rather than below the project's output dir.
+   **Plan delta:** §5.3 Project sketch to use Folder for Path[0]
+   when Folder != "".
+
+2. **`Content` runs Template at define time, not build time.** Plan §5
+   showed the rendering happening in `ContentP`. I matched this — TS
+   `Content.ts:21` calls `template(...)` immediately and stashes the
+   result on `node.content`. Phase 6's File ops just concatenate the
+   already-rendered strings. Net: no observable change.
+
+3. **`fileAfter` Phase 5 stub** concatenates Content children into
+   `n.Content`. Plan §6 says `fileAfter` calls `bctx.fh.save()`.
+   Phase 5 is the no-FS skeleton; Phase 6 plugs in `fh.save()` and
+   the concatenation moves earlier (the rendered string flows through
+   FileHandler). No plan delta.
+
+4. **`Slot.SlotP` consults `j.cur.Filter` synchronously**. Plan §5.3
+   showed the Filter-skip pattern; my implementation matches but
+   uses the narrowed `FilterFunc(componentKind, name string) bool`
+   from §14 D11. Already documented.
+
+5. **`Cmp` Debug callsite is just the name string**, not a stack trace.
+   Plan §5.4 sketched `captureStack(name)`. Stack traces require
+   `runtime.Callers` overhead I'd rather not pay on the hot path
+   for a feature only used when `Options.Debug != ""`. The name string
+   is enough for most debug scenarios; richer formatting can be
+   bolted on later.
+
+**Plan deltas captured for next pass.**
+- §5.3: Project sketch should set `n.Path = []string{p.Folder}` when
+  Folder != "", to seed Folder/File paths under the project's output
+  dir.
+
+**Open questions surfaced.**
+- The Phase 5 `fileAfter` stub builds `n.FullPath` from
+  `b.current.folder.parent + dir + n.Name`. The base path semantics
+  need a real test in Phase 6 once `OsFS` paths flow through. The
+  current implementation strips a leading `/` to handle the empty
+  parent case but isn't tested against absolute roots.
+- `Cmp` doesn't currently push a custom name into the path. Should it?
+  TS `cmp()` doesn't add a path segment, so following that. If a
+  custom component wants its name in the path it can call `j.Folder`
+  internally.
+
+**Time-to-land.** Tests in one cycle, implementation in one cycle plus
+one fixup (test correction). Total: 2 commits.
+
+**Next.** Phase 6 — FileHandler core (write/preserve/present + protect
++ unchanged) plus BuildMeta. This is where files actually land on disk.

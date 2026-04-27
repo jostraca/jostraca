@@ -654,8 +654,11 @@ func (j *J) Project(p ProjectProps, body func(*J)) {
         Kind:   KindProject,
         Name:   p.Name,
         Folder: p.Folder,
-        Path:   childPath(j.cur, p.Name),
-        Meta:   map[string]any{},
+        Path:   []string{},                      // Phase 5 update: seed with Folder so
+        Meta:   map[string]any{},                // Folder/File children sit below the
+    }                                            // project's output directory.
+    if p.Folder != "" {
+        n.Path = append(n.Path, p.Folder)
     }
     j.cur.Children = append(j.cur.Children, n)
     if j.st.root == nil { j.st.root = n }
