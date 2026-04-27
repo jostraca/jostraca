@@ -108,3 +108,98 @@ the deviation with reasoning.
 rework required after the first compile-and-test round.
 
 **Next.** Phase 2 — Filesystem layer (`OsFS`, `MemFS`, round-trip tests).
+
+---
+
+## Phase 2 — Filesystem layer
+
+**Plan reference.** `PORT_PLAN.md` §12 Step 2, §7.1.
+
+**Tests committed first** (`go/jostraca/fs_test.go`, commit `37d9929`):
+- `fsContract` — shared suite (write/read, exists, stat, readdir,
+  remove/rename, missing-file) parameterised by FS factory.
+- `TestOsFSContract` — runs the suite against a test-only `osFSAt`
+  helper rooted at `t.TempDir()`.
+- `TestMemFSContract` — runs the suite against `NewMemFS()`.
+- `TestMemFSConcurrentReadWrite` — 100×2 goroutines hammering a
+  shared key, race detector must stay clean.
+- `TestMemFSVolReturnsCopy` — verifies `Vol()` is defensive (mutating
+  the returned map does not affect the FS).
+- `TestMemFSReadMissing` — error from `ReadFile` on a missing key
+  unwraps to `os.ErrNotExist` via `errors.Is`.
+
+**Implementation committed** (`ad4dc16`):
+- Promoted `OsFS` from a bare interface into a concrete struct
+  implementing `FS`. Path conversion: every input `p` runs through
+  `filepath.FromSlash(p)` exactly once, at the FS boundary.
+- New `MemFS` struct with three maps under one `sync.RWMutex`:
+  `files map[string][]byte` (content), `times map[string]int64`
+  (mtimes), `dirs map[string]bool` (explicit directory markers).
+  - `WriteFile` implicitly marks all parent path prefixes as dirs.
+  - `ReadDir` aggregates entries from both maps so an explicit
+    `MkdirAll("a/b")` plus a `WriteFile("a/c")` shows both `b` and
+    `c` under `a`.
+  - `Remove` refuses to delete non-empty directories (matches
+    `os.Remove` semantics).
+  - `Vol()` deep-copies bytes so callers can't mutate the underlying
+    storage.
+- Internal helper `memClean` normalises canonical-/ paths (strip
+  leading `/`, collapse `.`/`..`, drop empty segments) so `"a"`,
+  `"/a"`, and `"./a"` are the same key.
+
+**Verification.**
+- `go vet ./...` — clean.
+- `go test ./... -race -count=1` — `ok`. Concurrency test ran 200
+  ops without race-detector hits.
+
+**Deviations from plan, with rationale.**
+
+1. **`MkdirAll` is not a no-op for MemFS**, despite the plan saying
+   *"`MkdirAll` is a no-op (paths in the map are flat keys)"* (§7.1).
+   Rationale: tests need `Stat("dir")` to report `IsDir = true` after
+   `MkdirAll("dir")` even when no file has been written under it.
+   Without a directory marker set, an empty directory is invisible to
+   `Stat` and `ReadDir`. The marker set is cheap (a `map[string]bool`)
+   and simplifies the build phase (`FolderOp.before` calls
+   `ensureFolder` which is `MkdirAll` — its post-condition has to be
+   "directory exists"). **Plan delta:** §7.1 to drop the "no-op
+   MkdirAll" wording.
+
+2. **`Stat` for the empty path returns a synthetic root dir.**
+   Not in the plan; needed because `OsFS.Stat(".")` returns the
+   working directory and tests assume `MemFS.Exists("")` ≡ true.
+   No plan delta needed; this is internal cleanup.
+
+3. **`OsFS` is unrooted.** The plan implies `OsFS` is global to the
+   process. The test wraps it in `osFSAt` rooted at `t.TempDir()` to
+   avoid touching the host filesystem outside the temp dir. The
+   wrapper is test-only (lowercase, in `_test.go`); production code
+   uses `OsFS{}` directly with absolute paths supplied by the user
+   via `Options.Folder`. No plan delta — but the test wrapper is a
+   pattern we'll reuse in later phases for end-to-end tests.
+
+4. **`memClean` is internal.** Plan didn't specify; chose to keep
+   it unexported because the canonical-/ contract is package-private.
+   Users of `MemFS` pass paths in any reasonable form and they get
+   normalised on the way in.
+
+**Plan deltas captured for next pass.**
+- §7.1: revise the "MkdirAll no-op" line to say MemFS tracks
+  directories explicitly.
+
+**Open questions surfaced.**
+- Should `MemFS.Remove` recursively delete non-empty directories?
+  TS uses `memfs` (Node) which has `rmdir` (non-recursive) and `rm`
+  with `recursive: true`. Plan §7.1 lists `Remove(path string) error`
+  with no recursive flag. Decision: keep non-recursive to match
+  `os.Remove`; a future `RemoveAll` can be added if FileHandler
+  needs it (it doesn't — files are removed individually during
+  `preserve`/`present` mode).
+- `MemFS.Stat` mtime for directories is zero. Probably fine; revisit
+  when BuildMeta starts caring.
+
+**Time-to-land.** Tests + implementation in one cycle each, no rework.
+
+**Next.** Phase 3 — Template feature parity. The current `template.go`
+is the existing 184-line file from before this branch; we'll extend it
+with all 14 gaps from §9 of the plan.

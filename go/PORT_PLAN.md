@@ -1208,7 +1208,7 @@ Inside the package every path is canonical-`/`. Conversion happens only inside `
 
 ##### `MemFS`
 
-A `map[string][]byte` guarded by `sync.RWMutex`, with synthesised `FileInfo` (mtime from a sibling map). `MkdirAll` is a no-op (paths in the map are flat keys); `ReadDir` walks keys with the prefix and returns synthetic entries. `Vol()` exposes the underlying map for `Result.Vol`:
+A `map[string][]byte` guarded by `sync.RWMutex`, with synthesised `FileInfo` (mtime from a sibling map). `MkdirAll` records the path (and every prefix) in an explicit `map[string]bool` directory set so empty directories are visible to `Stat` and `ReadDir`; `WriteFile` also marks parent prefixes implicitly. `ReadDir` aggregates entries from both maps and returns synthetic `DirEntry` values. `Vol()` exposes the underlying map for `Result.Vol`:
 
 ```go
 type MemFS struct {
