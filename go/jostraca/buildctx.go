@@ -1,0 +1,37 @@
+package jostraca
+
+// buildCtx is the per-Generate-call build state, the Go peer of TS
+// BuildContext. Phase 5 stub - FileHandler and BuildMeta arrive in
+// Phase 6.
+type buildCtx struct {
+	st      *jstate
+	when    int64
+	audit   Audit
+	current currentRefs
+	logx    buildLog
+}
+
+type currentRefs struct {
+	project *Node
+	folder  folderRef
+	file    *Node
+}
+
+type folderRef struct {
+	node   *Node
+	path   []string
+	parent string
+}
+
+type buildLog struct {
+	exclude []string
+	last    int64
+}
+
+func newBuildCtx(st *jstate) *buildCtx {
+	return &buildCtx{
+		st:    st,
+		when:  st.now(),
+		audit: Audit{},
+	}
+}

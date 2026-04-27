@@ -138,16 +138,20 @@ func TestBuilderCmpDoesNotAddNode(t *testing.T) {
 				j.Content("hi")
 			})
 		})
+		// st.root is set to the first attached node (File here) by
+		// attachAndDescend; that lets us inspect File.Children directly.
 		captured = j.st.root
 	})
-	// File.Children should contain one Content node (from Cmp), not a
-	// "cmp wrapper" node.
-	file := captured.Children[0]
-	if len(file.Children) != 1 {
-		t.Fatalf("file.Children len = %d, want 1", len(file.Children))
+	// captured IS the File; its single child must be the Content node
+	// added by the Cmp body, with no wrapper interposed.
+	if captured.Kind != KindFile {
+		t.Fatalf("captured.Kind = %v, want KindFile", captured.Kind)
 	}
-	if file.Children[0].Kind != KindContent {
-		t.Errorf("Cmp wrapped Content as kind %v, want KindContent", file.Children[0].Kind)
+	if len(captured.Children) != 1 {
+		t.Fatalf("file.Children len = %d, want 1", len(captured.Children))
+	}
+	if captured.Children[0].Kind != KindContent {
+		t.Errorf("Cmp wrapped Content as kind %v, want KindContent", captured.Children[0].Kind)
 	}
 }
 

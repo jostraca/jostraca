@@ -114,10 +114,25 @@ func (j *J) Generate(opts Options, root func(*J)) (Result, error) {
 		return Result{}, st.err
 	}
 
-	// Build phase: deferred to Phase 5/6. Phase 1 returns an empty Result.
+	// Build phase: walks the tree depth-first via the op dispatch table.
+	// Phase 5 ships ops that build the in-memory tree but don't yet
+	// touch the filesystem (FileHandler arrives in Phase 6).
+	doBuild := merged.Build == nil || *merged.Build
 	res := Result{
 		When:  st.now(),
 		Audit: func() Audit { return nil },
+	}
+	if !doBuild {
+		return res, nil
+	}
+	b, err := runBuild(st)
+	if err != nil {
+		return res, err
+	}
+	if b != nil {
+		res.When = b.when
+		audit := b.audit
+		res.Audit = func() Audit { return audit }
 	}
 	return res, nil
 }
