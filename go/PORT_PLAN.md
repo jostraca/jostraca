@@ -2096,11 +2096,246 @@ Each public utility has a unit-test row in `util_test.go` ported from `test/util
 - §9 template engine uses `idenstr`, `EscRE`, regex caches share the locking pattern from §10.6.
 
 ### 11. Test strategy
-- One Go test file per TS test file, same case names.
-- `testdata/` folder with JSON fixtures embedded via `//go:embed` for merge corpus.
-- `github.com/google/go-cmp/cmp` for deep-equal assertions.
-- New regression test: 10 concurrent `Generate` calls each with own `MemFS` — proves receiver-shadowing isolates state.
-- `merge_test.go` lands active (since merge ships in v1).
+
+#### 11.1 Principles
+
+- **Mirror, don't transliterate.** Each TS test file maps to a Go test file with the same case names; the *cases* port row-by-row, but the harness uses Go idioms (`testing.T`, table-driven, `go-cmp`) instead of recreating the TS `expect.ts` helper.
+- **Black-box where possible.** Tests live in `package jostraca` so they can access internals when it simplifies assertions, but every public-API test treats the package as a black box and exercises behaviour through `New(...).Generate(...)`.
+- **Goldens travel with the package.** Multi-line/multi-byte fixtures (templates, fragments, merge corpus) live under `go/jostraca/testdata/` and are loaded via `//go:embed`. Avoids retyping kilobyte string literals and keeps diffs reviewable.
+- **No flaky time/log assertions.** Tests inject `WithNow(func() int64 { return 1700000000_000 })` and a buffered `Log`; never depend on wall-clock or stderr ordering.
+
+#### 11.2 Test file layout
+
+| TS source | Go destination | Cases | Active in v1? |
+|---|---|---|---|
+| `test/jostraca.test.ts` | `jostraca_test.go` | end-to-end, Project/Folder/File trees, MemFS, vol JSON snapshot | yes |
+| `test/template.test.ts` | `template_test.go` (extends existing) | 35+ rows for §9 features | yes |
+| `test/utility.test.ts` | `util_test.go` | every utility from §10 | yes |
+| `test/control.test.ts` | `control_test.go` | dryrun, version, exclude | yes |
+| `test/merge.test.ts` | `merge_test.go` | every merge case | yes (merge ships in v1) |
+| `test/point.test.ts` | — | Point omitted | no |
+| `test/expect.ts` | — | replaced by `go-cmp` | no |
+| (none) | `concurrency_test.go` | new — 10-goroutine isolation | yes |
+| (none) | `filehandler_test.go` | per-mode isolation tests | yes |
+| (none) | `diff_test.go` | 2-way render goldens | yes |
+| (none) | `fs_test.go` | OsFS + MemFS sanity | yes |
+| (none) | `builder_test.go` | per-component node-tree shape assertions | yes |
+
+#### 11.3 Tooling
+
+- **Stdlib `testing`** for the runner; `go test ./...`.
+- **`github.com/google/go-cmp/cmp`** for deep-equal assertions. Replaces TS `expect`. Test-only dependency.
+- **`testing/iotest`** where streaming is involved.
+- **`//go:embed testdata/...`** for fixture loading.
+- **`-race`** is mandatory for `concurrency_test.go`; CI runs `go test ./... -race -count=1`.
+
+No `testify`, no `gomega`. The stdlib + `go-cmp` is enough.
+
+#### 11.4 Table-driven pattern
+
+Every Go test file uses table rows where TS uses `it("...", () => ...)`:
+
+```go
+func TestTemplate(t *testing.T) {
+    cases := []struct {
+        name    string
+        src     string
+        model   any
+        spec    *TemplateSpec
+        want    string
+        wantErr error
+    }{
+        {"basic", "a$$b.c$$d", map[string]any{"b": map[string]any{"c": "X"}}, nil, "aXd", nil},
+        {"quoted", `$$"hi"$$`, nil, nil, "hi", nil},
+        // ... ~35 rows
+    }
+    for _, tc := range cases {
+        t.Run(tc.name, func(t *testing.T) {
+            got, err := Template(tc.src, tc.model, tc.spec)
+            if tc.wantErr != nil {
+                if !errors.Is(err, tc.wantErr) {
+                    t.Fatalf("err = %v, want %v", err, tc.wantErr)
+                }
+                return
+            }
+            if err != nil { t.Fatal(err) }
+            if diff := cmp.Diff(tc.want, got); diff != "" {
+                t.Errorf("(-want +got):\n%s", diff)
+            }
+        })
+    }
+}
+```
+
+Case names match TS test names verbatim where possible — this makes it obvious which TS case maps to which Go subtest when debugging.
+
+#### 11.5 `testdata/` layout
+
+```
+go/jostraca/testdata/
+  merge/                                        # JSON corpus from test/merge.test.ts
+    basic_clean.json                            # {new, prev, existing, want, conflict:false}
+    basic_conflict.json
+    insertion_a.json
+    ...                                         # one per TS case
+  diff/                                         # 2-way diff goldens
+    case_simple.txt                             # multi-section (--- new / --- existing / --- expected)
+    ...
+  fixtures/                                     # files used by Fragment, Copy
+    template.html
+    snippet.go
+    assets/                                     # directory copied by CopyOp tests
+      a.txt
+      ~b.tmp                                    # confirms Ignore default ignores ~$
+  parity/                                       # vol.toJSON snapshots from TS happy paths
+    quickstart.json
+    ...
+```
+
+JSON corpus loader:
+
+```go
+//go:embed testdata
+var testFS embed.FS
+
+func loadMergeCase(name string) mergeCase {
+    b, err := testFS.ReadFile("testdata/merge/" + name)
+    if err != nil { panic(err) }
+    var c mergeCase
+    if err := json.Unmarshal(b, &c); err != nil { panic(err) }
+    return c
+}
+```
+
+#### 11.6 The headline concurrency regression
+
+`concurrency_test.go` proves the receiver-shadowing approach (§2) isolates state across goroutines:
+
+```go
+func TestGenerateConcurrent(t *testing.T) {
+    const N = 10
+    var wg sync.WaitGroup
+    results := make([]Result, N)
+    errs := make([]error, N)
+
+    for i := 0; i < N; i++ {
+        i := i
+        wg.Add(1)
+        go func() {
+            defer wg.Done()
+            j := New(WithMem())
+            results[i], errs[i] = j.Generate(Options{}, func(j *J) {
+                j.Project(ProjectProps{Folder: fmt.Sprintf("p%d", i)}, func(j *J) {
+                    j.File(fmt.Sprintf("f%d.txt", i), func(j *J) {
+                        j.Content(fmt.Sprintf("body-%d\n", i))
+                    })
+                })
+            })
+        }()
+    }
+    wg.Wait()
+
+    for i := 0; i < N; i++ {
+        if errs[i] != nil { t.Errorf("[%d] err: %v", i, errs[i]) }
+        vol := results[i].Vol()
+        wantPath := fmt.Sprintf("p%d/f%d.txt", i, i)
+        wantBody := fmt.Sprintf("body-%d\n", i)
+        if string(vol[wantPath]) != wantBody {
+            t.Errorf("[%d] vol[%q] = %q, want %q", i, wantPath, vol[wantPath], wantBody)
+        }
+        // Crucially: verify no cross-contamination from other goroutines.
+        for j := 0; j < N; j++ {
+            if i == j { continue }
+            otherPath := fmt.Sprintf("p%d/f%d.txt", j, j)
+            if _, leaked := vol[otherPath]; leaked {
+                t.Errorf("[%d] saw foreign path %q", i, otherPath)
+            }
+        }
+    }
+}
+```
+
+Run with `-race`. The TS suite has no analogue because Node single-threads JS; this is a parity *gain*, not a parity match.
+
+#### 11.7 Per-component test files
+
+`builder_test.go` validates the node tree shape produced by each component without running the build phase:
+
+```go
+func TestBuilderProjectShape(t *testing.T) {
+    j := New()
+    var got *Node
+    _, _ = j.Generate(Options{Build: ptr(false)}, func(j *J) {
+        j.Project(ProjectProps{Folder: "x"}, func(j *J) {
+            j.Folder("a", func(j *J) { j.File("b.txt", func(j *J) { j.Content("hi") }) })
+        })
+        got = j.st.root      // accessible because test in same package
+    })
+
+    want := &Node{Kind: KindProject, Folder: "x", Children: []*Node{
+        {Kind: KindFolder, Name: "a", Children: []*Node{
+            {Kind: KindFile, Name: "b.txt", Children: []*Node{
+                {Kind: KindContent, Content: []string{"hi"}},
+            }},
+        }},
+    }}
+    if diff := cmp.Diff(want, got, ignoreNoiseFields); diff != "" {
+        t.Errorf("(-want +got):\n%s", diff)
+    }
+}
+```
+
+`ignoreNoiseFields` is a `cmp.Option` filtering out `Path`, `Meta`, `FullPath` so the test asserts only the structural shape.
+
+#### 11.8 `filehandler_test.go` cases (one per mode)
+
+- `write` — overwrites existing file, records in `Files.Written`.
+- `preserve` — backs up to `.old.`, writes new, both lists populated.
+- `present` — leaves existing alone, writes `.new.`.
+- `diff` — produces `.diff.` with conflict markers; `Files.Diffed` and `Files.Conflicted` populated when content differs.
+- `merge` — when duplicate baseline exists, runs `merge3` and writes target; conflict cases populate `Files.Conflicted`.
+- `protect` — `JOSTRACA_PROTECT` content prevents overwrite.
+- `unchanged` — equal new/existing leaves file alone, populates `Files.Unchanged`.
+
+Each case uses `MemFS` to set up the existing state, then asserts the post-state and `Files.*` outcome lists.
+
+#### 11.9 Parity snapshots
+
+The TS test suite has happy-path scenarios that produce a known `vol.toJSON()`. We capture those as `testdata/parity/*.json`:
+
+```json
+{
+  "name": "quickstart",
+  "options": {"folder": "/out", "mem": true},
+  "scenario": "quickstart",
+  "want": {
+    "/out/my-app/src/index.js": "console.log(\"hello world\")\n",
+    "/out/my-app/package.json": "{ \"name\": \"my-app\" }\n"
+  }
+}
+```
+
+Each scenario name maps to a Go test function (`scenarioQuickstart(j *J)`) that constructs the equivalent component tree. The test runs `Generate`, snapshots `vol.toJSON()`, and `cmp.Diff`s against `want`. Adding a new scenario is one JSON file plus one Go function.
+
+This is the strongest parity test we have: byte-equal output for the same logical input.
+
+#### 11.10 CI
+
+```yaml
+# .github/workflows/go-test.yml (added in phase 12 doc pass; sketch only)
+- run: cd go && go vet ./...
+- run: cd go && go test ./... -race -count=1
+- run: cd go && go test ./... -run TestGenerateConcurrent -race -count=10
+```
+
+Repeat-run on the concurrency test (`-count=10`) to flush out any rare races. `staticcheck` is desirable but optional.
+
+#### 11.11 Cross-references
+
+- §2 mandates the concurrency regression.
+- §8 corpus drives `merge_test.go`.
+- §9 case list drives `template_test.go` extension.
+- §17 verification commands run these tests.
 
 ### 12. Phasing (v1 single milestone, ordered)
 1. Skeleton: `Options`, `J`, `Node`, dispatch table, error type.
