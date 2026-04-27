@@ -449,6 +449,13 @@ func OptionsFromMap(m map[string]any) (Options, error)
 
 Implementation: a `shape.MustShape(...)` schema with the same field set as `OptionsShape` at `src/jostraca.ts:99-153`, validated, then assembled into the typed `Options`.
 
+**Phasing note.** Phase 1 ships a narrowed implementation that handles
+`folder`, `debug`, `mem`, `model`, `meta` directly and silently ignores
+unknown keys, because the nested option structs (`Existing`, `Control`,
+`Cmp`, `Name`) need a stable surface before a single shape schema can
+validate them all. The full shape-validated `OptionsFromMap` lands in
+the Phase 12 doc pass once the option surface is final.
+
 **Per-call vs global merge.** `New(opts...)` stores baseline options on the `*J`. `Generate(callOpts, root)` applies `callOpts` over the baseline using deep-merge semantics matching TS `deep(...)` from jsonic — same precedence as `src/jostraca.ts:208-256`. The `deep` helper is ported in §10.
 
 #### 4.4 `Log`
@@ -528,8 +535,12 @@ var (
     ErrEmptyMatchRegex  = errors.New("jostraca: regex matches empty string")
     ErrLookbehind       = errors.New("jostraca: lookbehind not supported (RE2)")
     ErrMergeConflict    = errors.New("jostraca: 3-way merge produced conflicts")
+    ErrNilRoot          = errors.New("jostraca: Generate root callback is nil")
 )
 ```
+
+`ErrNilRoot` was added in Phase 1 to distinguish a nil callback (programmer
+error) from a callback that builds zero components (valid empty generation).
 
 `Generate` returns the first define-phase error if `j.st.err != nil` after the user `root()` callback returns; otherwise it returns the first build-phase error wrapped in `NodeError`, or `nil`.
 
@@ -2053,6 +2064,12 @@ func Deep(dst any, srcs ...any) any
 ```
 
 Used in `src/jostraca.ts:208-256` to merge global vs per-call options. Go port handles `map[string]any` and `[]any` heterogeneously; non-map/slice values right-wins.
+
+**Phasing note.** Phase 1's `mergeOptions` ships as a shallow scalar merge
+(call-side non-zero overrides global, maps are wholesale-replaced).
+Once `Deep` lands here in Phase 4, `mergeOptions` switches to using it
+for `Model` and `Meta` deep-merging, matching TS `deep(...)` behaviour
+at `src/jostraca.ts:208-256`.
 
 `OMap`: small order-preserving map helper used by some downstream consumers. Skip if unused after `grep` confirms — but the cost of porting is ~15 LoC, so include for parity.
 
