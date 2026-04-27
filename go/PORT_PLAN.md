@@ -51,11 +51,143 @@ Go has no idiomatic equivalent: `goroutine`-local storage is non-standard and di
 - Match TS behaviour where it's well-defined; deviate where Go idioms strongly favour an alternative, but flag every deviation explicitly (§14).
 
 ### 2. Threadlocal replacement — receiver-shadowing closure
-- Decision recap (vs. goroutine-local / `context.Context`).
-- The `*J` type and how parameter-shadowing (`func(j *J)`) gives one-identifier-per-callsite cost vs TS.
-- Concurrency story: each `Generate` owns a fresh `*J`; package has no globals; 10-goroutine regression test.
-- Synchronous define phase + error accumulation on `j.st.err` (no panics).
-- Side-by-side TS-vs-Go example.
+
+**Decision: receiver-shadowing closure.** Rejected: goroutine-local storage (non-idiomatic Go, fragile), `context.Context` threading (forces an extra parameter into every component call), and hybrid stack-local approaches (extra ceremony with no win).
+
+**The TS pattern being replaced.** `src/jostraca.ts:189` allocates `GLOBAL.jostraca = new AsyncLocalStorage()`. `generate()` enters its scope at line 271:
+
+```ts
+return GLOBAL.jostraca.run(ctx$, async () => { root(); ...build... })
+```
+
+The `cmp()` factory (lines 376–437) reads the store at line 378 to find the current parent node, pushes the new node onto `ctx$.children`, swaps `ctx$.node = newNode` and `ctx$.children = newNode.children`, calls the user function (which recursively does the same), then restores the parent on exit. User code never sees `ctx$`.
+
+Two facts make this easy to translate:
+- The define phase is **synchronous**. The `root()` callback runs synchronously and every component call inside it is synchronous. AsyncLocalStorage's cross-`await` propagation is not used during define.
+- Async only matters for the build phase, where ops receive `ctx$` as an explicit parameter (via `step()` at lines 287, 315, 330, 335, 346) — they never call `getStore()`.
+
+The only thing AsyncLocalStorage actually buys at runtime is **isolation between concurrent `generate()` calls**. We replicate that with per-call state, not globals.
+
+**The Go shape.** A small carrier type `J` holds a pointer to the current node and a shared backing context:
+
+```go
+type J struct {
+    st  *jstate   // shared across one Generate call
+    cur *Node    // current frame; differs per nested callback
+}
+
+type jstate struct {
+    opts   Options
+    fs     FS
+    now    func() int64
+    folder string
+    model  map[string]any
+    log    Log
+    meta   map[string]any
+    debug  string
+    root   *Node
+    err    error    // first define-phase error; halts subsequent components
+    bctx   *buildCtx // populated before build phase
+}
+```
+
+Each component method on `*J` (e.g. `Project`, `Folder`, `File`) is the Go analogue of TS `cmp()`:
+
+```go
+func (j *J) Folder(name string, body func(*J)) {
+    if j.st.err != nil { return }
+    n := &Node{Kind: KindFolder, Name: name, Path: childPath(j.cur, name), Meta: map[string]any{}}
+    j.cur.Children = append(j.cur.Children, n)
+    if j.st.root == nil { j.st.root = n }
+    if body != nil {
+        body(&J{st: j.st, cur: n})
+    }
+}
+```
+
+The receiver-swap is a function-local stack variable — there is no global to mutate, no goroutine-local table, no defer needed for restore. The push/pop happens implicitly because each nested call gets a *fresh* `*J` whose `cur` is the new node, while the parent's `*J` is untouched.
+
+**Parameter shadowing — the noise budget.** User code names the callback parameter `j`, deliberately shadowing the outer `j`:
+
+```go
+j.Generate(opts, func(j *J) {                       // outer j shadowed
+    j.Project(P{Folder: "sdk"}, func(j *J) {       // shadowed again
+        j.Folder("src", func(j *J) {
+            j.File("main.go", func(j *J) {
+                j.Content("// hello\n")
+            })
+        })
+    })
+})
+```
+
+Compared to TS:
+
+| Cost | TS | Go (this approach) |
+|---|---|---|
+| Free-standing function names | `Project(...)` | `j.Project(...)` (one-character prefix) |
+| Callback signature | `() => {...}` | `func(j *J) {...}` |
+| Anything else | — | — |
+
+Two characters and one identifier per call site. Every other ergonomic property is preserved: declarative nesting, no explicit context plumbing inside the callback body, no `ctx$.node` peeking. Because the parameter is shadowed, users *cannot* accidentally use the wrong `j` — the outer one is unreachable from within the callback.
+
+**Concurrency.** Each `Generate` call constructs its own `*J` and `*jstate`. The package exports zero mutable globals. Two goroutines running `Generate` simultaneously cannot collide. This is provable by inspection (no shared state) and verified by a regression test:
+
+```go
+func TestGenerateConcurrent(t *testing.T) {
+    var wg sync.WaitGroup
+    for i := 0; i < 10; i++ {
+        i := i
+        wg.Add(1)
+        go func() {
+            defer wg.Done()
+            j := New(WithMem())
+            res, err := j.Generate(opts, func(j *J) {
+                j.Project(P{Folder: fmt.Sprintf("p%d", i)}, func(j *J) {
+                    j.File(fmt.Sprintf("f%d.txt", i), func(j *J) {
+                        j.Content(fmt.Sprintf("body-%d\n", i))
+                    })
+                })
+            })
+            // assert res.Vol() contains exactly p%d/f%d.txt with body-%d
+        }()
+    }
+    wg.Wait()
+}
+```
+
+The TS suite has no equivalent because Node single-threads JS execution; this test is a genuine guarantee the Go port adds.
+
+**Error policy.** TS `cmp()` throws synchronously and the error propagates through the stack. Go has no exceptions in idiomatic code. Inside a `func(j *J)` callback we cannot `return err`, so the rule is:
+
+1. The first error during the define phase is stored on `j.st.err`.
+2. Every component method early-returns when `j.st.err != nil`. Subsequent calls in the same callback (and all nested callbacks) become no-ops.
+3. `Generate` returns `(Result, error)` — the stored `err` is surfaced after the `root()` callback returns.
+4. Build-phase errors are wrapped in `NodeError{Step, Path, Callsite, Err}` and returned the same way.
+5. `panic` is reserved for genuine programmer errors (nil dereference of `*J`); it is not used as control flow.
+
+**Worked equivalence.** The TS push/pop:
+
+```ts
+ctx$.children = node.children   // line 420
+ctx$.node = node                 // line 421
+let out = component(props, children) // line 428
+ctx$.children = siblings         // line 430 — restore
+ctx$.node = parent               // line 431 — restore
+```
+
+Becomes, in Go:
+
+```go
+body(&J{st: j.st, cur: n})  // entire push/pop is implicit
+```
+
+Because `body(&J{...})` shadows the receiver inside the callback and discards the new `*J` on return, the parent's frame is never disturbed. The Go version is structurally simpler and has the same observable user surface.
+
+**Why not the others — one-line each.**
+- Goroutine-local: requires `runtime.Stack` parsing or a CGo-style hack (e.g., `petermattis/goid`); fragile under goroutine reuse and rejected in most code reviews.
+- `context.Context`: idiomatic for cancellation, not DSL state; multiplies the surface of every component method.
+- Hybrid stack-local: ends up being receiver-shadowing plus extra ceremony, with no readability win.
 
 ### 3. Package layout
 - Single `jostraca` package at `github.com/jostraca/jostraca/go/jostraca`.
