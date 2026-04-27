@@ -3,9 +3,52 @@
 ## Outline
 
 ### 1. Context
-- Why this work: `/home/user/jostraca/go/jostraca/` today is only `Template()` (~12% of TS surface) — no components, ops, build pipeline, file handling, or context machinery. README accurately calls itself a "template utility port".
-- Goal: bring Go to full feature parity with `/home/user/jostraca/src/`, *including* 3-way merge.
-- Headline ergonomic constraint: replicate the noiselessness of TS's `AsyncLocalStorage`-driven component nesting without using global mutable state.
+
+**Current state.** The Go module under `go/jostraca/` is a 184-line `Template()` helper plus a 65-line test (`template.go` and `template_test.go`). It exposes one function (`Template`) and one helper (`ParseTemplateSpec`) — no components, no node tree, no build pipeline, no file handling, no context machinery. The directory's own `go/README.md` is honest about scope: *"This folder contains a Go implementation of Jostraca's template utility."* That is roughly 12% of the TypeScript surface in `src/`.
+
+By contrast, the TS package in `src/` is a code-and-project generator:
+
+- **Core entry** (`src/jostraca.ts`, 498 lines) — `Jostraca()` factory and `generate()` driver.
+- **9 components** (`src/cmp/`) — `Project`, `Folder`, `File`, `Copy`, `Inject`, `Fragment`, `Slot`, `Content`, `Line`, `List` (plus internal `None`).
+- **9 ops** (`src/op/`) — one per component, with `before()`/`after()` hooks driven by a recursive `step()` walker.
+- **Build pipeline** (`src/build/`) — `BuildContext` (119 lines), `BuildMeta` (107 lines), `FileHandler` (746 lines) with five existing-file modes: `write`, `preserve`, `present`, `diff`, `merge`.
+- **Utilities** (`src/util/basic.ts`, 750 lines) — `each`, `get`, `getx`, `camelify`, `snakify`, `kebabify`, `partify`, `lcf`, `ucf`, `names`, `escre`, `indent`, `isbinext`, `cmap`, `vmap`, `template`, `getdlog`, plus point/orchestration in `point.ts`.
+- **Tests** (`test/`) — `jostraca.test.ts`, `template.test.ts`, `utility.test.ts`, `merge.test.ts`, `control.test.ts`, `point.test.ts`.
+
+**Why now.** The README at the repo root advertises a Go port (`README.md:281-283`); the actual Go module covers only the template engine. Anyone reaching for `import "github.com/jostraca/jostraca/go/jostraca"` to *generate code projects* in Go gets nothing. Closing the gap unblocks Go consumers and prevents the README from being misleading.
+
+**Goal.** Bring the Go module to full feature parity with `src/`, including:
+- All 9 user-facing components and their ops.
+- Full build pipeline with all 5 existing-file modes — `write`, `preserve`, `present`, `diff`, *and* 3-way `merge` (hand-ported `node-diff3` algorithm).
+- All non-`Point*` utilities, with `Point*` deferred to a later sub-package since it's not used by the core.
+- Template engine extended to TS feature parity (14 specific gaps enumerated in §9).
+- Test corpus mirroring TS, including a new concurrency regression test that the TS version can't have because Node has no real shared-state concurrency.
+
+**Non-goals (v1).**
+- `Point*` orchestration utility — not used by `src/jostraca.ts`; only re-exported as `PointUtil`. Defer to a future `point` sub-package.
+- Drop-in API compatibility for callers of the existing `Template()` function — its signature stays, but the package gains many new top-level types and methods around it.
+- Browser/JS interop. The Go port is a server-side library.
+
+**Headline ergonomic constraint.** TS achieves a clean nested-callback DSL with no visible context plumbing:
+
+```ts
+generate({...}, () => {
+  Project({ folder: 'sdk' }, () => {
+    Folder({ name: 'src' }, () => {
+      File({ name: 'main.ts' }, () => Content('...'))
+    })
+  })
+})
+```
+
+This is powered by `AsyncLocalStorage` — `GLOBAL.jostraca = new AsyncLocalStorage()` at `src/jostraca.ts:189`, entered via `.run(ctx$, async () => { root() })` at line 271, and read by `cmp()` at line 378 to find the current parent node when a user component is invoked. Two `generate()` calls running concurrently see isolated stores.
+
+Go has no idiomatic equivalent: `goroutine`-local storage is non-standard and discouraged, and `context.Context` threading would force an extra parameter into every component call. The plan must replicate the same *user-visible noiselessness* without using global mutable state. §2 picks the approach (receiver-shadowing closure) and shows side-by-side examples.
+
+**Constraints.**
+- Go module path stays `github.com/jostraca/jostraca/go` (`go/go.mod`).
+- The existing `github.com/rjrodger/shape/go v0.1.0` dependency continues to validate options — it already validates `TemplateSpec` in `template.go:24`.
+- Match TS behaviour where it's well-defined; deviate where Go idioms strongly favour an alternative, but flag every deviation explicitly (§14).
 
 ### 2. Threadlocal replacement — receiver-shadowing closure
 - Decision recap (vs. goroutine-local / `context.Context`).
