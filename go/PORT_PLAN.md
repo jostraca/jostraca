@@ -2801,8 +2801,97 @@ Sorted by severity (impact × likelihood). Each risk lists the trigger, what fai
 Each risk has a one-line entry in `go/PORT_PLAN.md` (this section). When a mitigation actually fires (e.g., a flaky concurrency test gets investigated), append the resolution to that risk's entry rather than starting a new doc — keeps the trail with the plan.
 
 ### 16. Critical files to modify / create
-- Modify: `/home/user/jostraca/go/jostraca/template.go`, `/home/user/jostraca/go/jostraca/template_test.go`, `/home/user/jostraca/go/README.md`, `/home/user/jostraca/go/go.mod`.
-- Create: every other file listed in §3.
+
+#### 16.1 Files modified (existing today, edited during the port)
+
+| File | Why | First-touched in phase |
+|---|---|---|
+| `go/jostraca/template.go` | Replace 184-line stub with the full §9 implementation; keep `Template`/`ParseTemplateSpec` signatures additive (R13). | 3 |
+| `go/jostraca/template_test.go` | Extend the 65-line file with the §9.4 case table mirroring `test/template.test.ts`. Existing rows stay. | 3 |
+| `go/README.md` | Replace "template utility port" wording with full quick-start, API, deviations (§14). | 12 |
+| `go/go.mod` | Add `github.com/sergi/go-diff` (runtime), `github.com/google/go-cmp` (test-only). | 10–11 |
+| `go/go.sum` | Regenerate via `go mod tidy` after each new dep lands. | per-step |
+| `README.md` (repo root) | Update Go-port section (currently lines 281-283) to advertise full parity, not template-only. | 12 |
+
+#### 16.2 Files created (new in this port)
+
+Grouped by phase from §12. Every file lives under `go/jostraca/` unless noted.
+
+**Phase 1 (skeleton).**
+- `jostraca.go` — `New`, `Generate`, glue
+- `options.go` — `Options`, `WithX` constructors, `OptionsFromMap`, shape schema
+- `node.go` — `Node`, `Kind` enum, `kindCount`
+- `errors.go` — `NodeError`, sentinels
+- `log.go` — `Log` interface, `DefaultLog`
+- `doc.go` — package godoc
+
+**Phase 2 (filesystem).**
+- `fs.go` — `FS`, `OsFS`, `MemFS`, `FileInfo`, `DirEntry`
+- `fs_test.go`
+
+**Phase 3 (template).**
+- (existing `template.go` rewritten — see 16.1)
+- `testdata/fixtures/` directory created for Fragment goldens (populated phase 8)
+
+**Phase 4 (utilities).**
+- `util.go` — every utility from §10
+- `util_test.go` — port of `test/utility.test.ts`
+
+**Phase 5 (leaf components, basic ops).**
+- `builder.go` — first half: `*J.Project`, `*J.Folder`, `*J.File`, `*J.Content`, `*J.Line`, `*J.Slot`, `*J.Cmp`
+- `build.go` — `step()`, dispatch table (initially mostly `noopOp`), `projectBefore`, `folder*`, `file*`, `content*`, `slot*`, `noopOp`
+- `buildctx.go` — `buildCtx` struct
+- `builder_test.go`
+
+**Phase 6 (file handling).**
+- `filehandler.go` — `fileHandler` with `write`/`preserve`/`present`/`protect`/`unchanged` modes
+- `buildmeta.go` — `buildMeta` JSON load/save + .gitignore stub
+- `filehandler_test.go`
+- `jostraca_test.go` — port of `test/jostraca.test.ts`
+- `control_test.go` — port of `test/control.test.ts`
+- `testdata/parity/quickstart.json` (and friends)
+
+**Phase 7 (concurrency).**
+- `concurrency_test.go`
+
+**Phase 8 (Inject, Fragment, List).**
+- (extends `builder.go` and `build.go`)
+- `testdata/fixtures/template.html`
+- `testdata/fixtures/snippet.go`
+
+**Phase 9 (Copy).**
+- (extends `build.go`)
+- `testdata/fixtures/assets/` populated
+
+**Phase 10 (2-way diff).**
+- `diff.go`
+- `diff_test.go`
+- `testdata/diff/case_*.txt`
+
+**Phase 11 (3-way merge).**
+- `merge.go` — diff3 hand-port
+- `merge_test.go`
+- `testdata/merge/*.json` — corpus from `test/merge.test.ts`
+
+**Phase 12 (docs).**
+- `go/REFERENCE.md` — Go-API reference mirroring repo-root `REFERENCE.md`
+- `.github/workflows/go-test.yml` — CI
+
+#### 16.3 Files deleted
+
+None. Every existing file in `go/` either survives unchanged or is rewritten in place. The `go/` directory contents at v1 ship time are a strict superset of today's directory plus the new files in 16.2.
+
+#### 16.4 Files explicitly NOT created in v1
+
+- `go/jostraca/point/` sub-package — deferred (D15).
+- A separate `go/cmd/` directory — no v1 binary; this is a library.
+- A `Makefile` — Go's `go test`/`go build` is enough.
+
+#### 16.5 Cross-references
+
+- §3 specifies the file tree this section enumerates as critical.
+- §13 maps each file to its TS source and phase.
+- §17 verification commands assume these files exist.
 
 ### 17. Verification (end-to-end)
 - `cd go && go build ./...`
