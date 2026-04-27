@@ -1144,12 +1144,235 @@ Inside one `Generate` call the walk is single-goroutine. Two parallel `Generate`
 - §11 specifies regression tests asserting op order and audit content.
 
 ### 7. FileHandler
-- Modes: `write`, `preserve`, `present`, `diff`, `merge` — all in v1.
-- `OsFS` and `MemFS` behind small `FS` interface (read+write+exists+stat+mkdirall+readdir).
-- Path normalisation via `filepath.ToSlash`.
-- `JOSTRACA_PROTECT` sentinel.
-- `BuildMeta` JSON load/save under `<folder>/.jostraca/jostraca.meta.log` + `.gitignore` stub.
-- `duplicateFolder` writes generated copy to `<folder>/.jostraca/generated/<rpath>` for merge baseline.
+
+The `fileHandler` (lowercase, internal) is the only place that touches the filesystem. Ops in §6 push content through `bctx.fh.save(...)` and `bctx.fh.copy(...)`; nothing else writes. This concentrates the existing-file-mode logic and makes `MemFS` testable.
+
+#### 7.1 `FS` interface
+
+Defined in `fs.go`:
+
+```go
+type FS interface {
+    ReadFile(path string) ([]byte, error)
+    WriteFile(path string, data []byte) error
+    Exists(path string) bool
+    Stat(path string) (FileInfo, error)
+    MkdirAll(path string) error
+    ReadDir(path string) ([]DirEntry, error)
+    Remove(path string) error           // for .old. cleanup on overwrite
+    Rename(oldpath, newpath string) error
+}
+
+type FileInfo struct {
+    Name    string
+    Size    int64
+    Mode    fs.FileMode
+    ModTime int64                       // unix millis
+    IsDir   bool
+}
+
+type DirEntry struct {
+    Name  string
+    IsDir bool
+}
+```
+
+Why not `io/fs.FS`. `io/fs.FS` is read-only. `testing/fstest.MapFS` is also read-only. Jostraca's whole point is *writing* generated files, so we need a read+write interface. The dedicated interface is small and easy for users to mock or wrap (an `OsFS` adapter and a `MemFS` come in-package).
+
+##### `OsFS`
+
+Thin wrapper around `os` and `path/filepath`, normalising input paths from forward slashes to OS-native via `filepath.FromSlash` at the boundary:
+
+```go
+type OsFS struct{}
+
+func (OsFS) ReadFile(p string) ([]byte, error) { return os.ReadFile(filepath.FromSlash(p)) }
+func (OsFS) WriteFile(p string, b []byte) error {
+    return os.WriteFile(filepath.FromSlash(p), b, 0o644)
+}
+// ...
+```
+
+Inside the package every path is canonical-`/`. Conversion happens only inside `OsFS`.
+
+##### `MemFS`
+
+A `map[string][]byte` guarded by `sync.RWMutex`, with synthesised `FileInfo` (mtime from a sibling map). `MkdirAll` is a no-op (paths in the map are flat keys); `ReadDir` walks keys with the prefix and returns synthetic entries. `Vol()` exposes the underlying map for `Result.Vol`:
+
+```go
+type MemFS struct {
+    mu    sync.RWMutex
+    files map[string][]byte
+    times map[string]int64
+}
+
+func (m *MemFS) Vol() map[string][]byte { ... }   // copy under RLock
+```
+
+Two callers can safely share a `*MemFS` across goroutines because of the mutex; the §2 concurrency test exercises this.
+
+#### 7.2 The five existing-file modes
+
+Mirrors `ExistingShape` at `src/jostraca.ts:156-172`. Only the *first* applicable mode runs — TS evaluates them in this exact order; the Go port matches:
+
+| Mode | Trigger | Behaviour | Output paths |
+|---|---|---|---|
+| `write` | default | overwrite existing path with new content | `target` |
+| `preserve` | new content differs from existing | rename existing to `name.old.ext`, then write new to `target` | `target`, `name.old.ext` |
+| `present` | new content differs from existing | leave existing untouched, write new to `name.new.ext` | `name.new.ext` |
+| `diff` | new content differs from existing (text only) | render conflict-marker text from old vs new (§8.1), write to `name.diff.ext` | `name.diff.ext` |
+| `merge` | new differs from existing AND a duplicate baseline exists in `.jostraca/generated/` | run 3-way merge (§8.2); on success write merged to `target`; on conflicts append conflict markers and write to `target` plus track in `Files.Conflicted` | `target` |
+
+Equality short-circuit: when new content equals existing, the file is recorded in `Files.Unchanged` and nothing is written. Matches TS behaviour at `FileHandler.save`.
+
+`JOSTRACA_PROTECT` sentinel: if the *existing* file contains the literal `# JOSTRACA_PROTECT` (or a comment-flavour equivalent), `save` no-ops and the path is added to `Files.Preserved`. Constant `protectMarker = "JOSTRACA_PROTECT"`. This implements the README "Protected Files" guarantee.
+
+Binary vs text routing: `isbinext(path)` (§10) decides which `Existing.{Txt,Bin}` modes apply. Binary files do not support `diff` or `merge` regardless of options.
+
+#### 7.3 `fileHandler` shape
+
+```go
+type fileHandler struct {
+    fs       FS
+    now      func() int64
+    folder   string                    // canonical-/ output base
+    when     int64
+    audit    *Audit                    // shared with buildCtx
+    existing Existing
+    control  Control
+
+    files       Files                  // accumulated outcome lists
+    createdDirs map[string]struct{}    // mkdir dedupe
+
+    bmeta           *buildMeta
+    duplicateFolder func() string
+    maxDepth        int                // path-depth safety cap
+}
+
+func newFileHandler(b *buildCtx, ex Existing, c Control) *fileHandler
+```
+
+Public surface (still lowercase — internal):
+
+```go
+func (fh *fileHandler) save(path string, content []byte, whence string) error
+func (fh *fileHandler) copy(from, to string, whence string) error
+func (fh *fileHandler) loadFile(path string, whence string) ([]byte, error)
+func (fh *fileHandler) saveFile(path string, content []byte, whence string) error
+func (fh *fileHandler) loadJSON(path string, v any) error
+func (fh *fileHandler) saveJSON(path string, v any) error
+func (fh *fileHandler) ensureFolder(path string) error
+func (fh *fileHandler) ensureDir(dir string) error
+func (fh *fileHandler) relative(path, whence string) string
+func (fh *fileHandler) filelog(kind fileKind, path string)
+```
+
+`whence` strings (e.g. `"FileOp:after"`, `"CopyOp:before"`) appear in audit and error messages, matching `ON + FN` patterns at `src/op/FileOp.ts:7,22`. `relative` strips `fh.folder` prefix and forces forward slashes (matches TS `relative` and `fwd` at lines 24-26 and 110-124).
+
+Path safety: `validPath(p)` checks `maxDepth` (default 22, matches TS line 84) and rejects empty paths. Returns `ErrInvalidPath` if violated.
+
+#### 7.4 `buildMeta`
+
+Mirrors `src/build/BuildMeta.ts` (107 lines):
+
+```go
+type buildMeta struct {
+    fh    *fileHandler
+
+    prev metaSnapshot
+    next metaSnapshot
+}
+
+type metaSnapshot struct {
+    Foldername string                        // ".jostraca"
+    Filename   string                        // "jostraca.meta.log"
+    Last       int64                         // epoch ms
+    HLast      string                        // human-readable
+    Files      map[string]map[string]any     // per-output-path metadata
+}
+
+func (m *buildMeta) load() error
+func (m *buildMeta) add(file string, meta map[string]any)
+func (m *buildMeta) done() error             // saves next; called at end of Generate
+func (m *buildMeta) last() int64             // returns prev.Last for incremental builds
+```
+
+Persists JSON to `<folder>/.jostraca/jostraca.meta.log`. `done()` also writes `<folder>/.jostraca/.gitignore` containing `*` so the generator artifacts don't get committed accidentally — matches TS `BuildMeta.done` behaviour.
+
+#### 7.5 `duplicateFolder`
+
+When `Options.Control.Duplicate == true` (default), `fileHandler.save` writes a side-copy of every successful generation to:
+
+```
+<folder>/.jostraca/generated/<rpath>
+```
+
+These copies are the baseline for the *next* run's 3-way merge: `existing` is the user's current file on disk, `prev` is the duplicate from the last run, `new` is what we're about to generate. See §8.2.
+
+`duplicateFolder()` is a small accessor on `buildCtx` returning `filepath.Join(fh.folder, ".jostraca", "generated")`.
+
+#### 7.6 `save` algorithm sketch
+
+```go
+func (fh *fileHandler) save(path string, content []byte, whence string) error {
+    p := fwd(filepath.Clean(path))
+    if err := validPath(p); err != nil { return err }
+
+    rpath := fh.relative(p, whence)
+    isText := isTextContent(content, p)
+    modes := fh.modesFor(isText)
+
+    if !fh.fs.Exists(p) {
+        return fh.write(p, content, rpath, whence)        // new file, simple write
+    }
+
+    existing, err := fh.fs.ReadFile(p)
+    if err != nil { return err }
+
+    if bytes.Contains(existing, []byte(protectMarker)) {
+        fh.filelog(kindPreserved, rpath); return nil
+    }
+
+    if bytes.Equal(existing, content) {
+        fh.filelog(kindUnchanged, rpath); return nil
+    }
+
+    switch {
+    case modes.Merge && isText && fh.hasDuplicate(rpath):
+        return fh.saveMerge(p, content, existing, rpath, whence)
+    case modes.Diff && isText:
+        return fh.saveDiff(p, content, existing, rpath, whence)
+    case modes.Present:
+        return fh.savePresent(p, content, rpath, whence)
+    case modes.Preserve:
+        return fh.savePreserve(p, content, existing, rpath, whence)
+    case modes.Write:
+        return fh.write(p, content, rpath, whence)
+    default:
+        fh.filelog(kindUnchanged, rpath); return nil
+    }
+}
+```
+
+`fh.write` also performs the duplicate-folder side-write when `Control.Duplicate` is on.
+
+#### 7.7 Audit
+
+Every action records `(tag, payload)` to `audit`:
+
+```go
+fh.audit.append("save", map[string]any{
+    "path": rpath, "kind": "written", "size": len(content), "whence": whence,
+})
+```
+
+Surfaced via `Result.Audit()`. Tag set: `save`, `copy`, `mkdir`, `preserve`, `present`, `diff`, `merge`, `conflict`, `protect`, `unchanged`.
+
+#### 7.8 Cross-references
+
+- §8 owns the diff and merge content rendering — `saveDiff` and `saveMerge` call into `diff.go` / `merge.go`.
+- §9 has no direct interaction with FileHandler; `Content` rendering happens before content reaches the handler.
+- §11 lists `filehandler_test.go` cases per mode plus a `MemFS` round-trip.
 
 ### 8. Diff & merge
 - 2-way diff: `github.com/sergi/go-diff/diffmatchpatch` (line mode) rendered with TS's `<<<<<<< GENERATED:` / `>>>>>>> EXISTING:` markers.
