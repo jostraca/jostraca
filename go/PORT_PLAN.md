@@ -2502,7 +2502,86 @@ V1 ships full TS parity (including 3-way merge — user opted into the diff3 han
 - The repo-root `README.md` Go-port section advertises full parity (not "template utility port").
 
 ### 13. File-by-file mapping (TS → Go)
-Table mapping each `src/**/*.ts` and `test/**/*.ts` to its target `go/jostraca/*.go` file.
+
+Authoritative list. Each TS file maps to one or more Go files; the rightmost column points to the phase from §12 that delivers the port.
+
+#### 13.1 Source code mapping (`src/` → `go/jostraca/`)
+
+| TS file | LoC | Go destination | Phase |
+|---|---|---|---|
+| `src/jostraca.ts` | 498 | `jostraca.go` (entry, `New`, `Generate`, glue), `options.go` (Options + WithX + OptionsFromMap) | 1, 6 |
+| `src/types.ts` | — | `node.go` (Node/Kind), `jostraca.go` (Result/Files/Audit), `errors.go` (NodeError) | 1 |
+| `src/build/BuildContext.ts` | 119 | `buildctx.go` | 5–6 |
+| `src/build/BuildMeta.ts` | 107 | `buildmeta.go` | 6 |
+| `src/build/FileHandler.ts` | 746 | `filehandler.go` (write/preserve/present/protect/unchanged), `diff.go` (diff mode), `merge.go` (merge mode + diff3 port) | 6, 10, 11 |
+| `src/cmp/Project.ts` | 22 | `builder.go` — `*J.Project` / `*J.ProjectP` | 5 |
+| `src/cmp/Folder.ts` | 22 | `builder.go` — `*J.Folder` | 5 |
+| `src/cmp/File.ts` | 21 | `builder.go` — `*J.File` / `*J.FileP` | 5 |
+| `src/cmp/Content.ts` | 34 | `builder.go` — `*J.Content` / `*J.ContentP` | 5 |
+| `src/cmp/Line.ts` | — | `builder.go` — `*J.Line` / `*J.LineP` | 5 |
+| `src/cmp/Slot.ts` | — | `builder.go` — `*J.Slot` / `*J.SlotP` | 5 |
+| `src/cmp/None.ts` | — | not needed — `KindNone` is the zero `Kind` value | — |
+| `src/cmp/Inject.ts` | — | `builder.go` — `*J.Inject` / `*J.InjectP` | 8 |
+| `src/cmp/Fragment.ts` | 87 | `builder.go` — `*J.Fragment` / `*J.FragmentP` (uses Template `Handle`) | 8 |
+| `src/cmp/Copy.ts` | — | `builder.go` — `*J.Copy` (define-time leaf) | 9 |
+| `src/cmp/List.ts` | — | `builder.go` — `*J.List` / `*J.ListP` | 8 |
+| `src/op/ProjectOp.ts` | — | `build.go` — `projectBefore` | 5 |
+| `src/op/FolderOp.ts` | 35 | `build.go` — `folderBefore`, `folderAfter` | 5 |
+| `src/op/FileOp.ts` | 81 | `build.go` — `fileBefore`, `fileAfter` | 5–6 |
+| `src/op/ContentOp.ts` | — | `build.go` — `contentBefore` | 5 |
+| `src/op/InjectOp.ts` | — | `build.go` — `injectBefore`, `injectAfter` | 8 |
+| `src/op/FragmentOp.ts` | — | `build.go` — `fragmentBefore`, `fragmentAfter` | 8 |
+| `src/op/SlotOp.ts` | — | `build.go` — `slotBefore`, `slotAfter` | 5/8 |
+| `src/op/CopyOp.ts` | — | `build.go` — `copyBefore`, `copyAfter` | 9 |
+| `src/op/NoneOp.ts` | — | `build.go` — `noopOp` | 1 |
+| `src/util/basic.ts` | 750 | `util.go` (every utility from §10), `template.go` (template engine) | 3, 4 |
+| `src/util/point.ts` | — | **deferred** to `go/jostraca/point/` post-v1 | — |
+
+#### 13.2 Test mapping (`test/` → `go/jostraca/`)
+
+| TS test file | Go test file | Phase |
+|---|---|---|
+| `test/jostraca.test.ts` | `jostraca_test.go` | 6 |
+| `test/template.test.ts` | `template_test.go` (extends existing) | 3 |
+| `test/utility.test.ts` | `util_test.go` | 4 |
+| `test/control.test.ts` | `control_test.go` | 6 |
+| `test/merge.test.ts` | `merge_test.go` | 11 |
+| `test/point.test.ts` | not ported | — |
+| `test/expect.ts` | replaced by `github.com/google/go-cmp/cmp` | — |
+
+#### 13.3 New tests with no TS counterpart
+
+| Go test file | Reason | Phase |
+|---|---|---|
+| `concurrency_test.go` | Receiver-shadowing isolation regression — Node has no goroutine concurrency to test | 7 |
+| `filehandler_test.go` | Per-mode unit tests outside the end-to-end suite | 6 |
+| `diff_test.go` | 2-way diff render goldens | 10 |
+| `fs_test.go` | OsFS + MemFS sanity | 2 |
+| `builder_test.go` | Per-component node-tree shape | 5 |
+
+#### 13.4 Documentation files
+
+| TS / repo-root file | Go destination | Phase |
+|---|---|---|
+| `README.md` (repo root) | update Go-port section to claim full parity (§12 Step 12) | 12 |
+| `REFERENCE.md` (repo root) | `go/REFERENCE.md` (verbatim per-component reference, Go signatures) | 12 |
+| `go/README.md` (current "template utility" stub) | full quick-start + API surface (replaces stub) | 12 |
+| (none) | `go/jostraca/doc.go` package godoc | 12 |
+| `go/PORT_PLAN.md` | this document; closes when v1 ships | — |
+
+#### 13.5 Module / build files
+
+| File | Action | Phase |
+|---|---|---|
+| `go/go.mod` | add `github.com/sergi/go-diff` (runtime), `github.com/google/go-cmp` (test) | 10, 11 |
+| `go/go.sum` | regenerate via `go mod tidy` | per-step |
+| `.github/workflows/go-test.yml` (new) | CI: `go vet`, `go test -race -count=1`, repeat-run concurrency case | 12 |
+
+#### 13.6 Cross-references
+
+- §3 enumerates the file tree this section maps to.
+- §12 phases reference these files in delivery order.
+- §16 lists the critical files to modify *now* (vs. create later).
 
 ### 14. Deviations from TS (explicit, flagged)
 1. Components are `*J` methods, not free functions.
