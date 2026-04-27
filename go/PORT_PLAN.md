@@ -1593,22 +1593,285 @@ Both side-write a duplicate to `.jostraca/generated/<rpath>` when `Control.Dupli
 - §15 calls out diff3 correctness as the highest-risk porting subtask.
 
 ### 9. Template — close TS gaps in `template.go`
-List of features to add to the existing helper:
-1. Custom delimiters (`Open`/`Close`/`Ref`).
-2. Named-group rewriting in user-supplied regex keys.
-3. `#Tag` and `#Tag-Name` matching (full TS regex synthesis).
-4. `__JOSTRACA_REPLACE__` sentinel.
-5. Quoted ref `$$"foo"$$`.
-6. Function-valued model refs.
-7. JSON-stringification for non-string values.
-8. Custom `Handle` callback (used by Fragment streaming).
-9. Eject regex variant (string or `*regexp.Regexp`).
-10. Empty-match guard.
-11. Regex LRU cache (cap 100) keyed by `open\0close\0ref\0sortedKeys`.
-12. Eject regex cache.
-13. Replace-key ordering matching TS exactly.
-14. `indent()` helper in `util.go`.
-- RE2-vs-PCRE caveat: document; reject lookbehind at compile time with a clear error.
+
+The current Go `Template()` covers the basic `$$path$$` substitution + simple replace + literal eject. TS's `template()` (`src/util/basic.ts:360-581`, ~220 lines) is much richer. This section enumerates each missing feature with the source of truth in TS and the Go-specific implementation note.
+
+#### 9.1 Updated `TemplateSpec`
+
+```go
+type TemplateSpec struct {
+    // Existing fields (kept).
+    Replace map[string]any                  // string|TemplateReplaceFunc|literal regex /.../
+    Eject   any                              // [2]string | [2]any{string|*regexp.Regexp}
+
+    // New fields (this section).
+    Open   string                            // default `\$\$`
+    Close  string                            // default `\$\$`
+    Ref    string                            // default `[^$]+`
+    Insert *regexp.Regexp                    // pre-compiled override of the assembled regex
+    Handle func(string)                      // streaming callback; if set, Template returns ""
+}
+
+type TemplateReplaceFunc = ReplaceFunc       // existing alias kept for back-compat
+```
+
+`ParseTemplateSpec` (existing, `template.go:30-57`) extends to validate all new fields against an updated `shape` schema.
+
+#### 9.2 Feature gaps — one entry per missing capability
+
+##### 1. Custom delimiters (`Open`/`Close`/`Ref`)
+
+TS at `src/util/basic.ts:404-406`:
+```ts
+let open  = null == spec?.open  ? '\\$\\$'  : spec.open
+let close = null == spec?.close ? '\\$\\$'  : spec.close
+let ref   = null == spec?.ref   ? '[^$]+'   : spec.ref
+```
+
+Go: thread these into the regex builder. Use named capture groups `(?P<J_O>open)(?P<J_R>ref)(?P<J_C>close)` exactly mirroring TS lines 431-433. Group names are RE2-compatible (`(?P<...>)` is the Go syntax; rewrite TS's `(?<...>)` form when accepting user regexes).
+
+##### 2. Named-group rewriting in user-supplied regex keys
+
+TS at `:454`:
+```ts
+.replace(/\(\?<([\w\d_]+)>/g, (_, p1) => `(?<J_N${ngI++}_${p1}>`)
+```
+
+When a user provides a key like `/(?<foo>\w+)/`, the inner group name `foo` is renamed to `J_N{n}_foo` to avoid collisions with template-internal names. Go uses `(?P<...>)` so the rewrite regex differs:
+
+```go
+var userGroupRE = regexp.MustCompile(`\(\?P<([\w\d_]+)>`)
+func renameUserGroups(src string, counter *int) (string, []string)
+```
+
+The function returns rewritten regex source plus the list of original→rewritten name pairs so `groups` exposed to the `ReplaceFunc` callback can be presented under their original names.
+
+##### 3. `#Tag` and `#Tag-Name` matching
+
+TS at `:460-468` parses `#Foo` and `#Foo-Bar` keys and synthesises a regex of the form:
+
+```
+(?P<J_N{n}_indent>[ \t]*)//[ \t]*#(?P<J_T{n}_TAG>[A-Za-z0-9]+)(-(?P<J_N{n}_TAG>...))?[ \t]*\n?
+```
+
+Go regex string built by `buildTagRegex(key string, counter *int) string`. The replace function receives:
+- `groups["indent"]` — leading whitespace
+- `groups["TAG"]` — tag identifier (or full match)
+- `groups["name"]` — alias to the inner identifier when `#Tag-Name` form is used
+
+##### 4. `__JOSTRACA_REPLACE__` sentinel
+
+TS at `:512-514`:
+```ts
+else if ('__JOSTRACA_REPLACE__' === ref) {
+  insert = '' + insertRE
+}
+```
+
+When `ref` (the captured `J_R` group) equals `__JOSTRACA_REPLACE__`, return the literal source of the compiled regex. Used for debugging/inspection. Go: stash the compiled regex's `String()` into the substitution path.
+
+##### 5. Quoted ref `$$"foo"$$`
+
+TS at `:508-511`:
+```ts
+const qm = ref.match(/^"(.+)"$/)
+if (qm) { insert = qm[1] }
+```
+
+Go already has this for the literal-quoted form; extend the existing implementation in `template.go:85-87` to recognise the same pattern when delimiters are customised.
+
+##### 6. Function-valued model refs
+
+TS allows `getx(model, 'foo.bar')` to resolve to a function and call it. Go's existing `lookup` returns the value as-is; extend to detect `func() any` and invoke it:
+
+```go
+case func() any: return v(), true
+case func() string: return v(), true
+```
+
+##### 7. JSON-stringification for non-string values
+
+TS coerces objects/arrays via `String(value)` which JSON-stringifies for plain objects. Go's existing `default: return fmt.Sprintf("%v", v)` produces Go-syntax output that won't round-trip. Replace with:
+
+```go
+default:
+    b, err := json.Marshal(v)
+    if err != nil { return fmt.Sprintf("%v", v) }
+    return string(b)
+```
+
+##### 8. Custom `Handle` callback
+
+TS at `:485-491`:
+```ts
+const hasCustomHandle = null != spec?.handle
+let handle = hasCustomHandle ? spec!.handle! : ((s: string) => parts.push(...))
+```
+
+When `Handle` is set, the engine streams each segment (text-between-matches and replacement-output) to the callback and returns `""`. Used by `Fragment` (§5) to intercept output and route into child `Content` nodes.
+
+Go: branch the writer:
+
+```go
+var out strings.Builder
+write := func(s string) { out.WriteString(s) }
+if spec != nil && spec.Handle != nil {
+    write = spec.Handle
+}
+// ... loop emits via write(...)
+if spec != nil && spec.Handle != nil { return "", nil }
+return out.String(), nil
+```
+
+##### 9. Eject regex variant
+
+TS at `:379-401` accepts either string or `RegExp` for both eject markers. Go currently only accepts `[2]string`. Update `Eject` to `any` and dispatch:
+
+```go
+func compileEject(v any) (*regexp.Regexp, error)   // string → cached compile, *regexp.Regexp → return
+```
+
+`TemplateSpec.Eject` becomes `any` (covering `[2]string`, `[2]any{string,string}`, `[2]any{string,*regexp.Regexp}`, etc.).
+
+##### 10. Empty-match guard
+
+TS at `:537`:
+```ts
+if ('' === ref) {
+  throw new Error('Regular expression matches empty string: ' + insertRE)
+}
+```
+
+Critical for not entering an infinite loop when a user-supplied regex matches empty. Go: detect when `ReplaceAllStringFunc`'s match is the empty string and `r.err = ErrEmptyMatchRegex` (per §4.6 sentinel), abort.
+
+##### 11. Regex LRU cache (cap 100)
+
+TS at `:351-352`:
+```ts
+const templateRECache = new Map<string, { re: RegExp, canonKeys: [string, string][] }>()
+const TEMPLATE_RE_CACHE_MAX = 100
+```
+
+Go: `package`-level `sync.Map` plus an LRU bound. The simplest-correct implementation:
+
+```go
+type templateCacheEntry struct {
+    re        *regexp.Regexp
+    canonKeys [][2]string
+}
+var (
+    templateCacheMu  sync.Mutex
+    templateCache    = make(map[string]*templateCacheEntry, templateCacheMax)
+)
+const templateCacheMax = 100
+
+func cachedTemplateRE(key string, build func() *templateCacheEntry) *templateCacheEntry {
+    templateCacheMu.Lock(); defer templateCacheMu.Unlock()
+    if e, ok := templateCache[key]; ok { return e }
+    if len(templateCache) >= templateCacheMax {
+        for k := range templateCache { delete(templateCache, k); break }   // FIFO eviction; matches TS clear-all
+    }
+    e := build()
+    templateCache[key] = e
+    return e
+}
+```
+
+Cache key matches TS at `:415-416`: `open + "\x00" + close + "\x00" + ref + "\x00" + strings.Join(sortedReplaceKeys, "\x00")`.
+
+##### 12. Eject regex cache
+
+TS at `:355`:
+```ts
+const ejectRECache = new Map<string, RegExp>()
+```
+
+Same shape as 11; smaller (no replace-key sorting needed).
+
+##### 13. Replace-key ordering
+
+TS at `:437-439`:
+```ts
+.sort((a, b) => a.startsWith('#') ?
+  (a.includes('-') ? b.includes('-') ? b.length - a.length : -1 : b.length - a.length) :
+  b.length - a.length)
+```
+
+Tag-prefixed keys (`#Foo`) come first, then by descending length. Without this, multi-key patterns produce non-deterministic output. Go: a custom `sort.Slice` matching the comparator exactly.
+
+##### 14. `indent()` helper
+
+TS at `src/util/basic.ts:594-601`:
+```ts
+function indent(src: string, indent: any) {
+  const ind = 'number' === typeof indent ? ' '.repeat(indent) : '' + (indent || '')
+  return src.replace(/(?<=\n)/g, ind)
+}
+```
+
+The lookbehind `(?<=\n)` is JS-style — RE2 doesn't support lookbehind. Go equivalent is a simple replace:
+
+```go
+func Indent(src string, indent any) string {
+    var ind string
+    switch v := indent.(type) {
+    case nil:    return src
+    case int:    ind = strings.Repeat(" ", v)
+    case string: ind = v
+    default:     ind = fmt.Sprint(v)
+    }
+    if ind == "" || src == "" { return src }
+    return strings.ReplaceAll(src, "\n", "\n"+ind)
+}
+```
+
+Lives in `util.go` (§10), referenced by `Content`, `Fragment`, and `Line`.
+
+#### 9.3 RE2-vs-PCRE caveat
+
+Go's `regexp` package is RE2: no backreferences, no lookahead, no lookbehind. Almost all of TS's template regex usage is RE2-compatible (linear, non-recursive). The two exceptions:
+
+- The `indent` lookbehind — replaced with `strings.ReplaceAll` (above).
+- User-supplied regex keys may contain `(?=...)` or `(?<=...)`. Detect at compile time and return `ErrLookbehind` (§4.6) with a clear message:
+  ```
+  jostraca: lookbehind not supported (RE2): /(?<=foo)bar/
+  ```
+
+The detection regex:
+```go
+var unsupportedLookRE = regexp.MustCompile(`\(\?<?[=!]`)
+```
+Run on the source before passing to `regexp.Compile`. Document the constraint in `template.go` doc comments and `go/README.md`.
+
+#### 9.4 `template_test.go` corpus
+
+The TS `test/template.test.ts` has 35+ cases covering every feature above. Port each as a row in a Go table-driven test:
+
+```go
+var templateCases = []struct {
+    name    string
+    src     string
+    model   any
+    spec    *TemplateSpec
+    want    string
+    wantErr error
+}{
+    {"basic", "a$$b.c$$d", map[string]any{"b": map[string]any{"c": "X"}}, nil, "aXd", nil},
+    {"quoted", "$$\"hi\"$$", nil, nil, "hi", nil},
+    {"tag #Foo", "  // #Foo\n", ..., specWithTagReplace, "...", nil},
+    {"empty regex", "x", nil, &TemplateSpec{Replace: map[string]any{"/Q*/": "z"}}, "", ErrEmptyMatchRegex},
+    {"lookbehind reject", "x", nil, &TemplateSpec{Replace: map[string]any{"/(?<=a)b/": "Z"}}, "", ErrLookbehind},
+    // ...
+}
+```
+
+Existing tests in `template_test.go` stay (basic, replace+eject, ParseTemplateSpec); new cases append.
+
+#### 9.5 Cross-references
+
+- §5 `Content` and `Fragment` consume `Template`; their feature parity hinges on this section.
+- §10 `Indent` ports to `util.go`.
+- §4.6 owns `ErrEmptyMatchRegex` and `ErrLookbehind`.
 
 ### 10. Utilities to port
 - Port: `each` (reflection-based for parity), `get`, `getx`, `camelify`, `snakify`, `kebabify`, `partify`, `lcf`, `ucf`, `names`, `escre`, `indent`, `isbinext`, `cmap`, `vmap`, `humanify`, `getdlog` (package-level locked slice instead of `global.__dlog__`), `deep`, `omap`.
