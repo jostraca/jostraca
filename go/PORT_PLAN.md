@@ -190,9 +190,87 @@ Because `body(&J{...})` shadows the receiver inside the callback and discards th
 - Hybrid stack-local: ends up being receiver-shadowing plus extra ceremony, with no readability win.
 
 ### 3. Package layout
-- Single `jostraca` package at `github.com/jostraca/jostraca/go/jostraca`.
-- File list and what lives where (`jostraca.go`, `builder.go`, `node.go`, `build.go`, `filehandler.go`, `diff.go`, `merge.go`, `fs.go`, `template.go`, `util.go`, `log.go`, `errors.go`, `options.go`, `buildctx.go`, `buildmeta.go`).
-- Why no sub-packages (TS split is a module-style artefact, not a boundary).
+
+**Decision: single `jostraca` package** at the existing import path `github.com/jostraca/jostraca/go/jostraca`. No sub-packages in v1.
+
+**Why not mirror the TS folder split (`build/`, `cmp/`, `op/`, `util/`).** That split is an artefact of TypeScript's file-per-export idiom and JS module ergonomics. Go packages are import boundaries, not visual organisation. Splitting along TS lines would force exporting types that should be unexported (e.g. `Node`, `BuildContext`, `op`), import cycles between `cmp` and `op` (each component has a corresponding op that needs the same node type), and verbose qualified names at every call site (`cmp.Project`, `op.FileOp`). Go conventionally puts a cohesive library in one package and uses files for organisation.
+
+**File layout.**
+
+```
+go/
+  go.mod
+  go.sum
+  README.md                    # rewritten in phase 12
+  PORT_PLAN.md                 # this document
+  jostraca/
+    doc.go                     # package-level godoc
+
+    jostraca.go                # New(), Generate(), top-level glue
+    options.go                 # Options, Existing, Control, CmpOptions, NameOptions, WithX, OptionsFromMap (shape)
+    log.go                     # Log interface, DefaultLog, dlog
+    errors.go                  # NodeError, sentinel errors
+
+    node.go                    # Node, Kind enum
+    builder.go                 # *J methods: Project/Folder/File/Content/Line/Slot/Inject/Fragment/Copy/List/Cmp
+    build.go                   # step() walker, op dispatch table
+    buildctx.go                # buildCtx struct (mirrors TS BuildContext)
+    buildmeta.go               # BuildMeta load/save under .jostraca/
+
+    fs.go                      # FS interface, OsFS, MemFS, FileInfo, DirEntry
+    filehandler.go             # save/copy + write/preserve/present mode logic
+    diff.go                    # 2-way diff render
+    merge.go                   # ported diff3 algorithm + 3-way merge
+
+    template.go                # extended; current 184-line file is replaced wholesale
+    util.go                    # each, get, getx, camelify, snakify, kebabify, partify,
+                               # lcf, ucf, names, escre, indent, isbinext, cmap, vmap,
+                               # humanify, deep, omap
+
+    jostraca_test.go           # ports test/jostraca.test.ts
+    builder_test.go            # *J component-level tests
+    template_test.go           # extended; ports test/template.test.ts
+    util_test.go               # ports test/utility.test.ts
+    filehandler_test.go        # write/preserve/present mode tests
+    diff_test.go               # 2-way diff render
+    merge_test.go              # ports test/merge.test.ts (active in v1)
+    control_test.go            # ports test/control.test.ts (dryrun, version)
+    concurrency_test.go        # 10-goroutine isolation regression
+    fs_test.go                 # MemFS/OsFS sanity
+
+    testdata/                  # //go:embed targets
+      merge/                   # JSON corpus from test/merge.test.ts
+      parity/                  # vol.toJSON snapshots from TS happy paths
+      fixtures/                # template files used by Fragment/Copy tests
+```
+
+**Naming.** Files are lowercased and singular (`builder.go`, not `builders.go`); test files sit beside their subject; helpers without an obvious home land in `util.go`. Files are allowed to grow to ~600–800 lines; if `builder.go` exceeds that, split as `builder_project.go`, `builder_file.go`, etc., keeping all methods on `*J` in the same package.
+
+**Public surface.** Exported identifiers from `jostraca`:
+
+- `New(opts ...Option) *J` — factory replacing the TS `Jostraca()` factory; returns the root builder.
+- `(*J).Generate(opts Options, root func(*J)) (Result, error)` — the entry point.
+- Component methods on `*J`: `Project`, `Folder`, `File`, `Content`, `Line`, `Slot`, `Inject`, `Fragment`, `Copy`, `List`, `Cmp` (custom).
+- `Option`, `Options`, `Existing`, `ExistingTxt`, `ExistingBin`, `Control`, `CmpOptions`, `NameOptions` and their `WithX` constructors.
+- `OptionsFromMap(map[string]any) (Options, error)` — for callers loading config from JSON/YAML.
+- `Result`, `Files`, `Audit`, `AuditEntry`.
+- `Log` interface, `DefaultLog`.
+- `FS`, `OsFS`, `MemFS`, `FileInfo`, `DirEntry`.
+- `Node`, `Kind`, `KindXxx` constants — exported because user `Cmp` components inspect parent kind in some idioms.
+- `NodeError`, `ErrMergeConflict` (sentinel).
+- Utility functions: `Each`, `Get`, `GetX`, `Camelify`, `Snakify`, `Kebabify`, `Partify`, `LCF`, `UCF`, `Names`, `EscRE`, `Indent`, `IsBinExt`, `CMap`, `VMap`, `Humanify`, `Deep`, `OMap`.
+- `Template`, `TemplateSpec`, `ParseTemplateSpec` — backwards-compatible with the existing helper.
+
+**Internal-only (lowercase).** `jstate`, `buildCtx`, `buildMeta`, `op`, `step`, `newDLog`, `dLog`, regex caches, all op `before`/`after` functions.
+
+**Module path and version.** Module path stays at `github.com/jostraca/jostraca/go`; the package qualifier in user code stays `jostraca.X`. `go.mod` adds `github.com/sergi/go-diff` (2-way diff) and `github.com/google/go-cmp` (test-only) dependencies. The hand-ported diff3 lives in-package (`merge.go`), so there is no third-party diff3 dependency.
+
+**Deferred to v2.** A `point` sub-package (`go/jostraca/point/`) for the `Point*` orchestration utility from `src/util/point.ts`. It is not used by core in TS — only re-exported as `PointUtil` — and porting it has no impact on parity for the generator workflow. Splitting it into a sub-package isolates the dependency surface (it would otherwise pull in unrelated logging/runner concerns).
+
+**Why this matters for §4–§9.** Subsequent sections assume:
+- All types (Node, J, Options, Result, FS, Log, NodeError, Kind) live in the same package and refer to each other directly without import qualifiers.
+- Internal helpers (`step`, `op`, `iterChildren`, regex caches, `newDLog`) are unexported but reachable from any file in the package.
+- Tests sit alongside production code in `jostraca_test` and friends, using internal access where it simplifies assertions.
 
 ### 4. Core types
 - `Node` + `Kind` enum.
