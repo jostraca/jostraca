@@ -2689,10 +2689,116 @@ To avoid surprise: these stay identical to TS, byte-equivalent where it makes se
 - Template syntax (`$$path$$`, `#Tag` markers, eject regions, replace keys).
 
 ### 15. Risks & mitigations
-- `getx` parser subtlety → port test-first against `utility.test.ts` goldens.
-- `each` reflection hot path → internal `iterChildren` helper used by core; reflection only on user path.
-- Windows path semantics → `filepath.ToSlash` everywhere internal.
-- node-diff3 port correctness → use TS merge corpus as oracle.
+
+Sorted by severity (impact × likelihood). Each risk lists the trigger, what fails if unmitigated, and the concrete mitigation.
+
+#### R1. node-diff3 port correctness — **Highest**
+**Trigger.** The hand-port of LCS + reconcile + region assembly (§8.2) ships with subtle bugs on multi-hunk or interleaved-edit cases, producing different conflict markers than TS or losing changes silently.
+**Impact if unmitigated.** Users on `merge` mode get incorrect output — silently wrong code. Conflict-recovery flow becomes untrustworthy.
+**Mitigation.**
+- Test-first port: every TS `merge.test.ts` case is in `testdata/merge/*.json` *before* the algorithm exists.
+- Stage the implementation in §8.2 Implementation order: each stage (LCS → patch → reconcile → assembly) lands behind unit tests.
+- `merge_test.go` asserts byte-equality with the TS expected output, not just "no conflict" — bytes are the contract.
+- A single-source quick-add: when a TS bug fix lands in `node-diff3`, copy the new test case into `testdata/merge/` and re-port the relevant routine. The corpus is the oracle.
+
+#### R2. `getx` parser subtlety
+**Trigger.** Hand-porting a 160-LoC parser with operators (`a:b`, `a = v`, `a ~ /re/`, `? expr`) drops or misinterprets a token boundary. Existing TS tests still pass because users of `getx` are sparse, but downstream behaviour silently breaks.
+**Impact.** Components that use `getx` (Content `extra`, downstream user code via `props.ctx$.model`) read the wrong value.
+**Mitigation.**
+- Port test-first: every row of `test/utility.test.ts` for `getx` becomes a Go subtest before the parser is written.
+- Implement the parser incrementally — each operator gated by a passing test.
+- Cap PR scope at "this many getx tests pass"; merge stepwise rather than all at once.
+
+#### R3. RE2 vs JS regex behaviour drift in user-supplied keys
+**Trigger.** Users supply a regex key with JS-only features (lookbehind, backreferences, possessive quantifiers). Go's `regexp.Compile` returns an error or, worse, silently parses something different.
+**Impact.** Templates that work in TS produce errors or incorrect output in Go.
+**Mitigation.**
+- Pre-scan user regex strings for `(?<=`, `(?<!`, `(?=`, `(?!`, and `\1..\9` backreferences (§9.3).
+- Reject with `ErrLookbehind` (§4.6) at template-compile time — clear error, not a silent drift.
+- Document the constraint in `template.go` doc comment, `go/README.md`, and the deviation list (§14 D10).
+- Detect early: do the scan before running into infinite-loop territory.
+
+#### R4. `Each` reflection hot path
+**Trigger.** Generators run thousands of `Each` calls (List components, child walks). Reflection-based `Each` becomes a measurable hot spot.
+**Impact.** Large generation runs are noticeably slower than TS.
+**Mitigation.**
+- Internal core never calls user-facing `Each` for hot iteration — it uses `iterChildren(*Node, func(*Node))` (§10.2).
+- Reflection is only on the `Each` user-facing surface, where users explicitly opted in.
+- Benchmark `BenchmarkGenerateLargeProject` in `jostraca_test.go` to track regressions; if regression > 2× TS, revisit.
+- Future option (v2): add typed variants `EachSlice` / `EachMap` / `EachAny` so callers can opt out of reflection.
+
+#### R5. Windows path semantics
+**Trigger.** Go's `filepath.Join` produces backslashes on Windows; `filepath.Ext` is `\\` separator-aware; `os.WriteFile` accepts either. Code that mixes `filepath.Join` and string concat with `/` produces inconsistent paths.
+**Impact.** Output files in wrong locations on Windows; `Files.Written` containing mixed separators; merge baseline lookups fail because canonical-`/` keys don't match canonical-`\` paths.
+**Mitigation.**
+- Single rule: every internal path is canonical-`/`. Only `OsFS` calls `filepath.FromSlash`/`filepath.ToSlash` at the boundary.
+- `fwd(p)` helper used everywhere we need to be sure: `path.Clean(filepath.ToSlash(p))`.
+- Optional CI matrix entry: `windows-latest` running `go test ./...` once basic tests pass. Even if not in v1 CI, cross-compile check (`GOOS=windows go vet ./...`) lands in §17.
+- Cross-platform test fixtures use only `/`; never embed OS-specific paths.
+
+#### R6. Concurrency test flakiness
+**Trigger.** The 10-goroutine test (§11.6) is timing-sensitive on slow CI runners; race detector occasionally flags ABA on `*MemFS` shared state.
+**Impact.** Spurious CI failures undermine confidence in the design.
+**Mitigation.**
+- Each goroutine constructs its own `*MemFS` (no sharing) — reduces racing surface.
+- `-race -count=10` in CI catches real races without depending on schedule timing.
+- The test asserts vol contents per-goroutine; no time-based assertions.
+- If flakes appear, the contract is to investigate, not retry — a flake here means a real bug in §2.
+
+#### R7. `shape` library mismatch with new fields
+**Trigger.** `OptionsFromMap` validates against a `shape.MustShape(...)` schema. If the schema drifts from `Options` struct fields (e.g., new `Mem` field added to struct but not schema), map-loaded callers silently miss the new option.
+**Impact.** Map-config users can't use new features added struct-side.
+**Mitigation.**
+- Single source of truth: a code-gen check in `options_test.go` that asserts every `Options` field appears in the shape schema. Catches drift in CI.
+- `OptionsFromMap` returns an error on unknown keys (shape default), not silent acceptance — prevents users from typoing keys.
+
+#### R8. 2-way diff library divergence from TS `diff` package
+**Trigger.** `sergi/go-diff/diffmatchpatch` line-mode produces hunk boundaries that differ from `kpdecker/jsdiff` (the TS `diff` package). Conflict-marker output drifts from TS byte-for-byte.
+**Impact.** Failing parity snapshots for `diff` mode; users can't trust diff mode output across stacks.
+**Mitigation.**
+- Test against the TS corpus: every `diff_test.go` case asserts byte-equal output to the recorded TS expected.
+- If divergence is unfixable, normalise via post-processing (e.g., merge adjacent hunks until output matches TS).
+- Worst case: the TS expected files become *the* contract, and we document that diff mode output may differ from `kpdecker/jsdiff` exactly because we use a different (but equally valid) line-diff library — but that lands as a deviation in §14, not silently.
+
+#### R9. `template.go` cache eviction strategy
+**Trigger.** TS clears the entire cache when full (`templateRECache.clear()` at `:476`). The Go port's FIFO eviction picks an arbitrary entry, which may evict a hot regex.
+**Impact.** Performance regression on long-running generators that exceed the 100-entry cap.
+**Mitigation.**
+- Match TS exactly: clear all entries when full (§9 #11). Trades worst-case-rebuild for guaranteed parity.
+- Add a benchmark `BenchmarkTemplateCacheChurn` to detect regressions if eviction becomes a bottleneck (post-v1).
+
+#### R10. `BuildMeta` JSON drift between TS and Go
+**Trigger.** Go's `encoding/json` produces fields in struct-declaration order; TS's `JSON.stringify` produces them in insertion order. A meta file written by TS may not round-trip identically through Go.
+**Impact.** `.jostraca/jostraca.meta.log` files committed by mixed-stack users differ on every run; meaningless diffs in version control.
+**Mitigation.**
+- Use a stable output order (alphabetical) in Go's serialisation. Either declare the struct fields alphabetically, or marshal through a `map[string]any` with sorted keys.
+- Test: `buildmeta_test.go` round-trips a known TS-produced JSON file and asserts byte-equality.
+
+#### R11. Memory growth under large `Vol` in `MemFS`
+**Trigger.** Generation that produces many large files (e.g., copying a multi-megabyte assets folder) holds everything in `MemFS.files` map. Memory pressure on consumers using `WithMem`.
+**Impact.** OOM on small CI runners.
+**Mitigation.**
+- Lazy: don't optimise in v1. Document `WithMem` as suitable for testing/small jobs.
+- Future: `MemFS` with disk-backed overflow (out of scope for v1).
+
+#### R12. User callbacks panic during define phase
+**Trigger.** A user's component callback panics (nil deref, type assertion failure).
+**Impact.** Without protection, the panic propagates out of `Generate` — matches TS `throw` behaviour, but Go convention prefers errors.
+**Mitigation.**
+- Decision (matches TS): let panics propagate. `Generate` does not `recover()`; user code is expected to use errors via the design (D2).
+- If a v2 use case demands recovery (e.g., long-running daemon servicing untrusted templates), add an option `WithRecoverPanics(true)` that converts panic to error. Not in v1.
+
+#### R13. Backwards compatibility of existing `Template()` signature
+**Trigger.** External users of the current Go module call `jostraca.Template(src, model, spec)`. We extend `TemplateSpec` with new fields — fine if additive — but if we change the signature or rename any existing field, callers break.
+**Impact.** Breaking change between `v0.1.x` and v1.
+**Mitigation.**
+- All §9 changes to `TemplateSpec` are *additive* — `Replace` and `Eject` keep their existing types (`Eject` widens from `[2]string` to `any` but `[2]string` continues to be accepted via the `compileEject` dispatch).
+- Cut a `v0.x` tag before this work begins so existing pinned consumers can stay on it.
+- `template_test.go` keeps the existing test cases unchanged; new cases append.
+
+#### Risk-tracking convention
+
+Each risk has a one-line entry in `go/PORT_PLAN.md` (this section). When a mitigation actually fires (e.g., a flaky concurrency test gets investigated), append the resolution to that risk's entry rather than starting a new doc — keeps the trail with the plan.
 
 ### 16. Critical files to modify / create
 - Modify: `/home/user/jostraca/go/jostraca/template.go`, `/home/user/jostraca/go/jostraca/template_test.go`, `/home/user/jostraca/go/README.md`, `/home/user/jostraca/go/go.mod`.
