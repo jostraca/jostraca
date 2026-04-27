@@ -273,13 +273,276 @@ go/
 - Tests sit alongside production code in `jostraca_test` and friends, using internal access where it simplifies assertions.
 
 ### 4. Core types
-- `Node` + `Kind` enum.
-- `J` + `jstate` (current-frame pointer + shared backing context).
-- `Options` struct + functional `WithX` options + `OptionsFromMap` validated by `shape`.
-- `Existing`, `Control`, `CmpOptions`, `NameOptions`.
-- `Log` interface + `DefaultLog`.
-- `Result`, `Files`, `Audit`, `AuditEntry`.
-- `NodeError` (Step, Path, Callsite, Err).
+
+This section enumerates every type the rest of the plan references. Field semantics map back to `src/types.ts` and the option shapes at `src/jostraca.ts:99-153, 156-172`.
+
+#### 4.1 `Node` and `Kind`
+
+`Kind` is a small enum used as the dispatch index in §6. Untagged-union via `Kind` keeps a single `Node` struct (matches TS `Node` in `src/types.ts`).
+
+```go
+type Kind uint8
+
+const (
+    KindNone Kind = iota
+    KindProject
+    KindFolder
+    KindFile
+    KindContent
+    KindCopy
+    KindInject
+    KindFragment
+    KindSlot
+    kindCount  // unexported sentinel for fixed-size dispatch table
+)
+
+type Node struct {
+    Kind     Kind
+    Name     string                    // user-supplied, may be empty
+    Path     []string                  // accumulated path segments from root
+    FullPath string                    // resolved during build (FileOp before())
+    Folder   string                    // Project/Folder
+    From     string                    // Copy.from / Fragment.from
+    Indent   any                       // string | int | nil
+    Exclude  any                       // bool | string | *regexp.Regexp | []any
+    Replace  map[string]any            // for Copy/Fragment template overrides
+    Markers  [2]string                 // Inject {start, end}
+    Filter   func(props, children, component any) bool
+    Children []*Node
+    Content  []string                  // accumulated text during build
+    Meta     map[string]any            // op-private scratch (callsite, fragment_file, debug)
+    After    *AfterRef                 // CopyOp queues a post-walk step here
+}
+
+type AfterRef struct{ Kind string }
+```
+
+**Rationale.** TS lets `node.meta`, `node.indent`, and `node.exclude` carry heterogeneous values. Go's strongly-typed analogue is `any` plus runtime checks at the few op sites that consume them. Every other field has a stable Go type. `Meta` stays `map[string]any` because it's op-private scratch (callsite stack, parent-file restore, debug payload) and typing it would push private fields into the public surface.
+
+#### 4.2 `J` and `jstate`
+
+The receiver-shadowing carrier from §2:
+
+```go
+type J struct {
+    st  *jstate
+    cur *Node
+}
+
+type jstate struct {
+    opts   Options
+    fs     FS
+    now    func() int64
+    folder string
+    model  map[string]any
+    log    Log
+    meta   map[string]any   // user-provided meta merged from global+per-call
+    debug  string
+
+    root *Node
+    err  error              // first define-phase error; halts subsequent components
+    bctx *buildCtx          // populated before build phase, see §6
+}
+```
+
+Concurrency: `*jstate` is never shared across `Generate` calls. Inside one call the define phase is single-goroutine (it's a synchronous walk of the user's callbacks), and the build phase is also synchronous (§6). No mutex required on `jstate.err` or `jstate.root`.
+
+#### 4.3 `Options` and constituents
+
+Public option struct mirrors `OptionsShape` at `src/jostraca.ts:99-153`. Pointer-typed bools express the TS tri-state (unset / true / false) the same way `Skip(Boolean)` does.
+
+```go
+type Options struct {
+    Folder   string
+    Meta     map[string]any
+    FS       FS
+    Now      func() int64
+    Log      Log
+    Debug    string
+    Existing Existing
+    Model    map[string]any
+    Build    *bool                  // tri-state; nil → default true
+    Mem      bool
+    Vol      map[string][]byte
+    Cmp      CmpOptions
+    Control  Control
+    Name     NameOptions
+}
+
+type Existing struct {
+    Txt ExistingTxt
+    Bin ExistingBin
+}
+
+type ExistingTxt struct {
+    Write    *bool                  // default true
+    Preserve *bool                  // default false
+    Present  *bool
+    Diff     *bool
+    Merge    *bool
+}
+
+type ExistingBin struct {
+    Write    *bool
+    Preserve *bool
+    Present  *bool
+}
+
+type Control struct {
+    Dryrun    bool
+    Duplicate bool                  // default true (per TS line 145)
+    Version   bool
+}
+
+type CmpOptions struct {
+    Copy CopyCmpOptions
+}
+
+type CopyCmpOptions struct {
+    Ignore []*regexp.Regexp        // default []{ ~$ }
+}
+
+type NameOptions struct {
+    File   NameAffix
+    Folder NameAffix
+    // Files excluded from prefix/suffix application:
+    Exclude []NameMatcher           // string | *regexp.Regexp
+}
+
+type NameAffix struct {
+    Prefix string
+    Suffix string
+}
+
+type NameMatcher struct {
+    Literal string
+    RE      *regexp.Regexp
+}
+```
+
+**Functional options.** Constructors for the common cases:
+
+```go
+type Option func(*Options)
+
+func WithFolder(s string) Option        { return func(o *Options) { o.Folder = s } }
+func WithModel(m map[string]any) Option { return func(o *Options) { o.Model = m } }
+func WithMeta(m map[string]any) Option  { return func(o *Options) { o.Meta = m } }
+func WithLog(l Log) Option               { return func(o *Options) { o.Log = l } }
+func WithDebug(s string) Option          { return func(o *Options) { o.Debug = s } }
+func WithMem() Option                    { return func(o *Options) { o.Mem = true } }
+func WithVol(v map[string][]byte) Option { return func(o *Options) { o.Vol = v } }
+func WithFS(fs FS) Option                { return func(o *Options) { o.FS = fs } }
+func WithNow(f func() int64) Option      { return func(o *Options) { o.Now = f } }
+func WithExisting(e Existing) Option     { return func(o *Options) { o.Existing = e } }
+func WithControl(c Control) Option       { return func(o *Options) { o.Control = c } }
+func WithBuild(b bool) Option            { return func(o *Options) { o.Build = &b } }
+```
+
+Used at the package entry: `New(WithMem(), WithModel(m))` returns `*J`.
+
+**`OptionsFromMap`.** Validated via `shape`, mirroring TS. Useful when callers source config from JSON/YAML/CLI:
+
+```go
+func OptionsFromMap(m map[string]any) (Options, error)
+```
+
+Implementation: a `shape.MustShape(...)` schema with the same field set as `OptionsShape` at `src/jostraca.ts:99-153`, validated, then assembled into the typed `Options`.
+
+**Per-call vs global merge.** `New(opts...)` stores baseline options on the `*J`. `Generate(callOpts, root)` applies `callOpts` over the baseline using deep-merge semantics matching TS `deep(...)` from jsonic — same precedence as `src/jostraca.ts:208-256`. The `deep` helper is ported in §10.
+
+#### 4.4 `Log`
+
+Interface mirroring TS `Log` at `src/types.ts`:
+
+```go
+type Log interface {
+    Trace(args ...any)
+    Debug(args ...any)
+    Info(args ...any)
+    Warn(args ...any)
+    Error(args ...any)
+    Fatal(args ...any)
+}
+```
+
+`DefaultLog{ Out io.Writer }` writes ISO-8601-prefixed lines with the level tag, matching `DEFAULT_LOGGER` at `src/jostraca.ts:85-92`. Future-proof note: a thin `slog.Handler` adapter is trivial to add but not in v1.
+
+`dLog` (unexported) is the `getdlog`-equivalent collector — a package-level `[]dlogEntry` guarded by `sync.Mutex`. See §10.
+
+#### 4.5 `Result` and audit types
+
+Mirrors `JostracaResult` at `src/types.ts`:
+
+```go
+type Result struct {
+    When  int64
+    Files Files
+    Audit func() Audit
+    Vol   func() map[string][]byte   // nil unless Mem
+    FS    func() FS                   // nil unless Mem
+}
+
+type Files struct {
+    Preserved  []string
+    Written    []string
+    Presented  []string
+    Diffed     []string
+    Merged     []string
+    Conflicted []string
+    Unchanged  []string
+}
+
+type Audit []AuditEntry
+
+type AuditEntry struct {
+    Tag  string
+    Data map[string]any
+}
+```
+
+Filed paths in `Files.*` are normalised to forward slashes (see §7).
+
+#### 4.6 `NodeError`
+
+Single error type wrapping every build-phase failure with the kind, path, and (when debug is on) callsite:
+
+```go
+type NodeError struct {
+    Step     string   // e.g. "file", "copy"
+    Path     []string
+    Callsite string   // populated when Options.Debug is set
+    Err      error
+}
+
+func (e *NodeError) Error() string { ... }
+func (e *NodeError) Unwrap() error { return e.Err }
+```
+
+Sentinels:
+
+```go
+var (
+    ErrMissingOp        = errors.New("jostraca: missing op for node kind")
+    ErrInvalidPath      = errors.New("jostraca: invalid path")
+    ErrEmptyMatchRegex  = errors.New("jostraca: regex matches empty string")
+    ErrLookbehind       = errors.New("jostraca: lookbehind not supported (RE2)")
+    ErrMergeConflict    = errors.New("jostraca: 3-way merge produced conflicts")
+)
+```
+
+`Generate` returns the first define-phase error if `j.st.err != nil` after the user `root()` callback returns; otherwise it returns the first build-phase error wrapped in `NodeError`, or `nil`.
+
+#### 4.7 `FS`, `FileInfo`, `DirEntry`
+
+Defined in §7 (filesystem layer) but referenced from `Options` and `Result`. Not in `io/fs` because Jostraca needs writes; the small dedicated interface is documented in §7.1.
+
+#### 4.8 Cross-references
+
+- `Node.Kind` indexes the dispatch table in §6.1.
+- `Options.Existing` drives FileHandler mode logic in §7.2.
+- `Options.Mem` + `Options.Vol` flip the FS factory in §7.3.
+- `jstate.err` + `NodeError` implement the error policy from §2.
 
 ### 5. Component implementation pattern
 - 5-step template (alloc node → append to parent → set root if nil → recurse with child `J` → error short-circuit).
