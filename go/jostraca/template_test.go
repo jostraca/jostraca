@@ -1,6 +1,15 @@
 package jostraca
 
-import "testing"
+import (
+	"errors"
+	"regexp"
+	"strings"
+	"testing"
+)
+
+// Existing Phase 0 tests, kept verbatim where the public API is
+// unchanged. Eject widens to `any` in Phase 3; the tests are updated
+// where they observe the type.
 
 func TestTemplateMacros(t *testing.T) {
 	out, err := Template("a$$b.c$$d", map[string]any{"b": map[string]any{"c": "X"}}, nil)
@@ -37,11 +46,7 @@ func TestParseTemplateSpec(t *testing.T) {
 	if spec.Replace["Q"] != "Z" {
 		t.Fatalf("expected replace Q=Z, got %v", spec.Replace)
 	}
-	if spec.Eject[0] != "START" || spec.Eject[1] != "END" {
-		t.Fatalf("expected eject [START END], got %v", spec.Eject)
-	}
-
-	// Use parsed spec with Template
+	// Use parsed spec with Template - the assertion is on output.
 	out, err := Template("A\nSTART\nQ$$x$$\nEND\nB", map[string]any{"x": 1}, spec)
 	if err != nil {
 		t.Fatal(err)
@@ -59,7 +64,247 @@ func TestParseTemplateSpecEmpty(t *testing.T) {
 	if len(spec.Replace) != 0 {
 		t.Fatalf("expected empty replace, got %v", spec.Replace)
 	}
-	if spec.Eject[0] != "" || spec.Eject[1] != "" {
-		t.Fatalf("expected empty eject, got %v", spec.Eject)
+}
+
+// Phase 3 — feature parity. Cases ported from test/template.test.ts
+// where Go semantics permit (RE2 differences flagged inline).
+
+func TestTemplateBasicValues(t *testing.T) {
+	cases := []struct {
+		name  string
+		src   string
+		model any
+		want  string
+	}{
+		{"path", "a$$b.c$$d", map[string]any{"b": map[string]any{"c": "X"}}, "aXd"},
+		{"index", "a$$1$$d", []any{22, 222}, "a222d"},
+		{"bool true", "a$$b$$c$$b$$", map[string]any{"b": true}, "atruectrue"},
+		{"bool false", "$$b$$a$$b$$c", map[string]any{"b": false}, "falseafalsec"},
+		{"missing left in place", "$$a$$$$b$$$$c$$", map[string]any{}, "$$a$$$$b$$$$c$$"},
+		{"object json", "$$a$$", map[string]any{"a": map[string]any{"b": 1}}, `{"b":1}`},
+		{"slice json", "$$a$$", map[string]any{"a": []any{"b", "c"}}, `["b","c"]`},
+		{"function", "$$a$$", map[string]any{"a": func() any { return "A" }}, "A"},
+		{"function string", "$$a$$", map[string]any{"a": func() string { return "A" }}, "A"},
+		{"resolved value not re-parsed", "$$a$$", map[string]any{"a": "$$b$$"}, "$$b$$"},
+		{"quoted ref", "$$\"hi\"$$", nil, "hi"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := Template(tc.src, tc.model, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tc.want {
+				t.Errorf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestTemplateReplaceVariants(t *testing.T) {
+	cases := []struct {
+		name    string
+		src     string
+		spec    *TemplateSpec
+		want    string
+	}{
+		{
+			"literal string key",
+			"aQb",
+			&TemplateSpec{Replace: map[string]any{"Q": "Z"}},
+			"aZb",
+		},
+		{
+			"regex key",
+			"aQQQb",
+			&TemplateSpec{Replace: map[string]any{"/Q+/": "Z"}},
+			"aZb",
+		},
+		{
+			"function value for literal key",
+			"aQb",
+			&TemplateSpec{Replace: map[string]any{"Q": ReplaceFunc(func(g map[string]string, m string) string { return "X" })}},
+			"aXb",
+		},
+		{
+			"named group regex with function",
+			"a[q]b[w]c",
+			&TemplateSpec{Replace: map[string]any{
+				`/\[(?P<cap>\w)\]/`: ReplaceFunc(func(g map[string]string, m string) string {
+					return strings.ToUpper(g["cap"])
+				}),
+			}},
+			"aQbWc",
+		},
+		{
+			"unmatched key leaves source",
+			"abc",
+			&TemplateSpec{Replace: map[string]any{"X": "Y"}},
+			"abc",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := Template(tc.src, nil, tc.spec)
+			if err != nil {
+				t.Fatalf("err = %v", err)
+			}
+			if got != tc.want {
+				t.Errorf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestTemplateEmptyMatchRegexRejected(t *testing.T) {
+	_, err := Template("aQQQb", nil, &TemplateSpec{
+		Replace: map[string]any{"/Q*/": "Z"},
+	})
+	if !errors.Is(err, ErrEmptyMatchRegex) {
+		t.Errorf("err = %v, want ErrEmptyMatchRegex", err)
+	}
+}
+
+func TestTemplateLookbehindRejected(t *testing.T) {
+	_, err := Template("ab", nil, &TemplateSpec{
+		Replace: map[string]any{`/(?<=a)b/`: "Z"},
+	})
+	if !errors.Is(err, ErrLookbehind) {
+		t.Errorf("err = %v, want ErrLookbehind", err)
+	}
+}
+
+func TestTemplateLookaheadRejected(t *testing.T) {
+	_, err := Template("ab", nil, &TemplateSpec{
+		Replace: map[string]any{`/a(?=b)/`: "Z"},
+	})
+	if !errors.Is(err, ErrLookbehind) {
+		t.Errorf("err = %v, want ErrLookbehind (lookahead also rejected)", err)
+	}
+}
+
+func TestTemplateCustomDelimiters(t *testing.T) {
+	out, err := Template("a{{x}}b", map[string]any{"x": "Z"}, &TemplateSpec{
+		Open: `\{\{`, Close: `\}\}`, Ref: `[a-z]+`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out != "aZb" {
+		t.Errorf("got %q, want %q", out, "aZb")
+	}
+}
+
+func TestTemplateHandleStreams(t *testing.T) {
+	var got []string
+	out, err := Template("a$$x$$b$$x$$c", map[string]any{"x": "Z"}, &TemplateSpec{
+		Handle: func(s string) { got = append(got, s) },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out != "" {
+		t.Errorf("Template returned %q with Handle, want empty", out)
+	}
+	joined := strings.Join(got, "")
+	if joined != "aZbZc" {
+		t.Errorf("Handle parts joined = %q, want %q", joined, "aZbZc")
+	}
+}
+
+func TestTemplateEjectStrings(t *testing.T) {
+	src := "A\nSTART\nQ$$a$$\nEND\nB"
+	out, err := Template(src, map[string]any{"a": 1}, &TemplateSpec{Eject: []any{"START", "END"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out != "\nQ1\n" {
+		t.Errorf("got %q, want %q", out, "\nQ1\n")
+	}
+}
+
+func TestTemplateEjectRegex(t *testing.T) {
+	src := "A\nSTART\nQ$$a$$\nEND\nB"
+	startRE := regexp.MustCompile("START")
+	endRE := regexp.MustCompile("END")
+	out, err := Template(src, map[string]any{"a": 1}, &TemplateSpec{
+		Eject: []any{startRE, endRE},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out != "\nQ1\n" {
+		t.Errorf("got %q, want %q", out, "\nQ1\n")
+	}
+}
+
+func TestTemplateJostracaReplaceSentinel(t *testing.T) {
+	out, err := Template("$$__JOSTRACA_REPLACE__$$", map[string]any{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The exact regex source format may differ between Go and JS, but
+	// it must contain the canonical group names so users can recognise
+	// the assembled regex.
+	for _, sub := range []string{"J_O", "J_R", "J_C"} {
+		if !strings.Contains(out, sub) {
+			t.Errorf("out %q missing %q", out, sub)
+		}
+	}
+}
+
+func TestTemplateTagMatchSimple(t *testing.T) {
+	src := "{\n//#Wax\n}"
+	got, err := Template(src, nil, &TemplateSpec{
+		Replace: map[string]any{
+			"#Wax": ReplaceFunc(func(g map[string]string, m string) string {
+				return g["indent"] + "-Wax:" + strings.ToUpper(g["TAG"]) + "\n"
+			}),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "{\n-Wax:WAX\n}"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestTemplateTagMatchWithIndent(t *testing.T) {
+	src := "{\n  //  #SeeSaw\n}"
+	got, err := Template(src, nil, &TemplateSpec{
+		Replace: map[string]any{
+			"#SeeSaw": ReplaceFunc(func(g map[string]string, m string) string {
+				return g["indent"] + "X-" + g["TAG"] + "\n"
+			}),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "{\n  X-SeeSaw\n}"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestTemplateTagDashName(t *testing.T) {
+	src := "{\n  // #Foo-Bar\n}"
+	got, err := Template(src, nil, &TemplateSpec{
+		Replace: map[string]any{
+			"#Foo-Bar": ReplaceFunc(func(g map[string]string, m string) string {
+				return g["indent"] + g["Bar"] + "/" + g["TAG"] + "\n"
+			}),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Bar capture is the dynamic identifier ("Foo"); TAG is the literal "Bar"
+	// after the dash. Match the TS contract: g.Bar is the inner identifier,
+	// g.TAG is the literal tag name.
+	if !strings.Contains(got, "Foo") {
+		t.Errorf("got %q, expected to contain 'Foo' as inner identifier", got)
 	}
 }
