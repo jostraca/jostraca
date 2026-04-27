@@ -2584,16 +2584,109 @@ Authoritative list. Each TS file maps to one or more Go files; the rightmost col
 - §16 lists the critical files to modify *now* (vs. create later).
 
 ### 14. Deviations from TS (explicit, flagged)
-1. Components are `*J` methods, not free functions.
-2. `Generate` returns `(Result, error)` instead of throwing.
-3. Options: struct + functional opts + `OptionsFromMap`.
-4. `Node.Meta` stays `map[string]any` (op-private scratch).
-5. Build phase fully synchronous.
-6. `Log` is named-method interface (matches TS shape).
-7. No global `__dlog__`; package-level locked slice.
-8. `each` uses reflection.
-9. Path semantics canonical-`/` internally; OS conversion only in `OsFS`.
-10. RE2 vs JS regex: lookbehind unsupported, fail at compile.
+
+Each deviation is intentional and documented in `go/README.md` and `doc.go`. Where TS code samples won't translate verbatim, the README provides a Go counterpart.
+
+#### D1. Components are `*J` methods, not free functions
+**TS.** `Project(...)`, `Folder(...)`, `File(...)` are package-level functions reading `ctx$` from `AsyncLocalStorage`.
+**Go.** Methods on `*J`: `j.Project(...)`, `j.Folder(...)`, `j.File(...)`. Each callback shadows `j` to bind a child frame.
+**Reason.** Concurrent-safe define phase without globals (§2). Goroutine-local storage was rejected as non-idiomatic; `context.Context` would force an extra parameter into every component call.
+**Mitigation.** §2 quantifies the noise budget at one identifier (`j`) per call site. §12 Step 12 documents the pattern with a side-by-side example in `go/README.md`.
+
+#### D2. `Generate` returns `(Result, error)` instead of throwing
+**TS.** `await jostraca.generate(opts, root)` rejects on error.
+**Go.** `result, err := j.Generate(opts, root)`.
+**Reason.** Idiomatic Go; `panic` is reserved for true programmer errors (nil dereferences). Define-phase errors accumulate on `j.st.err` and are returned after the user callback completes (§2).
+**Mitigation.** Component methods early-return when `j.st.err != nil`, so a single error stops a long callback cleanly without checks at every call site.
+
+#### D3. Options: struct + functional opts + `OptionsFromMap`
+**TS.** Single `OptionsShape`-validated map at `src/jostraca.ts:99-153`.
+**Go.** Typed `Options` struct + `WithX(...) Option` constructors + `OptionsFromMap(map[string]any) (Options, error)` (validated by `shape`).
+**Reason.** Type safety, IDE auto-complete, compile-time field checking. The map-based form is preserved for callers loading config from JSON/YAML.
+**Mitigation.** None needed; the typed surface is strictly nicer.
+
+#### D4. `Node.Meta` stays `map[string]any` (op-private scratch)
+**TS.** `node.meta` is a `Record<string, any>` carrying `callsite`, `fragment_file`, `debug` keys, etc.
+**Go.** Same: `Meta map[string]any` on `Node`.
+**Reason.** Op-private scratch space; typing it would force fragile internal fields onto the public surface and break per-op evolution.
+**Mitigation.** Internal helper accessors (`callsiteFrom(n)`, etc.) keep the access pattern centralised — not a free-for-all.
+
+#### D5. Build phase fully synchronous
+**TS.** `step()` is `async`; ops `await` file I/O.
+**Go.** `step()` returns `error` synchronously; file I/O is blocking.
+**Reason.** Go file I/O is sync-friendly; making it async with goroutines would add concurrency cost without throughput benefit (single walker, file-bound). Removes Promise machinery from error propagation.
+**Mitigation.** None needed; if parallel writes become a goal in v2, the cleanest extension is `step()` calling `o.after` on independent subtrees concurrently behind a flag in `Options.Control`.
+
+#### D6. `Log` is a named-method interface
+**TS.** `{ trace, debug, info, warn, error, fatal }` plain object.
+**Go.** Interface with the same six methods, each `func(args ...any)`.
+**Reason.** Matches TS shape exactly so users can implement easily; idiomatic Go interface.
+**Mitigation.** A `slog.Handler`-backed adapter (~30 LoC) is trivial to add; not in v1 to avoid adding a stdlib dep that may shift before Go 1.22 minimum is bumped.
+
+#### D7. No global `__dlog__`; package-level locked slice
+**TS.** `global.__dlog__` array shared across modules; `getdlog()` returns a logger appending to it.
+**Go.** Package-level `[]dLogEntry` guarded by `sync.Mutex`. `newDLog(tag, file)` returns a struct with `Log` / `Entries` methods.
+**Reason.** Avoid hidden process-global state. Multiple `Generate` calls (concurrent or sequential) share the buffer — same surface for end-of-call flush via `Options.Log.Debug`, no cross-package leak.
+**Mitigation.** §10.6 documents the API; consumer-facing behaviour matches TS (debug entries flush at end-of-`Generate`).
+
+#### D8. `Each` uses reflection
+**TS.** Naturally polymorphic via JS dynamic typing.
+**Go.** Reflection-based to preserve user-facing parity (one function name, accepts arrays/maps/scalars).
+**Reason.** Forcing users to pick `EachSlice` / `EachMap` / `EachScalar` would fragment the API. Reflection is acceptable for the user-facing surface.
+**Mitigation.** Internal hot paths (op walks over `Node.Children`) use a typed helper `iterChildren(*Node, func(*Node))` directly — reflection is opt-in for end users.
+
+#### D9. Canonical-`/` internal paths; OS conversion only in `OsFS`
+**TS.** Uses `fwd()` helper to normalise to forward slashes (`src/build/FileHandler.ts:24-26`).
+**Go.** Same policy: every internal path is canonical-`/`. Conversion via `filepath.FromSlash` happens only at the OS boundary inside `OsFS`.
+**Reason.** Cross-platform stability; matches existing TS contract.
+**Mitigation.** A single chokepoint (`OsFS`) for the conversion makes Windows-specific bugs easy to localise.
+
+#### D10. RE2 vs JS regex: lookbehind unsupported, fail at compile
+**TS.** Uses JS regex with lookbehind in places (`(?<=\n)` in `indent`).
+**Go.** RE2 has no lookbehind, no backreferences, no possessive quantifiers.
+**Reason.** Hard limit of `regexp` package; switching to a PCRE library (`regexp2`, etc.) adds a heavy dependency and slower performance.
+**Mitigation.** `Indent` uses `strings.ReplaceAll` instead of regex. User-supplied regex keys are scanned for `(?<=...)`, `(?<!...)`, `(?=...)`, `(?!...)` patterns and rejected with `ErrLookbehind` (§4.6) at template-compile time, before any infinite-loop risk. Documented in `template.go` doc comments and `go/README.md`.
+
+#### D11. `Filter` callback signature simplified
+**TS.** `node.filter` accepts a loosely-typed object (`{ props, children, component }`).
+**Go.** `Filter func(componentKind, name string) bool`.
+**Reason.** TS only ever uses `component.name` and `props.name` from the callback (`src/cmp/Fragment.ts:51, 58, 69`); the simpler signature captures actual usage and avoids exposing component reflection.
+**Mitigation.** §5.3's `Slot` and `Fragment` sketches illustrate usage. `J.Cmp` users who want a richer filter can pass any closure that captures local context.
+
+#### D12. `JOSTRACA_PROTECT` semantics narrowed to substring match
+**TS.** Detects the marker via a substring check on file contents.
+**Go.** Same: `bytes.Contains(existing, []byte("JOSTRACA_PROTECT"))`.
+**Reason.** Identical behaviour; just flagging that the *implementation* uses byte search rather than line-aware search. If someone embeds the marker in non-comment context (e.g., a string literal), both TS and Go protect the file.
+**Mitigation.** None — behaviour is unchanged from TS.
+
+#### D13. Time source uses `int64` epoch ms throughout
+**TS.** Mix of `Date.now()` and `Date` objects.
+**Go.** Single `func() int64` returning epoch ms; matches `Options.Now`. `Humanify` converts on demand.
+**Reason.** Avoids timezone confusion; serialises cleanly to/from JSON.
+**Mitigation.** `Humanify(now, ...)` provides the human-readable form when needed (e.g., `BuildMeta.HLast`).
+
+#### D14. Component prop structs have explicit `…P` variants
+**TS.** Optional positional/object overloads inferred from runtime type checks (`null == props || 'object' !== typeof props ? props = {arg: props} : props`, `src/jostraca.ts:387-388`).
+**Go.** Two methods per component: `j.File(name, body)` for the common case, `j.FileP(FileProps{...}, body)` for the full props.
+**Reason.** Go has no overloading; conditional struct literals are noisy. The pair pattern keeps the common case clean.
+**Mitigation.** The pattern is uniform across components, so once a user sees `FileP`, they predict `ProjectP`, `ContentP`, etc.
+
+#### D15. `Point*` orchestration utility deferred
+**TS.** Re-exports `PointUtil` from `src/util/point.ts`.
+**Go.** Not in v1; will land as `go/jostraca/point/` sub-package post-v1.
+**Reason.** Not used by core; only re-exported. Splitting into a sub-package isolates its dependencies (logging, runner) from the generator.
+**Mitigation.** README calls out the omission with a forward reference; users who need orchestration can stay on TS until v2.
+
+#### Surface that *doesn't* deviate (parity guarantee)
+
+To avoid surprise: these stay identical to TS, byte-equivalent where it makes sense:
+- Output file contents for the quickstart, fragments, copy, inject scenarios.
+- Existing-file mode markers (`<<<<<<< GENERATED:`, `||||||| BASELINE:`, `=======`, `>>>>>>> EXISTING:`).
+- `BuildMeta` JSON file format (so a TS-generated `.jostraca/jostraca.meta.log` is readable by Go and vice versa).
+- Audit tag set (`save`, `copy`, `mkdir`, `preserve`, `present`, `diff`, `merge`, `conflict`, `protect`, `unchanged`).
+- File outcome categories (`Files.Written`, `.Preserved`, `.Presented`, `.Diffed`, `.Merged`, `.Conflicted`, `.Unchanged`).
+- Default options (`folder = "."`, `Control.Duplicate = true`, ignore-pattern `~$` for Copy, marker pair for Inject).
+- Template syntax (`$$path$$`, `#Tag` markers, eject regions, replace keys).
 
 ### 15. Risks & mitigations
 - `getx` parser subtlety → port test-first against `utility.test.ts` goldens.
