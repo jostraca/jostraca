@@ -545,10 +545,438 @@ Defined in §7 (filesystem layer) but referenced from `Options` and `Result`. No
 - `jstate.err` + `NodeError` implement the error policy from §2.
 
 ### 5. Component implementation pattern
-- 5-step template (alloc node → append to parent → set root if nil → recurse with child `J` → error short-circuit).
-- Short form vs `…P(props)` form for full options.
-- Sketches for `Project`, `File`, `Content`, `Fragment`, `Slot`, `Inject`, `Copy`, `List`, `Line`.
-- `cmp()` analogue: `J.Cmp(name string, fn func(*J, Props))` for user-defined components.
+
+Every component is a method on `*J`. They all follow the same 5-step template — the Go equivalent of TS `cmp()` at `src/jostraca.ts:376-437`. Differences from TS are flagged inline.
+
+#### 5.1 The 5-step template
+
+```go
+func (j *J) Foo(name string, body func(*J)) {
+    // 1. Error short-circuit: stop building if a prior call failed.
+    if j.st.err != nil { return }
+
+    // 2. Allocate the new node, with the kind/name/indent specific to this component.
+    n := &Node{
+        Kind: KindFoo,
+        Name: name,
+        Path: childPath(j.cur, name),
+        Meta: map[string]any{},
+    }
+
+    // 3. Append to the parent's children list.
+    j.cur.Children = append(j.cur.Children, n)
+
+    // 4. Set root on first call.
+    if j.st.root == nil { j.st.root = n }
+
+    // 5. Recurse with a child *J bound to the new node.
+    if body != nil {
+        body(&J{st: j.st, cur: n})
+    }
+}
+```
+
+The `&J{st: j.st, cur: n}` construction is the Go analogue of TS's:
+
+```ts
+ctx$.children = node.children
+ctx$.node = node
+let out = component(props, children)
+ctx$.children = siblings
+ctx$.node = parent
+```
+
+— a single allocation in place of explicit push/pop. Restoration is implicit: when `body(...)` returns, the child `*J` is discarded and the parent's `*J` is unchanged.
+
+`childPath` is a small helper:
+
+```go
+func childPath(parent *Node, name string) []string {
+    p := append([]string(nil), parent.Path...)
+    if name != "" { p = append(p, name) }
+    return p
+}
+```
+
+The `j.st.err` short-circuit ensures define-phase errors don't snowball — once one component records an error, every subsequent call (and every nested callback) silently no-ops, and `Generate` returns the error to the caller.
+
+#### 5.2 Short form vs `…P(props)` form
+
+Every component has two entry points. The short form covers the common case with positional args:
+
+```go
+func (j *J) File(name string, body func(*J))
+```
+
+The `…P` form takes the full props struct for less common options:
+
+```go
+type FileProps struct {
+    Name    string
+    Exclude any                  // bool | string | *regexp.Regexp | []any
+}
+func (j *J) FileP(p FileProps, body func(*J))
+```
+
+`File` calls `FileP` internally. This avoids forcing struct literals on common code:
+
+```go
+j.File("foo.go", func(j *J) { j.Content("// hi\n") })
+
+// vs
+j.FileP(FileProps{Name: "foo.go", Exclude: true}, func(j *J) { ... })
+```
+
+#### 5.3 Sketches
+
+##### Project (`src/cmp/Project.ts`)
+
+```go
+type ProjectProps struct {
+    Name   string
+    Folder string
+}
+
+func (j *J) Project(p ProjectProps, body func(*J)) {
+    if j.st.err != nil { return }
+    n := &Node{
+        Kind:   KindProject,
+        Name:   p.Name,
+        Folder: p.Folder,
+        Path:   childPath(j.cur, p.Name),
+        Meta:   map[string]any{},
+    }
+    j.cur.Children = append(j.cur.Children, n)
+    if j.st.root == nil { j.st.root = n }
+    if body != nil { body(&J{st: j.st, cur: n}) }
+}
+```
+
+(Convenience: no positional short form — `Project` is always called with at least `Folder`.)
+
+##### Folder (`src/cmp/Folder.ts`)
+
+```go
+func (j *J) Folder(name string, body func(*J)) {
+    if j.st.err != nil { return }
+    n := &Node{Kind: KindFolder, Name: name, Path: childPath(j.cur, name), Meta: map[string]any{}}
+    j.cur.Children = append(j.cur.Children, n)
+    if j.st.root == nil { j.st.root = n }
+    if body != nil { body(&J{st: j.st, cur: n}) }
+}
+```
+
+##### File (`src/cmp/File.ts`)
+
+```go
+type FileProps struct {
+    Name    string
+    Exclude any
+}
+
+func (j *J) File(name string, body func(*J)) {
+    j.FileP(FileProps{Name: name}, body)
+}
+
+func (j *J) FileP(p FileProps, body func(*J)) {
+    if j.st.err != nil { return }
+    n := &Node{
+        Kind: KindFile, Name: p.Name, Exclude: p.Exclude,
+        Path: childPath(j.cur, p.Name), Meta: map[string]any{},
+    }
+    j.cur.Children = append(j.cur.Children, n)
+    if j.st.root == nil { j.st.root = n }
+    if body != nil { body(&J{st: j.st, cur: n}) }
+}
+```
+
+##### Content (`src/cmp/Content.ts`)
+
+Content has no children-callback (it's a leaf). It runs `Template` synchronously and stashes the rendered string. Template gaps from §9 are required for full parity here.
+
+```go
+type ContentProps struct {
+    Src     string
+    Name    string
+    Indent  any
+    Replace map[string]any
+    Extra   map[string]any
+}
+
+func (j *J) Content(src string) {
+    j.ContentP(ContentProps{Src: src})
+}
+
+func (j *J) ContentP(p ContentProps) {
+    if j.st.err != nil { return }
+    model := mergeMaps(j.st.model, p.Extra)
+    rendered, err := Template(p.Src, model, &TemplateSpec{Replace: p.Replace})
+    if err != nil { j.st.err = err; return }
+    n := &Node{
+        Kind: KindContent, Name: p.Name, Indent: p.Indent,
+        Content: []string{rendered},
+        Path: childPath(j.cur, p.Name), Meta: map[string]any{},
+    }
+    j.cur.Children = append(j.cur.Children, n)
+    if j.st.root == nil { j.st.root = n }
+}
+```
+
+##### Line (`src/cmp/Line.ts`)
+
+`Line` is `Content` plus a trailing `\n`:
+
+```go
+func (j *J) Line(src string) {
+    if !strings.HasSuffix(src, "\n") { src += "\n" }
+    j.ContentP(ContentProps{Src: src})
+}
+
+func (j *J) LineP(p ContentProps) {
+    if !strings.HasSuffix(p.Src, "\n") { p.Src += "\n" }
+    j.ContentP(p)
+}
+```
+
+##### Slot (`src/cmp/Slot.ts`)
+
+A `Slot` is a placeholder that is filtered out by its parent `Fragment` unless the fragment's filter matches its name. Its body is captured for later replay during the fragment's template processing.
+
+```go
+type SlotProps struct{ Name string }
+
+func (j *J) Slot(name string, body func(*J)) {
+    j.SlotP(SlotProps{Name: name}, body)
+}
+
+func (j *J) SlotP(p SlotProps, body func(*J)) {
+    if j.st.err != nil { return }
+    if j.cur.Filter != nil && !j.cur.Filter("slot", p.Name) {
+        return                          // Fragment said: skip this slot.
+    }
+    n := &Node{
+        Kind: KindSlot, Name: p.Name,
+        Path: childPath(j.cur, p.Name), Meta: map[string]any{},
+    }
+    j.cur.Children = append(j.cur.Children, n)
+    if body != nil { body(&J{st: j.st, cur: n}) }
+}
+```
+
+The TS `Filter` callback signature is generalised; the Go version uses a small `filterFn func(componentKind, name string) bool` field on `Node`. (Type updated in §4.1: `Filter func(componentKind, name string) bool` instead of the loose TS form.)
+
+##### Inject (`src/cmp/Inject.ts`)
+
+Inject runs in two phases: define-time it captures children content, build-time it locates an existing file and replaces content between markers.
+
+```go
+type InjectProps struct {
+    Name    string
+    Markers [2]string                   // {start, end}; defaults match TS
+    Exclude any
+}
+
+func (j *J) Inject(name string, body func(*J)) {
+    j.InjectP(InjectProps{Name: name}, body)
+}
+
+func (j *J) InjectP(p InjectProps, body func(*J)) {
+    if j.st.err != nil { return }
+    if p.Markers == [2]string{} { p.Markers = defaultInjectMarkers }
+    n := &Node{
+        Kind: KindInject, Name: p.Name, Markers: p.Markers, Exclude: p.Exclude,
+        Path: childPath(j.cur, p.Name), Meta: map[string]any{},
+    }
+    j.cur.Children = append(j.cur.Children, n)
+    if body != nil { body(&J{st: j.st, cur: n}) }
+}
+```
+
+##### Fragment (`src/cmp/Fragment.ts`)
+
+Fragment is the most subtle: at define time it walks its children twice with two different filters to (1) collect Slot names and (2) replay slots back into the template `<[SLOT:name]>` markers. The template invocation streams parts via the `Handle` callback (§9 gap #8).
+
+```go
+type FragmentProps struct {
+    From    string
+    Indent  any
+    Replace map[string]any
+    Exclude any
+    Eject   any                          // string | *regexp.Regexp | [2]any
+}
+
+func (j *J) Fragment(p FragmentProps, body func(*J)) {
+    if j.st.err != nil { return }
+    p.Replace = p.Replace                 // ensure non-nil if used below
+    if p.Replace == nil { p.Replace = map[string]any{} }
+
+    n := &Node{
+        Kind: KindFragment, From: p.From, Indent: p.Indent, Exclude: p.Exclude,
+        Replace: p.Replace,
+        Path: childPath(j.cur, ""), Meta: map[string]any{},
+    }
+    j.cur.Children = append(j.cur.Children, n)
+
+    // First pass: collect slot names by setting a slot-name-collecting filter.
+    slotNames := map[string]bool{}
+    n.Filter = func(kind, name string) bool {
+        if kind == "slot" { slotNames[name] = true }
+        return false                      // never actually emit during scan
+    }
+    if body != nil { body(&J{st: j.st, cur: n}) }
+    n.Filter = nil
+
+    // Build replace entries that, when triggered by a <[SLOT:name]> match in the
+    // template, replay the relevant child callback. See §9 for the regex format.
+    for slot := range slotNames {
+        slot := slot
+        key := slotReplaceKey(slot)
+        p.Replace[key] = TemplateReplaceFunc(func(_ map[string]string, _ string) string {
+            n.Filter = func(kind, name string) bool {
+                return kind == "slot" && name == slot
+            }
+            if body != nil { body(&J{st: j.st, cur: n}) }
+            n.Filter = nil
+            return ""                     // streamed via Handle below
+        })
+    }
+    // Default <[SLOT]> matches non-Slot children.
+    p.Replace[defaultSlotReplaceKey] = TemplateReplaceFunc(func(_ map[string]string, _ string) string {
+        n.Filter = func(kind, _ string) bool { return kind != "slot" }
+        if body != nil { body(&J{st: j.st, cur: n}) }
+        n.Filter = nil
+        return ""
+    })
+
+    // Read the fragment file and stream-template into Content children.
+    src, err := readFragmentSrc(j, n)
+    if err != nil { j.st.err = err; return }
+
+    _, err = Template(src, j.st.model, &TemplateSpec{
+        Replace: p.Replace,
+        Eject:   ejectAsAny(p.Eject),
+        Handle: func(s string) {
+            if s != "" { (&J{st: j.st, cur: n}).Content(s) }
+        },
+    })
+    if err != nil { j.st.err = err; return }
+
+    if j.st.root == nil { j.st.root = n }
+}
+```
+
+The `defaultSlotReplaceKey` and `slotReplaceKey(name)` helpers produce the same regexes as TS lines 56 and 64-67 — see §9 for the regex format.
+
+##### Copy (`src/cmp/Copy.ts`)
+
+Copy is a leaf at define-time; the heavy lifting (directory walk, exclude filtering, binary detection) happens in `CopyOp.after()` during build:
+
+```go
+type CopyProps struct {
+    From    string
+    To      string
+    Replace map[string]any
+    Exclude any
+    Indent  any
+}
+
+func (j *J) Copy(p CopyProps) {
+    if j.st.err != nil { return }
+    n := &Node{
+        Kind: KindCopy, From: p.From, Name: p.To, Replace: p.Replace,
+        Exclude: p.Exclude, Indent: p.Indent,
+        Path: childPath(j.cur, p.To), Meta: map[string]any{},
+    }
+    j.cur.Children = append(j.cur.Children, n)
+    if j.st.root == nil { j.st.root = n }
+}
+```
+
+##### List (`src/cmp/List.ts`)
+
+`List` iterates a slice/map and calls a body once per item, exposing the item via a fresh `Cmp`-style scope. In TS the user accesses `item` via `props.ctx$`; in Go we pass it as the second callback argument:
+
+```go
+type ListProps struct {
+    Item   any                            // any iterable accepted by Each
+    Line   string                         // optional separator line, mirrors TS prop
+    Indent any
+}
+
+func (j *J) List(items any, body func(j *J, item any)) {
+    j.ListP(ListProps{Item: items}, body)
+}
+
+func (j *J) ListP(p ListProps, body func(j *J, item any)) {
+    if j.st.err != nil { return }
+    Each(p.Item, EachSpec{}, func(item any) {
+        body(j, item)                     // body uses j as normal; item is in scope
+        if p.Line != "" { j.Line(p.Line) }
+    })
+}
+```
+
+This deviates from TS in the small way that `List` doesn't allocate its own node — children attach to the surrounding parent, which matches TS observed behaviour where `List` simply `each`-iterates its children.
+
+#### 5.4 The `cmp()` analogue: `J.Cmp` and free-standing custom components
+
+TS exports `cmp(component)` (`src/jostraca.ts:376`) so users can build reusable components:
+
+```ts
+const FunctionDef = cmp(function FunctionDef(props, children) {
+  Content('function ' + props.name + '(...)')
+})
+```
+
+The Go form is a method that runs the user function inside the current frame:
+
+```go
+func (j *J) Cmp(name string, fn func(j *J)) {
+    if j.st.err != nil { return }
+    if j.st.opts.Debug != "" {
+        j.cur.Meta["callsite"] = captureStack(name)
+    }
+    fn(j)                                 // current frame; no new node
+}
+```
+
+For users who want a named, reusable component, the idiom is a plain function:
+
+```go
+func FunctionDef(j *J, name string, params []string) {
+    j.Content("function " + name + "(" + strings.Join(params, ", ") + ") {\n")
+    // ...
+    j.Content("}\n")
+}
+
+// Use:
+j.File("utils.go", func(j *J) {
+    FunctionDef(j, "greet", []string{"name"})
+})
+```
+
+That's the cleanest Go equivalent of `cmp()`. It does not allocate a wrapper node — neither does TS unless the user explicitly creates one via a child component call. Users who want a node-tree boundary inside their custom component just call `j.Folder` / `j.File` from inside the function.
+
+#### 5.5 Shared helpers
+
+`builder.go` defines a few lowercase helpers used across the components:
+
+```go
+func childPath(parent *Node, name string) []string
+func mergeMaps(base, over map[string]any) map[string]any
+func defaultInjectMarkers() [2]string         // mirrors TS Inject default markers
+func readFragmentSrc(j *J, n *Node) (string, error)  // resolves From relative to folder/path
+func slotReplaceKey(name string) string       // regex with TS comment-marker tolerance
+const defaultSlotReplaceKey = `/[ \t]*[-<!/#*]*[ \t]*<\[SLOT]>[ \t]*[->/#*]*[ \t]*/`
+```
+
+Each helper has a unit test in `builder_test.go`.
+
+#### 5.6 Cross-references
+
+- §6 consumes `Node.Kind` for op dispatch and reads `Node.Filter`, `Node.Children`, `Node.Content`, `Node.From`, `Node.Markers`.
+- §9 owns the template substitution — every component that calls `Template` (`Content`, `Fragment`) inherits its full feature set once §9 is implemented.
+- §11 lists test cases per component, mirroring the TS suite.
 
 ### 6. Op pipeline
 - Fold ops onto a fixed-size `[KindCount]op` dispatch table, indexed by `Kind`.
