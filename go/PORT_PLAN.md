@@ -1874,8 +1874,226 @@ Existing tests in `template_test.go` stay (basic, replace+eject, ParseTemplateSp
 - §4.6 owns `ErrEmptyMatchRegex` and `ErrLookbehind`.
 
 ### 10. Utilities to port
-- Port: `each` (reflection-based for parity), `get`, `getx`, `camelify`, `snakify`, `kebabify`, `partify`, `lcf`, `ucf`, `names`, `escre`, `indent`, `isbinext`, `cmap`, `vmap`, `humanify`, `getdlog` (package-level locked slice instead of `global.__dlog__`), `deep`, `omap`.
-- Defer to v2: `Point*` (not used by core; only re-exported as `PointUtil`).
+
+Most utilities live in `util.go` and have direct Go equivalents. The exceptions (`each`, `getx`, `humanify`, `dlog`, `deep`) need careful design because they straddle TS's value-polymorphism in ways Go's type system doesn't support natively.
+
+#### 10.1 Port table
+
+| TS name | Go name | TS source | Strategy |
+|---|---|---|---|
+| `each` | `Each` | `basic.ts:7-107` | Reflection-based; see §10.2 |
+| `get` | `Get` | `:271-278` | Direct: dot-path lookup over `map[string]any`/`[]any` |
+| `getx` | `GetX` | `:128-268` | Hand-port the parser (160 LoC); see §10.3 |
+| `camelify` | `Camelify` | `:281-286` | Direct: parts → join with capitalisation |
+| `snakify` | `Snakify` | `:297-302` | Direct |
+| `kebabify` | `Kebabify` | `:289-294` | Direct |
+| `partify` | `Partify` | `:316-326` | Direct: regex-split on `[-_]` and camelCase boundaries |
+| `lcf` | `LCF` | `:310-313` | One-liner |
+| `ucf` | `UCF` | `:304-307` | One-liner |
+| `names` | `Names` | `:329-342` | Mutate input map, populate `name`/`Name`/`name__` variants |
+| `escre` | `EscRE` | `:345` | `regexp.QuoteMeta` |
+| `idenstr` | `idenstr` (unexported) | `:346` | Internal helper for template engine |
+| `indent` | `Indent` | `:594-601` | See §9 #14 (lookbehind workaround) |
+| `isbinext` | `IsBinExt` | `:716-721` | Constant set + `filepath.Ext` |
+| `cmap` | `CMap` | `:605-623` | Reflection-based map transform; see §10.4 |
+| `vmap` | `VMap` | `:627-645` | Reflection; flattens to slice |
+| `humanify` | `Humanify` | `:648-682` | Direct port using `time.Time`; see §10.5 |
+| `getdlog` | `newDLog` (unexported) → `DLog` (exported entry) | `:685-704` | Package-level slice + mutex; see §10.6 |
+| `template` | `Template` | `:360-581` | Owned by §9 |
+| `deep` (jsonic) | `Deep` | jsonic util | ~30 LoC port; see §10.7 |
+| `omap` (jsonic) | `OMap` | jsonic util | Small port; see §10.7 |
+
+Deferred:
+
+| TS name | Reason | Future home |
+|---|---|---|
+| `Point` / `RootPoint` / `SerialPoint` / `ParallelPoint` / `FuncPoint` / `PrintPoint` | Not used by core (`grep PointUtil` shows only re-export and a single test reference) — orchestration utility piggybacking on the package | `go/jostraca/point/` sub-package, post-v1 |
+| `select` | Trivial helper not used inside core | Skip; users can write `if`/`switch` |
+| `getCachedEjectRE` | Internal to template; folded into §9 cache | n/a |
+
+#### 10.2 `Each` (reflection-based)
+
+TS `each` accepts arrays, plain objects, or scalars and produces a transformed array. Spec includes `mark` (add `index$`/`key$` annotations), `oval` (wrap scalars), `sort`, `call` (invoke if function), `args` (passed to call). Mirror via reflection so the user-facing API doesn't fragment into 4 functions:
+
+```go
+type EachSpec struct {
+    Mark bool
+    OVal bool
+    Sort bool
+    Call bool
+    Args any
+}
+
+func Each(subject any, spec EachSpec, apply func(any) any) []any
+```
+
+Implementation (sketch):
+
+```go
+func Each(subject any, spec EachSpec, apply func(any) any) []any {
+    if subject == nil { return nil }
+    out := make([]any, 0)
+    rv := reflect.ValueOf(subject)
+    switch rv.Kind() {
+    case reflect.Slice, reflect.Array:
+        for i := 0; i < rv.Len(); i++ {
+            item := rv.Index(i).Interface()
+            if spec.Mark { item = annotateIndex(item, i) }
+            out = append(out, applyOne(item, spec, apply))
+        }
+    case reflect.Map:
+        keys := mapKeys(rv, spec.Sort)
+        for _, k := range keys {
+            v := rv.MapIndex(k).Interface()
+            if spec.Mark { v = annotateKey(v, k.String()) }
+            out = append(out, applyOne(v, spec, apply))
+        }
+    default:
+        // Scalars: optionally wrap (oval), then apply once.
+        item := subject
+        if spec.OVal { item = map[string]any{"val$": subject} }
+        out = append(out, applyOne(item, spec, apply))
+    }
+    return out
+}
+```
+
+Performance note flagged in §15: reflection is slow vs. typed iteration. Hot internal callsites (op loops walking `Node.Children`) use a typed helper `iterChildren(*Node, func(*Node))` directly — reflection-based `Each` is only on the user-facing API.
+
+#### 10.3 `GetX`
+
+The trickiest util: 140 lines of parser implementing dot navigation, ancestry (`a:b`), filters (`a = value`, `a ~ /regex/`, `? filter`). The TS implementation has `GETX_TOKEN_RE` at `:120` and a hand-rolled state machine.
+
+Strategy: port test-first against the `utility.test.ts` corpus. Each TS test case becomes a Go test row, and the parser is built incrementally until all rows pass. The expected hand-port size is ~180 LoC of Go.
+
+Public surface:
+
+```go
+func GetX(root any, path string) any
+```
+
+Returns `nil` on miss. Operators supported (matching TS):
+- `a.b` and `a b` — navigation
+- `a:b` — ancestry (skip-up)
+- `a = value` — filter equality
+- `a ~ /regex/` — filter regex match
+- `? expr` — array filter
+
+#### 10.4 `CMap` and `VMap`
+
+TS `cmap`/`vmap` have sentinel constants `cmap.COPY`, `cmap.FILTER`, `cmap.KEY`. Replicate via a small set of typed sentinels:
+
+```go
+type cmapSentinel int
+
+const (
+    CMapCopy   cmapSentinel = iota   // pass-through unchanged
+    CMapFilter                        // drop entry
+    CMapKey                           // current key (used in transform fn)
+)
+
+func CMap(o any, p func(key string, val any) any) map[string]any
+func VMap(o any, p func(key string, val any) any) []any
+```
+
+Lower-priority — used only by downstream consumers, never by core. Lands in v1 because cost is small (~40 LoC each).
+
+#### 10.5 `Humanify`
+
+TS `humanify(when, {parts, sep})` formats an epoch ms into `YYYY-MM-DDTHH:MM:SS.mmmZ` or returns parts. Direct Go port using `time.Time`:
+
+```go
+type HumanifyFlags struct {
+    Parts bool
+    Sep   string
+}
+
+func Humanify(when int64, flags HumanifyFlags) any
+```
+
+Returns either a `string` or a `map[string]string` of named parts (`year`, `month`, ..., `tz`) depending on `flags.Parts`. ~40 LoC.
+
+#### 10.6 `DLog`
+
+TS `getdlog` stores entries on `global.__dlog__` so multiple modules share a single log. Go uses a package-level slice with a mutex:
+
+```go
+type dLogEntry struct {
+    Tag      string
+    File     string
+    When     int64
+    Args     []any
+    Stack    string
+}
+
+var (
+    dLogMu      sync.Mutex
+    dLogEntries []dLogEntry
+)
+
+type dLog struct {
+    tag, file string
+}
+
+func newDLog(tag, file string) *dLog
+func (d *dLog) Log(args ...any)                         // append entry
+func (d *dLog) Entries(filterFile string) []dLogEntry   // read filtered
+```
+
+The single-package-scope log replaces `global.__dlog__` from `basic.ts:686-688`. Internal callers use `newDLog`; `Generate` flushes the log at end-of-call into `Options.Log.Debug`, mirroring the TS pattern at `src/jostraca.ts:301-306`.
+
+#### 10.7 `Deep` and `OMap` (jsonic ports)
+
+TS uses `jsonic.util.deep` for deep-merge of plain maps/slices and `jsonic.util.omap` for ordered-map operations.
+
+`Deep`: ~30 LoC, recursive merge with right-precedence:
+
+```go
+func Deep(dst any, srcs ...any) any
+```
+
+Used in `src/jostraca.ts:208-256` to merge global vs per-call options. Go port handles `map[string]any` and `[]any` heterogeneously; non-map/slice values right-wins.
+
+`OMap`: small order-preserving map helper used by some downstream consumers. Skip if unused after `grep` confirms — but the cost of porting is ~15 LoC, so include for parity.
+
+#### 10.8 `util.go` layout
+
+```go
+// util.go (alphabetic ordering preferred, but related helpers cluster)
+
+func Camelify(input any) string
+func Deep(dst any, srcs ...any) any
+func Each(subject any, spec EachSpec, apply func(any) any) []any
+func EscRE(s string) string
+func Get(root any, path string) any
+func GetX(root any, path string) any
+func Humanify(when int64, flags HumanifyFlags) any
+func Indent(src string, indent any) string
+func IsBinExt(path string) bool
+func Kebabify(input any) string
+func LCF(s string) string
+func Names(base map[string]any, name, prop string) map[string]any
+func OMap(...) ...
+func Partify(input any) []string
+func Snakify(input any) string
+func UCF(s string) string
+func CMap(o any, p func(key string, val any) any) map[string]any
+func VMap(o any, p func(key string, val any) any) []any
+
+// Internal:
+var binaryExts map[string]struct{}
+func idenstr(s string) string
+type dLog struct{...}
+var ( dLogMu sync.Mutex; dLogEntries []dLogEntry )
+```
+
+Each public utility has a unit-test row in `util_test.go` ported from `test/utility.test.ts`.
+
+#### 10.9 Cross-references
+
+- §5 components rely on `Each` (List), `Indent` (Content/Fragment/Line).
+- §7 file handling uses `IsBinExt`, `Humanify` (BuildMeta `hlast`).
+- §9 template engine uses `idenstr`, `EscRE`, regex caches share the locking pattern from §10.6.
 
 ### 11. Test strategy
 - One Go test file per TS test file, same case names.
