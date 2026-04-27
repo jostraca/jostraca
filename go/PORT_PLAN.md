@@ -1375,9 +1375,222 @@ Surfaced via `Result.Audit()`. Tag set: `save`, `copy`, `mkdir`, `preserve`, `pr
 - §11 lists `filehandler_test.go` cases per mode plus a `MemFS` round-trip.
 
 ### 8. Diff & merge
-- 2-way diff: `github.com/sergi/go-diff/diffmatchpatch` (line mode) rendered with TS's `<<<<<<< GENERATED:` / `>>>>>>> EXISTING:` markers.
-- 3-way merge: hand-port `node-diff3` (~400 lines) into `merge.go`. Use TS `merge.test.ts` corpus as acceptance criteria.
-- File output naming: `.old.`, `.new.`, `.diff.`, conflict-marker text.
+
+Two distinct algorithms are needed: 2-way diff (rendering an annotated comparison file) and 3-way merge (combining a previous-generated baseline, a current-on-disk version, and a new generation). TS pulls these from `diff` and `node-diff3` (`src/build/FileHandler.ts:2-3`); the Go port uses one external library and one hand-port.
+
+#### 8.1 2-way diff (`diff.go`)
+
+**Library: `github.com/sergi/go-diff/diffmatchpatch`** in line mode. Stable, maintained, used widely (kubernetes, hashicorp).
+
+The TS render format uses git-style conflict markers:
+
+```
+<<<<<<< GENERATED:
+new content
+=======
+existing content
+>>>>>>> EXISTING:
+```
+
+— wrapped per hunk. Equal lines pass through unchanged. The Go renderer produces byte-identical output for the same inputs. Implementation:
+
+```go
+func renderDiff(newContent, existing []byte) []byte {
+    dmp := diffmatchpatch.New()
+    a, b, lineArr := dmp.DiffLinesToChars(string(newContent), string(existing))
+    diffs := dmp.DiffMain(a, b, false)
+    diffs = dmp.DiffCharsToLines(diffs, lineArr)
+
+    var buf bytes.Buffer
+    for i := 0; i < len(diffs); {
+        d := diffs[i]
+        if d.Type == diffmatchpatch.DiffEqual {
+            buf.WriteString(d.Text)
+            i++
+            continue
+        }
+        // Pair adjacent insert+delete into a conflict block.
+        nIns, nDel := collectAdjacent(diffs, i)
+        buf.WriteString("<<<<<<< GENERATED:\n")
+        buf.WriteString(joinInserts(diffs[i : i+nIns+nDel]))
+        buf.WriteString("=======\n")
+        buf.WriteString(joinDeletes(diffs[i : i+nIns+nDel]))
+        buf.WriteString(">>>>>>> EXISTING:\n")
+        i += nIns + nDel
+    }
+    return buf.Bytes()
+}
+```
+
+`saveDiff` (called from `fileHandler.save` per §7.6) writes the rendered output to `<base>.diff.<ext>` and records `Files.Diffed`. If the rendered content differs from the new content (i.e. a hunk was emitted), the file is also recorded in `Files.Conflicted`. Matches TS at `FileHandler.ts:257-262`.
+
+Output naming follows TS:
+- `.old.` — existing file backed up under `preserve` mode.
+- `.new.` — new content written under `present` mode (existing left alone).
+- `.diff.` — annotated diff under `diff` mode.
+- Target path itself — written under `write` and `merge` modes.
+
+The naming helper:
+
+```go
+func annotatedPath(target, kind string) string {
+    // target=foo/bar.txt, kind=".old."  →  foo/bar.old.txt
+    dir, base := filepath.Split(target)
+    ext := filepath.Ext(base)
+    name := base[:len(base)-len(ext)]
+    return dir + name + "." + kind + ext[1:]
+}
+```
+
+#### 8.2 3-way merge (`merge.go`) — hand-ported `node-diff3`
+
+The TS source uses `node-diff3` which implements Hunt–McIlroy LCS plus the diff3 reconciliation algorithm. No actively maintained Go diff3 library exists (`dsnet/diff3` is unmaintained and pre-modules; sergi's library is 2-way only). The user accepted "Port node-diff3 in v1" — so we hand-port it.
+
+##### Scope
+
+`node-diff3`'s public surface used by jostraca is `diff3Merge(a, o, b)` (called at `FileHandler.ts:300-304` as `this.merge(newContent, prevGenContent, currentContent, why)`). Internally that consumes:
+
+- `LCS` — longest common subsequence (Hunt–McIlroy).
+- `diffPatch` — patch model on top of LCS.
+- `diff3MergeRegions` — three-way region splitter (the algorithm proper).
+- `diff3Merge` — wraps regions into a `{ok, conflict}[]` array.
+
+Token model: line-based by default (newline-split). For text files this matches TS behaviour.
+
+##### Layout
+
+```go
+// merge.go
+
+type mergeResult struct {
+    Content  []byte
+    Conflict bool
+}
+
+func merge3(newContent, prevGen, existing []byte) mergeResult {
+    aLines := splitLines(string(newContent))
+    oLines := splitLines(string(prevGen))
+    bLines := splitLines(string(existing))
+
+    regions := diff3Regions(aLines, oLines, bLines)
+    return assembleRegions(regions, aLines, bLines)
+}
+
+// Internal:
+type region struct {
+    Ok       []string             // non-conflict region (from a or b, identical)
+    Conflict *conflictRegion      // populated only when ok == nil
+}
+type conflictRegion struct {
+    A []string                    // "GENERATED" side
+    O []string                    // baseline (prev gen)
+    B []string                    // "EXISTING" on-disk side
+}
+
+func diff3Regions(a, o, b []string) []region {
+    aPatches := patchFrom(lcs(o, a))
+    bPatches := patchFrom(lcs(o, b))
+    return reconcile(aPatches, bPatches, a, o, b)
+}
+
+func lcs(x, y []string) lcsTable      { ... }    // Hunt-McIlroy
+func patchFrom(t lcsTable) []hunk     { ... }
+func reconcile(a, b []hunk, ...) []region { ... }
+```
+
+Total expected size: ~400 lines. Pure stdlib (`strings`, `slices`).
+
+##### Conflict assembly
+
+Non-conflict regions concatenate verbatim. Conflict regions emit:
+
+```
+<<<<<<< GENERATED:
+{a-side lines}
+||||||| BASELINE:
+{o-side lines}
+=======
+{b-side lines}
+>>>>>>> EXISTING:
+```
+
+Three-way markers (with `|||||||` baseline) match the format TS produces. Tests in §8.4 verify byte-equality.
+
+##### Acceptance criteria
+
+The `test/merge.test.ts` file in the TS repo encodes the corpus. Each case is a 4-tuple `(new, prev, existing, expected)` plus a `conflict bool`. Port these as JSON files under `go/jostraca/testdata/merge/`:
+
+```
+testdata/merge/
+  basic_clean.json          # no conflicts
+  basic_conflict.json       # both sides changed same line
+  insertion_a.json          # only A inserted
+  insertion_b.json          # only B inserted
+  deletion_both.json        # both sides deleted same line
+  shared_change.json        # A == B != O
+  ...
+```
+
+`merge_test.go` loads each file, runs `merge3`, and asserts byte-equal output and conflict flag. Goal: every TS `merge.test.ts` case passes.
+
+##### Implementation order
+
+1. `splitLines` + `lcs` (Hunt–McIlroy table) — testable in isolation against goldens.
+2. `patchFrom` (turn LCS into a list of `(insert, delete, range)` hunks).
+3. `reconcile` (the three-way region algorithm).
+4. `assembleRegions` (region → bytes with conflict markers).
+5. `merge3` thin wrapper.
+6. Wire into `fileHandler.saveMerge`.
+
+Risk control: each step lands behind unit tests against fixtures from the TS corpus before the next step starts. The §15 risks section flags this as the largest correctness risk.
+
+#### 8.3 Wiring into `fileHandler`
+
+`saveDiff` and `saveMerge` are called from §7.6's `save` switch:
+
+```go
+func (fh *fileHandler) saveDiff(p string, newContent, existing []byte, rpath, whence string) error {
+    rendered := renderDiff(newContent, existing)
+    out := annotatedPath(p, "diff")
+    if err := fh.fs.WriteFile(out, rendered); err != nil { return err }
+    fh.filelog(kindDiffed, fh.relative(out, whence))
+    if !bytes.Equal(rendered, newContent) {
+        fh.filelog(kindConflicted, rpath)
+    }
+    fh.audit.append("diff", map[string]any{"path": rpath, "out": fh.relative(out, whence)})
+    return nil
+}
+
+func (fh *fileHandler) saveMerge(p string, newContent, existing []byte, rpath, whence string) error {
+    dpath := filepath.Join(fh.duplicateFolder(), rpath)
+    if !fh.fs.Exists(dpath) {
+        return nil                          // no baseline → skip merge silently (matches TS)
+    }
+    prev, err := fh.fs.ReadFile(dpath)
+    if err != nil { return err }
+
+    res := merge3(newContent, prev, existing)
+    if err := fh.fs.WriteFile(p, res.Content); err != nil { return err }
+    fh.filelog(kindMerged, rpath)
+    if res.Conflict { fh.filelog(kindConflicted, rpath) }
+    fh.audit.append("merge", map[string]any{"path": rpath, "conflict": res.Conflict})
+    return nil
+}
+```
+
+Both side-write a duplicate to `.jostraca/generated/<rpath>` when `Control.Duplicate` is true.
+
+#### 8.4 Tests
+
+- `diff_test.go` — fixtures `testdata/diff/case_*.txt` containing `--- new` / `--- existing` / `--- expected` blocks. Round-trip `renderDiff` and assert byte-equal expected.
+- `merge_test.go` — load every `testdata/merge/*.json`, call `merge3`, assert `bytes.Equal(out.Content, want.Content)` and `out.Conflict == want.Conflict`. Active in v1 (the user opted into porting diff3).
+- Both files use `//go:embed testdata` so the corpus travels with the package.
+
+#### 8.5 Cross-references
+
+- §7.6's `save` switch dispatches `Diff` and `Merge` to `saveDiff` / `saveMerge` here.
+- §11 enumerates the test cases mirrored from `test/merge.test.ts`.
+- §15 calls out diff3 correctness as the highest-risk porting subtask.
 
 ### 9. Template — close TS gaps in `template.go`
 List of features to add to the existing helper:
