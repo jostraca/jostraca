@@ -19,21 +19,21 @@ func TestEachSlice(t *testing.T) {
 		t.Errorf("default oval=true: got %v", got)
 	}
 
-	got = Each([]any{11, 22}, EachSpec{OVal: false}, nil)
+	got = Each([]any{11, 22}, EachSpec{Raw: true}, nil)
 	if !reflect.DeepEqual(got, []any{11, 22}) {
-		t.Errorf("oval=false: got %v", got)
+		t.Errorf("Raw=true: got %v", got)
 	}
 }
 
 func TestEachSliceSort(t *testing.T) {
-	got := Each([]any{"b", "a"}, EachSpec{OVal: false, Sort: true}, nil)
+	got := Each([]any{"b", "a"}, EachSpec{Raw: true, Sort: true}, nil)
 	if !reflect.DeepEqual(got, []any{"a", "b"}) {
 		t.Errorf("sort: got %v", got)
 	}
 }
 
 func TestEachSliceTransform(t *testing.T) {
-	got := Each([]any{1, 2}, EachSpec{OVal: false}, func(v any) any {
+	got := Each([]any{1, 2}, EachSpec{Raw: true}, func(v any) any {
 		n := v.(int)
 		return n * 2
 	})
