@@ -979,10 +979,169 @@ Each helper has a unit test in `builder_test.go`.
 - §11 lists test cases per component, mirroring the TS suite.
 
 ### 6. Op pipeline
-- Fold ops onto a fixed-size `[KindCount]op` dispatch table, indexed by `Kind`.
-- Synchronous depth-first walk in `step(n, st, b)`.
-- Error wrapping with callsite + step kind.
-- Trade-off note: no third-party op registration in v1; addressable later via `map[Kind]op` switch if needed.
+
+#### 6.1 Decision: fold ops onto a Kind-keyed dispatch table
+
+TS keeps components and ops in separate files (`src/cmp/*.ts` and `src/op/*.ts`) and routes via `opmap[node.kind]` at `src/jostraca.ts:358-367`. The split exists because TS resolves cyclic imports lazily and because `op.before/after` are async. In Go neither matters: components only fill the node, ops only walk it, and the build phase is synchronous file I/O. Inlining ops next to the walker eliminates a layer.
+
+Implementation: a fixed-size array indexed by `Kind`. `kindCount` from §4.1 sizes it.
+
+```go
+type op struct {
+    before func(n *Node, st *jstate, b *buildCtx) error
+    after  func(n *Node, st *jstate, b *buildCtx) error
+}
+
+var ops = [kindCount]op{
+    KindNone:     {noopOp, noopOp},
+    KindProject:  {projectBefore, noopOp},
+    KindFolder:   {folderBefore, folderAfter},
+    KindFile:     {fileBefore, fileAfter},
+    KindContent:  {contentBefore, noopOp},
+    KindCopy:     {copyBefore, copyAfter},
+    KindInject:   {injectBefore, injectAfter},
+    KindFragment: {fragmentBefore, fragmentAfter},
+    KindSlot:     {slotBefore, slotAfter},
+}
+
+func noopOp(*Node, *jstate, *buildCtx) error { return nil }
+```
+
+Trade-off accepted: third-party packages cannot register a new `Kind` in v1. If extensibility becomes a v2 requirement, swap the array for `map[Kind]op` and expose `RegisterOp(Kind, op)`. The change is mechanical.
+
+#### 6.2 The walker
+
+A single function in `build.go`:
+
+```go
+func step(n *Node, st *jstate, b *buildCtx) error {
+    if int(n.Kind) >= len(ops) {
+        return wrap(n, fmt.Errorf("%w: %d", ErrMissingOp, n.Kind))
+    }
+    o := ops[n.Kind]
+    if err := o.before(n, st, b); err != nil { return wrap(n, err) }
+    for _, c := range n.Children {
+        if err := step(c, st, b); err != nil { return wrap(c, err) }
+    }
+    return wrap(n, o.after(n, st, b))
+}
+
+func wrap(n *Node, err error) error {
+    if err == nil { return nil }
+    var ne *NodeError
+    if errors.As(err, &ne) { return err }       // already wrapped
+    return &NodeError{
+        Step:     kindName(n.Kind),
+        Path:     append([]string(nil), n.Path...),
+        Callsite: callsiteFrom(n),
+        Err:      err,
+    }
+}
+
+func callsiteFrom(n *Node) string {
+    if v, ok := n.Meta["callsite"].(string); ok { return v }
+    return ""
+}
+```
+
+`Generate` drives this:
+
+```go
+func (j *J) Generate(opts Options, root func(*J)) (Result, error) {
+    st := newJstate(j.st, opts)                     // merge with global
+    rootNode := &Node{Kind: KindNone, Meta: map[string]any{}}
+    cj := &J{st: st, cur: rootNode}
+
+    root(cj)                                        // define phase, sync
+    if st.err != nil { return Result{}, st.err }
+
+    if !buildEnabled(st) { return packResult(st), nil }
+
+    st.bctx = newBuildCtx(st)
+    if st.root == nil {
+        // No top-level component; nothing to build.
+        return packResult(st), nil
+    }
+    if err := step(st.root, st, st.bctx); err != nil {
+        return packResult(st), err
+    }
+    if err := st.bctx.bmeta.done(); err != nil {
+        return packResult(st), err
+    }
+    return packResult(st), nil
+}
+```
+
+The build phase is fully synchronous. TS uses `await` only because Node fs is callback/Promise; Go's `os` is blocking and cheap. Removing async simplifies error propagation: a single linear `error` return, no Promise rejection.
+
+#### 6.3 Op responsibilities (per-kind summary)
+
+Each op is a pair of small functions in `build.go` (or a peer file when it grows). Behaviour follows the TS originals; line refs point at the source:
+
+| Kind | `before` | `after` | Reads | Writes |
+|---|---|---|---|---|
+| Project | normalise folder, set `bctx.current.project`, `ensureFolder` (`src/op/ProjectOp.ts:6-28`) | — | `st.folder` | filesystem (mkdir) |
+| Folder | append name to `bctx.current.folder.path`, `ensureFolder` (`src/op/FolderOp.ts:9-22`) | pop name from `bctx.current.folder.path` (`:25-28`) | — | filesystem (mkdir) |
+| File | set `bctx.current.file = node`, compute `fullpath`, init content slice (`src/op/FileOp.ts:11-18`) | join content, apply exclude rules, call `bctx.fh.save(...)` (`:21-74`) | `st.fs`, `st.opts.Exclude` | filesystem (write) |
+| Content | append rendered string to `bctx.current.file.content` (with `Indent` applied) | — | — | in-memory |
+| Copy | resolve from-path; for files call `FileOp.before`, for dirs walk and queue per-entry actions (`src/op/CopyOp.ts:18-...`) | call `bctx.fh.copy(...)` per entry; apply replace/template; respect `Exclude` and `CopyCmpOptions.Ignore` | `st.fs`, `st.opts.Cmp.Copy.Ignore` | filesystem (copy/write) |
+| Inject | set `bctx.current.file = node` to a pseudo-file with the target path (`src/op/InjectOp.ts:?`) | read existing file; replace content between `Markers`; `bctx.fh.save(...)` | `st.fs` | filesystem (write) |
+| Fragment | save parent file ctx, init fragment file ctx (`src/op/FragmentOp.ts:?`) | apply `Indent`, restore parent, append fragment content to parent file | — | in-memory accumulation |
+| Slot | save parent file ctx, init slot pseudo-file (`src/op/SlotOp.ts:?`) | restore parent, append slot content to parent | — | in-memory accumulation |
+| None | — | — | — | — |
+
+Each `before`/`after` function is small (10–60 lines); none uses concurrency. Detailed implementation lands during phase 5/6/8/9 of §12.
+
+#### 6.4 Error wrapping
+
+Every error returned by an op is wrapped once in `NodeError` (§4.6). `wrap` is idempotent — it checks via `errors.As(...)` so re-wrapping during the recursion doesn't grow chains. The `Step` field uses `kindName(Kind)` (e.g. `"file"`, `"copy"`) to match TS's `err.step = node.kind` pattern from `src/jostraca.ts:353`.
+
+When `Options.Debug != ""`, components stash a callsite string into `node.Meta["callsite"]` (similar to TS `err.callsite` at `:339-341`). `wrap` reads it and surfaces it via `NodeError.Callsite`. Without debug, the field stays empty.
+
+#### 6.5 `buildCtx`
+
+The Go peer of TS `BuildContext`:
+
+```go
+type buildCtx struct {
+    fh      *fileHandler
+    bmeta   *buildMeta
+    when    int64
+    audit   Audit
+    current currentRefs
+    log     *buildLog
+}
+
+type currentRefs struct {
+    project *Node
+    folder  folderRef
+    file    *Node          // current open file during build
+}
+
+type folderRef struct {
+    node   *Node
+    path   []string        // current segments below project root
+    parent string
+}
+
+type buildLog struct {
+    exclude []string       // paths excluded from rewrite
+    last    int64          // mtime of last build (from BuildMeta)
+}
+```
+
+`buildCtx` is created by `newBuildCtx(st)` once per `Generate` call before the walk starts. It owns the `fileHandler` (§7) and `buildMeta` (§7.4), and accumulates `audit` entries that surface via `Result.Audit()`.
+
+#### 6.6 Synchronous, not concurrent
+
+Inside one `Generate` call the walk is single-goroutine. Two parallel `Generate`s each have their own `*jstate` and `*buildCtx`; collision is impossible. There is no goroutine pool, no worker channel, no fan-out — file I/O dominates wall time and is bound to the single walker. If a future workload demands parallel file writes, the cleanest extension point is `step()` calling `o.after` on independent subtrees concurrently, gated by a flag in `Options.Control`. Out of scope for v1.
+
+#### 6.7 Cross-references
+
+- §4.1 owns the `Kind` enum and `kindCount` sentinel that sizes the dispatch table.
+- §4.6 owns `NodeError` and the sentinels `wrap` may surface.
+- §7 owns `fileHandler` and the actual filesystem mutation logic; ops only call `bctx.fh.save/copy/...`.
+- §11 specifies regression tests asserting op order and audit content.
 
 ### 7. FileHandler
 - Modes: `write`, `preserve`, `present`, `diff`, `merge` — all in v1.
