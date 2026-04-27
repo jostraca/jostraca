@@ -2894,11 +2894,162 @@ None. Every existing file in `go/` either survives unchanged or is rewritten in 
 - §17 verification commands assume these files exist.
 
 ### 17. Verification (end-to-end)
-- `cd go && go build ./...`
-- `cd go && go test ./... -race -count=1` — must include concurrency regression.
-- Parity snapshot: run TS test fixtures through Go via a small `cmd/parity` driver; `cmp.Diff` against TS `vol.toJSON()` output stored under `testdata/parity/`.
-- `go vet ./...` clean; `staticcheck ./...` clean.
-- Manual smoke: README quick-start example translated to Go, generates the same `out/my-app/...` tree on disk.
+
+The commands below are the gate every phase must pass before merge. They run from the repo root unless noted; `(cd go && ...)` is used where the working directory matters.
+
+#### 17.1 Build
+
+```bash
+(cd go && go build ./...)
+```
+
+**Expected.** Exit 0. No output. Compiles every package in the Go module.
+**Fails when.** A type error, missing import, or unresolved symbol breaks the build. Should never reach review.
+
+#### 17.2 Vet
+
+```bash
+(cd go && go vet ./...)
+```
+
+**Expected.** Exit 0. No warnings.
+**Fails when.** `go vet` flags suspicious constructs (printf format mismatch, unreachable code, lock copying, etc.). Treat as blocker.
+
+#### 17.3 Cross-platform vet (Windows path mitigation, R5)
+
+```bash
+(cd go && GOOS=windows go vet ./...)
+(cd go && GOOS=darwin go vet ./...)
+```
+
+**Expected.** Exit 0 on both. Catches obvious cross-compilation breakage before runtime.
+**Fails when.** Code uses linux-only `syscall` constants or assumes a path separator; both should be impossible if §7's `OsFS` boundary discipline is followed.
+
+#### 17.4 Tests
+
+```bash
+(cd go && go test ./... -race -count=1)
+```
+
+**Expected.** All tests pass. Covers:
+- `template_test.go` (§9 cases)
+- `util_test.go` (§10 utilities)
+- `jostraca_test.go` (end-to-end happy paths from `test/jostraca.test.ts`)
+- `builder_test.go` (per-component shape)
+- `filehandler_test.go` (write/preserve/present/protect/unchanged)
+- `control_test.go` (dryrun, version)
+- `diff_test.go` (2-way render)
+- `merge_test.go` (3-way merge corpus from `test/merge.test.ts`)
+- `concurrency_test.go` (10-goroutine isolation)
+- `fs_test.go` (OsFS + MemFS round-trip)
+
+**Fails when.** Any individual case fails or the race detector reports a data race.
+
+#### 17.5 Concurrency stress
+
+```bash
+(cd go && go test ./... -run TestGenerateConcurrent -race -count=10)
+```
+
+**Expected.** Pass 10 consecutive iterations.
+**Fails when.** Any iteration trips the race detector or asserts cross-goroutine state contamination — direct evidence the §2 design has a hole.
+
+#### 17.6 Parity snapshots
+
+```bash
+(cd go && go test ./... -run TestParity -v)
+```
+
+Reads every `testdata/parity/*.json`, runs the corresponding Go scenario, snapshots `Result.Vol().toJSON()` equivalent, and asserts byte-equal to the recorded TS output.
+
+**Expected.** All scenarios pass. Output formatting via `cmp.Diff` for any miss.
+**Fails when.** A single byte differs from TS — investigate (often a path normalisation slip, occasionally a real semantic divergence).
+
+Initial scenarios (added in their respective phases):
+- `quickstart.json` — README quick-start (phase 6)
+- `fragment_slot.json` — README "Fragments and Slots" (phase 8)
+- `inject_basic.json` — README "Inject" (phase 8)
+- `copy_assets.json` — README "Copy" (phase 9)
+- `existing_diff.json` — README "Existing File Handling" with `diff: true` (phase 10)
+- `existing_merge.json` — same with `merge: true` (phase 11)
+- `mem_vol.json` — README "In-Memory Generation" (phase 6)
+
+#### 17.7 Manual smoke (golden file)
+
+After phase 12, the README quick-start translated to Go runs end-to-end on disk:
+
+```bash
+(cd /tmp && rm -rf jostraca-smoke && mkdir jostraca-smoke && cd jostraca-smoke && \
+  go mod init smoke && go mod edit -replace github.com/jostraca/jostraca/go=$REPO/go && \
+  cat > main.go <<'EOF'
+package main
+import "github.com/jostraca/jostraca/go/jostraca"
+func main() {
+    j := jostraca.New(jostraca.WithFolder("./out"))
+    if _, err := j.Generate(jostraca.Options{}, func(j *jostraca.J) {
+        j.Project(jostraca.ProjectProps{Folder: "my-app"}, func(j *jostraca.J) {
+            j.Folder("src", func(j *jostraca.J) {
+                j.File("index.js", func(j *jostraca.J) {
+                    j.Content("console.log(\"hello world\")\n")
+                })
+            })
+            j.File("package.json", func(j *jostraca.J) {
+                j.Content("{ \"name\": \"my-app\" }\n")
+            })
+        })
+    }); err != nil { panic(err) }
+}
+EOF
+  go run . && \
+  diff -ruN out/my-app expected-tree/)
+```
+
+**Expected.** Files produced match the README's expected tree. The `diff` exits 0.
+**Fails when.** A file is missing, has wrong content, or a permissions bit differs — usually a `fileHandler` bug.
+
+The expected tree lives under `go/testdata/smoke/expected-tree/` and travels with the package.
+
+#### 17.8 Optional: staticcheck
+
+```bash
+(cd go && staticcheck ./...)
+```
+
+**Expected.** Empty output.
+**Fails when.** Idiomatic Go nits flagged (unused functions, redundant type conversions, etc.).
+**Status.** Optional — not blocking for v1 but recommended.
+
+#### 17.9 Optional: dependency audit
+
+```bash
+(cd go && go mod verify && go list -m -mod=readonly all)
+```
+
+**Expected.** All checksums verify; only `github.com/rjrodger/shape/go`, `github.com/sergi/go-diff`, and `github.com/google/go-cmp` (test-only) appear as direct deps.
+
+#### 17.10 Definition of "v1 ships"
+
+All of the following hold:
+1. §17.1 (`go build`) — green.
+2. §17.2 (`go vet`) — green.
+3. §17.3 (cross-platform vet) — green for `linux`/`darwin`/`windows`.
+4. §17.4 (`go test -race`) — green.
+5. §17.5 (concurrency stress) — green over 10 iterations.
+6. §17.6 (parity snapshots) — every scenario byte-equal to TS.
+7. §17.7 (manual smoke) — README quick-start produces the documented tree.
+8. `go/README.md` updated (D15 noted, full quick-start, deviation list).
+9. Repo-root `README.md` Go-port section updated to claim full parity.
+10. CI workflow committed and green on the merge commit.
+
+#### 17.11 Cross-references
+
+- §11 owns the test strategy these commands execute.
+- §12's "Done when" criteria for each phase are subsets of these commands.
+- §15 risks call out which command catches each risk.
+
+---
+
+*Plan complete. v1 ships when §17.10 holds.*
 
 ---
 
