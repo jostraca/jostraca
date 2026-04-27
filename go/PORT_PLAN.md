@@ -1943,15 +1943,21 @@ TS `each` accepts arrays, plain objects, or scalars and produces a transformed a
 
 ```go
 type EachSpec struct {
-    Mark bool
-    OVal bool
+    Mark bool   // reserved for future TS parity; not consumed in v1
+    Raw  bool   // default false → annotated; explicit true → raw items
     Sort bool
-    Call bool
     Args any
 }
 
 func Each(subject any, spec EachSpec, apply func(any) any) []any
 ```
+
+**Phase 4 implementation note.** The plan originally listed `OVal bool`
+matching TS's default `oval: true`. Go's zero-value semantics make it
+impossible to distinguish "OVal unset" from "OVal=false" without
+`*bool`, so the field was inverted to `Raw` — default zero means
+annotated (matches TS default), explicit `Raw: true` means pass-through.
+Behaviour for end users is identical to TS; the field name differs.
 
 Implementation (sketch):
 
@@ -2413,15 +2419,26 @@ V1 ships full TS parity (including 3-way merge — user opted into the diff3 han
 
 **Done when.** Every TS template case produces byte-equal output via the table runner.
 
-#### Step 4 — Utilities
+#### Step 4 — Utilities (must-have core)
 **Lands.** `util.go`.
 
-- `Each` (reflection), `Get`, `GetX` (test-first parser port), `Camelify`/`Snakify`/`Kebabify`/`Partify`/`LCF`/`UCF`/`Names`, `EscRE`, `Indent`, `IsBinExt`, `CMap`/`VMap`, `Humanify`, `Deep`/`OMap`.
-- Internal `dLog` package-level log + `newDLog`.
+- `Each` (reflection), `Get`, `Camelify`/`Snakify`/`Kebabify`/`Partify`/`LCF`/`UCF`/`Names`, `EscRE`, `Indent`, `IsBinExt`, `Deep`.
 
-**Tests.** `util_test.go` ports `test/utility.test.ts` row-by-row. Each utility has its own `t.Run("name", ...)` table.
+**Deferred to Phase 12 polish (no consumer in Phases 5-11).**
 
-**Done when.** `test/utility.test.ts` cases all green.
+- `GetX` — hardest port; PORT_PLAN §15 R2 flags it as the highest-risk
+  parser port. No core consumer.
+- `CMap`/`VMap` — sentinel-typed map transforms; downstream consumer only.
+- `Humanify` — cosmetic time formatting; only used by `BuildMeta.HLast`
+  (stubbed in Phase 6 with ISO-8601 if needed).
+- `DLog` — debug log flushed at end of `Generate`; lands with
+  `Generate`'s log surface in Phase 6 or 12.
+- `OMap` — small, but no consumer in v1.
+
+**Tests.** `util_test.go` ports the must-have rows from
+`test/utility.test.ts`.
+
+**Done when.** Phase 4 must-have rows pass.
 
 #### Step 5 — Leaf components and basic ops
 **Lands.** First half of `builder.go` and `build.go`.

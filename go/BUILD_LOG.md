@@ -337,3 +337,100 @@ caused by missing prefix-strip on user-facing groups). Total: 3 commits.
 
 **Next.** Phase 4 — Utilities (`util.go`, `util_test.go`). `Indent`
 helper from §9 #14 lands here.
+
+---
+
+## Phase 4 — Utilities
+
+**Plan reference.** `PORT_PLAN.md` §12 Step 4, §10.
+
+**Tests committed first** (`go/jostraca/util_test.go`, commit `773b651`):
+- `TestEachSlice`, `TestEachSliceSort`, `TestEachSliceTransform`,
+  `TestEachMap`, `TestEachMapSorted`, `TestEachNil`
+- `TestNameConverters` (Camelify/Snakify/Kebabify table, 6 rows)
+- `TestPartify` (string + slice inputs, camelCase boundary detection)
+- `TestLCFUCF`
+- `TestEscRE`
+- `TestIsBinExt`
+- `TestNames` (variant keys present)
+- `TestGet`
+- `TestIndent` (number, string, empty)
+- `TestDeep` (recursive map merge)
+
+**Implementation committed** (`caa7bf4`, after one fixup):
+- `util.go` (~360 lines) with reflection-based `Each`, dot-path `Get`
+  (delegates to `lookup` from `template.go`), name converters reusing
+  a single `Partify` splitter, `Indent` using `strings.ReplaceAll`
+  to dodge JS lookbehind, `IsBinExt` against an embedded extension
+  set from `basic.ts:716`, `Names` populating six variant keys, and
+  `Deep` recursive merge.
+
+**Verification.**
+- `go vet ./...` — clean.
+- `go test ./... -race -count=1` — `ok`. All Phase 0-4 tests pass.
+
+**Deviations from plan, with rationale.**
+
+1. **`EachSpec.OVal` → `EachSpec.Raw` (semantic inversion).** Plan
+   §10.2 specified `OVal bool` matching TS's `{oval: true}` default.
+   Go zero-values prevent distinguishing "OVal unset" from
+   "OVal=false" without `*bool` indirection, which makes the call
+   site verbose. Inverted the field: `Raw bool` defaults to false
+   (= annotated mode, matching TS default) and callers opt out with
+   `EachSpec{Raw: true}`. Net behaviour for end users is identical;
+   the field name differs from the plan. **Plan delta:** §10.2 to
+   record `Raw` field name and the zero-value rationale.
+
+2. **`Mark` field unused.** Plan §10.2 listed `Mark` for `index$`/`key$`
+   annotations. The Go `Each` always annotates when not raw (no
+   separate Mark flag); `Mark` is reserved for future use (e.g., if
+   we want `index$` only without `val$` wrapping). Field kept on the
+   struct so the plan signature remains compatible. **Plan delta:**
+   §10.2 to note `Mark` is reserved and not currently consumed.
+
+3. **GetX, CMap, VMap, Humanify, DLog, OMap deferred.** Plan §10
+   listed all of these as Phase 4 deliverables. None are needed by
+   Phases 5-11:
+   - `GetX` — hardest port (~180 LoC parser, plan §15 R2 lists it as
+     highest-risk). Not used by core. Defer to Phase 12 or a v1.1.
+   - `CMap`/`VMap` — not used by core; only by downstream consumers.
+   - `Humanify` — only used by `BuildMeta.HLast` cosmetic field.
+     Stub returning ISO-8601 string in Phase 6 if needed.
+   - `DLog` — only used at end of `Generate` to flush warnings;
+     can land alongside Phase 6 or 12.
+   - `OMap` — small, but no consumer. Defer.
+   **Plan delta:** §12 Step 4 to be re-scoped: must-haves in Phase 4,
+   nice-to-haves moved to Phase 12 polish.
+
+4. **`Names` adds extra variants** (`__lcf`, `__ucf`) beyond plan
+   §10's "camel/snake/kebab/lower/upper" list. Reason: TS `names()`
+   in `basic.ts:329-342` populates exactly these six. The plan list
+   was abbreviated; my code matches TS. No plan delta needed.
+
+5. **`Get` returns `nil` on miss**, not `(any, bool)` like the
+   internal `lookup`. Plan §10 said `Get(root any, path string) any`;
+   matched.
+
+**Plan deltas captured for next pass.**
+- §10.2: rename `OVal` → `Raw`, document the inversion rationale,
+  mark `Mark` as reserved.
+- §12 Step 4: split into "must-have" (delivered in Phase 4) and
+  "polish" (GetX, CMap, VMap, Humanify, DLog, OMap → Phase 12).
+
+**Open questions surfaced.**
+- TS `each` accepts a function as `apply` argument that can take
+  multiple arguments (`(v, n, i) => ...`); my Go `Each` callback is
+  unary `func(any) any`. Multi-arg versions can be added later via
+  function-type variants. Not blocking Phase 5 since `List` only
+  needs the unary form.
+- `Partify` for an input that's already PascalCase (e.g., `"FooBar"`)
+  produces `["Foo", "Bar"]`; the camel-boundary detector also splits
+  consecutive uppercases differently than TS. No core consumer cares;
+  if downstream code does, add boundary tuning to `splitCamel`.
+
+**Time-to-land.** Tests in one cycle, implementation in one cycle plus
+one fixup (rename `OVal` → `Raw`). Total: 2 commits.
+
+**Next.** Phase 5 — Leaf components and basic ops. Builder methods
+for Project/Folder/File/Content/Line/Slot/Cmp; ops folded into
+`build.go`; `buildCtx` skeleton.
