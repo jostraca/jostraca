@@ -203,3 +203,137 @@ rework required after the first compile-and-test round.
 **Next.** Phase 3 — Template feature parity. The current `template.go`
 is the existing 184-line file from before this branch; we'll extend it
 with all 14 gaps from §9 of the plan.
+
+---
+
+## Phase 3 — Template feature parity
+
+**Plan reference.** `PORT_PLAN.md` §12 Step 3, full feature list at §9.
+
+**Tests committed first** (`go/jostraca/template_test.go`, commit
+`a85cf2f`):
+
+Replaces a 65-line file with ~250 lines of cases organised as:
+- `TestTemplateMacros` / `TestTemplateReplaceAndEject` /
+  `TestParseTemplateSpec` / `TestParseTemplateSpecEmpty` — Phase 0
+  cases preserved.
+- `TestTemplateBasicValues` — table of 11 rows: dot-path lookup, slice
+  index, bool stringification, missing refs left in place, JSON
+  marshaling for maps/slices, function refs (both `func() any` and
+  `func() string`), no recursive macro expansion, `$$"hi"$$` quoted
+  literal.
+- `TestTemplateReplaceVariants` — literal/regex keys, function values
+  for literal keys, named-group regex with function callback,
+  unmatched key passthrough.
+- `TestTemplateEmptyMatchRegexRejected` —
+  `errors.Is(err, ErrEmptyMatchRegex)` for `/Q*/`.
+- `TestTemplateLookbehindRejected` /
+  `TestTemplateLookaheadRejected` — both fail with `ErrLookbehind`
+  (RE2 caveat from PORT_PLAN §9.3).
+- `TestTemplateCustomDelimiters` — `Open`/`Close`/`Ref` overrides.
+- `TestTemplateHandleStreams` — `Handle` callback receives parts in
+  order; `Template` return is empty.
+- `TestTemplateEjectStrings` / `TestTemplateEjectRegex` — both eject
+  forms produce the same result.
+- `TestTemplateJostracaReplaceSentinel` — assembled regex contains
+  canonical group names (loose check; format differs from JS).
+- `TestTemplateTagMatchSimple` / `TestTemplateTagMatchWithIndent` /
+  `TestTemplateTagDashName` — `#Foo`, `#Foo` with leading whitespace,
+  and `#Foo-Bar` forms; user callback receives `g["indent"]`,
+  `g["TAG"]`, and `g["<innerName>"]` for the dash form.
+
+**Implementation committed** (`aaa5593`):
+
+`template.go` rewrite (184 → 594 lines):
+- `TemplateSpec` widens: `Eject` is now `any` (accepts `[2]string`,
+  `[2]any`, `[]any`, `[]string`); new fields `Open`, `Close`, `Ref`,
+  `Insert`, `Handle`.
+- `buildTemplateRE(open, closeStr, ref, replace)` assembles the
+  alternation regex with named groups `J_O`/`J_R`/`J_C` for the
+  default macro and `J_K<n>_<canon>` / `J_T<n>_<canon>` for user keys.
+- `buildTagRegex` synthesises the `#Foo` / `#Foo-Bar` patterns.
+- `renameUserGroups` rewrites user-supplied `(?P<x>)` groups to
+  `(?P<J_N<n>_x>)` so internal and user-supplied groups can coexist.
+- `userGroupView` strips `J_K`/`J_T`/`J_N` prefixes before passing
+  the group map to `ReplaceFunc`. Adds `$&` for the full match
+  (JS parity).
+- `getCachedTemplateRE` / `compileEjectMarker` — both bounded caches
+  (cap 100) under their own `sync.Mutex`. Eviction strategy is
+  full-clear matching TS exactly.
+- `formatValue` handles the value-polymorphism contract: strings
+  pass through, nil falls back to the original macro (so unresolved
+  refs stay visible for debugging), bools stringify, function refs
+  invoke, maps/slices JSON-marshal, scalars via `%v`.
+- `formatJSStyleRegex` rewrites Go's `(?P<...>)` to JS `(?<...>)`
+  and wraps in `/.../` for the `__JOSTRACA_REPLACE__` debug output.
+- `unsupportedLookRE` matches `(?<=`, `(?<!`, `(?=`, `(?!` in user
+  regex bodies and rejects with `ErrLookbehind`.
+
+**Verification.**
+- `go vet ./...` — clean.
+- `go test ./... -race -count=1` — `ok`. All Phase 0 + Phase 3
+  template cases pass.
+
+**Deviations from plan, with rationale.**
+
+1. **Tag inner-group prefix.** Plan §9 #3 specified the synthesised
+   pattern as
+   `(?P<J_N{n}_indent>...)//[ \t]*#(?P<J_T{n}_TAG>...)([ \t]*\n?)`.
+   I implemented the inner TAG group as `J_N{n}_TAG`, not `J_T{n}_TAG`.
+   Reason: dispatch logic uses `J_T*` prefix to mean "this match
+   triggers a user callback for canon `*`". The outer wrapper group
+   `(?P<J_T{n}_<canon>>...)` is the dispatcher; the inner TAG group
+   is informational and shouldn't trigger dispatch. Using `J_N{n}_TAG`
+   for the inner group keeps dispatch deterministic. **Plan delta:**
+   §9 #3 to clarify the J_T = dispatcher / J_N = informational split.
+
+2. **`__JOSTRACA_REPLACE__` output format.** Plan §9 #4 said "return
+   the literal source of the compiled regex". TS `RegExp.toString()`
+   wraps in `/.../` and uses `(?<name>)` syntax. Go's
+   `regexp.String()` returns the bare source with `(?P<name>)`.
+   To preserve the user-visible debug experience, `formatJSStyleRegex`
+   converts to JS form. The test only checks for the canonical group
+   names `J_O`/`J_R`/`J_C` rather than full byte-equality; a stricter
+   parity test will need to know whether to expect Go or JS form.
+   No plan delta — this matches the plan's intent.
+
+3. **`groups["$&"]`** added unconditionally in `userGroupView`. Plan
+   didn't specify; needed for parity with TS test cases that use
+   `g['$&']` for the full match. Document in §9 #2 alongside the
+   group-rename feature. **Plan delta:** add a note to §9 #2.
+
+4. **Eject `decomposeEject` accepts more forms than plan**:
+   `[2]string`, `[2]any`, `[]any`, `[]string`. Plan §9 #9 said "string
+   or `*regexp.Regexp`" elements but didn't pin the container.
+   Accepting all four forms makes the typed and untyped paths equally
+   ergonomic (and matches what existing tests pass). No plan delta.
+
+5. **Cache eviction is full-clear**, matching TS at `:476` exactly.
+   Plan §9 #11 said "FIFO eviction; matches TS clear-all". No
+   deviation; flagging because future LRU work will live behind a
+   benchmark-driven decision.
+
+**Plan deltas captured for next pass.**
+- §9 #3: clarify the J_T (dispatcher) vs J_N (informational) split
+  in the synthesised tag regex.
+- §9 #2 / §9 surface: document `groups["$&"]` for full-match access.
+
+**Open questions surfaced.**
+- The `TestTemplateJostracaReplaceSentinel` is loose (substring check
+  of canonical names) rather than byte-equal. A future strict
+  parity test against TS expected output will need a second wrapper
+  function or a flag to choose JS-style vs Go-style format. Not
+  blocking v1.
+- TS test for nested replaces (`'a': 'A'` plus `'/\[(?<cap>\w)\]/'`)
+  exercises iteration order. My alternation builder produces the
+  same alternation regex order as TS sort key ordering, so behaviour
+  should match — but a regression test for "key A appears before key
+  B in source but B's replacement runs first" would catch sort
+  drifts. Add to test corpus in Phase 12 polish if time permits.
+
+**Time-to-land.** Tests in one cycle, implementation in one cycle plus
+one fixup cycle (added `userGroupView` after observing 4 failures
+caused by missing prefix-strip on user-facing groups). Total: 3 commits.
+
+**Next.** Phase 4 — Utilities (`util.go`, `util_test.go`). `Indent`
+helper from §9 #14 lands here.

@@ -1657,6 +1657,12 @@ func renameUserGroups(src string, counter *int) (string, []string)
 
 The function returns rewritten regex source plus the list of original→rewritten name pairs so `groups` exposed to the `ReplaceFunc` callback can be presented under their original names.
 
+**`groups["$&"]` for full match** (Phase 3 implementation note). Before
+invoking the user callback, every internal group name (`J_K<n>_x`,
+`J_T<n>_x`, `J_N<n>_x`) is stripped to its bare form, and an extra
+`groups["$&"]` is added holding the full match. This matches TS test
+fixtures that use `g['$&']` (a JS regex-replace convention).
+
 ##### 3. `#Tag` and `#Tag-Name` matching
 
 TS at `:460-468` parses `#Foo` and `#Foo-Bar` keys and synthesises a regex of the form:
@@ -1669,6 +1675,15 @@ Go regex string built by `buildTagRegex(key string, counter *int) string`. The r
 - `groups["indent"]` — leading whitespace
 - `groups["TAG"]` — tag identifier (or full match)
 - `groups["name"]` — alias to the inner identifier when `#Tag-Name` form is used
+
+**Internal-group naming convention** (Phase 3 implementation note).
+The synthesised regex distinguishes two prefixes:
+- `J_T<n>_<canon>` — the **outer wrapper** group; matching it triggers
+  the user's `ReplaceFunc` for `<canon>`.
+- `J_N<n>_<name>` — **informational** subgroups (`indent`, `TAG`, the
+  identifier capture for `#Foo-Bar`). These never trigger dispatch.
+This split keeps dispatch deterministic when both wrapper and inner
+match simultaneously.
 
 ##### 4. `__JOSTRACA_REPLACE__` sentinel
 
