@@ -531,3 +531,122 @@ one fixup (test correction). Total: 2 commits.
 
 **Next.** Phase 6 — FileHandler core (write/preserve/present + protect
 + unchanged) plus BuildMeta. This is where files actually land on disk.
+
+---
+
+## Phase 6 — FileHandler core + BuildMeta
+
+**Plan reference.** `PORT_PLAN.md` §12 Step 6, §7.
+
+**Tests committed first** (`filehandler_test.go`, commit `9c552c3`):
+- `TestQuickstartViaMemFS` — README quickstart end-to-end; asserts
+  byte-equal Vol contents at `/out/my-app/src/index.js` and
+  `/out/my-app/package.json`.
+- `TestUnchangedFile` — writing equal content marks the file as
+  Unchanged (no Written entry).
+- `TestProtectedFile` — file containing `JOSTRACA_PROTECT` is not
+  overwritten and lands in `Files.Preserved`.
+- `TestPreserveMode` — original content backed up to `.old.<ext>`,
+  new content at the original path.
+- `TestPresentMode` — original untouched, new content at `.new.<ext>`.
+- `TestBuildMetaPersisted` — `.jostraca/jostraca.meta.log` and
+  `.jostraca/.gitignore` exist after Generate.
+
+**Implementation committed** (`dc369f3`, after one fixup):
+- `filehandler.go` (~210 lines) implements `save` with the §7.6
+  algorithm: existence check → protect short-circuit → equality
+  short-circuit → mode dispatch (merge → diff → present → preserve
+  → write). Diff and merge are stubbed to `write()` until Phases 10
+  and 11.
+- `annotatedPath(target, kind)` helper produces `.old.txt`/`.new.txt`
+  paths.
+- `relative(p)` strips the configured folder prefix and trims a
+  leading `/`.
+- Per-action audit entries (`save`, `protect`, `unchanged`,
+  `preserve`, `present`).
+- `duplicateFolder` writes a side-copy under
+  `<folder>/.jostraca/generated/<rpath>` when `Control.Duplicate`
+  (default true). This populates the merge-baseline corpus that
+  Phase 11 will read.
+- `buildmeta.go` (~110 lines): `load()` reads any prior meta file,
+  `add()` accumulates per-path entries, `done()` writes a
+  sorted-key JSON file plus a `.jostraca/.gitignore` (`*\n`) unless
+  `Control.Version` is set. Sorted output makes the meta file
+  diff-stable across runs (R10 mitigation).
+- `build.go`: `projectBefore` seeds `current.folder.parent` from
+  `st.folder + n.Folder` so the `current.folder.path` accumulator
+  produces correct full paths via `fileBefore`. `fileAfter` is no
+  longer a stub — it calls `b.fh.save(n.FullPath, ...)` after
+  concatenating Content children.
+- `buildctx.go`: `buildCtx.fh *fileHandler` field added;
+  `newBuildCtx` pre-seeds `folder.parent` from `st.folder` so
+  component trees without a `Project` wrapper still write under
+  the configured output root.
+- `jostraca.go`: `Result.Files = b.fh.files`; `Result.Vol`/`Result.FS`
+  populated when the active FS is `*MemFS`.
+- Phase 5 builder tests now opt out of the build phase via
+  `Options{Build: &false}` — without this they would produce stray
+  files under `go/jostraca/sdk/...` because the build phase is now
+  real.
+
+**Verification.**
+- `go vet ./...` — clean.
+- `go test ./... -race -count=1` — `ok`.
+- Cleaned up stray `sdk/`, `p/`, `x.txt` produced by Phase 5 tests
+  before `Build:&false` opt-out.
+
+**Deviations from plan, with rationale.**
+
+1. **`projectBefore` calls `ensureDirOf` on a synthetic path**
+   (`parent + "/x"`). Plan §6.3 listed `ensureFolder(fullpath)`.
+   The Go `ensureDirOf` takes a *file* path and creates the parent
+   dir; passing `parent + "/x"` creates `parent`. Slightly clunky.
+   **Plan delta:** consider adding `ensureFolder(p)` as a sibling
+   helper that creates the path itself rather than its parent.
+
+2. **`buildMeta.HLast` left blank** in v1. Plan §7.4 specified a
+   human-readable timestamp via `Humanify`. `Humanify` was deferred
+   in Phase 4. Acceptable today; will populate when Humanify lands.
+
+3. **Diff and merge modes** route to `write()` for now (with `Files.Diffed`
+   /`Files.Merged` empty). Plan §7.6 specified the dispatch to
+   `saveDiff`/`saveMerge`; those land in Phases 10 and 11 and slot
+   into the existing `switch` cleanly.
+
+4. **`Files.Written` paths use the relative form** without leading
+   `/`. The TS tests use the same relative form. Confirmed via
+   `Files.Unchanged` test which observes the same key shape.
+
+5. **`fileAfter` Exclude check is partial.** Plan §6.3 says `FileOp.after`
+   applies the exclude rules from `node.Exclude` and `Options.exclude`.
+   I handle `Exclude=true → skip`. The list/regex forms and
+   `Options.exclude`-based time-window exclusion (TS at
+   `src/op/FileOp.ts:51-62`) are deferred — none of the Phase 6
+   tests exercise them. **Plan delta:** track in §6.3 as a Phase 9
+   add-on (alongside Copy's full Exclude support).
+
+**Plan deltas captured.**
+- §6.3: add `ensureFolder` helper distinct from `ensureDirOf`.
+- §6.3: explicit list/regex Exclude semantics deferred to Phase 9.
+
+**Open questions surfaced.**
+- The TS `BuildMeta.last()` returns the previous build's mtime so
+  ops can compare for incremental builds. The Go port loads `prev`
+  but no consumer reads it yet. Future: wire into `FileOp.after`'s
+  exclude logic when `Options.exclude == true`.
+- `JOSTRACA_PROTECT` substring detection works inside binary files
+  too. Plan §7.2 implied text-only; my code only tests text via
+  `IsBinExt`. Conservative: confirmed protect only triggers for text.
+- `Control.Duplicate` defaults to `false` because Go zero-value of
+  `Control{}` has `Duplicate: false`, but the plan §7.5 says
+  "default true". Phase 6 doesn't surface this — the Phase 11 merge
+  test will need an explicit `Control{Duplicate: true}` until we
+  fix the default. **Plan delta:** decide whether to inverse the
+  field name (e.g., `NoDuplicate`) like we did for `Each.Raw`, or
+  initialise the default in `applyOptions`.
+
+**Time-to-land.** Tests in one cycle, implementation in one cycle plus
+one fixup (folder.parent seeding for Project-less trees and Phase 5
+test Build:&false). Total: 2 commits.
+
+**Next.** Phase 7 — Concurrency regression test (small).
