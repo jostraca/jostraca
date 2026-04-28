@@ -223,7 +223,26 @@ func (fh *fileHandler) savePresent(p string, content []byte, rpath, whence strin
 // saveMerge runs a 3-way merge using the duplicate-folder baseline as
 // the common ancestor. If no baseline exists (first generation, or
 // duplicate disabled), saveMerge falls back to a 2-way diff render.
+//
+// Skip semantics: if existing already contains conflict markers from
+// a previous unresolved merge, the file is left untouched (TS
+// "merge-unresolved" action at FileHandler.ts:429-433). The duplicate
+// baseline is still refreshed so a future user-resolution can merge
+// cleanly.
 func (fh *fileHandler) saveMerge(p string, content, existing []byte, rpath, whence string) error {
+	if bytes.Contains(existing, []byte(">>>>>>> EXISTING:")) {
+		// Existing has unresolved markers; do not re-merge.
+		if !fh.control.Dryrun && fh.control.Duplicate() {
+			dup := fh.duplicateFolder + "/" + rpath
+			_ = fh.ensureDirOf(dup)
+			_ = fh.fs.WriteFile(dup, content)
+		}
+		fh.appendAudit("merge-skip", map[string]any{"path": rpath, "whence": whence})
+		if fh.bmeta != nil {
+			fh.bmeta.recordAction(rpath, "skip", true, false, false)
+		}
+		return nil
+	}
 	dpath := fh.duplicateFolder + "/" + rpath
 	var baseline []byte
 	if fh.fs.Exists(dpath) {

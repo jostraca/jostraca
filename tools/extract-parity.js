@@ -180,6 +180,20 @@ async function main() {
   // path normalization.
   await snapshotAbsPath('absolute_paths')
 
+  // Multi-run merge retention. Mirrors test/merge.test.ts:'retain'.
+  // Each phase takes a snapshot of /foo.txt. Sequence is:
+  //   G-0 first gen (model.foo='aaa\n')
+  //   G-1 same model, no change
+  //   G-2 user appends 'bbb\n', re-gen → keep user's bbb
+  //   G-3 same model, file stays 'aaa\nbbb\n'
+  //   G-4 same again
+  //   G-5 model.foo='aaa\nccc\n' → conflict between user's bbb and ccc
+  //   G-6 user resolves conflict → 'aaa\nbbb\nccc\n'
+  //   G-7 model.foo='aaa\nddd\n' → new conflict
+  //   G-8 idempotent re-gen
+  //   G-9 model.foo='aaa\neee\n' → conflict markers RETAIN ddd not eee
+  await snapshotMergeRetain('merge_retain')
+
   // Fragment with replace callbacks that re-enter components.
   // Mirrors test/jostraca.test.ts:'fragment-subcmp' minus the
   // outer cmp(props => ...) wrapper.
@@ -299,6 +313,52 @@ async function snapshotMerge(name) {
       scenario: name,
       vol: vol,
     }, null, 2) + '\n',
+  )
+  console.log('wrote', name)
+}
+
+async function snapshotMergeRetain(name) {
+  // Phases mirror test/merge.test.ts:'retain'. Each generation gets
+  // an incrementing now() so conflict-marker timestamps are deterministic.
+  const START = 1735689600000
+  let nowI = 0
+  const now = () => START + (++nowI * (60 * 1000))
+
+  const j = Jostraca({ now })
+  const root = (m) => () => Project({ folder: '.' }, () => {
+    File({ name: 'foo.txt' }, () => Content(m.foo))
+  })
+
+  const model = { foo: 'aaa\n' }
+  const mfs = memfs({})
+  const fs = mfs.fs
+  const opts = {
+    fs: () => fs, folder: '/', model,
+    existing: { txt: { merge: true } },
+  }
+
+  const phases = []
+  const snap = (label) => phases.push({ label, foo: mfs.vol.toJSON()['/foo.txt'] })
+
+  await j.generate(opts, root(model)); snap('G-0')   // first write
+  await j.generate(opts, root(model)); snap('G-1')   // unchanged
+  fs.appendFileSync('/foo.txt', 'bbb\n', { encoding: 'utf8' })
+  await j.generate(opts, root(model)); snap('G-2')   // merge keeps bbb
+  await j.generate(opts, root(model)); snap('G-3')   // idempotent
+  await j.generate(opts, root(model)); snap('G-4')   // idempotent
+  model.foo = 'aaa\nccc\n'
+  await j.generate(opts, root(model)); snap('G-5')   // conflict ccc vs bbb
+  fs.writeFileSync('/foo.txt', 'aaa\nbbb\nccc\n', { encoding: 'utf8' })
+  await j.generate(opts, root(model)); snap('G-6')   // user resolves
+  model.foo = 'aaa\nddd\n'
+  await j.generate(opts, root(model)); snap('G-7')   // new conflict ddd
+  await j.generate(opts, root(model)); snap('G-8')   // idempotent
+  model.foo = 'aaa\neee\n'
+  await j.generate(opts, root(model)); snap('G-9')   // conflict RETAINS ddd
+
+  require('fs').writeFileSync(
+    require('path').join(outDir, name + '.json'),
+    JSON.stringify({ scenario: name, phases }, null, 2) + '\n',
   )
   console.log('wrote', name)
 }
