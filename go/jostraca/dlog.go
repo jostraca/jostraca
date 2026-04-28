@@ -74,3 +74,18 @@ func dLogReset() {
 	defer dLogMu.Unlock()
 	dLogEntries = nil
 }
+
+// DLogSnapshot returns the current package-level dlog entries and
+// optionally clears them. Convenience for callers that want to flush
+// the buffer at end-of-Generate. TS uses a process-global __dlog__
+// with the same caveat; cross-Generate calls share the buffer.
+func DLogSnapshot(clear bool) []dLogEntry {
+	dLogMu.Lock()
+	defer dLogMu.Unlock()
+	out := make([]dLogEntry, len(dLogEntries))
+	copy(out, dLogEntries)
+	if clear {
+		dLogEntries = nil
+	}
+	return out
+}

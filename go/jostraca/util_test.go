@@ -358,16 +358,54 @@ func TestEachCorpus(t *testing.T) {
 	}
 }
 
-func TestEachMark(t *testing.T) {
-	got := Each([]any{"a", "b"}, EachSpec{Mark: true, Raw: true}, nil)
-	if len(got) != 2 {
-		t.Fatalf("len = %d, want 2", len(got))
+func TestEachMarkRawSlice(t *testing.T) {
+	// TS each() defaults mark=true. With Raw=true (oval=false),
+	// items pass through but objects get an index$ marker.
+	got := Each([]any{
+		map[string]any{"a": 1},
+		map[string]any{"a": 2},
+	}, EachSpec{Raw: true}, nil)
+	w0 := got[0].(map[string]any)
+	w1 := got[1].(map[string]any)
+	if w0["a"] != 1 || w0["index$"] != 0 {
+		t.Errorf("got[0] = %v", w0)
 	}
-	// With Mark+Raw, the items are returned raw; the wrapping is
-	// suppressed but Mark adds index$ via a side channel? In TS Mark
-	// affects the wrapped form. Our minimal interpretation: Mark only
-	// has effect when not Raw.
-	got = Each([]any{"a", "b"}, EachSpec{Mark: true}, nil)
+	if w1["a"] != 2 || w1["index$"] != 1 {
+		t.Errorf("got[1] = %v", w1)
+	}
+}
+
+func TestEachNoMarkRawSlice(t *testing.T) {
+	// NoMark=true suppresses the marker.
+	got := Each([]any{
+		map[string]any{"a": 1},
+	}, EachSpec{Raw: true, NoMark: true}, nil)
+	w0 := got[0].(map[string]any)
+	if _, ok := w0["index$"]; ok {
+		t.Errorf("NoMark should suppress index$: %v", w0)
+	}
+}
+
+func TestEachMarkRawMap(t *testing.T) {
+	got := Each(map[string]any{
+		"x": map[string]any{"v": 1},
+		"y": map[string]any{"v": 2},
+	}, EachSpec{Raw: true}, nil)
+	// Sort-by-key ensures x then y.
+	w0 := got[0].(map[string]any)
+	w1 := got[1].(map[string]any)
+	if w0["v"] != 1 || w0["key$"] != "x" {
+		t.Errorf("got[0] = %v", w0)
+	}
+	if w1["v"] != 2 || w1["key$"] != "y" {
+		t.Errorf("got[1] = %v", w1)
+	}
+}
+
+func TestEachWrapDefault(t *testing.T) {
+	// Without Raw, primitives wrap in {val$, index$}; the mark step
+	// is redundant since the wrap already includes the index.
+	got := Each([]any{"a", "b"}, EachSpec{}, nil)
 	w0 := got[0].(map[string]any)
 	if w0["val$"] != "a" || w0["index$"] != 0 {
 		t.Errorf("wrapped item = %v", w0)

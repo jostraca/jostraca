@@ -12,18 +12,21 @@ import (
 	"unicode"
 )
 
-// EachSpec configures Each. Field semantics differ from TS in one place
-// (PORT_PLAN §14 D-Each, recorded in Phase 4 BUILD_LOG):
+// EachSpec configures Each. Field semantics differ from TS in two
+// places (PORT_PLAN §14, Phase-4 BUILD_LOG):
 //
-//	Raw  — if true, items are returned as-is. If false (default), each
-//	       item is wrapped in {val$, index$} or {key$, val$} matching
-//	       TS's default oval=true behaviour.
-//	Sort — sort by stringified value (slices) or by key (maps).
+//	Raw    — if true, items are returned as-is (TS oval=false). If
+//	         false (default), each item is wrapped in {val$, index$}
+//	         or {key$, val$} matching TS's default oval=true behaviour.
+//	NoMark — if true, suppress the index$/key$ marker that TS adds by
+//	         default when oval=false. Inverted from TS so Go zero
+//	         value matches TS default mark=true.
+//	Sort   — sort by stringified value (slices) or by key (maps).
 type EachSpec struct {
-	Mark bool // unused in Phase 4; reserved for future TS parity
-	Raw  bool
-	Sort bool
-	Args any
+	NoMark bool
+	Raw    bool
+	Sort   bool
+	Args   any
 }
 
 // Each iterates a slice or map and applies a transform. Mirrors
@@ -49,6 +52,12 @@ func Each(subject any, spec EachSpec, apply func(any) any) []any {
 			val := item
 			if !spec.Raw {
 				val = map[string]any{"val$": item, "index$": i}
+			} else if !spec.NoMark {
+				// TS: when oval=false and mark=true (default), set
+				// index$ on object items.
+				if m, ok := val.(map[string]any); ok {
+					m["index$"] = i
+				}
 			}
 			if apply != nil {
 				val = apply(val)
@@ -63,9 +72,16 @@ func Each(subject any, spec EachSpec, apply func(any) any) []any {
 		out := make([]any, 0, len(ks))
 		for _, k := range ks {
 			v := rv.MapIndex(reflect.ValueOf(k)).Interface()
-			val := any(map[string]any{"key$": k, "val$": v})
+			var val any
 			if spec.Raw {
 				val = v
+				if !spec.NoMark {
+					if m, ok := val.(map[string]any); ok {
+						m["key$"] = k
+					}
+				}
+			} else {
+				val = map[string]any{"key$": k, "val$": v}
 			}
 			if apply != nil {
 				val = apply(val)

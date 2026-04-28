@@ -115,16 +115,19 @@ func applyOptions(opts []Option) Options {
 	return o
 }
 
-// OptionsFromMap builds an Options value from an untyped map. Unknown
-// keys are ignored in v0; this will gain a shape-validated schema in
-// Phase 12 doc pass when the map surface stabilises. For Phase 1 the
-// contract is "no error on empty map".
+// OptionsFromMap builds an Options value from an untyped map. Mirrors
+// the TS OptionsShape at src/jostraca.ts:99-153, validating each
+// top-level key and recursively decoding nested groups (Existing,
+// Control, Cmp, Name).
+//
+// Returns an error on any type mismatch; unknown keys are ignored.
 func OptionsFromMap(m map[string]any) (Options, error) {
 	if m == nil {
 		return Options{}, nil
 	}
 	var o Options
-	for k, v := range m {
+	for _, k := range sortedKeys(m) {
+		v := m[k]
 		switch k {
 		case "folder":
 			s, ok := v.(string)
@@ -144,6 +147,18 @@ func OptionsFromMap(m map[string]any) (Options, error) {
 				return o, fmt.Errorf("jostraca: option %q must be bool", k)
 			}
 			o.Mem = b
+		case "exclude":
+			b, ok := v.(bool)
+			if !ok {
+				return o, fmt.Errorf("jostraca: option %q must be bool", k)
+			}
+			o.Exclude = b
+		case "build":
+			b, ok := v.(bool)
+			if !ok {
+				return o, fmt.Errorf("jostraca: option %q must be bool", k)
+			}
+			o.Build = &b
 		case "model":
 			mm, ok := v.(map[string]any)
 			if !ok {
@@ -156,10 +171,156 @@ func OptionsFromMap(m map[string]any) (Options, error) {
 				return o, fmt.Errorf("jostraca: option %q must be map", k)
 			}
 			o.Meta = mm
+		case "vol":
+			vol, ok := v.(map[string]any)
+			if !ok {
+				return o, fmt.Errorf("jostraca: option %q must be map", k)
+			}
+			o.Vol = make(map[string][]byte, len(vol))
+			for vk, vv := range vol {
+				switch vvc := vv.(type) {
+				case string:
+					o.Vol[vk] = []byte(vvc)
+				case []byte:
+					o.Vol[vk] = vvc
+				default:
+					return o, fmt.Errorf("jostraca: vol[%q] must be string or []byte", vk)
+				}
+			}
+		case "existing":
+			ex, err := decodeExisting(v)
+			if err != nil {
+				return o, err
+			}
+			o.Existing = ex
+		case "control":
+			ctrl, err := decodeControl(v)
+			if err != nil {
+				return o, err
+			}
+			o.Control = ctrl
+		case "cmp":
+			cmp, err := decodeCmp(v)
+			if err != nil {
+				return o, err
+			}
+			o.Cmp = cmp
+		case "name":
+			name, err := decodeName(v)
+			if err != nil {
+				return o, err
+			}
+			o.Name = name
 		}
-		// Unknown keys silently ignored in Phase 1.
+		// Unknown keys silently ignored.
 	}
 	return o, nil
+}
+
+func decodeExisting(v any) (Existing, error) {
+	m, ok := v.(map[string]any)
+	if !ok {
+		return Existing{}, fmt.Errorf("jostraca: option \"existing\" must be map")
+	}
+	var ex Existing
+	if t, ok := m["txt"].(map[string]any); ok {
+		ex.Txt = decodeExistingTxt(t)
+	}
+	if t, ok := m["bin"].(map[string]any); ok {
+		ex.Bin = decodeExistingBin(t)
+	}
+	return ex, nil
+}
+
+func decodeExistingTxt(m map[string]any) ExistingTxt {
+	var t ExistingTxt
+	t.Write = boolPtrField(m, "write")
+	t.Preserve = boolPtrField(m, "preserve")
+	t.Present = boolPtrField(m, "present")
+	t.Diff = boolPtrField(m, "diff")
+	t.Merge = boolPtrField(m, "merge")
+	return t
+}
+
+func decodeExistingBin(m map[string]any) ExistingBin {
+	var b ExistingBin
+	b.Write = boolPtrField(m, "write")
+	b.Preserve = boolPtrField(m, "preserve")
+	b.Present = boolPtrField(m, "present")
+	return b
+}
+
+func boolPtrField(m map[string]any, key string) *bool {
+	if v, ok := m[key]; ok {
+		if b, ok := v.(bool); ok {
+			return &b
+		}
+	}
+	return nil
+}
+
+func decodeControl(v any) (Control, error) {
+	m, ok := v.(map[string]any)
+	if !ok {
+		return Control{}, fmt.Errorf("jostraca: option \"control\" must be map")
+	}
+	var c Control
+	if b, ok := m["dryrun"].(bool); ok {
+		c.Dryrun = b
+	}
+	// TS field is "duplicate"; Go inverts to NoDuplicate.
+	if b, ok := m["duplicate"].(bool); ok {
+		c.NoDuplicate = !b
+	}
+	if b, ok := m["version"].(bool); ok {
+		c.Version = b
+	}
+	return c, nil
+}
+
+func decodeCmp(v any) (CmpOptions, error) {
+	m, ok := v.(map[string]any)
+	if !ok {
+		return CmpOptions{}, fmt.Errorf("jostraca: option \"cmp\" must be map")
+	}
+	var c CmpOptions
+	if cm, ok := m["Copy"].(map[string]any); ok {
+		if ig, ok := cm["ignore"].([]any); ok {
+			for _, p := range ig {
+				if pat, ok := p.(string); ok {
+					if re, err := regexp.Compile(pat); err == nil {
+						c.Copy.Ignore = append(c.Copy.Ignore, re)
+					}
+				}
+			}
+		}
+	}
+	return c, nil
+}
+
+func decodeName(v any) (NameOptions, error) {
+	m, ok := v.(map[string]any)
+	if !ok {
+		return NameOptions{}, fmt.Errorf("jostraca: option \"name\" must be map")
+	}
+	var n NameOptions
+	if fm, ok := m["file"].(map[string]any); ok {
+		if s, ok := fm["prefix"].(string); ok {
+			n.File.Prefix = s
+		}
+		if s, ok := fm["suffix"].(string); ok {
+			n.File.Suffix = s
+		}
+	}
+	if fm, ok := m["folder"].(map[string]any); ok {
+		if s, ok := fm["prefix"].(string); ok {
+			n.Folder.Prefix = s
+		}
+		if s, ok := fm["suffix"].(string); ok {
+			n.Folder.Suffix = s
+		}
+	}
+	return n, nil
 }
 
 // mergeOptions applies the per-call options on top of the global ones.

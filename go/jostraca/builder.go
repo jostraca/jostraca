@@ -1,6 +1,14 @@
 package jostraca
 
-import "sort"
+import (
+	"fmt"
+	"sort"
+)
+
+// fmtErrorf wraps fmt.Errorf so other files can use it without importing fmt.
+func fmtErrorf(format string, args ...any) error {
+	return fmt.Errorf(format, args...)
+}
 
 // Builder methods on *J. Each follows the 5-step template from
 // PORT_PLAN §5: short-circuit on j.st.err, allocate node, append to
@@ -232,6 +240,17 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 	if j.st.err != nil {
 		return
 	}
+	// Define-time validation: From must be a non-empty path that
+	// resolves on the FS. Mirrors TS FragmentShape's Check(From)
+	// at src/cmp/Fragment.ts:11-20.
+	if p.From == "" {
+		j.st.err = &NodeError{Step: "fragment", Err: fmtErrorf("Fragment: From is required")}
+		return
+	}
+	if j.st.fs != nil && !j.st.fs.Exists(p.From) {
+		j.st.err = &NodeError{Step: "fragment", Err: fmtErrorf("Fragment: From file does not exist: %s", p.From)}
+		return
+	}
 	if p.Replace == nil {
 		p.Replace = map[string]any{}
 	}
@@ -293,6 +312,16 @@ type CopyProps struct {
 // the heavy lifting (read, template, walk, write) happens in CopyOp.
 func (j *J) Copy(p CopyProps) {
 	if j.st.err != nil {
+		return
+	}
+	// Define-time validation matches TS CopyShape's Check(From)
+	// at src/cmp/Copy.ts:9-21.
+	if p.From == "" {
+		j.st.err = &NodeError{Step: "copy", Err: fmtErrorf("Copy: From is required")}
+		return
+	}
+	if j.st.fs != nil && !j.st.fs.Exists(p.From) {
+		j.st.err = &NodeError{Step: "copy", Err: fmtErrorf("Copy: From does not exist: %s", p.From)}
 		return
 	}
 	n := &Node{
