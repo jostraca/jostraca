@@ -128,8 +128,7 @@ func (fh *fileHandler) save(p string, content []byte, whence string) error {
 
 	switch {
 	case isText && modes.merge:
-		// Phase 11 wires saveMerge here. For now stub to write.
-		return fh.write(p, content, rpath, whence)
+		return fh.saveMerge(p, content, existing, rpath, whence)
 	case isText && modes.diff:
 		return fh.saveDiff(p, content, existing, rpath, whence)
 	case modes.present:
@@ -182,6 +181,48 @@ func (fh *fileHandler) savePresent(p string, content []byte, rpath, whence strin
 	}
 	fh.filelog(&fh.files.Presented, fh.relative(out))
 	fh.appendAudit("present", map[string]any{"path": rpath, "out": fh.relative(out), "whence": whence})
+	return nil
+}
+
+// saveMerge runs a 3-way merge using the duplicate-folder baseline as
+// the common ancestor. If no baseline exists (first generation, or
+// duplicate disabled), saveMerge falls back to a 2-way diff render.
+func (fh *fileHandler) saveMerge(p string, content, existing []byte, rpath, whence string) error {
+	dpath := fh.duplicateFolder + "/" + rpath
+	var baseline []byte
+	if fh.fs.Exists(dpath) {
+		var err error
+		baseline, err = fh.fs.ReadFile(dpath)
+		if err != nil {
+			return err
+		}
+	} else {
+		// No baseline: degrade to 2-way diff.
+		return fh.saveDiff(p, content, existing, rpath, whence)
+	}
+	res := merge3(content, baseline, existing)
+	if err := fh.ensureDirOf(p); err != nil {
+		return err
+	}
+	if !fh.control.Dryrun {
+		if err := fh.fs.WriteFile(p, res.Content); err != nil {
+			return err
+		}
+		if fh.control.Duplicate {
+			dup := fh.duplicateFolder + "/" + rpath
+			_ = fh.ensureDirOf(dup)
+			_ = fh.fs.WriteFile(dup, content)
+		}
+	}
+	fh.filelog(&fh.files.Merged, rpath)
+	if res.Conflict {
+		fh.filelog(&fh.files.Conflicted, rpath)
+	}
+	fh.appendAudit("merge", map[string]any{
+		"path":     rpath,
+		"conflict": res.Conflict,
+		"whence":   whence,
+	})
 	return nil
 }
 
