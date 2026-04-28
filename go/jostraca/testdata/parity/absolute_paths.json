@@ -1,0 +1,9 @@
+{
+  "scenario": "absolute_paths",
+  "vol": {
+    "/top/sdk/code/js/foo.js": "// foo:0\n",
+    "/top/.jostraca/generated/sdk/code/js/foo.js": "// foo:0\n",
+    "/top/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sdk/code/js/foo.js\": {\n      \"action\": \"write\",\n      \"path\": \"sdk/code/js/foo.js\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/top/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}

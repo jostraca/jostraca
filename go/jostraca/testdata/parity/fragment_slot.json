@@ -1,0 +1,14 @@
+{
+  "scenario": "fragment_slot",
+  "opts": {},
+  "prepopulate": {
+    "/templates/page.html": "<html>\n<!-- <[SLOT:head]> -->\n<body>\n<!-- <[SLOT:body]> -->\n</body>\n</html>\n"
+  },
+  "vol": {
+    "/templates/page.html": "<html>\n<!-- <[SLOT:head]> -->\n<body>\n<!-- <[SLOT:body]> -->\n</body>\n</html>\n",
+    "/out/app/index.html": "<html>\n<title>X</title>\n<body>\n<h1>Hello</h1>\n</body>\n</html>\n",
+    "/out/.jostraca/generated/app/index.html": "<html>\n<title>X</title>\n<body>\n<h1>Hello</h1>\n</body>\n</html>\n",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/index.html\": {\n      \"action\": \"write\",\n      \"path\": \"app/index.html\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}

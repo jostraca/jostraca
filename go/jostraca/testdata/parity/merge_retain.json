@@ -1,0 +1,45 @@
+{
+  "scenario": "merge_retain",
+  "phases": [
+    {
+      "label": "G-0",
+      "foo": "aaa\n"
+    },
+    {
+      "label": "G-1",
+      "foo": "aaa\n"
+    },
+    {
+      "label": "G-2",
+      "foo": "aaa\nbbb\n"
+    },
+    {
+      "label": "G-3",
+      "foo": "aaa\nbbb\n"
+    },
+    {
+      "label": "G-4",
+      "foo": "aaa\nbbb\n"
+    },
+    {
+      "label": "G-5",
+      "foo": "aaa\n<<<<<<< GENERATED: 2025-01-01T00:58:00.000Z/merge\nccc\n=======\nbbb\n>>>>>>> EXISTING: 2025-01-01T00:54:00.000Z/merge\n"
+    },
+    {
+      "label": "G-6",
+      "foo": "aaa\nbbb\nccc\n"
+    },
+    {
+      "label": "G-7",
+      "foo": "aaa\n<<<<<<< GENERATED: 2025-01-01T01:24:00.000Z/merge\nddd\n=======\nbbb\nccc\n>>>>>>> EXISTING: 2025-01-01T01:20:00.000Z/merge\n"
+    },
+    {
+      "label": "G-8",
+      "foo": "aaa\n<<<<<<< GENERATED: 2025-01-01T01:24:00.000Z/merge\nddd\n=======\nbbb\nccc\n>>>>>>> EXISTING: 2025-01-01T01:20:00.000Z/merge\n"
+    },
+    {
+      "label": "G-9",
+      "foo": "aaa\n<<<<<<< GENERATED: 2025-01-01T01:24:00.000Z/merge\nddd\n=======\nbbb\nccc\n>>>>>>> EXISTING: 2025-01-01T01:20:00.000Z/merge\n"
+    }
+  ]
+}
