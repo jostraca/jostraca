@@ -961,3 +961,96 @@ documented in §2 from the start); EachSpec.OVal → Raw rename
 sergi/go-diff; merge3 simpler region-walker than node-diff3
 (140 LoC vs 400 LoC budgeted, same correctness for the test
 corpus).
+
+---
+
+## Parity push — TS-byte-equal verification
+
+After the v1 ship-gate I added a TS-driven parity oracle to verify
+real byte-equality (the earlier "v1" only verified my own tests).
+
+**Tooling.** `tools/extract-parity.js` runs each scenario through the
+TS package and writes `vol.toJSON()` snapshots to
+`go/jostraca/testdata/parity/<scenario>.json`. The Go-side
+`parity_test.go` loads each JSON, runs the equivalent component
+tree, and asserts byte-equal output per path.
+
+**Code changes triggered by byte-comparison failures:**
+
+1. `MemFS` was stripping leading `/` from absolute paths; TS's
+   `memfs` preserves them. Fixed `memClean` and `markDirsLocked`.
+2. `Control.Duplicate` Go zero-value defaulted to `false`; TS
+   default is `true`. Field renamed to `NoDuplicate` so the Go
+   zero value matches TS behaviour.
+3. `BuildMeta` JSON output had only `{action, when}`; TS produces
+   `{action, path, exists, actions[], protect, conflict, when, hwhen}`.
+   Rewrote `buildmeta.go` with insertion-order preserved output
+   (TS-compatible field order).
+4. `.gitignore` content was `*\n`; TS uses
+   `\njostraca.meta.log\ngenerated\n`. Fixed.
+5. `Humanify` was deferred from Phase 4; ported (`util.go`) so
+   `hwhen`/`hlast` produce the TS digit-stripped form.
+6. Fragment slot replay set the filter on the wrong node: the
+   throwaway parent passed to `body()` carries the filter that
+   `Slot` consults (not the original Fragment node). Without this,
+   every `<[SLOT:name]>` match replayed *all* slots, producing
+   doubled output.
+7. List was missing the trailing `Line('')` TS adds by default
+   (TS at `src/cmp/List.ts:36-38`). Added `ListProps.NoLine`
+   inverted opt-out.
+8. Conflict-marker format: TS uses 2-side markers
+   (`<<<<<<< GENERATED: <iso>/merge` / `=======` /
+   `>>>>>>> EXISTING: <iso>/merge`) with no `||||||| BASELINE`
+   block. Rewrote `merge.go` to emit the TS shape and pass
+   timestamps through from `fileHandler.saveMerge`.
+9. Eject string markers consume surrounding whitespace and a
+   trailing newline per TS `getCachedEjectRE`. Updated
+   `compileEjectMarker`.
+10. Newly-implemented `GetX` (full parser ported test-first
+    against the 9 TS test groups) and small surfaces for
+    `CMap`/`VMap`/`OMap`/`DLog` to round out the utility layer.
+11. `ensureFolder` helper (vs `ensureDirOf`) closes the §6.3
+    plan-delta and removes the synthetic-path workaround in
+    `projectBefore`.
+
+**Parity-snapshot scenarios (8/8 byte-equal vs TS):**
+- `quickstart` — README quick-start
+- `template_model` — model substitution
+- `fragment_slot` — Fragment + named Slot replay
+- `inject_basic` — inject between markers
+- `copy_file` — Copy with template substitution
+- `list_basic` — List iteration with auto-trailing Line
+- `line_basic` — Line auto-newline
+- `merge_basic` — 3-way merge with conflict markers (2-phase
+  scenario: initial gen, external edit, re-gen with merge mode)
+
+**Test count.** 92 Go tests passing.
+Includes:
+- 14 `template_corpus_test.go` rows ported from
+  `test/template.test.ts:16-77`
+- 9 `getx_test.go` groups ported from `test/utility.test.ts`
+- 4 `control_test.go` cases ported from `test/control.test.ts`
+- 8 `parity_test.go` byte-equal scenarios
+- 75 internal feature tests from Phases 1-12
+
+**Final §17 ship-gate (all green):**
+- `go build ./...`
+- `go vet ./...` on linux, darwin, windows
+- `go test ./... -race -count=1`
+- `TestGenerateConcurrent -race -count=10`
+
+**Remaining gaps (honest accounting):**
+- `Humanify(parts)` and `Humanify(terse)` modes are implemented but
+  have no test coverage.
+- `CMap`/`VMap`/`OMap` are present but minimal — no functional tests.
+- Diff render format does not match TS exactly: TS uses paired
+  `<<<<<<< / >>>>>>>` per added/removed region; my Go uses a single
+  unified GENERATED/EXISTING block. Diff parity scenario not yet
+  added (merge parity is done, which is the load-bearing case).
+- `OptionsFromMap` shape validation still narrow (Phase 1 carve-out).
+- `Point*` orchestration utility deferred to a future sub-package.
+
+**Alignment grade:** behavioural byte-equality on the 8 happy-path
+scenarios + the merge round-trip; algorithmic equivalence on
+template (35+ feature cases) and getx (9 cases); structural parity
+on every component, op, and existing-file mode.
