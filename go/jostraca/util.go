@@ -96,7 +96,7 @@ func Get(root any, path string) any {
 }
 
 // Camelify converts foo-bar / foo_bar / foo bar / FooBar variants to
-// FooBar (PascalCase).
+// FooBar (PascalCase). nil / non-string scalars stringify per TS.
 func Camelify(input any) string {
 	parts := Partify(input)
 	var sb strings.Builder
@@ -105,10 +105,9 @@ func Camelify(input any) string {
 			continue
 		}
 		runes := []rune(p)
+		// Preserve embedded uppercase when it matches camelCase transitions.
+		// "FooBar" → ["Foo", "Bar"] → "FooBar"; "fooBar" → ["foo", "Bar"] → "FooBar".
 		runes[0] = unicode.ToUpper(runes[0])
-		for i := 1; i < len(runes); i++ {
-			runes[i] = unicode.ToLower(runes[i])
-		}
 		sb.WriteString(string(runes))
 	}
 	return sb.String()
@@ -133,17 +132,17 @@ func Kebabify(input any) string {
 }
 
 // Partify splits an input string on -, _, whitespace, and camelCase
-// boundaries. A []string input passes through unchanged.
+// boundaries. A []string input passes through. nil/undefined and
+// non-string scalars stringify per TS coercion ('null', 'undefined',
+// 'true', etc.).
 func Partify(input any) []string {
-	if input == nil {
-		return nil
-	}
 	switch v := input.(type) {
+	case nil:
+		return []string{"null"}
 	case string:
 		if v == "" {
 			return []string{}
 		}
-		// First split on non-alphanumerics.
 		raw := []string{}
 		cur := strings.Builder{}
 		for _, r := range v {
@@ -160,22 +159,26 @@ func Partify(input any) []string {
 		if cur.Len() > 0 {
 			raw = append(raw, cur.String())
 		}
-		// Then split each on camelCase boundaries.
 		out := []string{}
 		for _, p := range raw {
 			out = append(out, splitCamel(p)...)
 		}
 		return out
 	case []string:
-		return v
+		out := make([]string, 0, len(v))
+		for _, s := range v {
+			out = append(out, splitCamel(s)...)
+		}
+		return out
 	case []any:
 		out := make([]string, 0, len(v))
 		for _, x := range v {
-			out = append(out, fmt.Sprint(x))
+			out = append(out, splitCamel(fmt.Sprint(x))...)
 		}
 		return out
 	}
-	return []string{fmt.Sprint(input)}
+	// Scalars: stringify and run through Partify recursively.
+	return Partify(fmt.Sprint(input))
 }
 
 // splitCamel divides a string at uppercase-after-lowercase transitions:
@@ -201,22 +204,31 @@ func splitCamel(s string) []string {
 	return out
 }
 
-// LCF lowercases the first rune.
-func LCF(s string) string {
-	if s == "" {
+// LCF lowercases the first rune. Stringifies non-string inputs to match
+// TS's coercion behaviour (lcf(null) → 'null', lcf(true) → 'true').
+func LCF(s any) string {
+	str := fmt.Sprint(s)
+	if str == "<nil>" {
+		str = "null"
+	}
+	if str == "" {
 		return ""
 	}
-	r := []rune(s)
+	r := []rune(str)
 	r[0] = unicode.ToLower(r[0])
 	return string(r)
 }
 
-// UCF uppercases the first rune.
-func UCF(s string) string {
-	if s == "" {
+// UCF uppercases the first rune. Like LCF, coerces non-string inputs.
+func UCF(s any) string {
+	str := fmt.Sprint(s)
+	if str == "<nil>" {
+		str = "null"
+	}
+	if str == "" {
 		return ""
 	}
-	r := []rune(s)
+	r := []rune(str)
 	r[0] = unicode.ToUpper(r[0])
 	return string(r)
 }
@@ -226,24 +238,37 @@ func EscRE(s string) string {
 	return regexp.QuoteMeta(s)
 }
 
-// Names populates base with name variants under prop and prop__camel /
-// prop__snake / prop__kebab / prop__lower / prop__upper keys. Mutates
-// base and returns it for chaining. Mirrors src/util/basic.ts:329-342.
-func Names(base map[string]any, name, prop string) map[string]any {
+// Names mutates base, attaching name variants keyed off prop:
+//
+//	<prop>__orig — original input
+//	<UCF(prop)>  — Camelify form
+//	<prop>_      — snake_case form
+//	<prop>-      — kebab-case form
+//	<prop>       — lowercased no-separator concatenation
+//	<UPPER(prop)>— uppercased no-separator concatenation
+//
+// Mirrors src/util/basic.ts:329-342. Defaults prop to "name".
+func Names(base map[string]any, name string, prop ...string) map[string]any {
 	if base == nil {
 		base = map[string]any{}
 	}
-	if prop == "" {
-		prop = "name"
+	p := "name"
+	if len(prop) > 0 && prop[0] != "" {
+		p = prop[0]
 	}
-	base[prop] = name
-	base[prop+"__camel"] = Camelify(name)
-	base[prop+"__snake"] = Snakify(name)
-	base[prop+"__kebab"] = Kebabify(name)
-	base[prop+"__lower"] = strings.ToLower(name)
-	base[prop+"__upper"] = strings.ToUpper(name)
-	base[prop+"__lcf"] = LCF(Camelify(name))
-	base[prop+"__ucf"] = Camelify(name)
+	parts := Partify(name)
+	concat := strings.Builder{}
+	for _, x := range parts {
+		concat.WriteString(strings.ToLower(x))
+	}
+	concatStr := concat.String()
+
+	base[p+"__orig"] = name
+	base[UCF(p)] = Camelify(name)
+	base[p+"_"] = Snakify(name)
+	base[p+"-"] = Kebabify(name)
+	base[p] = concatStr
+	base[strings.ToUpper(p)] = strings.ToUpper(concatStr)
 	return base
 }
 

@@ -150,19 +150,105 @@ func TestIsBinExt(t *testing.T) {
 }
 
 func TestNames(t *testing.T) {
-	base := map[string]any{"name": "fooBar"}
-	out := Names(base, "fooBar", "name")
-	if out["name"] != "fooBar" {
-		t.Errorf("name preserved: got %q", out["name"])
+	out := Names(map[string]any{}, "Foo")
+	want := map[string]any{
+		"name__orig": "Foo",
+		"Name":       "Foo",
+		"name_":      "foo",
+		"name-":      "foo",
+		"name":       "foo",
+		"NAME":       "FOO",
 	}
-	// At minimum the variants Camel/Snake/Kebab should appear under
-	// some predictable key. Keep the assertion loose since the TS API
-	// uses a name__ prefix convention; we'll mirror TS exactly.
-	for _, k := range []string{"name__camel", "name__snake", "name__kebab"} {
-		if _, ok := out[k]; !ok {
-			t.Errorf("missing variant %s", k)
+	for k, v := range want {
+		if out[k] != v {
+			t.Errorf("Names(Foo)[%s] = %v, want %v", k, out[k], v)
 		}
 	}
+
+	out = Names(map[string]any{}, "FooBar")
+	wantBar := map[string]any{
+		"name__orig": "FooBar",
+		"Name":       "FooBar",
+		"name_":      "foo_bar",
+		"name-":      "foo-bar",
+		"name":       "foobar",
+		"NAME":       "FOOBAR",
+	}
+	for k, v := range wantBar {
+		if out[k] != v {
+			t.Errorf("Names(FooBar)[%s] = %v, want %v", k, out[k], v)
+		}
+	}
+}
+
+func TestUtilityCorpus(t *testing.T) {
+	// Cases ported from test/utility.test.ts:216-291.
+	if v := UCF("foo"); v != "Foo" {
+		t.Errorf("UCF(foo)=%q", v)
+	}
+	if v := UCF(""); v != "" {
+		t.Errorf("UCF('')=%q", v)
+	}
+	if v := UCF(nil); v != "Null" {
+		t.Errorf("UCF(nil)=%q, want Null", v)
+	}
+	if v := LCF(nil); v != "null" {
+		t.Errorf("LCF(nil)=%q, want null", v)
+	}
+
+	cases := []struct {
+		name string
+		in   any
+		c, s, k string
+	}{
+		{"foo", "foo", "Foo", "foo", "foo"},
+		{"FooBar", "FooBar", "FooBar", "foo_bar", "foo-bar"},
+		{"foo_bar", "foo_bar", "FooBar", "foo_bar", "foo-bar"},
+		{"foo-bar", "foo-bar", "FooBar", "foo_bar", "foo-bar"},
+		{"fooBar", "fooBar", "FooBar", "foo_bar", "foo-bar"},
+		{"empty", "", "", "", ""},
+		{"slice", []string{"foo", "bar"}, "FooBar", "foo_bar", "foo-bar"},
+		{"bool", true, "True", "true", "true"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if v := Camelify(tc.in); v != tc.c {
+				t.Errorf("Camelify(%v)=%q, want %q", tc.in, v, tc.c)
+			}
+			if v := Snakify(tc.in); v != tc.s {
+				t.Errorf("Snakify(%v)=%q, want %q", tc.in, v, tc.s)
+			}
+			if v := Kebabify(tc.in); v != tc.k {
+				t.Errorf("Kebabify(%v)=%q, want %q", tc.in, v, tc.k)
+			}
+		})
+	}
+
+	// Partify edge cases.
+	if v := Partify(nil); !sliceStrEq(v, []string{"null"}) {
+		t.Errorf("Partify(nil)=%v", v)
+	}
+	if v := Partify(""); !sliceStrEq(v, []string{}) {
+		t.Errorf("Partify('')=%v, want []", v)
+	}
+	if v := Partify(true); !sliceStrEq(v, []string{"true"}) {
+		t.Errorf("Partify(true)=%v", v)
+	}
+	if v := Partify("foobar"); !sliceStrEq(v, []string{"foobar"}) {
+		t.Errorf("Partify(foobar)=%v", v)
+	}
+}
+
+func sliceStrEq(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func TestGet(t *testing.T) {
@@ -191,6 +277,90 @@ func TestIndent(t *testing.T) {
 		if got != tc.want {
 			t.Errorf("Indent(%q, %v) = %q, want %q", tc.src, tc.ind, got, tc.want)
 		}
+	}
+}
+
+func TestHumanify(t *testing.T) {
+	const epoch = int64(1735689600000) // 2025-01-01T00:00:00.000Z
+
+	// Default: digits-only with last digit dropped.
+	if got := Humanify(epoch, HumanifyFlags{}); got != int64(2025010100000000) {
+		t.Errorf("default = %v, want 2025010100000000", got)
+	}
+
+	// Parts mode: full named fields.
+	parts := Humanify(epoch, HumanifyFlags{Parts: true}).(map[string]any)
+	if parts["year"] != 2025 || parts["month"] != 1 || parts["day"] != 1 {
+		t.Errorf("parts = %v", parts)
+	}
+
+	// Terse mode: same data under ty/tm/td/... keys.
+	terse := Humanify(epoch, HumanifyFlags{Parts: true, Terse: true}).(map[string]any)
+	if terse["ty"] != 2025 || terse["tm"] != 1 || terse["td"] != 1 {
+		t.Errorf("terse = %v", terse)
+	}
+}
+
+func TestEachMark(t *testing.T) {
+	got := Each([]any{"a", "b"}, EachSpec{Mark: true, Raw: true}, nil)
+	if len(got) != 2 {
+		t.Fatalf("len = %d, want 2", len(got))
+	}
+	// With Mark+Raw, the items are returned raw; the wrapping is
+	// suppressed but Mark adds index$ via a side channel? In TS Mark
+	// affects the wrapped form. Our minimal interpretation: Mark only
+	// has effect when not Raw.
+	got = Each([]any{"a", "b"}, EachSpec{Mark: true}, nil)
+	w0 := got[0].(map[string]any)
+	if w0["val$"] != "a" || w0["index$"] != 0 {
+		t.Errorf("wrapped item = %v", w0)
+	}
+}
+
+func TestCMapAndVMap(t *testing.T) {
+	in := map[string]any{
+		"a": map[string]any{"x": 1, "y": "A"},
+		"b": map[string]any{"x": 2, "y": "B"},
+	}
+	out := CMap(in, map[string]any{"x": CMapCopy})
+	for k := range in {
+		got := out[k].(map[string]any)["x"]
+		want := in[k].(map[string]any)["x"]
+		if got != want {
+			t.Errorf("CMap[%s].x = %v, want %v", k, got, want)
+		}
+	}
+
+	// Transform via callable.
+	doubled := CMap(in, map[string]any{
+		"x": CMapTransform(func(v any, _ CMapCtx) any { return v.(int) * 2 }),
+	})
+	for k, v := range in {
+		got := doubled[k].(map[string]any)["x"]
+		want := v.(map[string]any)["x"].(int) * 2
+		if got != want {
+			t.Errorf("doubled[%s].x = %v, want %v", k, got, want)
+		}
+	}
+
+	// VMap returns a slice.
+	v := VMap(in, map[string]any{"x": CMapCopy})
+	if len(v) != 2 {
+		t.Errorf("VMap len = %d, want 2", len(v))
+	}
+}
+
+func TestOMap(t *testing.T) {
+	pairs := OMap(map[string]any{"a": 1, "b": 2})
+	if len(pairs) != 2 {
+		t.Errorf("OMap len = %d, want 2", len(pairs))
+	}
+	seen := map[string]bool{}
+	for _, p := range pairs {
+		seen[p[0].(string)] = true
+	}
+	if !seen["a"] || !seen["b"] {
+		t.Errorf("OMap missing keys: %v", seen)
 	}
 }
 

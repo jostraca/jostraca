@@ -275,6 +275,42 @@ func walkCopy(b *buildCtx, st *jstate, from, to string, n *Node) error {
 // defaultCopyIgnoreRE matches the TS default ignore pattern (~$).
 var defaultCopyIgnoreRE = regexp.MustCompile(`~$`)
 
+// injectExcluded reports whether name is excluded by the user's Inject
+// Exclude setting. Accepts bool (true → always exclude), string,
+// *regexp.Regexp, or a []any of those.
+func injectExcluded(name string, exclude any) bool {
+	switch v := exclude.(type) {
+	case nil:
+		return false
+	case bool:
+		return v
+	case string:
+		return v == name
+	case *regexp.Regexp:
+		return v != nil && v.MatchString(name)
+	case []any:
+		for _, x := range v {
+			switch xv := x.(type) {
+			case string:
+				if xv == name {
+					return true
+				}
+			case *regexp.Regexp:
+				if xv != nil && xv.MatchString(name) {
+					return true
+				}
+			}
+		}
+	case []string:
+		for _, s := range v {
+			if s == name {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func shouldIgnoreCopyPath(name string, exclude any, ignores []*regexp.Regexp) bool {
 	if defaultCopyIgnoreRE.MatchString(name) {
 		return true
@@ -323,7 +359,7 @@ func injectAfter(n *Node, _ *jstate, b *buildCtx) error {
 	if b.fh == nil {
 		return nil
 	}
-	if ex, ok := n.Exclude.(bool); ok && ex {
+	if injectExcluded(n.Name, n.Exclude) {
 		return nil
 	}
 	var sb strings.Builder
