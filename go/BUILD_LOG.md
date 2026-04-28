@@ -831,3 +831,65 @@ the missing `regexp` import. Total: 2 commits.
 **Time-to-land.** Tests + impl in one cycle each, no fixups. 2 commits.
 
 **Next.** Phase 11 — 3-way merge mode (node-diff3 hand-port).
+
+---
+
+## Phase 11 — 3-way merge mode
+
+**Plan reference.** `PORT_PLAN.md` §12 Step 11, §8.2.
+
+**Tests committed first** (`merge_test.go`, `c6776df`):
+- `TestMerge3Clean` — only A changed, take A.
+- `TestMerge3SharedChange` — A and B changed identically, no conflict.
+- `TestMerge3Conflict` — A and B changed differently; output has all
+  three markers (GENERATED, BASELINE, EXISTING).
+- `TestSaveMergeMode` — end-to-end: existing file + duplicate baseline
+  produce a merged result with conflict markers; `Files.Merged` and
+  `Files.Conflicted` populated.
+
+**Implementation committed** (`746a1ba`):
+- `merge.go` (~140 lines): `merge3(a, o, b)` runs the diff3 region
+  splitter using the existing `lcsLines` from Phase 10. `alignLCS`
+  builds a position map per O line; the walker reconciles regions
+  between triple-anchors. Pre-anchor and trailing-tail regions get
+  the same treatment.
+- Conflict marker writer emits `<<<<<<< GENERATED / ||||||| BASELINE /
+  ======= / >>>>>>> EXISTING`, matching TS's 3-way format.
+- `filehandler.saveMerge` looks up the duplicate-folder baseline
+  written by previous `Generate` calls (since `Control.Duplicate`
+  is the path to ship merge support); degrades cleanly to
+  `saveDiff` when no baseline exists (first-run case). Refreshes
+  the baseline after writing.
+
+**Verification.**
+- `go vet ./...` clean.
+- `go test ./... -race -count=1` green; all merge tests pass on
+  first compile.
+
+**Deviations from plan.**
+
+1. **Algorithm size.** Plan §8.2 budgeted ~400 LoC for a node-diff3
+   port. The Go implementation is ~140 LoC because it sits on top
+   of the LCS already shipped in Phase 10's `diff.go`. Net behaviour
+   matches the plan's correctness goal (clean/conflict cases) for
+   the test corpus; the missing 260 LoC of "node-diff3" complexity
+   was largely about the patch model and its serialisation, not the
+   merge correctness. **Plan delta:** §8.2 to record the simpler
+   region-walker approach and budget revision.
+
+2. **No baseline → degrade to diff.** Plan §8.2 implied a hard
+   requirement on the baseline; my implementation falls back to
+   2-way diff when the duplicate baseline doesn't exist. Reason:
+   the first Generate with merge mode always lacks a baseline (no
+   prior run created one), so a hard-fail would break the very
+   first invocation. Falling back to diff produces a reviewable
+   output. **Plan delta:** §8.2 to document the fallback.
+
+3. **Conflict-marker line termination.** The marker writer guards
+   against missing trailing newlines on the regions to keep the
+   output well-formed even when the source lines don't end in `\n`
+   (a quirk of `splitLinesKeepNL`'s last-segment behaviour). Implementation detail.
+
+**Time-to-land.** Tests + impl in one cycle each, no rework. 2 commits.
+
+**Next.** Phase 12 — Documentation pass.
