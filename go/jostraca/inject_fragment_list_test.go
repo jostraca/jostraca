@@ -100,7 +100,9 @@ func TestListIteratesItems(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, _ := mem.ReadFile("/out/out.txt")
-	if string(got) != "a\nb\nc\n" {
-		t.Errorf("got %q, want a\\nb\\nc\\n", got)
+	// TS parity: List adds a trailing Line('') after the body iteration
+	// unless NoLine is set, so the output ends with an extra "\n".
+	if string(got) != "a\nb\nc\n\n" {
+		t.Errorf("got %q, want a\\nb\\nc\\n\\n", got)
 	}
 }

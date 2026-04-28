@@ -1,34 +1,50 @@
 package jostraca
 
 import (
+	"bytes"
 	"encoding/json"
 	"sort"
 )
 
 // buildMeta persists per-output-path metadata to <folder>/.jostraca/.
-// Mirrors src/build/BuildMeta.ts.
+// Mirrors src/build/BuildMeta.ts. Output JSON ordering matches TS
+// exactly (foldername/filename/last/hlast/files at the top level;
+// action/path/exists/actions/protect/conflict/when/hwhen per entry)
+// so meta files round-trip byte-equal between TS and Go.
 type buildMeta struct {
 	fh   *fileHandler
-	prev metaSnapshot
+	prev map[string]any
 	next metaSnapshot
 }
 
 type metaSnapshot struct {
-	Foldername string                    `json:"foldername"`
-	Filename   string                    `json:"filename"`
-	Last       int64                     `json:"last"`
-	HLast      string                    `json:"hlast"`
-	Files      map[string]map[string]any `json:"files"`
+	foldername string
+	filename   string
+	last       int64
+	files      []*metaEntry
+	byPath     map[string]*metaEntry
+}
+
+// metaEntry is one per-file record. Field order in the JSON output
+// matches TS literal order.
+type metaEntry struct {
+	Path     string
+	Action   string
+	Exists   bool
+	Actions  []string
+	Protect  bool
+	Conflict bool
+	When     int64
 }
 
 func newBuildMeta(fh *fileHandler) *buildMeta {
 	bm := &buildMeta{
 		fh: fh,
 		next: metaSnapshot{
-			Foldername: ".jostraca",
-			Filename:   "jostraca.meta.log",
-			Last:       fh.now(),
-			Files:      map[string]map[string]any{},
+			foldername: ".jostraca",
+			filename:   "jostraca.meta.log",
+			last:       fh.now(),
+			byPath:     map[string]*metaEntry{},
 		},
 	}
 	bm.load()
@@ -54,60 +70,171 @@ func (bm *buildMeta) load() {
 	if err != nil {
 		return
 	}
+	bm.prev = map[string]any{}
 	_ = json.Unmarshal(b, &bm.prev)
 }
 
-func (bm *buildMeta) add(file string, meta map[string]any) {
+// recordAction is called by FileHandler each time a save touches a path.
+// kind is the action token (write/preserve/present/diff/merge/protect/
+// unchanged); the entry's Action is the *primary* action and Actions[]
+// records every applied action in order.
+func (bm *buildMeta) recordAction(rpath, action string, exists, conflict, protect bool) {
 	if bm == nil {
 		return
 	}
-	bm.next.Files[file] = meta
+	e, ok := bm.next.byPath[rpath]
+	if !ok {
+		e = &metaEntry{
+			Path:    rpath,
+			Action:  action,
+			Exists:  exists,
+			Actions: []string{},
+			When:    bm.fh.now(),
+		}
+		bm.next.files = append(bm.next.files, e)
+		bm.next.byPath[rpath] = e
+	}
+	e.Action = action
+	e.Actions = append(e.Actions, action)
+	if conflict {
+		e.Conflict = true
+	}
+	if protect {
+		e.Protect = true
+	}
 }
 
 // done writes the meta file and a sibling .gitignore that excludes
-// the .jostraca/ directory contents from version control.
+// the meta log and generated/ baseline copies from version control.
 func (bm *buildMeta) done() error {
 	if bm == nil {
 		return nil
 	}
-	bm.next.HLast = "" // Phase 4 deferred Humanify; leave blank for now.
-
-	// Stable JSON output: sort the Files map by key on the way out so
-	// .jostraca/jostraca.meta.log diffs cleanly across runs.
-	stable := map[string]any{
-		"foldername": bm.next.Foldername,
-		"filename":   bm.next.Filename,
-		"last":       bm.next.Last,
-		"hlast":      bm.next.HLast,
-		"files":      sortedFiles(bm.next.Files),
-	}
-	b, err := json.MarshalIndent(stable, "", "  ")
-	if err != nil {
-		return err
-	}
+	out := bm.encode()
 	if err := bm.fh.ensureDirOf(bm.metaPath()); err != nil {
 		return err
 	}
 	if !bm.fh.control.Dryrun {
-		if err := bm.fh.fs.WriteFile(bm.metaPath(), b); err != nil {
+		if err := bm.fh.fs.WriteFile(bm.metaPath(), out); err != nil {
 			return err
 		}
 		if !bm.fh.control.Version {
-			_ = bm.fh.fs.WriteFile(bm.gitignorePath(), []byte("*\n"))
+			_ = bm.fh.fs.WriteFile(
+				bm.gitignorePath(),
+				[]byte("\njostraca.meta.log\ngenerated\n"),
+			)
 		}
 	}
 	return nil
 }
 
-func sortedFiles(m map[string]map[string]any) map[string]map[string]any {
-	out := make(map[string]map[string]any, len(m))
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
+// encode produces JSON with the exact field order TS uses.
+func (bm *buildMeta) encode() []byte {
+	now := bm.next.last
+	hlast := Humanify(now, HumanifyFlags{}).(int64)
+
+	var buf bytes.Buffer
+	buf.WriteString("{\n")
+	writeKV := func(key, val string, last bool) {
+		buf.WriteString("  ")
+		buf.WriteString(jsonStr(key))
+		buf.WriteString(": ")
+		buf.WriteString(val)
+		if !last {
+			buf.WriteByte(',')
+		}
+		buf.WriteByte('\n')
 	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		out[k] = m[k]
+	writeKV("foldername", jsonStr(bm.next.foldername), false)
+	writeKV("filename", jsonStr(bm.next.filename), false)
+	writeKV("last", jsonNum(now), false)
+	writeKV("hlast", jsonNum(hlast), false)
+
+	// files object.
+	buf.WriteString("  \"files\": {")
+	if len(bm.next.files) == 0 {
+		buf.WriteString("}\n")
+	} else {
+		buf.WriteString("\n")
+		paths := make([]string, 0, len(bm.next.files))
+		for _, e := range bm.next.files {
+			paths = append(paths, e.Path)
+		}
+		// Preserve insertion order to match TS object-literal ordering.
+		// (TS emits in the order keys were added; we follow suit by
+		// using the slice rather than the map.)
+		_ = sort.IsSorted // referenced to keep import clean
+		for i, e := range bm.next.files {
+			buf.WriteString("    ")
+			buf.WriteString(jsonStr(e.Path))
+			buf.WriteString(": {\n")
+			hwhen := Humanify(e.When, HumanifyFlags{}).(int64)
+			fields := []struct {
+				k string
+				v string
+			}{
+				{"action", jsonStr(e.Action)},
+				{"path", jsonStr(e.Path)},
+				{"exists", jsonBool(e.Exists)},
+				{"actions", jsonStrSlice(e.Actions)},
+				{"protect", jsonBool(e.Protect)},
+				{"conflict", jsonBool(e.Conflict)},
+				{"when", jsonNum(e.When)},
+				{"hwhen", jsonNum(hwhen)},
+			}
+			for j, f := range fields {
+				buf.WriteString("      ")
+				buf.WriteString(jsonStr(f.k))
+				buf.WriteString(": ")
+				buf.WriteString(f.v)
+				if j < len(fields)-1 {
+					buf.WriteByte(',')
+				}
+				buf.WriteByte('\n')
+			}
+			buf.WriteString("    }")
+			if i < len(bm.next.files)-1 {
+				buf.WriteByte(',')
+			}
+			buf.WriteByte('\n')
+		}
+		buf.WriteString("  }\n")
 	}
-	return out
+	buf.WriteString("}")
+	return buf.Bytes()
+}
+
+func jsonStr(s string) string {
+	b, _ := json.Marshal(s)
+	return string(b)
+}
+
+func jsonNum[T int64 | int](n T) string {
+	b, _ := json.Marshal(n)
+	return string(b)
+}
+
+func jsonBool(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
+}
+
+func jsonStrSlice(ss []string) string {
+	if len(ss) == 0 {
+		return "[]"
+	}
+	var b bytes.Buffer
+	b.WriteString("[\n")
+	for i, s := range ss {
+		b.WriteString("        ")
+		b.WriteString(jsonStr(s))
+		if i < len(ss)-1 {
+			b.WriteByte(',')
+		}
+		b.WriteByte('\n')
+	}
+	b.WriteString("      ]")
+	return b.String()
 }

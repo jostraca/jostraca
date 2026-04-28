@@ -309,15 +309,19 @@ func (j *J) Copy(p CopyProps) {
 	}
 }
 
-// ListProps configures List.
+// ListProps configures List. Mirrors TS List behaviour:
+// after iterating all items a trailing empty Line is emitted unless
+// NoLine is true. NoLine inverts TS's `props.line === false` opt-out
+// so Go's zero value matches TS's default.
 type ListProps struct {
 	Item   any
-	Line   string
+	NoLine bool
 	Indent any
 }
 
 // List iterates a slice or map and calls body once per item. The body
 // receives the same *J (children attach to the surrounding parent).
+// After the iteration a trailing empty line is emitted (TS parity).
 func (j *J) List(items any, body func(j *J, item any)) {
 	j.ListP(ListProps{Item: items}, body)
 }
@@ -328,9 +332,9 @@ func (j *J) ListP(p ListProps, body func(j *J, item any)) {
 	}
 	for _, item := range Each(p.Item, EachSpec{Raw: true}, nil) {
 		body(j, item)
-		if p.Line != "" {
-			j.Line(p.Line)
-		}
+	}
+	if !p.NoLine {
+		j.Line("")
 	}
 }
 

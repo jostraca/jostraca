@@ -392,48 +392,57 @@ func fragmentAfter(n *Node, st *jstate, b *buildCtx) error {
 	for k, v := range n.Replace {
 		replace[k] = v
 	}
-	for _, name := range slotNames {
-		name := name
-		key := "/[ \\t]*[-<!/#*]*[ \\t]*<\\[SLOT:" + EscRE(name) + "\\]>[ \\t]*[->/#*]*[ \\t]*/"
-		replace[key] = ReplaceFunc(func(_ map[string]string, _ string) string {
-			n.Filter = func(kind, slotName string) bool {
-				return kind == "slot" && slotName == name
-			}
-			// Capture children content into a buffer.
-			var sb strings.Builder
-			j2 := &J{st: st, cur: &Node{Kind: KindFragment, Meta: map[string]any{}}}
-			body(j2)
-			for _, c := range j2.cur.Children {
-				if c.Kind == KindSlot {
-					for _, gc := range c.Children {
-						if gc.Kind == KindContent {
-							for _, s := range gc.Content {
-								sb.WriteString(s)
-							}
+	// replayWithFilter runs the user's Fragment body against a fresh
+	// throwaway parent node carrying filter. Slot's check at SlotP looks
+	// at j.cur.Filter, so the filter must live on the throwaway, not on n.
+	replayWithFilter := func(filter FilterFunc, collect func(*Node) string) string {
+		throwaway := &Node{Kind: KindFragment, Meta: map[string]any{}, Filter: filter}
+		body(&J{st: st, cur: throwaway})
+		return collect(throwaway)
+	}
+	collectSlot := func(parent *Node) string {
+		var sb strings.Builder
+		for _, c := range parent.Children {
+			if c.Kind == KindSlot {
+				for _, gc := range c.Children {
+					if gc.Kind == KindContent {
+						for _, s := range gc.Content {
+							sb.WriteString(s)
 						}
 					}
 				}
 			}
-			n.Filter = nil
-			return sb.String()
+		}
+		return sb.String()
+	}
+	collectContent := func(parent *Node) string {
+		var sb strings.Builder
+		for _, c := range parent.Children {
+			if c.Kind == KindContent {
+				for _, s := range c.Content {
+					sb.WriteString(s)
+				}
+			}
+		}
+		return sb.String()
+	}
+	for _, name := range slotNames {
+		name := name
+		key := "/[ \\t]*[-<!/#*]*[ \\t]*<\\[SLOT:" + EscRE(name) + "\\]>[ \\t]*[->/#*]*[ \\t]*/"
+		replace[key] = ReplaceFunc(func(_ map[string]string, _ string) string {
+			return replayWithFilter(
+				func(kind, slotName string) bool { return kind == "slot" && slotName == name },
+				collectSlot,
+			)
 		})
 	}
 	// Default <[SLOT]> matches non-Slot children.
 	replace["/[ \\t]*[-<!/#*]*[ \\t]*<\\[SLOT\\]>[ \\t]*[->/#*]*[ \\t]*/"] =
 		ReplaceFunc(func(_ map[string]string, _ string) string {
-			n.Filter = func(kind, _ string) bool { return kind != "slot" }
-			var sb strings.Builder
-			j2 := &J{st: st, cur: &Node{Kind: KindFragment, Meta: map[string]any{}}}
-			body(j2)
-			for _, c := range j2.cur.Children {
-				if c.Kind == KindContent {
-					for _, s := range c.Content {
-						sb.WriteString(s)
-					}
-				}
-			}
-			n.Filter = nil
-			return sb.String()
+			return replayWithFilter(
+				func(kind, _ string) bool { return kind != "slot" },
+				collectContent,
+			)
 		})
 
 	rendered, err := Template(string(src), st.model, &TemplateSpec{

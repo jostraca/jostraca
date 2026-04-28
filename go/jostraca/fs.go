@@ -100,17 +100,17 @@ func NewMemFS() *MemFS {
 	}
 }
 
-// memClean normalises a memfs path: forward slashes, no leading /,
-// no trailing /, no . or .. segments.
+// memClean normalises a memfs path: forward slashes, no trailing /,
+// no . or .. segments. Leading / is preserved (matching Node memfs's
+// toJSON() output) so absolute paths like "/out/foo" are stored as
+// "/out/foo", not "out/foo".
 func memClean(p string) string {
 	p = filepath.ToSlash(p)
-	// Strip leading slashes so "a" and "/a" are the same key.
-	p = strings.TrimLeft(p, "/")
-	// Path.Clean would convert empty to "."; we want empty for root.
 	if p == "" || p == "." {
 		return ""
 	}
-	// Use path.Clean equivalent without the / prefix issue.
+	abs := strings.HasPrefix(p, "/")
+	p = strings.TrimLeft(p, "/")
 	parts := []string{}
 	for _, part := range strings.Split(p, "/") {
 		switch part {
@@ -124,7 +124,11 @@ func memClean(p string) string {
 			parts = append(parts, part)
 		}
 	}
-	return strings.Join(parts, "/")
+	out := strings.Join(parts, "/")
+	if abs {
+		out = "/" + out
+	}
+	return out
 }
 
 func (m *MemFS) ReadFile(p string) ([]byte, error) {
@@ -206,13 +210,25 @@ func (m *MemFS) MkdirAll(p string) error {
 }
 
 // markDirsLocked records every prefix of p as a directory. Caller must
-// hold m.mu (write).
+// hold m.mu (write). Preserves the leading / for absolute paths so the
+// stored directory keys match the form ReadDir/Stat will lookup with.
 func (m *MemFS) markDirsLocked(p string) {
-	parts := strings.Split(p, "/")
+	if p == "" || p == "/" {
+		return
+	}
+	abs := strings.HasPrefix(p, "/")
+	inner := strings.TrimLeft(p, "/")
+	if inner == "" {
+		return
+	}
 	cur := ""
-	for _, part := range parts {
-		if cur == "" {
-			cur = part
+	for i, part := range strings.Split(inner, "/") {
+		if i == 0 {
+			if abs {
+				cur = "/" + part
+			} else {
+				cur = part
+			}
 		} else {
 			cur = cur + "/" + part
 		}

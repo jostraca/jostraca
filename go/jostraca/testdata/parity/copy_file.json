@@ -1,0 +1,18 @@
+{
+  "scenario": "copy_file",
+  "opts": {
+    "model": {
+      "name": "World"
+    }
+  },
+  "prepopulate": {
+    "/tpl/hello.txt": "Hello $$name$$"
+  },
+  "vol": {
+    "/tpl/hello.txt": "Hello $$name$$",
+    "/out/app/hello.txt": "Hello World",
+    "/out/.jostraca/generated/app/hello.txt": "Hello World",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/hello.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/hello.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}

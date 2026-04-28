@@ -44,11 +44,19 @@ type ExistingBin struct {
 	Present  *bool
 }
 
+// Control surfaces build-time toggles. NoDuplicate inverts the TS
+// `duplicate` field semantics so Go zero-value matches TS default
+// (duplicate=true). Set NoDuplicate=true to opt out of the
+// `.jostraca/generated/` baseline copy.
 type Control struct {
-	Dryrun    bool
-	Duplicate bool
-	Version   bool
+	Dryrun      bool
+	NoDuplicate bool
+	Version     bool
 }
+
+// Duplicate reports whether the duplicate-baseline copy is enabled.
+// Returns true unless explicitly disabled.
+func (c Control) Duplicate() bool { return !c.NoDuplicate }
 
 type CmpOptions struct {
 	Copy CopyCmpOptions

@@ -6,7 +6,9 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -270,6 +272,78 @@ func Indent(src string, ind any) string {
 		return src
 	}
 	return strings.ReplaceAll(src, "\n", "\n"+pad)
+}
+
+// HumanifyFlags configures Humanify.
+type HumanifyFlags struct {
+	Parts bool
+	Terse bool
+}
+
+// Humanify formats a unix-millis timestamp as TS does in
+// src/util/basic.ts:648-682. With no flags it returns an int64 of the
+// form YYYYMMDDhhmmssII (last digit of the millis dropped). With
+// Parts=true it returns a map with named fields.
+func Humanify(when int64, flags HumanifyFlags) any {
+	t := time.UnixMilli(when).UTC()
+	iso := t.Format("2006-01-02T15:04:05.000Z")
+	if flags.Parts {
+		// Split on - : T . Z, parse to numbers.
+		split := func(s string, seps string) []string {
+			out := []string{}
+			cur := strings.Builder{}
+			for _, r := range s {
+				if strings.ContainsRune(seps, r) {
+					if cur.Len() > 0 {
+						out = append(out, cur.String())
+						cur.Reset()
+					}
+				} else {
+					cur.WriteRune(r)
+				}
+			}
+			if cur.Len() > 0 {
+				out = append(out, cur.String())
+			}
+			return out
+		}
+		parts := split(iso, "-:T.Z")
+		toI := func(s string) int { n, _ := strconv.Atoi(s); return n }
+		full := map[string]any{
+			"year":   toI(parts[0]),
+			"month":  toI(parts[1]),
+			"day":    toI(parts[2]),
+			"hour":   toI(parts[3]),
+			"minute": toI(parts[4]),
+			"second": toI(parts[5]),
+			"milli":  toI(parts[6]),
+		}
+		if flags.Terse {
+			return map[string]any{
+				"ty": full["year"],
+				"tm": full["month"],
+				"td": full["day"],
+				"th": full["hour"],
+				"tn": full["minute"],
+				"ts": full["second"],
+				"ti": full["milli"],
+			}
+		}
+		return full
+	}
+	// Strip non-digits, drop the last digit (matches TS regex).
+	var b strings.Builder
+	for _, r := range iso {
+		if r >= '0' && r <= '9' {
+			b.WriteRune(r)
+		}
+	}
+	s := b.String()
+	if len(s) > 0 {
+		s = s[:len(s)-1]
+	}
+	n, _ := strconv.ParseInt(s, 10, 64)
+	return n
 }
 
 // IsBinExt reports whether the path's extension is in the curated list

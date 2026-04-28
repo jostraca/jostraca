@@ -104,9 +104,10 @@ func (fh *fileHandler) save(p string, content []byte, whence string) error {
 	isText := !IsBinExt(p)
 	modes := fh.modesFor(isText)
 
+	exists := fh.fs.Exists(p)
 	// New file: simple write (modes.write == true is implied by default).
-	if !fh.fs.Exists(p) {
-		return fh.write(p, content, rpath, whence)
+	if !exists {
+		return fh.write(p, content, rpath, whence, false)
 	}
 
 	existing, err := fh.fs.ReadFile(p)
@@ -117,12 +118,18 @@ func (fh *fileHandler) save(p string, content []byte, whence string) error {
 	if isText && bytes.Contains(existing, []byte(protectMarker)) {
 		fh.filelog(&fh.files.Preserved, rpath)
 		fh.appendAudit("protect", map[string]any{"path": rpath, "whence": whence})
+		if fh.bmeta != nil {
+			fh.bmeta.recordAction(rpath, "protect", exists, false, true)
+		}
 		return nil
 	}
 
 	if bytes.Equal(existing, content) {
 		fh.filelog(&fh.files.Unchanged, rpath)
 		fh.appendAudit("unchanged", map[string]any{"path": rpath, "whence": whence})
+		if fh.bmeta != nil {
+			fh.bmeta.recordAction(rpath, "unchanged", exists, false, false)
+		}
 		return nil
 	}
 
@@ -136,13 +143,13 @@ func (fh *fileHandler) save(p string, content []byte, whence string) error {
 	case modes.preserve:
 		return fh.savePreserve(p, content, existing, rpath, whence)
 	case modes.write:
-		return fh.write(p, content, rpath, whence)
+		return fh.write(p, content, rpath, whence, exists)
 	}
 	fh.filelog(&fh.files.Unchanged, rpath)
 	return nil
 }
 
-func (fh *fileHandler) write(p string, content []byte, rpath, whence string) error {
+func (fh *fileHandler) write(p string, content []byte, rpath, whence string, exists bool) error {
 	if err := fh.ensureDirOf(p); err != nil {
 		return err
 	}
@@ -151,7 +158,7 @@ func (fh *fileHandler) write(p string, content []byte, rpath, whence string) err
 			return err
 		}
 		// Side-write a duplicate copy for next-run merge baseline.
-		if fh.control.Duplicate {
+		if fh.control.Duplicate() {
 			dup := fh.duplicateFolder + "/" + rpath
 			_ = fh.ensureDirOf(dup)
 			_ = fh.fs.WriteFile(dup, content)
@@ -164,7 +171,7 @@ func (fh *fileHandler) write(p string, content []byte, rpath, whence string) err
 		"whence": whence,
 	})
 	if fh.bmeta != nil {
-		fh.bmeta.add(rpath, map[string]any{"action": "write", "when": fh.now()})
+		fh.bmeta.recordAction(rpath, "write", exists, false, false)
 	}
 	return nil
 }
@@ -181,6 +188,9 @@ func (fh *fileHandler) savePresent(p string, content []byte, rpath, whence strin
 	}
 	fh.filelog(&fh.files.Presented, fh.relative(out))
 	fh.appendAudit("present", map[string]any{"path": rpath, "out": fh.relative(out), "whence": whence})
+	if fh.bmeta != nil {
+		fh.bmeta.recordAction(rpath, "present", true, false, false)
+	}
 	return nil
 }
 
@@ -208,7 +218,7 @@ func (fh *fileHandler) saveMerge(p string, content, existing []byte, rpath, when
 		if err := fh.fs.WriteFile(p, res.Content); err != nil {
 			return err
 		}
-		if fh.control.Duplicate {
+		if fh.control.Duplicate() {
 			dup := fh.duplicateFolder + "/" + rpath
 			_ = fh.ensureDirOf(dup)
 			_ = fh.fs.WriteFile(dup, content)
@@ -223,6 +233,9 @@ func (fh *fileHandler) saveMerge(p string, content, existing []byte, rpath, when
 		"conflict": res.Conflict,
 		"whence":   whence,
 	})
+	if fh.bmeta != nil {
+		fh.bmeta.recordAction(rpath, "merge", true, res.Conflict, false)
+	}
 	return nil
 }
 
@@ -241,11 +254,15 @@ func (fh *fileHandler) saveDiff(p string, content, existing []byte, rpath, whenc
 	if !bytes.Equal(rendered, content) {
 		fh.filelog(&fh.files.Conflicted, rpath)
 	}
+	conflict := !bytes.Equal(rendered, content)
 	fh.appendAudit("diff", map[string]any{
 		"path":   rpath,
 		"out":    fh.relative(out),
 		"whence": whence,
 	})
+	if fh.bmeta != nil {
+		fh.bmeta.recordAction(rpath, "diff", true, conflict, false)
+	}
 	return nil
 }
 
@@ -269,6 +286,9 @@ func (fh *fileHandler) savePreserve(p string, content, existing []byte, rpath, w
 		"backup": fh.relative(backup),
 		"whence": whence,
 	})
+	if fh.bmeta != nil {
+		fh.bmeta.recordAction(rpath, "preserve", true, false, false)
+	}
 	return nil
 }
 

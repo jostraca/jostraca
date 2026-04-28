@@ -40,7 +40,7 @@ func TestGenerateConcurrentIsolated(t *testing.T) {
 			continue
 		}
 		vol := results[i].Vol()
-		wantPath := fmt.Sprintf("out/p%d/f%d.txt", i, i)
+		wantPath := fmt.Sprintf("/out/p%d/f%d.txt", i, i)
 		wantBody := fmt.Sprintf("body-%d\n", i)
 		got, ok := vol[wantPath]
 		if !ok {
@@ -55,7 +55,7 @@ func TestGenerateConcurrentIsolated(t *testing.T) {
 			if i == j {
 				continue
 			}
-			foreign := fmt.Sprintf("out/p%d/f%d.txt", j, j)
+			foreign := fmt.Sprintf("/out/p%d/f%d.txt", j, j)
 			if _, leaked := vol[foreign]; leaked {
 				t.Errorf("[%d] saw foreign path %q", i, foreign)
 			}
