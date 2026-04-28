@@ -81,6 +81,111 @@ func TestTemplateCorpusEject(t *testing.T) {
 	}
 }
 
+// TestTemplateCorpusMultiKey ports template.test.ts:38-47 - the
+// nested replace case with literal + regex + named-group keys.
+func TestTemplateCorpusMultiKey(t *testing.T) {
+	m := map[string]string{"q": "Q", "w": "W"}
+	got, err := Template("a[q]b[w]c<x>;y", nil, &TemplateSpec{
+		Replace: map[string]any{
+			"a": "A",
+			`/\[(?P<cap>\w)\]/`: ReplaceFunc(func(g map[string]string, _ string) string {
+				return m[g["cap"]]
+			}),
+			`/c<(?P<mx>.)>;(?P<my>.)/`: ReplaceFunc(func(g map[string]string, _ string) string {
+				return strings.ToUpper(g["mx"]) + strings.ToUpper(g["my"])
+			}),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "AQbWXY" {
+		t.Errorf("got %q, want AQbWXY", got)
+	}
+}
+
+// TestTemplateCorpusAlternateNamedGroup ports
+// template.test.ts:49-51 - alternation with two same-name groups.
+// RE2 forbids duplicate names within one regex, so the TS test
+// can't translate verbatim. Port the spirit using two separate keys.
+func TestTemplateCorpusAlternateNamedGroup(t *testing.T) {
+	got, err := Template("ab", nil, &TemplateSpec{
+		Replace: map[string]any{
+			`/(?P<a>a)/`: ReplaceFunc(func(g map[string]string, _ string) string {
+				return strings.ToUpper(g["a"])
+			}),
+			`/(?P<b>b)/`: ReplaceFunc(func(g map[string]string, _ string) string {
+				return strings.ToUpper(g["b"])
+			}),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "AB" {
+		t.Errorf("got %q, want AB", got)
+	}
+}
+
+// TestTemplateCorpusTagFull ports template.test.ts:53-71, the full
+// multi-tag case exercising #Tag, #Tag-Name, indent capture, and the
+// $& full-match access.
+func TestTemplateCorpusTagFull(t *testing.T) {
+	src := "{\n//#Wax\n  //  #SeeSaw\n  // #Red-Bar\nAAA\n    //\t#GreenBlue-Zed \n}"
+
+	encode := func(s string) string {
+		// JSON-style string-encode for parity with TS's JSON.stringify.
+		var b strings.Builder
+		b.WriteByte('"')
+		for _, r := range s {
+			switch r {
+			case '"':
+				b.WriteString(`\"`)
+			case '\\':
+				b.WriteString(`\\`)
+			case '\n':
+				b.WriteString(`\n`)
+			case '\t':
+				b.WriteString(`\t`)
+			default:
+				b.WriteRune(r)
+			}
+		}
+		b.WriteByte('"')
+		return b.String()
+	}
+
+	got, err := Template(src, nil, &TemplateSpec{
+		Replace: map[string]any{
+			"#Wax": ReplaceFunc(func(g map[string]string, _ string) string {
+				return g["indent"] + "-Wax:" + strings.ToUpper(g["TAG"]) + "-" + encode(g["$&"]) + "\n"
+			}),
+			"#SeeSaw": ReplaceFunc(func(g map[string]string, _ string) string {
+				return g["indent"] + "-SeeSaw:" + strings.ToUpper(g["TAG"]) + "-" + encode(g["$&"]) + "\n"
+			}),
+			"#Foo-Bar": ReplaceFunc(func(g map[string]string, _ string) string {
+				return g["indent"] + strings.ToUpper(g["Bar"]) + "-" + g["TAG"] + "-" + encode(g["$&"]) + "\n"
+			}),
+			"#QazDin-Zed": ReplaceFunc(func(g map[string]string, _ string) string {
+				// "#QazDin-Zed" inner identifier lives under g["Zed"] in our
+				// implementation (the dash-name becomes the group name).
+				name := g["Zed"]
+				return g["indent"] + strings.ToUpper(name) + "-" + g["TAG"] + "-" + encode(g["$&"]) + "\n"
+			}),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := "{\n-Wax:WAX-\"//#Wax\\n\"\n  -SeeSaw:SEESAW-\"  //  #SeeSaw\\n\"\n" +
+		"  RED-Bar-\"  // #Red-Bar\\n\"\n" +
+		"AAA\n    GREENBLUE-Zed-\"    //\\t#GreenBlue-Zed \\n\"\n}"
+	if got != want {
+		t.Errorf("\ngot:  %q\nwant: %q", got, want)
+	}
+}
+
 func TestTemplateCorpusTagsSimple(t *testing.T) {
 	src := "{\n//#Wax\n  //  #SeeSaw\n}"
 	got, err := Template(src, nil, &TemplateSpec{
