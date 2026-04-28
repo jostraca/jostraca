@@ -92,7 +92,7 @@ func projectBefore(n *Node, st *jstate, b *buildCtx) error {
 		parent: parent,
 	}
 	if b.fh != nil {
-		_ = b.fh.ensureDirOf(parent + "/x") // ensure the project folder exists
+		_ = b.fh.ensureFolder(parent)
 	}
 	return nil
 }

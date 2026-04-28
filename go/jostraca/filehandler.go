@@ -5,6 +5,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // fileHandler is the only place that touches the filesystem during the
@@ -210,7 +211,12 @@ func (fh *fileHandler) saveMerge(p string, content, existing []byte, rpath, when
 		// No baseline: degrade to 2-way diff.
 		return fh.saveDiff(p, content, existing, rpath, whence)
 	}
-	res := merge3(content, baseline, existing)
+	isoWhen := time.UnixMilli(fh.when).UTC().Format("2006-01-02T15:04:05.000Z")
+	isoLast := time.UnixMilli(fh.bmeta.last()).UTC().Format("2006-01-02T15:04:05.000Z")
+	res := merge3Labelled(content, baseline, existing, mergeLabels{
+		A: "GENERATED: " + isoWhen + "/merge",
+		B: "EXISTING: " + isoLast + "/merge",
+	})
 	if err := fh.ensureDirOf(p); err != nil {
 		return err
 	}
@@ -306,13 +312,23 @@ func (fh *fileHandler) ensureDirOf(p string) error {
 	if dir == "" || dir == "." || dir == "/" {
 		return nil
 	}
-	if _, ok := fh.createdDirs[dir]; ok {
+	return fh.ensureFolder(dir)
+}
+
+// ensureFolder creates p (treated as a directory path) and all
+// missing parents. Cached against fh.createdDirs to avoid repeat
+// MkdirAll calls.
+func (fh *fileHandler) ensureFolder(p string) error {
+	if p == "" || p == "." || p == "/" {
 		return nil
 	}
-	if err := fh.fs.MkdirAll(dir); err != nil {
+	if _, ok := fh.createdDirs[p]; ok {
+		return nil
+	}
+	if err := fh.fs.MkdirAll(p); err != nil {
 		return err
 	}
-	fh.createdDirs[dir] = struct{}{}
+	fh.createdDirs[p] = struct{}{}
 	return nil
 }
 

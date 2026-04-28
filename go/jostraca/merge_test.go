@@ -47,11 +47,9 @@ func TestMerge3Conflict(t *testing.T) {
 		t.Errorf("expected conflict")
 	}
 	s := string(res.Content)
+	// Markers match TS exactly: 2-side, no BASELINE block.
 	if !strings.Contains(s, "<<<<<<< GENERATED:") {
 		t.Errorf("missing GENERATED marker: %q", s)
-	}
-	if !strings.Contains(s, "||||||| BASELINE:") {
-		t.Errorf("missing BASELINE marker: %q", s)
 	}
 	if !strings.Contains(s, ">>>>>>> EXISTING:") {
 		t.Errorf("missing EXISTING marker: %q", s)

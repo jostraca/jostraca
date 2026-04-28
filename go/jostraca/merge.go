@@ -11,22 +11,26 @@ type mergeResult struct {
 	Conflict bool
 }
 
+// mergeLabels customises the conflict marker labels. When zero, the
+// labels match TS exactly: "GENERATED: <isoWhen>/merge" and
+// "EXISTING: <isoLast>/merge".
+type mergeLabels struct {
+	A string // "GENERATED: ..." goes after `<<<<<<< `
+	B string // "EXISTING: ..." goes after `>>>>>>> `
+}
+
 // merge3 performs a 3-way merge of three byte streams treated as
-// newline-separated text. Output is a single byte sequence with
-// conflict regions wrapped in:
-//
-//	<<<<<<< GENERATED:
-//	{a-side lines}
-//	||||||| BASELINE:
-//	{o-side lines}
-//	=======
-//	{b-side lines}
-//	>>>>>>> EXISTING:
+// newline-separated text. Output uses TS-compatible 2-side markers
+// (no BASELINE block) so output is byte-equal to the TS reference.
 //
 // The algorithm is the classic diff3 region splitter built on top
 // of LCS(O, A) and LCS(O, B): O lines that survive both LCS pairs
 // are anchors. Between anchors, regions of A, O, B are reconciled.
 func merge3(a, o, b []byte) mergeResult {
+	return merge3Labelled(a, o, b, mergeLabels{A: "GENERATED:", B: "EXISTING:"})
+}
+
+func merge3Labelled(a, o, b []byte, lbl mergeLabels) mergeResult {
 	al := splitLinesKeepNL(string(a))
 	ol := splitLinesKeepNL(string(o))
 	bl := splitLinesKeepNL(string(b))
@@ -52,7 +56,7 @@ func merge3(a, o, b []byte) mergeResult {
 			case len(bIns) == 0:
 				writeAll(&buf, aIns)
 			default:
-				writeConflict(&buf, aIns, nil, bIns)
+				writeConflictTS(&buf, aIns, bIns, lbl)
 				conflict = true
 			}
 			buf.WriteString(ol[oi])
@@ -83,7 +87,7 @@ func merge3(a, o, b []byte) mergeResult {
 		case sliceEq(aRegion, bRegion):
 			writeAll(&buf, aRegion)
 		default:
-			writeConflict(&buf, aRegion, oRegion, bRegion)
+			writeConflictTS(&buf, aRegion, bRegion, lbl)
 			conflict = true
 		}
 		if nextOi < len(ol) {
@@ -107,11 +111,30 @@ func merge3(a, o, b []byte) mergeResult {
 		case len(bTail) == 0:
 			writeAll(&buf, aTail)
 		default:
-			writeConflict(&buf, aTail, nil, bTail)
+			writeConflictTS(&buf, aTail, bTail, lbl)
 			conflict = true
 		}
 	}
 	return mergeResult{Content: buf.Bytes(), Conflict: conflict}
+}
+
+// writeConflictTS writes TS-compatible 2-side conflict markers.
+func writeConflictTS(buf *bytes.Buffer, a, b []string, lbl mergeLabels) {
+	buf.WriteString("<<<<<<< ")
+	buf.WriteString(lbl.A)
+	buf.WriteString("\n")
+	writeAll(buf, a)
+	if !endsWithNL(buf.Bytes()) {
+		buf.WriteString("\n")
+	}
+	buf.WriteString("=======\n")
+	writeAll(buf, b)
+	if !endsWithNL(buf.Bytes()) {
+		buf.WriteString("\n")
+	}
+	buf.WriteString(">>>>>>> ")
+	buf.WriteString(lbl.B)
+	buf.WriteString("\n")
 }
 
 // alignLCS returns a slice m of length len(ol) where m[i] is the

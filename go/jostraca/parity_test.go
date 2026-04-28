@@ -125,6 +125,15 @@ func runParityCase(t *testing.T, path, name string) {
 	if err := json.Unmarshal(body, &c); err != nil {
 		t.Fatalf("decode %s: %v", path, err)
 	}
+
+	// Multi-phase scenarios live in scenarioMultiPhase and own their
+	// own MemFS lifecycle.
+	if mp, ok := scenarioMultiPhase[name]; ok {
+		mem := mp(t)
+		assertVol(t, mem, c.Vol)
+		return
+	}
+
 	runner, ok := scenarioRunners[name]
 	if !ok {
 		t.Skipf("scenario %s has no Go runner; add one to scenarioRunners", name)
@@ -144,9 +153,12 @@ func runParityCase(t *testing.T, path, name string) {
 		t.Fatalf("Generate: %v", err)
 	}
 
+	assertVol(t, mem, c.Vol)
+}
+
+func assertVol(t *testing.T, mem *MemFS, want map[string]string) {
+	t.Helper()
 	got := mem.Vol()
-	// Convert to map[string]string for comparison and to match the
-	// TS-side JSON schema.
 	gotS := make(map[string]string, len(got))
 	for k, v := range got {
 		gotS[k] = string(v)
@@ -154,20 +166,20 @@ func runParityCase(t *testing.T, path, name string) {
 
 	missing := []string{}
 	mismatched := []string{}
-	for path, want := range c.Vol {
-		actual, ok := gotS[path]
+	for p, w := range want {
+		actual, ok := gotS[p]
 		if !ok {
-			missing = append(missing, path)
+			missing = append(missing, p)
 			continue
 		}
-		if actual != want {
-			mismatched = append(mismatched, path)
+		if actual != w {
+			mismatched = append(mismatched, p)
 		}
 	}
 	extra := []string{}
-	for path := range gotS {
-		if _, ok := c.Vol[path]; !ok {
-			extra = append(extra, path)
+	for p := range gotS {
+		if _, ok := want[p]; !ok {
+			extra = append(extra, p)
 		}
 	}
 	sort.Strings(missing)
@@ -181,6 +193,43 @@ func runParityCase(t *testing.T, path, name string) {
 		t.Errorf("Go output has %d extra paths not in TS reference: %v", len(extra), extra)
 	}
 	for _, p := range mismatched {
-		t.Errorf("path %s: bytes differ\nGo:\n%s\nTS:\n%s\n", p, gotS[p], c.Vol[p])
+		t.Errorf("path %s: bytes differ\nGo:\n%s\nTS:\n%s\n", p, gotS[p], want[p])
 	}
+}
+
+// scenarioMultiPhase holds runners that can't be expressed as a single
+// Generate call. Each runner builds the FS state (running multiple
+// generations + external edits) and returns the MemFS for assertion.
+var scenarioMultiPhase = map[string]func(*testing.T) *MemFS{
+	"merge_basic": func(t *testing.T) *MemFS {
+		mem := NewMemFS()
+		now := func() int64 { return frozenNow }
+		j1 := New(WithFS(mem), WithFolder("/out"), WithNow(now), WithModel(map[string]any{"body": "AAA\n"}))
+		_, err := j1.Generate(Options{}, func(j *J) {
+			j.Project(ProjectProps{Folder: "sdk"}, func(j *J) {
+				j.File("foo.txt", func(j *J) {
+					j.Content("$$body$$")
+				})
+			})
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = mem.WriteFile("/out/sdk/foo.txt", []byte("AAA\nuser-line\n"))
+		mergeTrue := true
+		j2 := New(WithFS(mem), WithFolder("/out"), WithNow(now), WithModel(map[string]any{"body": "BBB\n"}))
+		_, err = j2.Generate(Options{
+			Existing: Existing{Txt: ExistingTxt{Merge: &mergeTrue}},
+		}, func(j *J) {
+			j.Project(ProjectProps{Folder: "sdk"}, func(j *J) {
+				j.File("foo.txt", func(j *J) {
+					j.Content("$$body$$")
+				})
+			})
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return mem
+	},
 }

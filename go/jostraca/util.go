@@ -369,6 +369,104 @@ func Deep(dst any, srcs ...any) any {
 	return out
 }
 
+// CMapSentinel is a marker for CMap/VMap special values. Pass
+// CMapCopy to copy a value verbatim, CMapFilter to drop the entry, or
+// CMapKey to substitute the source key.
+type CMapSentinel int
+
+const (
+	CMapCopy CMapSentinel = iota
+	CMapFilter
+	CMapKey
+)
+
+// CMapTransform is the per-field transform signature.
+type CMapTransform func(val any, p CMapCtx) any
+
+// CMapCtx is the per-field context passed to a CMapTransform.
+type CMapCtx struct {
+	SKey   string
+	Self   any
+	Key    string
+	Parent any
+}
+
+// CMap projects an object's children through a spec map, producing a
+// new map. Each spec key names a target field; the spec value is a
+// CMapTransform, a CMapSentinel (Copy/Key/Filter), or a literal.
+// Mirrors src/util/basic.ts:605-617.
+func CMap(o map[string]any, p map[string]any) map[string]any {
+	out := map[string]any{}
+	for key, child := range o {
+		ctxParent := o
+		_ = ctxParent
+		entry := map[string]any{}
+		drop := false
+		for sk, sv := range p {
+			val := cmapApply(sv, child, key, sk, ctxParent)
+			if val == CMapFilter {
+				drop = true
+				break
+			}
+			entry[sk] = val
+		}
+		if !drop {
+			out[key] = entry
+		}
+	}
+	return out
+}
+
+// VMap is the slice-output variant of CMap.
+func VMap(o map[string]any, p map[string]any) []any {
+	out := []any{}
+	for key, child := range o {
+		entry := map[string]any{}
+		drop := false
+		for sk, sv := range p {
+			val := cmapApply(sv, child, key, sk, o)
+			if val == CMapFilter {
+				drop = true
+				break
+			}
+			entry[sk] = val
+		}
+		if !drop {
+			out = append(out, entry)
+		}
+	}
+	return out
+}
+
+func cmapApply(spec, self any, key, sk string, parent any) any {
+	if fn, ok := spec.(CMapTransform); ok {
+		v := getxIndex(self, sk)
+		return fn(v, CMapCtx{SKey: sk, Self: self, Key: key, Parent: parent})
+	}
+	if s, ok := spec.(CMapSentinel); ok {
+		switch s {
+		case CMapCopy:
+			return getxIndex(self, sk)
+		case CMapKey:
+			return key
+		case CMapFilter:
+			return CMapFilter
+		}
+	}
+	return spec
+}
+
+// OMap returns m's keys in insertion order paired with their values.
+// Mirrors jsonic.util.omap. Go map iteration is unordered, so callers
+// who need deterministic ordering should sort the result.
+func OMap(m map[string]any) [][2]any {
+	out := make([][2]any, 0, len(m))
+	for k, v := range m {
+		out = append(out, [2]any{k, v})
+	}
+	return out
+}
+
 func mergeOne(dst, src any) any {
 	if src == nil {
 		return dst

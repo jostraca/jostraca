@@ -129,7 +129,50 @@ async function main() {
     })
   })
 
+  // Merge: 3-way reconciliation. Setup mirrors test/merge.test.ts:
+  // initial generation, then a custom edit, then a re-generation that
+  // triggers merge mode.
+  await snapshotMerge('merge_basic')
+
   console.log('done')
+}
+
+// snapshotMerge runs a two-phase scenario: a clean first generation,
+// then an external edit, then a second generation with merge mode on.
+// Captures the post-second-generate vol.toJSON().
+async function snapshotMerge(name) {
+  const j = Jostraca({})
+  const root = (m) => () => Project({ folder: 'sdk' }, () => {
+    File({ name: 'foo.txt' }, () => {
+      Content(m.body)
+    })
+  })
+
+  const mfs = memfs({})
+  const fs = mfs.fs
+  // Phase 1: initial gen with body=A.
+  await j.generate({ fs: () => fs, folder: '/out', model: { body: 'AAA\n' }, now: () => FROZEN_NOW }, root({ body: 'AAA\n' }))
+  // External user edit.
+  fs.writeFileSync('/out/sdk/foo.txt', 'AAA\nuser-line\n')
+  // Phase 2: re-gen with body=B and merge enabled.
+  await j.generate({
+    fs: () => fs,
+    folder: '/out',
+    model: { body: 'BBB\n' },
+    now: () => FROZEN_NOW,
+    existing: { txt: { merge: true } },
+  }, root({ body: 'BBB\n' }))
+
+  const vol = mfs.vol.toJSON()
+  const realFs = require('fs')
+  realFs.writeFileSync(
+    require('path').join(outDir, name + '.json'),
+    JSON.stringify({
+      scenario: name,
+      vol: vol,
+    }, null, 2) + '\n',
+  )
+  console.log('wrote', name)
 }
 
 main().catch((e) => {
