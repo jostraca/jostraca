@@ -271,25 +271,38 @@ func (fh *fileHandler) saveMerge(p string, content, existing []byte, rpath, when
 }
 
 func (fh *fileHandler) saveDiff(p string, content, existing []byte, rpath, whence string) error {
-	rendered := renderDiff(content, existing)
-	out := annotatedPath(p, "diff")
-	if err := fh.ensureDirOf(out); err != nil {
+	isoWhen := time.UnixMilli(fh.when).UTC().Format("2006-01-02T15:04:05.000Z")
+	last := int64(0)
+	if fh.bmeta != nil {
+		last = fh.bmeta.last()
+	}
+	isoLast := time.UnixMilli(last).UTC().Format("2006-01-02T15:04:05.000Z")
+	rendered := renderDiff(content, existing, isoWhen, isoLast)
+	if err := fh.ensureDirOf(p); err != nil {
 		return err
 	}
+	// TS overwrites the target file with the rendered diff content;
+	// no .diff.<ext> sidecar.
 	if !fh.control.Dryrun {
-		if err := fh.fs.WriteFile(out, rendered); err != nil {
+		if err := fh.fs.WriteFile(p, rendered); err != nil {
 			return err
 		}
-	}
-	fh.filelog(&fh.files.Diffed, fh.relative(out))
-	if !bytes.Equal(rendered, content) {
-		fh.filelog(&fh.files.Conflicted, rpath)
+		// Duplicate baseline tracks the clean generated content.
+		if fh.control.Duplicate() {
+			dup := fh.duplicateFolder + "/" + rpath
+			_ = fh.ensureDirOf(dup)
+			_ = fh.fs.WriteFile(dup, content)
+		}
 	}
 	conflict := !bytes.Equal(rendered, content)
+	fh.filelog(&fh.files.Diffed, rpath)
+	if conflict {
+		fh.filelog(&fh.files.Conflicted, rpath)
+	}
 	fh.appendAudit("diff", map[string]any{
-		"path":   rpath,
-		"out":    fh.relative(out),
-		"whence": whence,
+		"path":     rpath,
+		"conflict": conflict,
+		"whence":   whence,
 	})
 	if fh.bmeta != nil {
 		fh.bmeta.recordAction(rpath, "diff", true, conflict, false)

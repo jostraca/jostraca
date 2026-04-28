@@ -59,16 +59,18 @@ func (bm *buildMeta) gitignorePath() string {
 	return bm.fh.folder + "/.jostraca/.gitignore"
 }
 
-// last returns the previous build's epoch-ms (or zero if none). Used
-// by FileHandler to label conflict markers with the prior build time.
+// last returns the previous build's epoch-ms. Defaults to -1 when no
+// prior meta exists, matching TS BuildMeta default at
+// src/build/BuildMeta.ts. Used by FileHandler for conflict-marker
+// timestamps.
 func (bm *buildMeta) last() int64 {
 	if bm == nil || bm.prev == nil {
-		return 0
+		return -1
 	}
 	if v, ok := bm.prev["last"].(float64); ok {
 		return int64(v)
 	}
-	return 0
+	return -1
 }
 
 func (bm *buildMeta) load() {

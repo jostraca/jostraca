@@ -174,6 +174,19 @@ async function main() {
     },
   )
 
+  // Diff: existing user-edited file is annotated with conflict markers.
+  await snapshot('diff_mode',
+    { existing: { txt: { diff: true } }, now: () => FROZEN_NOW },
+    () => {
+      Project({ folder: 'app' }, () => {
+        File({ name: 'a.txt' }, () => Content('NEW\n'))
+      })
+    },
+    {
+      '/out/app/a.txt': 'OLD\n',
+    },
+  )
+
   // Present: leave existing, write .new.<ext>.
   await snapshot('present_mode',
     { existing: { txt: { present: true } } },

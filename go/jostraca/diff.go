@@ -5,19 +5,23 @@ import (
 	"strings"
 )
 
-// renderDiff produces a conflict-marker view of two text inputs. Equal
-// regions pass through verbatim; differing regions are wrapped:
+// renderDiff produces a TS-compatible conflict-marker view of two text
+// inputs. Each added or removed region is emitted as its own paired
+// block:
 //
-//	<<<<<<< GENERATED:
-//	{generated lines}
-//	=======
-//	{existing lines}
-//	>>>>>>> EXISTING:
+//	<<<<<<< GENERATED: <isoWhen>/diff
+//	{added lines}
+//	>>>>>>> GENERATED: <isoWhen>/diff
 //
-// The line-diff is computed via a tiny LCS (Hunt-McIlroy style) so we
-// avoid an external dependency. For the small text files Jostraca
-// targets, the O(N·M) cost is fine.
-func renderDiff(generated, existing []byte) []byte {
+// or for removals:
+//
+//	<<<<<<< EXISTING: <isoLast>/diff
+//	{removed lines}
+//	>>>>>>> EXISTING: <isoLast>/diff
+//
+// Equal regions pass through verbatim. The line-diff is computed via
+// a tiny LCS so we avoid an external dependency.
+func renderDiff(generated, existing []byte, isoWhen, isoLast string) []byte {
 	if bytes.Equal(generated, existing) {
 		return generated
 	}
@@ -26,6 +30,9 @@ func renderDiff(generated, existing []byte) []byte {
 	hunks := lineDiff(a, b)
 
 	var buf bytes.Buffer
+	addLabel := "GENERATED: " + isoWhen + "/diff"
+	delLabel := "EXISTING: " + isoLast + "/diff"
+
 	for _, h := range hunks {
 		switch h.kind {
 		case hunkEqual:
@@ -33,15 +40,36 @@ func renderDiff(generated, existing []byte) []byte {
 				buf.WriteString(l)
 			}
 		case hunkChange:
-			buf.WriteString("<<<<<<< GENERATED:\n")
-			for _, l := range h.aLines {
-				buf.WriteString(l)
+			// TS (kpdecker/jsdiff) emits removed-then-added per hunk;
+			// match that order so output is byte-equal.
+			if len(h.bLines) > 0 {
+				buf.WriteString("<<<<<<< ")
+				buf.WriteString(delLabel)
+				buf.WriteByte('\n')
+				for _, l := range h.bLines {
+					buf.WriteString(l)
+					if !strings.HasSuffix(l, "\n") {
+						buf.WriteByte('\n')
+					}
+				}
+				buf.WriteString(">>>>>>> ")
+				buf.WriteString(delLabel)
+				buf.WriteByte('\n')
 			}
-			buf.WriteString("=======\n")
-			for _, l := range h.bLines {
-				buf.WriteString(l)
+			if len(h.aLines) > 0 {
+				buf.WriteString("<<<<<<< ")
+				buf.WriteString(addLabel)
+				buf.WriteByte('\n')
+				for _, l := range h.aLines {
+					buf.WriteString(l)
+					if !strings.HasSuffix(l, "\n") {
+						buf.WriteByte('\n')
+					}
+				}
+				buf.WriteString(">>>>>>> ")
+				buf.WriteString(addLabel)
+				buf.WriteByte('\n')
 			}
-			buf.WriteString(">>>>>>> EXISTING:\n")
 		}
 	}
 	return buf.Bytes()

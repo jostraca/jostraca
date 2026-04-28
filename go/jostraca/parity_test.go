@@ -101,6 +101,11 @@ var scenarioRunners = map[string]func(j *J){
 			j.File("a.txt", func(j *J) { j.Content("NEW") })
 		})
 	},
+	"diff_mode": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("a.txt", func(j *J) { j.Content("NEW\n") })
+		})
+	},
 }
 
 // scenarioOptions returns per-scenario Options additions; merged on top
@@ -119,6 +124,9 @@ func scenarioOptions(scenario string) []Option {
 	case "present_mode":
 		t := true
 		return []Option{WithExisting(Existing{Txt: ExistingTxt{Present: &t}})}
+	case "diff_mode":
+		t := true
+		return []Option{WithExisting(Existing{Txt: ExistingTxt{Diff: &t}})}
 	}
 	return nil
 }
