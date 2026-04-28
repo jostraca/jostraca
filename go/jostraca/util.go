@@ -57,14 +57,9 @@ func Each(subject any, spec EachSpec, apply func(any) any) []any {
 		}
 		return out
 	case reflect.Map:
-		keys := rv.MapKeys()
-		ks := make([]string, 0, len(keys))
-		for _, k := range keys {
-			ks = append(ks, fmt.Sprint(k.Interface()))
-		}
-		if spec.Sort {
-			sort.Strings(ks)
-		}
+		// Always sort by key for cross-stack determinism; spec.Sort
+		// remains for explicit-by-value sort which is unimplemented.
+		ks := sortedStringKeys(rv)
 		out := make([]any, 0, len(ks))
 		for _, k := range ks {
 			v := rv.MapIndex(reflect.ValueOf(k)).Interface()
@@ -386,6 +381,31 @@ func Indent(src string, ind any) string {
 	return strings.ReplaceAll(src, "\n", "\n"+pad)
 }
 
+// sortedStringKeys returns the alphabetically sorted keys of a map[string]V
+// via reflection. Used everywhere we iterate user-facing maps so output
+// is deterministic regardless of Go's randomised map iteration. Mirrors
+// the sort applied to TS Object.entries() iteration in this codebase.
+func sortedStringKeys(rv reflect.Value) []string {
+	keys := rv.MapKeys()
+	out := make([]string, 0, len(keys))
+	for _, k := range keys {
+		out = append(out, fmt.Sprint(k.Interface()))
+	}
+	sort.Strings(out)
+	return out
+}
+
+// sortedKeys returns the alphabetically sorted keys of m. Convenience
+// for typed map[string]V iterations.
+func sortedKeys[V any](m map[string]V) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
 // HumanifyFlags configures Humanify.
 type HumanifyFlags struct {
 	Parts bool
@@ -567,16 +587,17 @@ type CMapCtx struct {
 // CMap projects an object's children through a spec map, producing a
 // new map. Each spec key names a target field; the spec value is a
 // CMapTransform, a CMapSentinel (Copy/Key/Filter), or a literal.
-// Mirrors src/util/basic.ts:605-617.
+// Mirrors src/util/basic.ts:605-617. Iterates source and spec keys
+// alphabetically for cross-stack determinism.
 func CMap(o map[string]any, p map[string]any) map[string]any {
 	out := map[string]any{}
-	for key, child := range o {
-		ctxParent := o
-		_ = ctxParent
+	for _, key := range sortedKeys(o) {
+		child := o[key]
 		entry := map[string]any{}
 		drop := false
-		for sk, sv := range p {
-			val := cmapApply(sv, child, key, sk, ctxParent)
+		for _, sk := range sortedKeys(p) {
+			sv := p[sk]
+			val := cmapApply(sv, child, key, sk, o)
 			if val == CMapFilter {
 				drop = true
 				break
@@ -590,13 +611,15 @@ func CMap(o map[string]any, p map[string]any) map[string]any {
 	return out
 }
 
-// VMap is the slice-output variant of CMap.
+// VMap is the slice-output variant of CMap. Sorted iteration as CMap.
 func VMap(o map[string]any, p map[string]any) []any {
 	out := []any{}
-	for key, child := range o {
+	for _, key := range sortedKeys(o) {
+		child := o[key]
 		entry := map[string]any{}
 		drop := false
-		for sk, sv := range p {
+		for _, sk := range sortedKeys(p) {
+			sv := p[sk]
 			val := cmapApply(sv, child, key, sk, o)
 			if val == CMapFilter {
 				drop = true
@@ -629,13 +652,12 @@ func cmapApply(spec, self any, key, sk string, parent any) any {
 	return spec
 }
 
-// OMap returns m's keys in insertion order paired with their values.
-// Mirrors jsonic.util.omap. Go map iteration is unordered, so callers
-// who need deterministic ordering should sort the result.
+// OMap returns m's keys paired with their values, sorted by key for
+// cross-stack determinism. Mirrors jsonic.util.omap surface.
 func OMap(m map[string]any) [][2]any {
 	out := make([][2]any, 0, len(m))
-	for k, v := range m {
-		out = append(out, [2]any{k, v})
+	for _, k := range sortedKeys(m) {
+		out = append(out, [2]any{k, m[k]})
 	}
 	return out
 }

@@ -186,14 +186,19 @@ func Template(src string, model any, spec *TemplateSpec) (string, error) {
 
 // resolveMatch picks the replacement string for one matched location.
 // Order of attempts: model lookup via J_R, custom replacement via J_K*.
+// Iterates groups in alphabetical order so output is deterministic
+// across stacks (Go map iteration is random by default).
 func resolveMatch(insertRE *regexp.Regexp, model any, match string, groups map[string]string,
 	canonValues map[string]any, canonKeys []canonKey) (string, error) {
 	if ref, ok := groups["J_R"]; ok && ref != "" {
 		return resolveModelRef(insertRE, model, match, ref), nil
 	}
 	user := userGroupView(groups, match)
-	// Else find which J_K* group matched.
-	for k, v := range groups {
+
+	keys := sortedKeys(groups)
+	// Pass 1: J_K* (literal/regex user keys).
+	for _, k := range keys {
+		v := groups[k]
 		if !strings.HasPrefix(k, "J_K") || v == "" {
 			continue
 		}
@@ -204,8 +209,9 @@ func resolveMatch(insertRE *regexp.Regexp, model any, match string, groups map[s
 		}
 		return invokeReplace(val, user, match), nil
 	}
-	// Tag-style replacement uses keys named J_T*.
-	for k, v := range groups {
+	// Pass 2: J_T* (tag wrappers).
+	for _, k := range keys {
+		v := groups[k]
 		if !strings.HasPrefix(k, "J_T") || v == "" {
 			continue
 		}
@@ -223,17 +229,19 @@ func resolveMatch(insertRE *regexp.Regexp, model any, match string, groups map[s
 // userGroupView returns a stripped, user-friendly view of the named-group
 // map. Internal names like J_N1_indent are exposed as `indent`. The full
 // match is exposed as `$&` for parity with JS regex-replace conventions.
+//
+// Iterates input keys in alphabetical order so the deterministic
+// "first non-empty wins on collision" behaviour is the same across
+// stacks regardless of Go map iteration randomisation.
 func userGroupView(groups map[string]string, match string) map[string]string {
 	out := make(map[string]string, len(groups)+1)
-	for k, v := range groups {
+	for _, k := range sortedKeys(groups) {
+		v := groups[k]
 		if v == "" {
 			continue
 		}
 		short := stripInternalPrefix(k)
 		if short != "" {
-			// First-write wins: the most-specific group (longest internal
-			// prefix path) wins because we iterate map order; collisions
-			// within one match are rare in practice.
 			if _, exists := out[short]; !exists {
 				out[short] = v
 			}

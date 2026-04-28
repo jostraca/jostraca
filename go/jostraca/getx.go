@@ -294,13 +294,7 @@ type getxItem struct {
 func getxIterChildren(node any) []getxItem {
 	switch v := node.(type) {
 	case map[string]any:
-		keys := make([]string, 0, len(v))
-		for k := range v {
-			keys = append(keys, k)
-		}
-		// Iteration order is not guaranteed, but TS's `each` preserves
-		// insertion order. Go maps are random; for filter+rebuild we
-		// don't care about order beyond stability of the result form.
+		keys := sortedKeys(v)
 		out := make([]getxItem, 0, len(keys))
 		for _, k := range keys {
 			out = append(out, getxItem{key: k, v: v[k]})
@@ -316,10 +310,11 @@ func getxIterChildren(node any) []getxItem {
 	rv := reflect.ValueOf(node)
 	switch rv.Kind() {
 	case reflect.Map:
-		var out []getxItem
-		iter := rv.MapRange()
-		for iter.Next() {
-			out = append(out, getxItem{key: fmt.Sprint(iter.Key().Interface()), v: iter.Value().Interface()})
+		ks := sortedStringKeys(rv)
+		out := make([]getxItem, 0, len(ks))
+		for _, k := range ks {
+			v := rv.MapIndex(reflect.ValueOf(k)).Interface()
+			out = append(out, getxItem{key: k, v: v})
 		}
 		return out
 	case reflect.Slice, reflect.Array:

@@ -433,10 +433,11 @@ func fragmentAfter(n *Node, st *jstate, b *buildCtx) error {
 	}
 
 	// Build the replace map: one entry per named slot, plus a default
-	// <[SLOT]> handler for non-Slot children.
+	// <[SLOT]> handler for non-Slot children. Source iteration is
+	// alphabetical for cross-stack determinism.
 	replace := map[string]any{}
-	for k, v := range n.Replace {
-		replace[k] = v
+	for _, k := range sortedKeys(n.Replace) {
+		replace[k] = n.Replace[k]
 	}
 	// replayWithFilter runs the user's Fragment body against a fresh
 	// throwaway parent node carrying filter. Slot's check at SlotP looks

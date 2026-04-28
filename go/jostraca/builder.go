@@ -1,5 +1,7 @@
 package jostraca
 
+import "sort"
+
 // Builder methods on *J. Each follows the 5-step template from
 // PORT_PLAN §5: short-circuit on j.st.err, allocate node, append to
 // parent, set root if first call, recurse with a child *J bound to the
@@ -269,10 +271,12 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 	n.Filter = nil
 
 	// Stash the slot names so the op can build the right replace keys.
+	// Sorted for deterministic regex-build order across stacks.
 	names := make([]string, 0, len(slotNames))
 	for k := range slotNames {
 		names = append(names, k)
 	}
+	sort.Strings(names)
 	n.Meta["slotNames"] = names
 }
 
