@@ -276,6 +276,39 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 	n.Meta["slotNames"] = names
 }
 
+// CopyProps configures Copy.
+type CopyProps struct {
+	From    string
+	To      string
+	Replace map[string]any
+	Exclude any
+	Indent  any
+}
+
+// Copy is a leaf component: at define time it just records source/dest;
+// the heavy lifting (read, template, walk, write) happens in CopyOp.
+func (j *J) Copy(p CopyProps) {
+	if j.st.err != nil {
+		return
+	}
+	n := &Node{
+		Kind:    KindCopy,
+		From:    p.From,
+		Name:    p.To,
+		Replace: p.Replace,
+		Exclude: p.Exclude,
+		Indent:  p.Indent,
+		Path:    childPath(j.cur, p.To),
+		Meta:    map[string]any{},
+	}
+	if j.cur != nil {
+		j.cur.Children = append(j.cur.Children, n)
+	}
+	if j.st.root == nil {
+		j.st.root = n
+	}
+}
+
 // ListProps configures List.
 type ListProps struct {
 	Item   any

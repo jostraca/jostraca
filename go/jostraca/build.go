@@ -2,6 +2,7 @@ package jostraca
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -158,8 +159,149 @@ func contentBefore(n *Node, _ *jstate, b *buildCtx) error {
 	return nil
 }
 
-func copyBefore(_ *Node, _ *jstate, _ *buildCtx) error { return nil }
-func copyAfter(_ *Node, _ *jstate, _ *buildCtx) error  { return nil }
+// copyBefore resolves single-file vs directory copies. For a single
+// file, it reads the source, applies template substitution to text
+// files, and queues a write at the resolved destination. For a
+// directory, it queues a recursive walk in copyAfter.
+func copyBefore(n *Node, st *jstate, b *buildCtx) error {
+	if b.fh == nil {
+		return nil
+	}
+	from := n.From
+	fi, err := b.fh.fs.Stat(from)
+	if err != nil {
+		return fmt.Errorf("Copy: stat %s: %w", from, err)
+	}
+	if fi.IsDir {
+		// Walk handled in copyAfter.
+		n.After = &AfterRef{Kind: "copy"}
+		return nil
+	}
+	// Single file: resolve dest path under current folder.
+	name := n.Name
+	if name == "" {
+		name = pathBase(from)
+	}
+	parent := b.current.folder.parent
+	dir := strings.Join(b.current.folder.path, "/")
+	dest := parent
+	if dir != "" {
+		dest = dest + "/" + dir
+	}
+	dest = dest + "/" + name
+	dest = fwd(dest)
+
+	body, err := b.fh.fs.ReadFile(from)
+	if err != nil {
+		return err
+	}
+	if !IsBinExt(from) {
+		out, err := Template(string(body), st.model, &TemplateSpec{Replace: n.Replace})
+		if err != nil {
+			return err
+		}
+		body = []byte(out)
+	}
+	n.After = &AfterRef{Kind: "file"}
+	n.FullPath = dest
+	n.Content = []string{string(body)}
+	return nil
+}
+
+func copyAfter(n *Node, st *jstate, b *buildCtx) error {
+	if b.fh == nil || n.After == nil {
+		return nil
+	}
+	switch n.After.Kind {
+	case "file":
+		return b.fh.save(n.FullPath, []byte(n.Content[0]), "CopyOp:after")
+	case "copy":
+		return copyWalk(n, st, b)
+	}
+	return nil
+}
+
+// copyWalk recursively copies a directory tree, applying template to
+// text files and pass-through bytes to binaries.
+func copyWalk(n *Node, st *jstate, b *buildCtx) error {
+	from := n.From
+	parent := b.current.folder.parent
+	dir := strings.Join(b.current.folder.path, "/")
+	to := parent
+	if dir != "" {
+		to = to + "/" + dir
+	}
+	if n.Name != "" {
+		to = to + "/" + n.Name
+	}
+	return walkCopy(b, st, from, to, n)
+}
+
+func walkCopy(b *buildCtx, st *jstate, from, to string, n *Node) error {
+	entries, err := b.fh.fs.ReadDir(from)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		src := from + "/" + e.Name
+		dst := to + "/" + e.Name
+		if shouldIgnoreCopyPath(e.Name, n.Exclude, st.opts.Cmp.Copy.Ignore) {
+			continue
+		}
+		if e.IsDir {
+			if err := walkCopy(b, st, src, dst, n); err != nil {
+				return err
+			}
+			continue
+		}
+		body, err := b.fh.fs.ReadFile(src)
+		if err != nil {
+			return err
+		}
+		if !IsBinExt(src) {
+			rendered, err := Template(string(body), st.model, &TemplateSpec{Replace: n.Replace})
+			if err != nil {
+				return err
+			}
+			body = []byte(rendered)
+		}
+		if err := b.fh.save(dst, body, "CopyOp:walk"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// defaultCopyIgnoreRE matches the TS default ignore pattern (~$).
+var defaultCopyIgnoreRE = regexp.MustCompile(`~$`)
+
+func shouldIgnoreCopyPath(name string, exclude any, ignores []*regexp.Regexp) bool {
+	if defaultCopyIgnoreRE.MatchString(name) {
+		return true
+	}
+	for _, re := range ignores {
+		if re != nil && re.MatchString(name) {
+			return true
+		}
+	}
+	switch v := exclude.(type) {
+	case nil, bool:
+	case string:
+		if v == name {
+			return true
+		}
+	case []any:
+		for _, x := range v {
+			if s, ok := x.(string); ok && s == name {
+				return true
+			}
+			if r, ok := x.(*regexp.Regexp); ok && r.MatchString(name) {
+				return true
+			}
+		}
+	}
+	return false
+}
 
 // injectBefore mirrors fileBefore: set current.file and FullPath.
 func injectBefore(n *Node, _ *jstate, b *buildCtx) error {
