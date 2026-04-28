@@ -265,6 +265,39 @@ var scenarioMultiPhase = map[string]func(*testing.T) *MemFS{
 	"merge_basic":  func(t *testing.T) *MemFS { return mergeRunner(t, "AAA\n", "AAA\nuser-line\n", "BBB\n", "$$body$$") },
 	"merge_update": func(t *testing.T) *MemFS { return mergeRunner(t, "AAA\n", "// header\nAAA\n// user-comment\n", "BBB\n", "// header\n$$body$$") },
 	"merge_clean":  func(t *testing.T) *MemFS { return mergeRunnerNoEdit(t, "AAA\n", "CCC\n", "$$body$$") },
+	"fragment_subcmp": func(t *testing.T) *MemFS {
+		mem := NewMemFS()
+		_ = mem.WriteFile("/f01.txt", []byte("TWO-$$a$$-bar-zed-con-foo+<[SLOT]>\n"))
+		Foo := func(j *J, arg string) {
+			j.Content("FOO[")
+			j.Content(arg)
+			j.Content("]")
+		}
+		j := New(WithFS(mem), WithFolder("/out"), WithNow(func() int64 { return frozenNow }), WithModel(map[string]any{"a": "A"}))
+		_, err := j.Generate(Options{}, func(j *J) {
+			j.Project(ProjectProps{}, func(j *J) {
+				j.File("foo.txt", func(j *J) {
+					j.Content("ONE\n")
+					j.Fragment(FragmentProps{
+						From: "/f01.txt",
+						Replace: map[string]any{
+							"bar": "BAR",
+							"zed": func() string { return "ZED" },
+							"con": func(j *J) { j.Content("CON") },
+							"foo": func(j *J) { Foo(j, "B") },
+						},
+					}, func(j *J) {
+						j.Content("S")
+					})
+					j.Content("THREE\n")
+				})
+			})
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return mem
+	},
 }
 
 // mergeRunner runs the canonical 2-phase merge scenario: gen A, user

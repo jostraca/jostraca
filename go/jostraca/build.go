@@ -129,7 +129,16 @@ func fileBefore(n *Node, st *jstate, b *buildCtx) error {
 func fileAfter(n *Node, st *jstate, b *buildCtx) error {
 	var sb strings.Builder
 	for _, c := range n.Children {
-		if c.Kind == KindContent {
+		switch c.Kind {
+		case KindContent:
+			for _, s := range c.Content {
+				sb.WriteString(s)
+			}
+		case KindFragment, KindInject, KindCopy, KindSlot:
+			// In-place content emission. Fragment/Inject/Copy/Slot ops
+			// stash their accumulated text in n.Content during their
+			// after-hooks; we splice it into the parent file's stream
+			// at the position where the child sat in source order.
 			for _, s := range c.Content {
 				sb.WriteString(s)
 			}
@@ -435,9 +444,33 @@ func fragmentAfter(n *Node, st *jstate, b *buildCtx) error {
 	// Build the replace map: one entry per named slot, plus a default
 	// <[SLOT]> handler for non-Slot children. Source iteration is
 	// alphabetical for cross-stack determinism.
+	//
+	// User-supplied func(*J) callbacks let replace handlers re-enter
+	// the component system. Wrap them here so the J they receive is
+	// bound to a fresh buffer node; the buffer's accumulated Content
+	// children become the replacement text. Mirrors TS Fragment's
+	// `handle: s => Content(s)` re-entrant pattern.
 	replace := map[string]any{}
 	for _, k := range sortedKeys(n.Replace) {
-		replace[k] = n.Replace[k]
+		v := n.Replace[k]
+		if subFn, ok := v.(func(*J)); ok {
+			subFn := subFn
+			replace[k] = ReplaceFunc(func(_ map[string]string, _ string) string {
+				buffer := &Node{Kind: KindFragment, Meta: map[string]any{}}
+				subFn(&J{st: st, cur: buffer})
+				var sb strings.Builder
+				for _, c := range buffer.Children {
+					if c.Kind == KindContent {
+						for _, s := range c.Content {
+							sb.WriteString(s)
+						}
+					}
+				}
+				return sb.String()
+			})
+		} else {
+			replace[k] = v
+		}
 	}
 	// replayWithFilter runs the user's Fragment body against a fresh
 	// throwaway parent node carrying filter. Slot's check at SlotP looks
@@ -502,16 +535,10 @@ func fragmentAfter(n *Node, st *jstate, b *buildCtx) error {
 		rendered = Indent(rendered, n.Indent)
 	}
 
-	// Append to parent file's content.
-	parent, _ := n.Meta["parentFile"].(*Node)
-	if parent != nil {
-		// Insert a synthetic Content child so fileAfter picks it up.
-		parent.Children = append(parent.Children, &Node{
-			Kind:    KindContent,
-			Content: []string{rendered},
-			Meta:    map[string]any{},
-		})
-	}
+	// Stash the rendered output on the Fragment node so the parent's
+	// fileAfter walks Children in source order and splices Fragment's
+	// content in place (not appended at the end).
+	n.Content = []string{rendered}
 	return nil
 }
 

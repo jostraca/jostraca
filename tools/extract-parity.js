@@ -170,6 +170,11 @@ async function main() {
     },
   )
 
+  // Fragment with replace callbacks that re-enter components.
+  // Mirrors test/jostraca.test.ts:'fragment-subcmp' minus the
+  // outer cmp(props => ...) wrapper.
+  await snapshotFragmentSubcmp('fragment_subcmp')
+
   // Merge: 3-way reconciliation. Setup mirrors test/merge.test.ts:
   // initial generation, then a custom edit, then a re-generation that
   // triggers merge mode.
@@ -284,6 +289,46 @@ async function snapshotMerge(name) {
       scenario: name,
       vol: vol,
     }, null, 2) + '\n',
+  )
+  console.log('wrote', name)
+}
+
+async function snapshotFragmentSubcmp(name) {
+  const Foo = require('../dist/jostraca').cmp(function Foo(props) {
+    Content('FOO[')
+    Content(props.arg)
+    Content(']')
+  })
+  const j = Jostraca({ model: { a: 'A' } })
+  const mfs = memfs({
+    '/f01.txt': 'TWO-$$a$$-bar-zed-con-foo+<[SLOT]>\n',
+  })
+  await j.generate(
+    { fs: () => mfs.fs, folder: '/out', now: () => FROZEN_NOW },
+    () => {
+      Project({}, () => {
+        File({ name: 'foo.txt' }, () => {
+          Content('ONE\n')
+          Fragment({
+            from: '/f01.txt',
+            replace: {
+              bar: 'BAR',
+              zed: () => 'ZED',
+              con: () => Content('CON'),
+              foo: () => Foo({ arg: 'B' }),
+            },
+          }, () => {
+            Content('S')
+          })
+          Content('THREE\n')
+        })
+      })
+    },
+  )
+  const vol = mfs.vol.toJSON()
+  require('fs').writeFileSync(
+    require('path').join(outDir, name + '.json'),
+    JSON.stringify({ scenario: name, vol }, null, 2) + '\n',
   )
   console.log('wrote', name)
 }
