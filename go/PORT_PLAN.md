@@ -389,10 +389,11 @@ type ExistingBin struct {
 }
 
 type Control struct {
-    Dryrun    bool
-    Duplicate bool                  // default true (per TS line 145)
-    Version   bool
+    Dryrun      bool
+    NoDuplicate bool   // inverted from TS so Go zero value = TS default (duplicate=true)
+    Version     bool
 }
+// Control.Duplicate() helper returns !NoDuplicate.
 
 type CmpOptions struct {
     Copy CopyCmpOptions
@@ -2495,6 +2496,7 @@ V1 ships full TS parity (including 3-way merge — user opted into the diff3 han
 - Directory walk: enumerate via `fs.ReadDir`, recurse, route through `fh.save`/`fh.copy` per entry.
 - Apply `Replace` template substitution to text files; binary files copied verbatim (`IsBinExt`).
 - Honor `Exclude` (bool/string/regexp/list) and `Options.Cmp.Copy.Ignore` (default `[~$]`).
+- `Inject.Exclude` accepts the same forms (string, []any of strings/regexps); Phase 8 shipped only the `bool` shorthand and the rest landed during the parity push.
 
 **Tests.** `testdata/fixtures/assets/` with mixed text/binary entries and a `~b.tmp` confirming default ignore. Round-trip into MemFS and assert resulting `Vol()`.
 

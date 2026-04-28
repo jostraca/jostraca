@@ -244,12 +244,21 @@ with these intentional ergonomic differences:
   config sourced from JSON/YAML.
 - `Each.OVal` is renamed to `Each.Raw` with inverted semantics so
   Go's zero-value default matches TS's `oval=true` annotation
-  default.
+  default. The `Each` callback signature is unary `func(any) any`
+  versus TS's variadic `(val, key, idx) => any`.
+- `ListProps.NoLine` inverts TS's `props.line === false` opt-out so
+  Go zero-value matches the TS default of always emitting a
+  trailing `Line('')`.
+- `Control.Duplicate` is renamed to `Control.NoDuplicate` with
+  inverted semantics; the TS default (duplicate baselines on) is
+  Go's zero value.
 - RE2 (Go's `regexp`) has no lookbehind; user-supplied regex keys
   containing `(?<=...)` etc. are rejected at compile time.
 - `Indent` uses `strings.ReplaceAll` (no JS lookbehind needed).
 - The `Point*` orchestration utility is not ported (deferred to a
   future sub-package).
+- 2-way diff render uses a unified GENERATED/EXISTING block
+  instead of TS's paired-per-region markers (under review for v1.1).
 
 A full deviation list lives in `PORT_PLAN.md` §14.
 
