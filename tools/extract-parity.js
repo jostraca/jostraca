@@ -170,6 +170,16 @@ async function main() {
     },
   )
 
+  // Absolute paths inside Project/Folder. Mirrors test/merge.test.ts:'path'
+  // structure (the tree shape, not the merge mode) - tests that:
+  //   Project({ folder: '/top/sdk' }) - absolute project folder
+  //   Folder({ name: '/code/js' }) - leading slash in folder name
+  //   File({ name: 'foo.js' })
+  // composes into '/top/sdk/code/js/foo.js' even though the global
+  // folder option is '/top'. The double-slash gets collapsed by
+  // path normalization.
+  await snapshotAbsPath('absolute_paths')
+
   // Fragment with replace callbacks that re-enter components.
   // Mirrors test/jostraca.test.ts:'fragment-subcmp' minus the
   // outer cmp(props => ...) wrapper.
@@ -289,6 +299,27 @@ async function snapshotMerge(name) {
       scenario: name,
       vol: vol,
     }, null, 2) + '\n',
+  )
+  console.log('wrote', name)
+}
+
+async function snapshotAbsPath(name) {
+  const j = Jostraca({ model: { a: 0 } })
+  const mfs = memfs({})
+  await j.generate(
+    { fs: () => mfs.fs, folder: '/top', now: () => FROZEN_NOW },
+    () => Project({ folder: '/top/sdk' }, () => {
+      Folder({ name: '/code/js' }, () => {
+        File({ name: 'foo.js' }, () => {
+          Content('// foo:0\n')
+        })
+      })
+    }),
+  )
+  const vol = mfs.vol.toJSON()
+  require('fs').writeFileSync(
+    require('path').join(outDir, name + '.json'),
+    JSON.stringify({ scenario: name, vol }, null, 2) + '\n',
   )
   console.log('wrote', name)
 }

@@ -2,6 +2,7 @@ package jostraca
 
 import (
 	"fmt"
+	"path"
 	"regexp"
 	"strings"
 )
@@ -80,12 +81,18 @@ func projectBefore(n *Node, st *jstate, b *buildCtx) error {
 	if folder == "" {
 		folder = "."
 	}
+	// Project.Folder is either absolute (used as-is) or relative (joined
+	// to the global folder option). Mirrors src/op/ProjectOp.ts:9-13.
 	parent := folder
 	if n.Folder != "" {
-		parent = folder + "/" + n.Folder
+		if isAbsPath(n.Folder) {
+			parent = n.Folder
+		} else {
+			parent = folder + "/" + n.Folder
+		}
 	}
 	parent = fwd(parent)
-	parent = strings.TrimRight(parent, "/")
+	parent = path.Clean(parent)
 	b.current.folder = folderRef{
 		node:   n,
 		path:   []string{},
@@ -95,6 +102,11 @@ func projectBefore(n *Node, st *jstate, b *buildCtx) error {
 		_ = b.fh.ensureFolder(parent)
 	}
 	return nil
+}
+
+// isAbsPath reports whether p is an absolute canonical-/ path.
+func isAbsPath(p string) bool {
+	return len(p) > 0 && p[0] == '/'
 }
 
 func folderBefore(n *Node, _ *jstate, b *buildCtx) error {
@@ -116,12 +128,17 @@ func fileBefore(n *Node, st *jstate, b *buildCtx) error {
 	b.current.file = n
 	parent := b.current.folder.parent
 	dir := strings.Join(b.current.folder.path, "/")
+	var raw string
 	if dir != "" {
-		n.FullPath = parent + "/" + dir + "/" + n.Name
+		raw = parent + "/" + dir + "/" + n.Name
 	} else {
-		n.FullPath = parent + "/" + n.Name
+		raw = parent + "/" + n.Name
 	}
-	n.FullPath = fwd(n.FullPath)
+	// path.Clean collapses // and resolves . / ..; matches TS's
+	// Path.normalize at src/build/FileHandler.ts:151. This lets
+	// Folder({name: '/code/js'}) compose with Project({folder: '/top/sdk'})
+	// into a clean /top/sdk/code/js path.
+	n.FullPath = path.Clean(fwd(raw))
 	_ = st
 	return nil
 }

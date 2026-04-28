@@ -131,6 +131,16 @@ var scenarioRunners = map[string]func(j *J){
 			})
 		})
 	},
+	"absolute_paths": func(j *J) {
+		// Project.Folder is absolute; Folder name has a leading /.
+		// Both must compose into a clean /top/sdk/code/js path even
+		// though the global folder option is /top.
+		j.Project(ProjectProps{Folder: "/top/sdk"}, func(j *J) {
+			j.Folder("/code/js", func(j *J) {
+				j.File("foo.js", func(j *J) { j.Content("// foo:0\n") })
+			})
+		})
+	},
 }
 
 // scenarioOptions returns per-scenario Options additions; merged on top
@@ -154,6 +164,8 @@ func scenarioOptions(scenario string) []Option {
 		return []Option{WithExisting(Existing{Txt: ExistingTxt{Diff: &t}})}
 	case "basic_copy":
 		return []Option{WithModel(map[string]any{"x": map[string]any{"y": "Y", "z": "Z"}})}
+	case "absolute_paths":
+		return []Option{WithFolder("/top")}
 	}
 	return nil
 }
