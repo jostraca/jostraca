@@ -788,3 +788,46 @@ threading — concurrent `Generate` calls are isolated by construction.
 the missing `regexp` import. Total: 2 commits.
 
 **Next.** Phase 10 — 2-way diff mode.
+
+---
+
+## Phase 10 — 2-way diff mode
+
+**Plan reference.** `PORT_PLAN.md` §12 Step 10, §8.1.
+
+**Tests committed first** (`diff_test.go`, `2c04a72`):
+- `TestRenderDiffNoChange` — equal inputs round-trip unchanged.
+- `TestRenderDiffSingleHunk` — change region wrapped in
+  GENERATED/EXISTING markers.
+- `TestSaveDiffMode` — end-to-end: original untouched,
+  `<base>.diff.<ext>` written, `Files.Diffed` and `Files.Conflicted`
+  populated.
+
+**Implementation committed** (`51429b5`):
+- `diff.go` (~140 lines): hand-rolled LCS-based line diff. Splits
+  inputs preserving trailing newlines, computes LCS via O(N·M) DP,
+  reconstructs hunks and wraps non-equal regions with
+  `<<<<<<< GENERATED:` / `=======` / `>>>>>>> EXISTING:` markers.
+- `filehandler.saveDiff` writes `<name>.diff.<ext>`, logs to
+  `Files.Diffed`, additionally logs to `Files.Conflicted` when the
+  rendered output differs from the generated content.
+
+**Verification.**
+- `go vet ./...` clean.
+- `go test ./... -race -count=1` green; all 3 diff tests pass.
+
+**Deviations from plan.**
+
+1. **No `sergi/go-diff` dependency.** Plan §8.1 specified
+   `github.com/sergi/go-diff/diffmatchpatch` for line-mode diff. I
+   substituted a stdlib LCS-based implementation. Reason: the plan
+   was already prepared to byte-validate against TS expected output
+   (Plan §8 R8 noted divergence risk). A self-contained implementation
+   sidesteps both the dependency and the divergence — we own the
+   format directly. For Jostraca's small-text-file workload, O(N·M)
+   is well within budget. **Plan delta:** §8.1 to record the
+   stdlib substitution and deprecate the sergi/go-diff dependency.
+
+**Time-to-land.** Tests + impl in one cycle each, no fixups. 2 commits.
+
+**Next.** Phase 11 — 3-way merge mode (node-diff3 hand-port).
