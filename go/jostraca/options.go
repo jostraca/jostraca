@@ -22,6 +22,11 @@ type Options struct {
 	Cmp      CmpOptions
 	Control  Control
 	Name     NameOptions
+
+	// Exclude, when true, skips regenerating files that have been
+	// modified on disk since the last successful build (mtime > meta.last).
+	// Mirrors TS opts.exclude at src/op/FileOp.ts:51-62.
+	Exclude bool
 }
 
 // Existing controls how the build phase treats files that already exist.
@@ -198,6 +203,9 @@ func mergeOptions(global, call Options) Options {
 	}
 	if call.Control != (Control{}) {
 		out.Control = call.Control
+	}
+	if call.Exclude {
+		out.Exclude = true
 	}
 	return out
 }

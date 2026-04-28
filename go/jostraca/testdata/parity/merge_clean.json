@@ -1,0 +1,9 @@
+{
+  "scenario": "merge_clean",
+  "vol": {
+    "/out/sdk/foo.txt": "CCC\n",
+    "/out/.jostraca/generated/sdk/foo.txt": "CCC\n",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sdk/foo.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"sdk/foo.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}

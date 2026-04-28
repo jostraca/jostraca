@@ -235,35 +235,54 @@ func assertVol(t *testing.T, mem *MemFS, want map[string]string) {
 // Generate call. Each runner builds the FS state (running multiple
 // generations + external edits) and returns the MemFS for assertion.
 var scenarioMultiPhase = map[string]func(*testing.T) *MemFS{
-	"merge_basic": func(t *testing.T) *MemFS {
-		mem := NewMemFS()
-		now := func() int64 { return frozenNow }
-		j1 := New(WithFS(mem), WithFolder("/out"), WithNow(now), WithModel(map[string]any{"body": "AAA\n"}))
-		_, err := j1.Generate(Options{}, func(j *J) {
+	"merge_basic":  func(t *testing.T) *MemFS { return mergeRunner(t, "AAA\n", "AAA\nuser-line\n", "BBB\n", "$$body$$") },
+	"merge_update": func(t *testing.T) *MemFS { return mergeRunner(t, "AAA\n", "// header\nAAA\n// user-comment\n", "BBB\n", "// header\n$$body$$") },
+	"merge_clean":  func(t *testing.T) *MemFS { return mergeRunnerNoEdit(t, "AAA\n", "CCC\n", "$$body$$") },
+}
+
+// mergeRunner runs the canonical 2-phase merge scenario: gen A, user
+// edit, regen B with merge mode.
+func mergeRunner(t *testing.T, bodyA, userEdit, bodyB, srcTpl string) *MemFS {
+	t.Helper()
+	mem := NewMemFS()
+	now := func() int64 { return frozenNow }
+	gen := func(body string, opts Options) {
+		j := New(WithFS(mem), WithFolder("/out"), WithNow(now), WithModel(map[string]any{"body": body}))
+		_, err := j.Generate(opts, func(j *J) {
 			j.Project(ProjectProps{Folder: "sdk"}, func(j *J) {
-				j.File("foo.txt", func(j *J) {
-					j.Content("$$body$$")
-				})
+				j.File("foo.txt", func(j *J) { j.Content(srcTpl) })
 			})
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
-		_ = mem.WriteFile("/out/sdk/foo.txt", []byte("AAA\nuser-line\n"))
-		mergeTrue := true
-		j2 := New(WithFS(mem), WithFolder("/out"), WithNow(now), WithModel(map[string]any{"body": "BBB\n"}))
-		_, err = j2.Generate(Options{
-			Existing: Existing{Txt: ExistingTxt{Merge: &mergeTrue}},
-		}, func(j *J) {
+	}
+	gen(bodyA, Options{})
+	_ = mem.WriteFile("/out/sdk/foo.txt", []byte(userEdit))
+	mergeTrue := true
+	gen(bodyB, Options{Existing: Existing{Txt: ExistingTxt{Merge: &mergeTrue}}})
+	return mem
+}
+
+// mergeRunnerNoEdit skips the user edit between generations - exercises
+// the clean-merge path where existing matches the prior baseline.
+func mergeRunnerNoEdit(t *testing.T, bodyA, bodyB, srcTpl string) *MemFS {
+	t.Helper()
+	mem := NewMemFS()
+	now := func() int64 { return frozenNow }
+	gen := func(body string, opts Options) {
+		j := New(WithFS(mem), WithFolder("/out"), WithNow(now), WithModel(map[string]any{"body": body}))
+		_, err := j.Generate(opts, func(j *J) {
 			j.Project(ProjectProps{Folder: "sdk"}, func(j *J) {
-				j.File("foo.txt", func(j *J) {
-					j.Content("$$body$$")
-				})
+				j.File("foo.txt", func(j *J) { j.Content(srcTpl) })
 			})
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
-		return mem
-	},
+	}
+	gen(bodyA, Options{})
+	mergeTrue := true
+	gen(bodyB, Options{Existing: Existing{Txt: ExistingTxt{Merge: &mergeTrue}}})
+	return mem
 }

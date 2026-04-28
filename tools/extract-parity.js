@@ -134,6 +134,12 @@ async function main() {
   // triggers merge mode.
   await snapshotMerge('merge_basic')
 
+  // Merge update: user appends content; new gen has unrelated changes.
+  await snapshotMergeUpdate('merge_update')
+
+  // Merge clean: same change on both sides → no conflict.
+  await snapshotMergeClean('merge_clean')
+
   // Protect: existing file with JOSTRACA_PROTECT survives re-gen.
   await snapshot('protect',
     {},
@@ -237,6 +243,59 @@ async function snapshotMerge(name) {
       scenario: name,
       vol: vol,
     }, null, 2) + '\n',
+  )
+  console.log('wrote', name)
+}
+
+async function snapshotMergeUpdate(name) {
+  const j = Jostraca({})
+  const root = (m) => () => Project({ folder: 'sdk' }, () => {
+    File({ name: 'foo.txt' }, () => {
+      Content('// header\n' + m.body)
+    })
+  })
+
+  const mfs = memfs({})
+  const fs = mfs.fs
+  await j.generate({ fs: () => fs, folder: '/out', model: { body: 'AAA\n' }, now: () => FROZEN_NOW }, root({ body: 'AAA\n' }))
+  // User appends a comment line.
+  fs.writeFileSync('/out/sdk/foo.txt', '// header\nAAA\n// user-comment\n')
+  await j.generate({
+    fs: () => fs, folder: '/out',
+    model: { body: 'BBB\n' }, now: () => FROZEN_NOW,
+    existing: { txt: { merge: true } },
+  }, root({ body: 'BBB\n' }))
+
+  const vol = mfs.vol.toJSON()
+  require('fs').writeFileSync(
+    require('path').join(outDir, name + '.json'),
+    JSON.stringify({ scenario: name, vol }, null, 2) + '\n',
+  )
+  console.log('wrote', name)
+}
+
+async function snapshotMergeClean(name) {
+  const j = Jostraca({})
+  const root = (m) => () => Project({ folder: 'sdk' }, () => {
+    File({ name: 'foo.txt' }, () => {
+      Content(m.body)
+    })
+  })
+
+  const mfs = memfs({})
+  const fs = mfs.fs
+  await j.generate({ fs: () => fs, folder: '/out', model: { body: 'AAA\n' }, now: () => FROZEN_NOW }, root({ body: 'AAA\n' }))
+  // No user edit - so existing == prev gen, regen with new content.
+  await j.generate({
+    fs: () => fs, folder: '/out',
+    model: { body: 'CCC\n' }, now: () => FROZEN_NOW,
+    existing: { txt: { merge: true } },
+  }, root({ body: 'CCC\n' }))
+
+  const vol = mfs.vol.toJSON()
+  require('fs').writeFileSync(
+    require('path').join(outDir, name + '.json'),
+    JSON.stringify({ scenario: name, vol }, null, 2) + '\n',
   )
   console.log('wrote', name)
 }

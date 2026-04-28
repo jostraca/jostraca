@@ -148,6 +148,16 @@ func fileAfter(n *Node, st *jstate, b *buildCtx) error {
 	if ex, ok := n.Exclude.(bool); ok && ex && b.fh.fs.Exists(n.FullPath) {
 		return nil
 	}
+	// Honour global Options.Exclude time-window: skip files modified on
+	// disk since the last successful build (mtime > meta.last).
+	if st.opts.Exclude && b.fh.fs.Exists(n.FullPath) && b.fh.bmeta != nil {
+		if fi, err := b.fh.fs.Stat(n.FullPath); err == nil {
+			last := b.fh.bmeta.last()
+			if last > 0 && fi.ModTime > last {
+				return nil
+			}
+		}
+	}
 	return b.fh.save(n.FullPath, []byte(body), "FileOp:after")
 }
 
