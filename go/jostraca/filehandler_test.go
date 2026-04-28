@@ -111,12 +111,16 @@ func TestPreserveMode(t *testing.T) {
 }
 
 func TestPresentMode(t *testing.T) {
+	// Match TS semantics: present mode requires write=false to take
+	// effect; otherwise the default write overrides and there's no
+	// .new.<ext> sidecar.
 	mem := NewMemFS()
 	_ = mem.WriteFile("/out/x.txt", []byte("untouched\n"))
 	j := New(WithFS(mem), WithFolder("/out"))
 	presentTrue := true
+	writeFalse := false
 	_, err := j.Generate(Options{
-		Existing: Existing{Txt: ExistingTxt{Present: &presentTrue}},
+		Existing: Existing{Txt: ExistingTxt{Present: &presentTrue, Write: &writeFalse}},
 	}, func(j *J) {
 		j.File("x.txt", func(j *J) { j.Content("proposed\n") })
 	})

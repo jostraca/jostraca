@@ -120,30 +120,55 @@ func (fh *fileHandler) save(p string, content []byte, whence string) error {
 		fh.filelog(&fh.files.Preserved, rpath)
 		fh.appendAudit("protect", map[string]any{"path": rpath, "whence": whence})
 		if fh.bmeta != nil {
-			fh.bmeta.recordAction(rpath, "protect", exists, false, true)
+			fh.bmeta.recordAction(rpath, "skip", exists, false, true)
+		}
+		// TS still writes the duplicate baseline even when protected.
+		if !fh.control.Dryrun && fh.control.Duplicate() {
+			dup := fh.duplicateFolder + "/" + rpath
+			_ = fh.ensureDirOf(dup)
+			_ = fh.fs.WriteFile(dup, content)
 		}
 		return nil
 	}
 
-	if bytes.Equal(existing, content) {
-		fh.filelog(&fh.files.Unchanged, rpath)
-		fh.appendAudit("unchanged", map[string]any{"path": rpath, "whence": whence})
-		if fh.bmeta != nil {
-			fh.bmeta.recordAction(rpath, "unchanged", exists, false, false)
-		}
-		return nil
-	}
+	contentEqual := bytes.Equal(existing, content)
 
-	switch {
-	case isText && modes.merge:
+	// merge and diff are exclusive write paths.
+	if isText && modes.merge {
 		return fh.saveMerge(p, content, existing, rpath, whence)
-	case isText && modes.diff:
+	}
+	if isText && modes.diff {
 		return fh.saveDiff(p, content, existing, rpath, whence)
-	case modes.present:
+	}
+
+	// preserve: write the .old.<ext> backup before falling through to write.
+	if modes.preserve && !contentEqual {
+		if err := fh.savePreserveBackup(p, existing, rpath, whence); err != nil {
+			return err
+		}
+	}
+	// present: write the .new.<ext> sidecar when write is OFF.
+	if modes.present && !modes.write {
 		return fh.savePresent(p, content, rpath, whence)
-	case modes.preserve:
-		return fh.savePreserve(p, content, existing, rpath, whence)
-	case modes.write:
+	}
+
+	// Default: overwrite (or write new). When content is equal we still
+	// record a write intent (matches TS) but skip the actual fs call.
+	if modes.write {
+		if contentEqual {
+			fh.filelog(&fh.files.Unchanged, rpath)
+			fh.appendAudit("unchanged", map[string]any{"path": rpath, "whence": whence})
+			if fh.bmeta != nil {
+				fh.bmeta.recordAction(rpath, "write", exists, false, false)
+			}
+			// Still keep the duplicate baseline current.
+			if !fh.control.Dryrun && fh.control.Duplicate() {
+				dup := fh.duplicateFolder + "/" + rpath
+				_ = fh.ensureDirOf(dup)
+				_ = fh.fs.WriteFile(dup, content)
+			}
+			return nil
+		}
 		return fh.write(p, content, rpath, whence, exists)
 	}
 	fh.filelog(&fh.files.Unchanged, rpath)
@@ -272,7 +297,10 @@ func (fh *fileHandler) saveDiff(p string, content, existing []byte, rpath, whenc
 	return nil
 }
 
-func (fh *fileHandler) savePreserve(p string, content, existing []byte, rpath, whence string) error {
+// savePreserveBackup writes the .old.<ext> copy of `existing` and
+// records the preserve action. The caller is responsible for the
+// subsequent `write` of new content.
+func (fh *fileHandler) savePreserveBackup(p string, existing []byte, rpath, whence string) error {
 	backup := annotatedPath(p, "old")
 	if !fh.control.Dryrun {
 		if err := fh.ensureDirOf(backup); err != nil {
@@ -281,12 +309,8 @@ func (fh *fileHandler) savePreserve(p string, content, existing []byte, rpath, w
 		if err := fh.fs.WriteFile(backup, existing); err != nil {
 			return err
 		}
-		if err := fh.fs.WriteFile(p, content); err != nil {
-			return err
-		}
 	}
 	fh.filelog(&fh.files.Preserved, fh.relative(backup))
-	fh.filelog(&fh.files.Written, rpath)
 	fh.appendAudit("preserve", map[string]any{
 		"path":   rpath,
 		"backup": fh.relative(backup),
@@ -294,6 +318,22 @@ func (fh *fileHandler) savePreserve(p string, content, existing []byte, rpath, w
 	})
 	if fh.bmeta != nil {
 		fh.bmeta.recordAction(rpath, "preserve", true, false, false)
+	}
+	return nil
+}
+
+func (fh *fileHandler) savePreserve(p string, content, existing []byte, rpath, whence string) error {
+	if err := fh.savePreserveBackup(p, existing, rpath, whence); err != nil {
+		return err
+	}
+	if !fh.control.Dryrun {
+		if err := fh.fs.WriteFile(p, content); err != nil {
+			return err
+		}
+	}
+	fh.filelog(&fh.files.Written, rpath)
+	if fh.bmeta != nil {
+		fh.bmeta.recordAction(rpath, "write", true, false, false)
 	}
 	return nil
 }

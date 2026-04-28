@@ -134,6 +134,59 @@ async function main() {
   // triggers merge mode.
   await snapshotMerge('merge_basic')
 
+  // Protect: existing file with JOSTRACA_PROTECT survives re-gen.
+  await snapshot('protect',
+    {},
+    () => {
+      Project({ folder: 'app' }, () => {
+        File({ name: 'cfg.txt' }, () => Content('regenerated\n'))
+      })
+    },
+    {
+      '/out/app/cfg.txt': '# JOSTRACA_PROTECT\nuser-edit\n',
+    },
+  )
+
+  // Unchanged: equal new+existing → Files.Unchanged populated, no write.
+  await snapshot('unchanged',
+    {},
+    () => {
+      Project({ folder: 'app' }, () => {
+        File({ name: 'a.txt' }, () => Content('A'))
+      })
+    },
+    {
+      '/out/app/a.txt': 'A',
+      '/out/.jostraca/generated/app/a.txt': 'A',
+    },
+  )
+
+  // Preserve: backup as .old.<ext>, write new.
+  await snapshot('preserve_mode',
+    { existing: { txt: { preserve: true } } },
+    () => {
+      Project({ folder: 'app' }, () => {
+        File({ name: 'a.txt' }, () => Content('NEW'))
+      })
+    },
+    {
+      '/out/app/a.txt': 'OLD',
+    },
+  )
+
+  // Present: leave existing, write .new.<ext>.
+  await snapshot('present_mode',
+    { existing: { txt: { present: true } } },
+    () => {
+      Project({ folder: 'app' }, () => {
+        File({ name: 'a.txt' }, () => Content('NEW'))
+      })
+    },
+    {
+      '/out/app/a.txt': 'OLD',
+    },
+  )
+
   console.log('done')
 }
 

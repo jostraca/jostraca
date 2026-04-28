@@ -1,0 +1,14 @@
+{
+  "scenario": "unchanged",
+  "opts": {},
+  "prepopulate": {
+    "/out/app/a.txt": "A",
+    "/out/.jostraca/generated/app/a.txt": "A"
+  },
+  "vol": {
+    "/out/app/a.txt": "A",
+    "/out/.jostraca/generated/app/a.txt": "A",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}

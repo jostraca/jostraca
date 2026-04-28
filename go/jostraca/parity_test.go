@@ -81,6 +81,26 @@ var scenarioRunners = map[string]func(j *J){
 			})
 		})
 	},
+	"protect": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("cfg.txt", func(j *J) { j.Content("regenerated\n") })
+		})
+	},
+	"unchanged": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("a.txt", func(j *J) { j.Content("A") })
+		})
+	},
+	"preserve_mode": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("a.txt", func(j *J) { j.Content("NEW") })
+		})
+	},
+	"present_mode": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("a.txt", func(j *J) { j.Content("NEW") })
+		})
+	},
 }
 
 // scenarioOptions returns per-scenario Options additions; merged on top
@@ -93,6 +113,12 @@ func scenarioOptions(scenario string) []Option {
 		})}
 	case "copy_file":
 		return []Option{WithModel(map[string]any{"name": "World"})}
+	case "preserve_mode":
+		t := true
+		return []Option{WithExisting(Existing{Txt: ExistingTxt{Preserve: &t}})}
+	case "present_mode":
+		t := true
+		return []Option{WithExisting(Existing{Txt: ExistingTxt{Present: &t}})}
 	}
 	return nil
 }
