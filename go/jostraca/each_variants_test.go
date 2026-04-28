@@ -80,6 +80,47 @@ func TestNamesVariadic(t *testing.T) {
 	}
 }
 
+func TestTemplateFAndR(t *testing.T) {
+	got, err := TemplateF("a$$x$$b", map[string]any{"x": "Z"})
+	if err != nil || got != "aZb" {
+		t.Errorf("TemplateF = %q (err %v)", got, err)
+	}
+	got, err = TemplateR("aQb", map[string]any{"Q": "Z"})
+	if err != nil || got != "aZb" {
+		t.Errorf("TemplateR = %q (err %v)", got, err)
+	}
+}
+
+func TestNamesP(t *testing.T) {
+	out := NamesP(map[string]any{}, "FooBar", "thing")
+	if out["thing__orig"] != "FooBar" {
+		t.Errorf("NamesP missing thing__orig: %v", out)
+	}
+	if out["Thing"] != "FooBar" {
+		t.Errorf("NamesP missing Thing: %v", out)
+	}
+}
+
+func TestGetXSAndPath(t *testing.T) {
+	m := map[string]any{"a": map[string]any{"b": 7}}
+	if v := GetXS(m, "a b"); v != 7 {
+		t.Errorf("GetXS = %v", v)
+	}
+	if v := GetXPath(m, []string{"a", "b"}); v != 7 {
+		t.Errorf("GetXPath = %v", v)
+	}
+}
+
+func TestHumanifyDigitsAndTerse(t *testing.T) {
+	if v := HumanifyDigits(int64(1735689600000)); v != int64(2025010100000000) {
+		t.Errorf("HumanifyDigits = %v", v)
+	}
+	terse := HumanifyTerse(int64(1735689600000))
+	if terse.TY != 2025 || terse.TM != 1 || terse.TD != 1 {
+		t.Errorf("HumanifyTerse = %+v", terse)
+	}
+}
+
 func intToStr(n int) string {
 	if n == 0 {
 		return "0"

@@ -1963,6 +1963,29 @@ impossible to distinguish "OVal unset" from "OVal=false" without
 annotated (matches TS default), explicit `Raw: true` means pass-through.
 Behaviour for end users is identical to TS; the field name differs.
 
+**TS overload coverage via narrower Go variants.** Go has no function
+overloading, so the TS overloaded callback shapes (`each(items, fn)`,
+`each(items, (val, key, idx) => ...)`, etc.) are reachable through
+named variants that wrap `Each`:
+
+- `EachF(items, func(val any) any)` — pure transform, no annotation.
+- `EachI(items, func(val any, idx int) any)` — slice with index.
+- `EachKV(m, func(val any, key string, idx int) any)` — map with
+  wrapped value, key, and 0-based index. Mirrors the
+  `test/utility.test.ts:55-58` corpus row.
+- `EachKVRaw(m, ...)` — same shape, raw value instead of wrapper.
+
+Pattern applied to other TS-overloaded entry points:
+
+- `GetXS(root, path string)` and `GetXPath(root, tokens []string)`
+  alongside the polymorphic `GetX(root, path any)`.
+- `TemplateF(src, model)` and `TemplateR(src, replace)` alongside
+  the full `Template(src, model, spec)`.
+- `NamesP(base, name, prop)` alongside `Names(base, name, prop ...string)`.
+- `HumanifyDigits(when)`, `HumanifyParts(when)`, `HumanifyTerse(when)`
+  alongside `Humanify(when, HumanifyFlags{...})` — typed return shapes
+  remove the `.(int64)` / `.(map[string]any)` assertions.
+
 Implementation (sketch):
 
 ```go

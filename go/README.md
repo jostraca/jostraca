@@ -244,8 +244,10 @@ with these intentional ergonomic differences:
   config sourced from JSON/YAML.
 - `Each.OVal` is renamed to `Each.Raw` with inverted semantics so
   Go's zero-value default matches TS's `oval=true` annotation
-  default. The `Each` callback signature is unary `func(any) any`
-  versus TS's variadic `(val, key, idx) => any`.
+  default. The TS overloaded callback shapes are reachable through
+  narrower Go variants: `EachI(items, func(val, idx))`,
+  `EachKV(m, func(val, key, idx))`, `EachKVRaw(m, ...)`,
+  `EachF(items, func(val))`.
 - `ListProps.NoLine` inverts TS's `props.line === false` opt-out so
   Go zero-value matches the TS default of always emitting a
   trailing `Line('')`.

@@ -8,6 +8,20 @@ import (
 	"strings"
 )
 
+// GetXPath is the narrower variant of GetX taking an explicit
+// []string token sequence. Equivalent to GetX(root, []string{...}).
+// Use when the path is already split.
+func GetXPath(root any, tokens []string) any {
+	return GetX(root, tokens)
+}
+
+// GetXS is the narrower variant of GetX taking a string path.
+// Equivalent to GetX(root, "..."). Use when you want the typed
+// signature surfaced to call sites.
+func GetXS(root any, path string) any {
+	return GetX(root, path)
+}
+
 // GetX is the rich-path lookup ported from src/util/basic.ts:128-268.
 // Supports dot/space-separated navigation, ancestry (`:`), comparison
 // filters (`=`, `!=`, `<`, `<=`, `>`, `>=`, `==`, `~`), array filters

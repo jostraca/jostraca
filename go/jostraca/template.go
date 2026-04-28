@@ -76,6 +76,20 @@ func ParseTemplateSpec(raw map[string]any) (*TemplateSpec, error) {
 	return spec, nil
 }
 
+// TemplateF is the narrowest variant: just substitute model values
+// against $$path$$ placeholders, no replace map, no eject. Equivalent
+// to Template(src, model, nil). Use when the call site doesn't need
+// any of TemplateSpec.
+func TemplateF(src string, model any) (string, error) {
+	return Template(src, model, nil)
+}
+
+// TemplateR is the model-less variant for replace-only substitutions.
+// Equivalent to Template(src, nil, &TemplateSpec{Replace: replace}).
+func TemplateR(src string, replace map[string]any) (string, error) {
+	return Template(src, nil, &TemplateSpec{Replace: replace})
+}
+
 // Template renders src using $$path.to.value$$ placeholders and optional
 // replacements. See PORT_PLAN §9 for the supported feature set.
 func Template(src string, model any, spec *TemplateSpec) (string, error) {

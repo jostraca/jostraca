@@ -119,6 +119,11 @@ optional for leaf components (`Copy`, `Content`).
 Render `src` substituting `$$path$$` macros from `model` and applying
 `spec.Replace` keyed substitutions.
 
+Narrower variants:
+
+- `TemplateF(src, model)` — pure model substitution, no spec.
+- `TemplateR(src, replace)` — replace-only, no model.
+
 ```go
 type TemplateSpec struct {
     Replace map[string]any  // string|TemplateReplaceFunc keyed by literal or /regex/
@@ -197,14 +202,24 @@ type AuditEntry struct {
 | Symbol | Description |
 |---|---|
 | `Each(subject, EachSpec, fn) []any` | Iterate a slice or map; default-wraps items in `{val$, index$}` / `{key$, val$}` unless `Raw=true` |
+| `EachF(items, fn) []any` | Pure transform: `func(val any) any` callback, no annotation |
+| `EachI(items, fn) []any` | Slice with `func(val any, idx int) any` callback |
+| `EachKV(m, fn) []any` | Map with `func(val any, key string, idx int) any` — wraps val |
+| `EachKVRaw(m, fn) []any` | Same as EachKV but passes the raw value |
 | `Get(root, path) any` | Simple dot-path lookup |
 | `GetX(root, path) any` | Rich path with ancestry (`:`), filters (`=`, `!=`, `<`, `<=`, `>`, `>=`, `==`, `~`), array filter (`?`), array index, quoted segments |
+| `GetXS(root, path string) any` | Typed string-path variant of GetX |
+| `GetXPath(root, tokens []string) any` | Typed pre-tokenised variant of GetX |
 | `Camelify`, `Snakify`, `Kebabify`, `Partify`, `LCF`, `UCF` | Name-form converters |
 | `Names(base, name, prop?)` | Populate variant keys `<prop>__orig`, `<UCF(prop)>`, `<prop>_`, `<prop>-`, `<prop>`, `<UPPER(prop)>` |
+| `NamesP(base, name, prop)` | Explicit-prop variant of Names |
 | `EscRE(s)` | `regexp.QuoteMeta` |
 | `Indent(src, n_or_str)` | Prepend indent to every line after the first |
 | `IsBinExt(path)` | Curated extension set |
 | `Humanify(when, HumanifyFlags)` | Format unix-ms as `YYYYMMDDhhmmssII` digits or named parts |
+| `HumanifyDigits(when) int64` | Typed default-mode variant |
+| `HumanifyParts(when) HumanifiedParts` | Typed parts variant — returns a struct, not `map[string]any` |
+| `HumanifyTerse(when) HumanifiedTerse` | Typed terse-named-parts variant |
 | `Deep(dst, srcs...)` | Recursive map merge with right-precedence |
 | `CMap`, `VMap`, `OMap` | Object → object/slice projections (sentinel: `CMapCopy`/`CMapKey`/`CMapFilter`) |
 | `NewDLog(tag, file)` | Tagged debug logger backed by a package-level locked buffer |

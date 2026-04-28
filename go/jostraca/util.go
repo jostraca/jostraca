@@ -83,6 +83,87 @@ func Each(subject any, spec EachSpec, apply func(any) any) []any {
 	}
 }
 
+// EachF is the simplest narrower variant of Each: a pure transform of
+// each item with no `{val$, index$}` wrapping. Equivalent to
+// Each(items, EachSpec{Raw: true}, fn) for slices. Use when you have a
+// typed slice and just want to map over it.
+func EachF(items any, fn func(val any) any) []any {
+	return Each(items, EachSpec{Raw: true}, fn)
+}
+
+// EachI iterates a slice (or array-shaped value) and calls fn with each
+// raw item plus its 0-based index. Mirrors the TS overload
+// `each(items, (item, idx) => ...)` from src/util/basic.ts.
+//
+// fn may return any value; the return is collected into the result slice.
+// nil items input yields an empty slice.
+func EachI(items any, fn func(val any, idx int) any) []any {
+	if items == nil {
+		return []any{}
+	}
+	rv := reflect.ValueOf(items)
+	if rv.Kind() != reflect.Slice && rv.Kind() != reflect.Array {
+		return []any{}
+	}
+	out := make([]any, 0, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		out = append(out, fn(rv.Index(i).Interface(), i))
+	}
+	return out
+}
+
+// EachKV iterates a map and calls fn with the wrapped value
+// (`{key$, val$}`), the key, and the 0-based index. Mirrors the
+// 3-arg TS callback at test/utility.test.ts:55-58.
+//
+// Map iteration order in Go is randomised; EachKV sorts by key for
+// determinism. Pass EachKVRaw if you want the raw value instead of
+// the wrapped form.
+func EachKV(m any, fn func(val any, key string, idx int) any) []any {
+	if m == nil {
+		return []any{}
+	}
+	rv := reflect.ValueOf(m)
+	if rv.Kind() != reflect.Map {
+		return []any{}
+	}
+	keys := make([]string, 0, rv.Len())
+	for _, k := range rv.MapKeys() {
+		keys = append(keys, fmt.Sprint(k.Interface()))
+	}
+	sort.Strings(keys)
+	out := make([]any, 0, len(keys))
+	for i, k := range keys {
+		v := rv.MapIndex(reflect.ValueOf(k)).Interface()
+		wrapped := map[string]any{"key$": k, "val$": v}
+		out = append(out, fn(wrapped, k, i))
+	}
+	return out
+}
+
+// EachKVRaw is EachKV's pass-through variant: fn receives the raw
+// value rather than the {key$, val$} wrapper.
+func EachKVRaw(m any, fn func(val any, key string, idx int) any) []any {
+	if m == nil {
+		return []any{}
+	}
+	rv := reflect.ValueOf(m)
+	if rv.Kind() != reflect.Map {
+		return []any{}
+	}
+	keys := make([]string, 0, rv.Len())
+	for _, k := range rv.MapKeys() {
+		keys = append(keys, fmt.Sprint(k.Interface()))
+	}
+	sort.Strings(keys)
+	out := make([]any, 0, len(keys))
+	for i, k := range keys {
+		v := rv.MapIndex(reflect.ValueOf(k)).Interface()
+		out = append(out, fn(v, k, i))
+	}
+	return out
+}
+
 // Get is a simple dot-path lookup over map[string]any/[]any-shaped data.
 func Get(root any, path string) any {
 	if path == "" {
@@ -238,6 +319,12 @@ func EscRE(s string) string {
 	return regexp.QuoteMeta(s)
 }
 
+// NamesP is the narrower Names variant taking an explicit prop name.
+// Equivalent to Names(base, name, prop).
+func NamesP(base map[string]any, name, prop string) map[string]any {
+	return Names(base, name, prop)
+}
+
 // Names mutates base, attaching name variants keyed off prop:
 //
 //	<prop>__orig — original input
@@ -303,6 +390,67 @@ func Indent(src string, ind any) string {
 type HumanifyFlags struct {
 	Parts bool
 	Terse bool
+}
+
+// HumanifiedParts is the typed return of HumanifyParts. Each field is
+// the corresponding component of the ISO timestamp parsed back to int.
+type HumanifiedParts struct {
+	Year   int
+	Month  int
+	Day    int
+	Hour   int
+	Minute int
+	Second int
+	Milli  int
+}
+
+// HumanifiedTerse is the typed terse return of HumanifyTerse, using
+// the TS-compatible 2-letter prefixed keys.
+type HumanifiedTerse struct {
+	TY int // year
+	TM int // month
+	TD int // day
+	TH int // hour
+	TN int // minute
+	TS int // second
+	TI int // milli
+}
+
+// HumanifyDigits returns the digit-stripped int64 form of a unix-ms
+// timestamp (TS Humanify default). Equivalent to
+// Humanify(when, HumanifyFlags{}).(int64) without the type-assertion.
+func HumanifyDigits(when int64) int64 {
+	return Humanify(when, HumanifyFlags{}).(int64)
+}
+
+// HumanifyParts returns the typed parts form of a unix-ms timestamp.
+// Equivalent to Humanify(when, HumanifyFlags{Parts: true}) but with a
+// stable Go struct type rather than map[string]any.
+func HumanifyParts(when int64) HumanifiedParts {
+	m := Humanify(when, HumanifyFlags{Parts: true}).(map[string]any)
+	return HumanifiedParts{
+		Year:   m["year"].(int),
+		Month:  m["month"].(int),
+		Day:    m["day"].(int),
+		Hour:   m["hour"].(int),
+		Minute: m["minute"].(int),
+		Second: m["second"].(int),
+		Milli:  m["milli"].(int),
+	}
+}
+
+// HumanifyTerse is the terse-named-parts variant.
+func HumanifyTerse(when int64) HumanifiedTerse {
+	m := Humanify(when, HumanifyFlags{Parts: true, Terse: true}).(map[string]any)
+	return HumanifiedTerse{
+		TY: m["ty"].(int),
+		TM: m["tm"].(int),
+		TD: m["td"].(int),
+		TH: m["th"].(int),
+		TN: m["tn"].(int),
+		TS: m["ts"].(int),
+		TI: m["ti"].(int),
+	}
 }
 
 // Humanify formats a unix-millis timestamp as TS does in
