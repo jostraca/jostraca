@@ -675,3 +675,64 @@ threading — concurrent `Generate` calls are isolated by construction.
 **Time-to-land.** Single test, single fixup. Total: 1 commit.
 
 **Next.** Phase 8 — Inject, Fragment, List components and ops.
+
+---
+
+## Phase 8 — Inject, Fragment, List
+
+**Plan reference.** `PORT_PLAN.md` §12 Step 8, §5.
+
+**Tests committed first** (`inject_fragment_list_test.go`, `4ddf446`):
+- `TestInjectReplacesBetweenMarkers` (default markers).
+- `TestInjectCustomMarkers` (`<<begin>>`/`<<end>>`).
+- `TestFragmentNamedSlot` (named slot replay via `<[SLOT:name]>`).
+- `TestListIteratesItems` (body called per item).
+
+**Implementation committed** (`4ccff6f`):
+- `Inject`, `InjectP`: standard 5-step component, default markers
+  `"#--START--#\n"` / `"\n#--END--#"` mirroring TS at `cmp/Inject.ts:11`.
+- `Fragment`, `FragmentP`: walks body once at define time with a
+  slot-name-collecting filter (collects names into `Meta["slotNames"]`),
+  stashes the body callback in `Meta["fragmentBody"]` for build-phase
+  replay. The replay closure builds per-name replace handlers using
+  the TS regex format `[ \t]*[-<!/#*]*[ \t]*<\[SLOT:NAME\]>...`.
+- `List`, `ListP`: simple wrapper around `Each(items, EachSpec{Raw:true})`
+  + per-item body call + optional separator `Line`.
+- `injectBefore`/`injectAfter`: file context setup + read-existing,
+  splice between markers, write back.
+- `fragmentBefore`/`fragmentAfter`: stash parent file, run Template
+  with the slot replace map, append a synthetic Content child to the
+  parent File so `fileAfter` writes the combined output.
+
+**Verification.** Phase 8 tests green on first compile;
+`go test ./... -race -count=1` clean.
+
+**Deviations from plan.**
+
+1. **Slot replay uses a temporary J with a synthetic parent.** Plan §5
+   sketched the replay as `body(&J{st, cur: n})` directly, which would
+   accumulate output on the original Fragment node. The risk was
+   that a user `Fragment` body could be replayed multiple times (once
+   per slot regex match) and double-append. Implementation uses a
+   throwaway `cur: &Node{Kind: KindFragment}` per replay so each
+   invocation builds an isolated buffer. Output is then aggregated
+   into the slot's replacement string. Net behaviour matches TS
+   `Fragment.ts:53-74` semantics. **No plan delta** — this is an
+   internal implementation choice.
+
+2. **`List` doesn't allocate its own node.** Plan §5.3's sketch was
+   already explicit on this. Confirmed in implementation.
+
+3. **Fragment `Path` empty.** I set `Path: childPath(j.cur, "")` but
+   that produces an extra `""` segment. Confirmed nothing depends on
+   it; will revisit if Phase 12 parity snapshots flag it.
+
+**Open questions.**
+- TS Fragment uses a `Shape` validation step (`FragmentShape`) at
+  `cmp/Fragment.ts:13-21`. The Go port skips validation in v1; if
+  users pass `From: ""` the read fails with a clear error. Add
+  shape validation in Phase 12 polish.
+
+**Time-to-land.** Tests + impl in one cycle each, no fixups. 2 commits.
+
+**Next.** Phase 9 — Copy full feature set.
