@@ -176,6 +176,131 @@ func (j *J) Cmp(name string, fn func(*J)) {
 	fn(j)
 }
 
+// InjectProps configures Inject. Markers default to TS's
+// "#--START--#\n" / "\n#--END--#" pair when both are empty.
+type InjectProps struct {
+	Name    string
+	Markers [2]string
+	Exclude any
+}
+
+var defaultInjectMarkers = [2]string{"#--START--#\n", "\n#--END--#"}
+
+// Inject replaces content between markers in an existing file.
+func (j *J) Inject(name string, body func(*J)) {
+	j.InjectP(InjectProps{Name: name}, body)
+}
+
+func (j *J) InjectP(p InjectProps, body func(*J)) {
+	if j.st.err != nil {
+		return
+	}
+	markers := p.Markers
+	if markers == [2]string{} {
+		markers = defaultInjectMarkers
+	}
+	n := &Node{
+		Kind:    KindInject,
+		Name:    p.Name,
+		Markers: markers,
+		Exclude: p.Exclude,
+		Path:    childPath(j.cur, p.Name),
+		Meta:    map[string]any{},
+	}
+	j.attachAndDescend(n, body)
+}
+
+// FragmentProps configures Fragment.
+type FragmentProps struct {
+	From    string
+	Indent  any
+	Replace map[string]any
+	Exclude any
+	Eject   any
+}
+
+// Fragment reads an external template, replays Slot children into
+// <[SLOT:name]> markers, and emits the result via Content under the
+// surrounding File.
+func (j *J) Fragment(p FragmentProps, body func(*J)) {
+	j.FragmentP(p, body)
+}
+
+func (j *J) FragmentP(p FragmentProps, body func(*J)) {
+	if j.st.err != nil {
+		return
+	}
+	if p.Replace == nil {
+		p.Replace = map[string]any{}
+	}
+	n := &Node{
+		Kind:    KindFragment,
+		From:    p.From,
+		Indent:  p.Indent,
+		Exclude: p.Exclude,
+		Replace: p.Replace,
+		Path:    childPath(j.cur, ""),
+		Meta:    map[string]any{},
+	}
+	if j.cur != nil {
+		j.cur.Children = append(j.cur.Children, n)
+	}
+	if j.st.root == nil {
+		j.st.root = n
+	}
+	if body == nil {
+		return
+	}
+
+	// Stash the body callback on the node so the Fragment op can replay
+	// it during build phase. Capture by closure since body is a Go func.
+	n.Meta["fragmentBody"] = body
+	// Eagerly walk once with a slot-name-collecting filter so
+	// Fragment can inject <[SLOT:name]> replace handlers before
+	// the build phase runs Template.
+	slotNames := map[string]struct{}{}
+	n.Filter = func(kind, name string) bool {
+		if kind == "slot" {
+			slotNames[name] = struct{}{}
+		}
+		return false
+	}
+	body(&J{st: j.st, cur: n})
+	n.Filter = nil
+
+	// Stash the slot names so the op can build the right replace keys.
+	names := make([]string, 0, len(slotNames))
+	for k := range slotNames {
+		names = append(names, k)
+	}
+	n.Meta["slotNames"] = names
+}
+
+// ListProps configures List.
+type ListProps struct {
+	Item   any
+	Line   string
+	Indent any
+}
+
+// List iterates a slice or map and calls body once per item. The body
+// receives the same *J (children attach to the surrounding parent).
+func (j *J) List(items any, body func(j *J, item any)) {
+	j.ListP(ListProps{Item: items}, body)
+}
+
+func (j *J) ListP(p ListProps, body func(j *J, item any)) {
+	if j.st.err != nil || body == nil {
+		return
+	}
+	for _, item := range Each(p.Item, EachSpec{Raw: true}, nil) {
+		body(j, item)
+		if p.Line != "" {
+			j.Line(p.Line)
+		}
+	}
+}
+
 // attachAndDescend is the shared 5-step body: append the node, set root
 // on first call, recurse with a child *J. Used by every component
 // method that allocates a node.

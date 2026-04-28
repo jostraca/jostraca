@@ -158,13 +158,164 @@ func contentBefore(n *Node, _ *jstate, b *buildCtx) error {
 	return nil
 }
 
-func copyBefore(_ *Node, _ *jstate, _ *buildCtx) error   { return nil }
-func copyAfter(_ *Node, _ *jstate, _ *buildCtx) error    { return nil }
-func injectBefore(_ *Node, _ *jstate, _ *buildCtx) error { return nil }
-func injectAfter(_ *Node, _ *jstate, _ *buildCtx) error  { return nil }
-func fragmentBefore(_ *Node, _ *jstate, _ *buildCtx) error {
+func copyBefore(_ *Node, _ *jstate, _ *buildCtx) error { return nil }
+func copyAfter(_ *Node, _ *jstate, _ *buildCtx) error  { return nil }
+
+// injectBefore mirrors fileBefore: set current.file and FullPath.
+func injectBefore(n *Node, _ *jstate, b *buildCtx) error {
+	parent := b.current.folder.parent
+	dir := strings.Join(b.current.folder.path, "/")
+	if dir != "" {
+		n.FullPath = parent + "/" + dir + "/" + n.Name
+	} else {
+		n.FullPath = parent + "/" + n.Name
+	}
+	n.FullPath = fwd(n.FullPath)
+	b.current.file = n
 	return nil
 }
-func fragmentAfter(_ *Node, _ *jstate, _ *buildCtx) error { return nil }
-func slotBefore(_ *Node, _ *jstate, _ *buildCtx) error    { return nil }
-func slotAfter(_ *Node, _ *jstate, _ *buildCtx) error     { return nil }
+
+// injectAfter concatenates child Content, wraps in markers, replaces
+// the existing marker block in the target file, and writes back.
+func injectAfter(n *Node, _ *jstate, b *buildCtx) error {
+	if b.fh == nil {
+		return nil
+	}
+	if ex, ok := n.Exclude.(bool); ok && ex {
+		return nil
+	}
+	var sb strings.Builder
+	for _, c := range n.Children {
+		if c.Kind == KindContent {
+			for _, s := range c.Content {
+				sb.WriteString(s)
+			}
+		}
+	}
+	body := sb.String()
+
+	if !b.fh.fs.Exists(n.FullPath) {
+		// No target — silently skip; matches TS read-error tolerance for
+		// missing inject targets in tests.
+		return nil
+	}
+	src, err := b.fh.fs.ReadFile(n.FullPath)
+	if err != nil {
+		return err
+	}
+
+	startM, endM := n.Markers[0], n.Markers[1]
+	startIdx := strings.Index(string(src), startM)
+	if startIdx < 0 {
+		return nil
+	}
+	endIdx := strings.Index(string(src), endM)
+	if endIdx < 0 || endIdx < startIdx {
+		return nil
+	}
+	// Replace [startIdx+len(startM), endIdx) with body.
+	replaceFrom := startIdx + len(startM)
+	out := make([]byte, 0, len(src)+len(body))
+	out = append(out, src[:replaceFrom]...)
+	out = append(out, []byte(body)...)
+	out = append(out, src[endIdx:]...)
+	return b.fh.save(n.FullPath, out, "InjectOp:after")
+}
+
+// fragmentBefore stashes the parent file's current content slot so we
+// can append rendered fragment output to it.
+func fragmentBefore(n *Node, _ *jstate, b *buildCtx) error {
+	n.Meta["parentFile"] = b.current.file
+	return nil
+}
+
+// fragmentAfter reads the From file, runs Template with replay
+// callbacks per Slot name, and appends output as a new Content node
+// on the parent File.
+func fragmentAfter(n *Node, st *jstate, b *buildCtx) error {
+	if b.fh == nil {
+		return nil
+	}
+	body, _ := n.Meta["fragmentBody"].(func(*J))
+	slotNames, _ := n.Meta["slotNames"].([]string)
+
+	src, err := b.fh.fs.ReadFile(n.From)
+	if err != nil {
+		return err
+	}
+
+	// Build the replace map: one entry per named slot, plus a default
+	// <[SLOT]> handler for non-Slot children.
+	replace := map[string]any{}
+	for k, v := range n.Replace {
+		replace[k] = v
+	}
+	for _, name := range slotNames {
+		name := name
+		key := "/[ \\t]*[-<!/#*]*[ \\t]*<\\[SLOT:" + EscRE(name) + "\\]>[ \\t]*[->/#*]*[ \\t]*/"
+		replace[key] = ReplaceFunc(func(_ map[string]string, _ string) string {
+			n.Filter = func(kind, slotName string) bool {
+				return kind == "slot" && slotName == name
+			}
+			// Capture children content into a buffer.
+			var sb strings.Builder
+			j2 := &J{st: st, cur: &Node{Kind: KindFragment, Meta: map[string]any{}}}
+			body(j2)
+			for _, c := range j2.cur.Children {
+				if c.Kind == KindSlot {
+					for _, gc := range c.Children {
+						if gc.Kind == KindContent {
+							for _, s := range gc.Content {
+								sb.WriteString(s)
+							}
+						}
+					}
+				}
+			}
+			n.Filter = nil
+			return sb.String()
+		})
+	}
+	// Default <[SLOT]> matches non-Slot children.
+	replace["/[ \\t]*[-<!/#*]*[ \\t]*<\\[SLOT\\]>[ \\t]*[->/#*]*[ \\t]*/"] =
+		ReplaceFunc(func(_ map[string]string, _ string) string {
+			n.Filter = func(kind, _ string) bool { return kind != "slot" }
+			var sb strings.Builder
+			j2 := &J{st: st, cur: &Node{Kind: KindFragment, Meta: map[string]any{}}}
+			body(j2)
+			for _, c := range j2.cur.Children {
+				if c.Kind == KindContent {
+					for _, s := range c.Content {
+						sb.WriteString(s)
+					}
+				}
+			}
+			n.Filter = nil
+			return sb.String()
+		})
+
+	rendered, err := Template(string(src), st.model, &TemplateSpec{
+		Replace: replace,
+	})
+	if err != nil {
+		return err
+	}
+	if n.Indent != nil {
+		rendered = Indent(rendered, n.Indent)
+	}
+
+	// Append to parent file's content.
+	parent, _ := n.Meta["parentFile"].(*Node)
+	if parent != nil {
+		// Insert a synthetic Content child so fileAfter picks it up.
+		parent.Children = append(parent.Children, &Node{
+			Kind:    KindContent,
+			Content: []string{rendered},
+			Meta:    map[string]any{},
+		})
+	}
+	return nil
+}
+
+func slotBefore(_ *Node, _ *jstate, _ *buildCtx) error { return nil }
+func slotAfter(_ *Node, _ *jstate, _ *buildCtx) error  { return nil }
