@@ -10,6 +10,27 @@ import (
 
 // quickStart exercises the full build pipeline end-to-end with a
 // known tree, asserting Vol contents byte-for-byte.
+func TestFilesWrittenFullPaths(t *testing.T) {
+	// Files.Written contains full paths (matching TS) so users can
+	// do Result.Files.Written[i] without needing to prepend Folder.
+	mem := NewMemFS()
+	j := New(WithFS(mem), WithFolder("/out"))
+	res, err := j.Generate(Options{}, func(j *J) {
+		j.Project(ProjectProps{Folder: "p"}, func(j *J) {
+			j.File("a.txt", func(j *J) { j.Content("hi") })
+		})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Files.Written) != 1 {
+		t.Fatalf("want 1 written, got %v", res.Files.Written)
+	}
+	if res.Files.Written[0] != "/out/p/a.txt" {
+		t.Errorf("got %q, want /out/p/a.txt", res.Files.Written[0])
+	}
+}
+
 func TestQuickstartViaMemFS(t *testing.T) {
 	mem := NewMemFS()
 	j := New(WithFS(mem), WithFolder("/out"))

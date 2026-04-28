@@ -106,6 +106,31 @@ var scenarioRunners = map[string]func(j *J){
 			j.File("a.txt", func(j *J) { j.Content("NEW\n") })
 		})
 	},
+	"happy_multifile": func(j *J) {
+		j.Project(ProjectProps{Folder: "sdk"}, func(j *J) {
+			j.Folder("js", func(j *J) {
+				j.File("foo.js", func(j *J) { j.Content("// custom-foo\n") })
+				j.File("bar.js", func(j *J) { j.Content("// custom-bar\n") })
+			})
+			j.Folder("go", func(j *J) {
+				j.File("zed.go", func(j *J) { j.Content("// custom-zed\n") })
+			})
+		})
+	},
+	"content_empty_folder": func(j *J) {
+		j.Folder("", func(j *J) {
+			j.File("foo.txt", func(j *J) { j.Content("A") })
+		})
+	},
+	"basic_copy": func(j *J) {
+		j.Project(ProjectProps{Folder: "sdk"}, func(j *J) {
+			j.Folder("js", func(j *J) {
+				j.File("foo.js", func(j *J) { j.Content("// custom-foo\n") })
+				j.Copy(CopyProps{From: "/tm/bar.txt", To: "bar.txt"})
+				j.Copy(CopyProps{From: "/tm/sub"})
+			})
+		})
+	},
 }
 
 // scenarioOptions returns per-scenario Options additions; merged on top
@@ -127,6 +152,8 @@ func scenarioOptions(scenario string) []Option {
 	case "diff_mode":
 		t := true
 		return []Option{WithExisting(Existing{Txt: ExistingTxt{Diff: &t}})}
+	case "basic_copy":
+		return []Option{WithModel(map[string]any{"x": map[string]any{"y": "Y", "z": "Z"}})}
 	}
 	return nil
 }

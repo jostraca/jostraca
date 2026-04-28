@@ -117,7 +117,7 @@ func (fh *fileHandler) save(p string, content []byte, whence string) error {
 	}
 
 	if isText && bytes.Contains(existing, []byte(protectMarker)) {
-		fh.filelog(&fh.files.Preserved, rpath)
+		fh.filelog(&fh.files.Preserved, p)
 		fh.appendAudit("protect", map[string]any{"path": rpath, "whence": whence})
 		if fh.bmeta != nil {
 			fh.bmeta.recordAction(rpath, "skip", exists, false, true)
@@ -156,7 +156,7 @@ func (fh *fileHandler) save(p string, content []byte, whence string) error {
 	// record a write intent (matches TS) but skip the actual fs call.
 	if modes.write {
 		if contentEqual {
-			fh.filelog(&fh.files.Unchanged, rpath)
+			fh.filelog(&fh.files.Unchanged, p)
 			fh.appendAudit("unchanged", map[string]any{"path": rpath, "whence": whence})
 			if fh.bmeta != nil {
 				fh.bmeta.recordAction(rpath, "write", exists, false, false)
@@ -171,7 +171,7 @@ func (fh *fileHandler) save(p string, content []byte, whence string) error {
 		}
 		return fh.write(p, content, rpath, whence, exists)
 	}
-	fh.filelog(&fh.files.Unchanged, rpath)
+	fh.filelog(&fh.files.Unchanged, p)
 	return nil
 }
 
@@ -190,7 +190,7 @@ func (fh *fileHandler) write(p string, content []byte, rpath, whence string, exi
 			_ = fh.fs.WriteFile(dup, content)
 		}
 	}
-	fh.filelog(&fh.files.Written, rpath)
+	fh.filelog(&fh.files.Written, p)
 	fh.appendAudit("save", map[string]any{
 		"path":   rpath,
 		"size":   len(content),
@@ -212,7 +212,7 @@ func (fh *fileHandler) savePresent(p string, content []byte, rpath, whence strin
 			return err
 		}
 	}
-	fh.filelog(&fh.files.Presented, fh.relative(out))
+	fh.filelog(&fh.files.Presented, out)
 	fh.appendAudit("present", map[string]any{"path": rpath, "out": fh.relative(out), "whence": whence})
 	if fh.bmeta != nil {
 		fh.bmeta.recordAction(rpath, "present", true, false, false)
@@ -255,9 +255,9 @@ func (fh *fileHandler) saveMerge(p string, content, existing []byte, rpath, when
 			_ = fh.fs.WriteFile(dup, content)
 		}
 	}
-	fh.filelog(&fh.files.Merged, rpath)
+	fh.filelog(&fh.files.Merged, p)
 	if res.Conflict {
-		fh.filelog(&fh.files.Conflicted, rpath)
+		fh.filelog(&fh.files.Conflicted, p)
 	}
 	fh.appendAudit("merge", map[string]any{
 		"path":     rpath,
@@ -295,9 +295,9 @@ func (fh *fileHandler) saveDiff(p string, content, existing []byte, rpath, whenc
 		}
 	}
 	conflict := !bytes.Equal(rendered, content)
-	fh.filelog(&fh.files.Diffed, rpath)
+	fh.filelog(&fh.files.Diffed, p)
 	if conflict {
-		fh.filelog(&fh.files.Conflicted, rpath)
+		fh.filelog(&fh.files.Conflicted, p)
 	}
 	fh.appendAudit("diff", map[string]any{
 		"path":     rpath,
@@ -323,7 +323,7 @@ func (fh *fileHandler) savePreserveBackup(p string, existing []byte, rpath, when
 			return err
 		}
 	}
-	fh.filelog(&fh.files.Preserved, fh.relative(backup))
+	fh.filelog(&fh.files.Preserved, backup)
 	fh.appendAudit("preserve", map[string]any{
 		"path":   rpath,
 		"backup": fh.relative(backup),
@@ -344,7 +344,7 @@ func (fh *fileHandler) savePreserve(p string, content, existing []byte, rpath, w
 			return err
 		}
 	}
-	fh.filelog(&fh.files.Written, rpath)
+	fh.filelog(&fh.files.Written, p)
 	if fh.bmeta != nil {
 		fh.bmeta.recordAction(rpath, "write", true, false, false)
 	}

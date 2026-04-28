@@ -1,0 +1,37 @@
+{
+  "scenario": "basic_copy",
+  "opts": {
+    "model": {
+      "x": {
+        "y": "Y",
+        "z": "Z"
+      }
+    }
+  },
+  "prepopulate": {
+    "/tm/bar.txt": "// BAR $$x.z$$ TXT\n",
+    "/tm/bar.txt~": "// BAR TXT\n",
+    "/tm/sub/a.txt": "// SUB-A $$x.y$$ TXT\n",
+    "/tm/sub/b.txt": "// SUB-B $$x.y$$ TXT\n",
+    "/tm/sub/c/d.txt": "// SUB-C-D $$x.y$$ $$x.z$$ TXT\n"
+  },
+  "vol": {
+    "/tm/bar.txt": "// BAR $$x.z$$ TXT\n",
+    "/tm/bar.txt~": "// BAR TXT\n",
+    "/tm/sub/a.txt": "// SUB-A $$x.y$$ TXT\n",
+    "/tm/sub/b.txt": "// SUB-B $$x.y$$ TXT\n",
+    "/tm/sub/c/d.txt": "// SUB-C-D $$x.y$$ $$x.z$$ TXT\n",
+    "/out/sdk/js/foo.js": "// custom-foo\n",
+    "/out/sdk/js/bar.txt": "// BAR Z TXT\n",
+    "/out/sdk/js/a.txt": "// SUB-A Y TXT\n",
+    "/out/sdk/js/b.txt": "// SUB-B Y TXT\n",
+    "/out/sdk/js/c/d.txt": "// SUB-C-D Y Z TXT\n",
+    "/out/.jostraca/generated/sdk/js/foo.js": "// custom-foo\n",
+    "/out/.jostraca/generated/sdk/js/bar.txt": "// BAR Z TXT\n",
+    "/out/.jostraca/generated/sdk/js/a.txt": "// SUB-A Y TXT\n",
+    "/out/.jostraca/generated/sdk/js/b.txt": "// SUB-B Y TXT\n",
+    "/out/.jostraca/generated/sdk/js/c/d.txt": "// SUB-C-D Y Z TXT\n",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sdk/js/foo.js\": {\n      \"action\": \"write\",\n      \"path\": \"sdk/js/foo.js\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"sdk/js/bar.txt\": {\n      \"action\": \"write\",\n      \"path\": \"sdk/js/bar.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"sdk/js/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"sdk/js/a.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"sdk/js/b.txt\": {\n      \"action\": \"write\",\n      \"path\": \"sdk/js/b.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"sdk/js/c/d.txt\": {\n      \"action\": \"write\",\n      \"path\": \"sdk/js/c/d.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}

@@ -354,9 +354,15 @@ func Names(base map[string]any, name string, prop ...string) map[string]any {
 	return base
 }
 
-// Indent prepends ind (a string or count of spaces) to every line after
-// the first. Mirrors src/util/basic.ts:594-601, replacing the JS lookbehind
-// with strings.ReplaceAll.
+// Indent prepends ind (a string or count of spaces) to every line —
+// including the first — and inserts the same indent after every
+// newline except a trailing one. Mirrors src/util/basic.ts:594-601
+// which uses the JS regex `(\n|^)(?!$)`. Implemented as a manual walk
+// to avoid RE2's lack of lookahead.
+//
+// indent('a', 2) → '  a'
+// indent('a\nb', 2) → '  a\n  b'
+// indent('a\nb\n', 2) → '  a\n  b\n' (trailing newline not indented)
 func Indent(src string, ind any) string {
 	if src == "" {
 		return src
@@ -378,7 +384,23 @@ func Indent(src string, ind any) string {
 	if pad == "" {
 		return src
 	}
-	return strings.ReplaceAll(src, "\n", "\n"+pad)
+	var b strings.Builder
+	b.Grow(len(src) + len(pad))
+	n := len(src)
+	// TS regex `(\n|^)(?!$)` tries \n before ^ via alternation order.
+	// So at pos 0: if src starts with \n, the \n branch matches (no
+	// initial prepend); otherwise ^ matches and we prepend pad.
+	if src[0] != '\n' {
+		b.WriteString(pad)
+	}
+	for i := 0; i < n; i++ {
+		c := src[i]
+		b.WriteByte(c)
+		if c == '\n' && i < n-1 {
+			b.WriteString(pad)
+		}
+	}
+	return b.String()
 }
 
 // sortedStringKeys returns the alphabetically sorted keys of a map[string]V

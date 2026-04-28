@@ -143,6 +143,85 @@ func TestGetXQuotedSegment(t *testing.T) {
 	}
 }
 
+// TestGetXNestedAncestry covers utility.test.ts:91-101.
+func TestGetXNestedAncestry(t *testing.T) {
+	cases := []struct {
+		root any
+		path string
+		want any
+	}{
+		// 'a:b a' returns the inner b after stepping back to a.
+		{map[string]any{"a": map[string]any{"b": map[string]any{"c": 1}}}, "a:b a", map[string]any{"b": map[string]any{"c": 1}}},
+		{map[string]any{"a": map[string]any{"b": map[string]any{"c": 1}}}, "a:b a b", map[string]any{"c": 1}},
+		{map[string]any{"a": map[string]any{"b": map[string]any{"c": 1}}}, "a:b a b c", 1},
+	}
+	for _, tc := range cases {
+		got := GetX(tc.root, tc.path)
+		if !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("GetX(%v, %q) = %v, want %v", tc.root, tc.path, got, tc.want)
+		}
+	}
+}
+
+// TestGetXNestedFilter covers utility.test.ts:108-114.
+func TestGetXNestedFilter(t *testing.T) {
+	in := map[string]any{
+		"a": map[string]any{
+			"b": map[string]any{"c": map[string]any{"e": 1}},
+			"d": map[string]any{"c": map[string]any{"e": 2}},
+		},
+	}
+	got := GetX(in, "a?c:e=1")
+	want := map[string]any{"b": map[string]any{"c": map[string]any{"e": 1}}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("GetX(a?c:e=1) = %v, want %v", got, want)
+	}
+}
+
+// TestGetXChainedFilters covers utility.test.ts:127-130.
+func TestGetXChainedFilters(t *testing.T) {
+	if v := GetX(map[string]any{"x": map[string]any{"y": 1}}, "x:y x"); !reflect.DeepEqual(v, map[string]any{"y": 1}) {
+		t.Errorf("x:y x = %v", v)
+	}
+	if v := GetX(map[string]any{"x": map[string]any{"y": 1}}, "x:y x y"); v != 1 {
+		t.Errorf("x:y x y = %v", v)
+	}
+}
+
+// TestGetXFilterPick covers utility.test.ts:153-159.
+func TestGetXFilterPick(t *testing.T) {
+	xs := []any{
+		map[string]any{"y": 1},
+		map[string]any{"y": 2},
+		map[string]any{"y": 2},
+	}
+	if v := GetX(xs, "?y=2"); !reflect.DeepEqual(v, []any{
+		map[string]any{"y": 2},
+		map[string]any{"y": 2},
+	}) {
+		t.Errorf("?y=2 (slice) = %v", v)
+	}
+	// Index after filter: ?y=2 0 picks first matching item.
+	if v := GetX(xs, "?y=2 0"); !reflect.DeepEqual(v, map[string]any{"y": 2}) {
+		t.Errorf("?y=2 0 = %v", v)
+	}
+}
+
+// TestGetXNestedArrayIndex covers utility.test.ts:147-150.
+func TestGetXNestedArrayIndex(t *testing.T) {
+	in := []any{[]any{
+		map[string]any{"a": 11},
+		map[string]any{"a": 22},
+		map[string]any{"a": 33},
+	}}
+	if v := GetX(in, "0 1 a"); v != 22 {
+		t.Errorf("0 1 a = %v", v)
+	}
+	if v := GetX(in, "0?a=11"); !reflect.DeepEqual(v, []any{map[string]any{"a": 11}}) {
+		t.Errorf("0?a=11 = %v", v)
+	}
+}
+
 func TestGetXFilterChain(t *testing.T) {
 	m := map[string]any{"x": map[string]any{"y": 1}}
 	if v := GetX(m, "x y=1 y"); v != 1 {

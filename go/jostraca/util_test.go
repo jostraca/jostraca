@@ -262,14 +262,29 @@ func TestGet(t *testing.T) {
 }
 
 func TestIndent(t *testing.T) {
+	// Cases ported from test/utility.test.ts:180-211 byte-equal.
+	// Indent prepends to every line, including the first; trailing
+	// newline is not re-indented.
 	cases := []struct {
 		src, want string
 		ind       any
 	}{
-		{"a\nb", "a\n  b", 2},
-		{"a\nb", "a\nXb", "X"},
-		{"abc", "abc", 4},
-		{"a\nb\nc", "a\n>>b\n>>c", ">>"},
+		{"a", "  a", 2},
+		{"\na", "\n  a", 2},
+		{"\n a", "\n   a", 2},
+		{"\n  a", "\n    a", 2},
+		{"\n\ta", "\n  \ta", 2},
+		{"{\n  a\n}", "  {\n    a\n  }", 2},
+		{"a", "    a", "    "},
+		{"\na", "\n    a", "    "},
+		{"\n\ta", "\n    \ta", "    "},
+		{"a\nb", "  a\n  b", 2},
+		{"a\nb\nc", "  a\n  b\n  c", 2},
+		{"a\nb\nc\n", "  a\n  b\n  c\n", 2},
+		{"\na\nb", "\n  a\n  b", 2},
+		{"\na\nb\nc\n", "\n  a\n  b\n  c\n", 2},
+		{"a\n b", "  a\n   b", 2},
+		{" a\n b\nc\n", "   a\n   b\n  c\n", 2},
 		{"", "", 4},
 	}
 	for _, tc := range cases {
@@ -298,6 +313,48 @@ func TestHumanify(t *testing.T) {
 	terse := Humanify(epoch, HumanifyFlags{Parts: true, Terse: true}).(map[string]any)
 	if terse["ty"] != 2025 || terse["tm"] != 1 || terse["td"] != 1 {
 		t.Errorf("terse = %v", terse)
+	}
+}
+
+// TestEachCorpus mirrors test/utility.test.ts:24-58 row-by-row.
+func TestEachCorpus(t *testing.T) {
+	// Empty / nil cases.
+	if got := Each(nil, EachSpec{}, nil); !reflect.DeepEqual(got, []any{}) {
+		t.Errorf("Each(nil) = %v, want []", got)
+	}
+	if got := Each(1, EachSpec{}, nil); !reflect.DeepEqual(got, []any{}) {
+		t.Errorf("Each(1) = %v, want []", got)
+	}
+
+	// Default-wrap (Raw=false) on slice.
+	got := Each([]any{11}, EachSpec{}, nil)
+	want := []any{map[string]any{"val$": 11, "index$": 0}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Each([11]) = %v, want %v", got, want)
+	}
+
+	// Sort with raw values.
+	got = Each([]any{"b", "a"}, EachSpec{Raw: true, Sort: true}, nil)
+	if !reflect.DeepEqual(got, []any{"a", "b"}) {
+		t.Errorf("sort raw = %v", got)
+	}
+
+	// Transform with Raw mode.
+	got = Each([]any{1}, EachSpec{Raw: true}, func(x any) any { return 2 * x.(int) })
+	if !reflect.DeepEqual(got, []any{2}) {
+		t.Errorf("transform raw = %v", got)
+	}
+
+	// Empty map.
+	if got := Each(map[string]any{}, EachSpec{}, nil); !reflect.DeepEqual(got, []any{}) {
+		t.Errorf("Each({}) = %v, want []", got)
+	}
+
+	// Single-key map.
+	got = Each(map[string]any{"a": 1}, EachSpec{}, nil)
+	want = []any{map[string]any{"key$": "a", "val$": 1}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Each({a:1}) = %v, want %v", got, want)
 	}
 }
 

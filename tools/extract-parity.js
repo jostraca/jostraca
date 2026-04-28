@@ -129,6 +129,47 @@ async function main() {
     })
   })
 
+  // Multi-folder happy path - mirrors test/jostraca.test.ts:'happy'.
+  await snapshot('happy_multifile', {}, () => {
+    Project({ folder: 'sdk' }, () => {
+      Folder({ name: 'js' }, () => {
+        File({ name: 'foo.js' }, () => Content('// custom-foo\n'))
+        File({ name: 'bar.js' }, () => Content('// custom-bar\n'))
+      })
+      Folder({ name: 'go' }, () => {
+        File({ name: 'zed.go' }, () => Content('// custom-zed\n'))
+      })
+    })
+  })
+
+  // Empty Folder({}) wrapper - mirrors test/jostraca.test.ts:'content'.
+  await snapshot('content_empty_folder', {}, () => {
+    Folder({}, () => {
+      File({ name: 'foo.txt' }, () => Content('A'))
+    })
+  })
+
+  // basic-copy: Copy with multiple files + ~ default ignore.
+  await snapshot('basic_copy',
+    { model: { x: { y: 'Y', z: 'Z' } } },
+    () => {
+      Project({ folder: 'sdk' }, () => {
+        Folder({ name: 'js' }, () => {
+          File({ name: 'foo.js' }, () => Content('// custom-foo\n'))
+          Copy({ from: '/tm/bar.txt', to: 'bar.txt' })
+          Copy({ from: '/tm/sub' })
+        })
+      })
+    },
+    {
+      '/tm/bar.txt':       '// BAR $$x.z$$ TXT\n',
+      '/tm/bar.txt~':      '// BAR TXT\n',  // ~ suffix → ignored by default
+      '/tm/sub/a.txt':     '// SUB-A $$x.y$$ TXT\n',
+      '/tm/sub/b.txt':     '// SUB-B $$x.y$$ TXT\n',
+      '/tm/sub/c/d.txt':   '// SUB-C-D $$x.y$$ $$x.z$$ TXT\n',
+    },
+  )
+
   // Merge: 3-way reconciliation. Setup mirrors test/merge.test.ts:
   // initial generation, then a custom edit, then a re-generation that
   // triggers merge mode.
