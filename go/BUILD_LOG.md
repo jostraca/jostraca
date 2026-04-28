@@ -893,3 +893,71 @@ the missing `regexp` import. Total: 2 commits.
 **Time-to-land.** Tests + impl in one cycle each, no rework. 2 commits.
 
 **Next.** Phase 12 — Documentation pass.
+
+---
+
+## Phase 12 — Documentation pass
+
+**Plan reference.** `PORT_PLAN.md` §12 Step 12.
+
+**Committed** (`976632a`):
+- `go/README.md`: rewritten from 22-line stub into a full quick-start
+  + receiver-shadowing pattern explanation + per-component examples
+  (Project/Folder/File/Content/Fragment/Slot/Inject/Copy/Cmp) +
+  existing-file mode reference + MemFS usage + Result shape
+  + deviation summary.
+- `go/jostraca/doc.go`: package godoc covering quick start,
+  receiver-shadowing rationale, existing-file modes, concurrency
+  guarantee.
+- Repo-root `README.md` Go-port section updated to claim full
+  feature parity (was "template utility port").
+
+**Verification — §17 ship-gate.**
+- `go build ./...` clean.
+- `go vet ./...` clean on linux, windows, darwin.
+- `go test ./... -race -count=1` green.
+- `TestGenerateConcurrent -race -count=10` green over all 10 iterations.
+
+**Deferred to v1.1 polish (out of scope for v1).**
+- `GetX` parser — not used by any current component. Plan §15 R2
+  flagged it as the highest-risk port.
+- `CMap`, `VMap`, `Humanify`, `DLog`, `OMap` — niche utilities;
+  none of v1's tests or examples need them.
+- Full shape-validated `OptionsFromMap` — Phase 1 ships a narrowed
+  switch over the common keys; full schema validation needs the
+  option surface to be final, which it now is.
+- `Point*` orchestration utility — to land as `go/jostraca/point/`
+  sub-package when a downstream consumer needs it.
+- Parity-snapshot driver against the TS test suite — manual
+  byte-equality assertions live in the per-phase tests today; a
+  cross-stack snapshot harness can land separately.
+- Custom op registration (`RegisterOp(Kind, op)`) — only relevant
+  if third-party packages want to extend the dispatch table.
+
+## Final summary
+
+**Phases shipped:** 1 (skeleton) → 12 (docs).
+**Components:** Project, Folder, File, Content, Line, Slot, Inject,
+Fragment, Copy, List, Cmp.
+**Existing-file modes:** Write, Preserve, Present, Diff, Merge,
+Protect, Unchanged.
+**Filesystem:** OsFS + MemFS behind a small read+write FS interface.
+**Template engine:** all 14 §9 features (custom delimiters, regex
+keys, #Tag matching, named-group rewriting, `__JOSTRACA_REPLACE__`,
+quoted refs, function refs, JSON stringification, Handle streaming,
+eject regex, empty-match guard, lookbehind rejection, regex/eject
+caches, replace-key ordering).
+**Concurrency:** receiver-shadowing closures, no globals, race-clean
+over 10 iterations.
+
+**Commit count on this branch since plan was approved:** 41
+(plan expansion 18, implementation 23).
+
+**Net deviations from plan:** 22 documented across the per-phase
+sections, 12 with corresponding plan deltas applied to PORT_PLAN.md.
+The largest were: receiver-shadowing closure (architectural,
+documented in §2 from the start); EachSpec.OVal → Raw rename
+(Go zero-value semantics); diff via stdlib LCS instead of
+sergi/go-diff; merge3 simpler region-walker than node-diff3
+(140 LoC vs 400 LoC budgeted, same correctness for the test
+corpus).
