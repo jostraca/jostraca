@@ -660,12 +660,33 @@ func compileEjectMarker(v any) (*regexp.Regexp, error) {
 		if v == "" {
 			return nil, nil
 		}
+		// Slash-wrapped strings are user-supplied regex bodies (matches
+		// TS at src/util/basic.ts:584-590).
+		if len(v) >= 2 && v[0] == '/' && v[len(v)-1] == '/' {
+			body := v[1 : len(v)-1]
+			ejectCacheMu.Lock()
+			defer ejectCacheMu.Unlock()
+			if re, ok := ejectCache[v]; ok {
+				return re, nil
+			}
+			re, err := regexp.Compile(body)
+			if err != nil {
+				return nil, err
+			}
+			if len(ejectCache) >= 100 {
+				ejectCache = make(map[string]*regexp.Regexp, 100)
+			}
+			ejectCache[v] = re
+			return re, nil
+		}
+		// Bare string markers consume surrounding whitespace plus an
+		// optional trailing newline, matching TS getCachedEjectRE.
 		ejectCacheMu.Lock()
 		defer ejectCacheMu.Unlock()
 		if re, ok := ejectCache[v]; ok {
 			return re, nil
 		}
-		re, err := regexp.Compile(regexp.QuoteMeta(v))
+		re, err := regexp.Compile(`[ \t]*` + regexp.QuoteMeta(v) + `[ \t]*\n?`)
 		if err != nil {
 			return nil, err
 		}

@@ -30,7 +30,7 @@ func TestTemplateReplaceAndEject(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if out != "\nZ1\n" {
+	if out != "Z1\n" {
 		t.Fatalf("unexpected output: %q", out)
 	}
 }
@@ -51,7 +51,7 @@ func TestParseTemplateSpec(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if out != "\nZ1\n" {
+	if out != "Z1\n" {
 		t.Fatalf("unexpected output: %q", out)
 	}
 }
@@ -218,13 +218,15 @@ func TestTemplateEjectStrings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if out != "\nQ1\n" {
-		t.Errorf("got %q, want %q", out, "\nQ1\n")
+	if out != "Q1\n" {
+		t.Errorf("got %q, want %q", out, "Q1\n")
 	}
 }
 
 func TestTemplateEjectRegex(t *testing.T) {
-	src := "A\nSTART\nQ$$a$$\nEND\nB"
+	// Bare regexes preserve surrounding whitespace/newlines per TS; only
+	// string-form markers get the [ \t]* + \n? wrapping.
+	src := "\nA\n  START  \nQ$$a$$\n  END  \nB\n"
 	startRE := regexp.MustCompile("START")
 	endRE := regexp.MustCompile("END")
 	out, err := Template(src, map[string]any{"a": 1}, &TemplateSpec{
@@ -233,8 +235,9 @@ func TestTemplateEjectRegex(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if out != "\nQ1\n" {
-		t.Errorf("got %q, want %q", out, "\nQ1\n")
+	want := "  \nQ1\n  "
+	if out != want {
+		t.Errorf("got %q, want %q", out, want)
 	}
 }
 
