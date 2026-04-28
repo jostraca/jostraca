@@ -127,13 +127,11 @@ func (fh *fileHandler) save(p string, content []byte, whence string) error {
 	}
 
 	switch {
-	// Phase 6 ships preserve/present and write; diff/merge in Phases 10/11.
 	case isText && modes.merge:
-		// Phase 11: merge.
+		// Phase 11 wires saveMerge here. For now stub to write.
 		return fh.write(p, content, rpath, whence)
 	case isText && modes.diff:
-		// Phase 10: diff.
-		return fh.write(p, content, rpath, whence)
+		return fh.saveDiff(p, content, existing, rpath, whence)
 	case modes.present:
 		return fh.savePresent(p, content, rpath, whence)
 	case modes.preserve:
@@ -184,6 +182,29 @@ func (fh *fileHandler) savePresent(p string, content []byte, rpath, whence strin
 	}
 	fh.filelog(&fh.files.Presented, fh.relative(out))
 	fh.appendAudit("present", map[string]any{"path": rpath, "out": fh.relative(out), "whence": whence})
+	return nil
+}
+
+func (fh *fileHandler) saveDiff(p string, content, existing []byte, rpath, whence string) error {
+	rendered := renderDiff(content, existing)
+	out := annotatedPath(p, "diff")
+	if err := fh.ensureDirOf(out); err != nil {
+		return err
+	}
+	if !fh.control.Dryrun {
+		if err := fh.fs.WriteFile(out, rendered); err != nil {
+			return err
+		}
+	}
+	fh.filelog(&fh.files.Diffed, fh.relative(out))
+	if !bytes.Equal(rendered, content) {
+		fh.filelog(&fh.files.Conflicted, rpath)
+	}
+	fh.appendAudit("diff", map[string]any{
+		"path":   rpath,
+		"out":    fh.relative(out),
+		"whence": whence,
+	})
 	return nil
 }
 
