@@ -736,3 +736,55 @@ threading — concurrent `Generate` calls are isolated by construction.
 **Time-to-land.** Tests + impl in one cycle each, no fixups. 2 commits.
 
 **Next.** Phase 9 — Copy full feature set.
+
+---
+
+## Phase 9 — Copy full feature set
+
+**Plan reference.** `PORT_PLAN.md` §12 Step 9, §5, §6 (CopyOp row).
+
+**Tests committed first** (`copy_test.go`, `45698a2`):
+- `TestCopySingleFile` — copy + template substitution.
+- `TestCopyFileWithTo` — destination rename via `To`.
+- `TestCopyDirectoryRecursive` — walk + write all entries.
+- `TestCopyBinaryUntouched` — binary bytes pass through untouched
+  (template not applied).
+
+**Implementation committed** (`88feaa1`):
+- `CopyProps` and `j.Copy` builder method (deferred from Phase 5
+  per the original plan: Copy is a leaf at define time and lives
+  in Phase 9 here).
+- `copyBefore` distinguishes single-file vs directory via `Stat.IsDir`.
+  Single file: read, template (if `!IsBinExt`), store body in
+  `n.Content` so `copyAfter` can write via `fh.save`. Directory:
+  set `n.After.Kind = "copy"` to trigger `copyWalk`.
+- `walkCopy` recursively reads `ReadDir` entries; templates text,
+  passes through binaries. Honours `Cmp.Copy.Ignore` regex list
+  and the default `~$` pattern.
+- `shouldIgnoreCopyPath` accepts string, []any with strings, and
+  []any with regex elements for `Exclude`.
+
+**Verification.**
+- `go vet ./...` clean.
+- `go test ./... -race -count=1` green; all 4 Copy tests pass on
+  first compile after a one-line fixup (added `regexp` import).
+
+**Deviations from plan.**
+
+1. **`Copy` builder lives in Phase 9, not Phase 5.** Plan §12 Step 5
+   listed it under leaf components. Moved here because the op logic
+   is what matters; the builder is trivial. No external deviation
+   visible to users.
+
+2. **No template substitution for `To`/`From`.** Plan §5.3 didn't
+   specify; TS uses `props.from` literally. My impl honours that.
+
+3. **`Cmp.Copy.Ignore` defaults to `~$`** via a hardcoded
+   `defaultCopyIgnoreRE` in build.go rather than initialising
+   `Options.Cmp.Copy.Ignore` to that pattern. Equivalent behaviour;
+   slightly different storage. Matches TS at `src/jostraca.ts:138`.
+
+**Time-to-land.** Tests + impl in one cycle each; one fixup for
+the missing `regexp` import. Total: 2 commits.
+
+**Next.** Phase 10 — 2-way diff mode.
