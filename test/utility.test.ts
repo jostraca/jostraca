@@ -241,6 +241,14 @@ describe('util', () => {
     expect(partify(true as unknown as string)).equal(['true'])
     expect(partify([true] as unknown as string[])).equal(['true'])
 
+    // Single lowercase tokens between separators must stay separate.
+    expect(partify('yes-as-a-service')).equal(['yes', 'as', 'a', 'service'])
+    expect(partify('a-b-c')).equal(['a', 'b', 'c'])
+    expect(partify('YesAsAService')).equal(['Yes', 'As', 'A', 'Service'])
+    expect(kebabify('yes-as-a-service')).equal('yes-as-a-service')
+    expect(kebabify(camelify('yes-as-a-service'))).equal('yes-as-a-service')
+    expect(snakify('yes-as-a-service')).equal('yes_as_a_service')
+
     expect(camelify(null as unknown as string)).equal('Null')
     expect(camelify(undefined as unknown as string)).equal('Undefined')
     expect(camelify('foo')).equal('Foo')

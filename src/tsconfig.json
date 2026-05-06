@@ -8,7 +8,9 @@
     "resolveJsonModule": true,
     "sourceMap": true,
     "strict": true,
-    "target": "es2021",
+    "target": "es2022",
+    "lib": ["esnext"],
+    "types": ["node"],
     "declaration": true,
     "declarationDir": "../dist"
   }

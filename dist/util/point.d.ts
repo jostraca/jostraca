@@ -105,6 +105,7 @@ declare const PointDefShape: {
         name: string;
         message: string;
         stack?: string;
+        cause?: unknown;
     }[];
     spec(): any;
     node(): import("shape").Node<{

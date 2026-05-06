@@ -274,11 +274,29 @@ function lcf(s) {
 function partify(input) {
     return 'string' == typeof input ?
         input
-            .replace(/([A-Z])([A-Z]+)/g, (_, first, rest) => first + rest.toLowerCase())
+            // Collapse acronym runs (e.g. `XMLParser` → `XmlParser`), but only when
+            // the trailing uppercase isn't itself the start of a new word —
+            // `(?![a-z])` prevents `AService` collapsing into `Aservice`.
+            .replace(/([A-Z])([A-Z]+)(?![a-z])/g, (_, first, rest) => first + rest.toLowerCase())
             .split(/[-_ ]|([A-Z])/)
             .filter(p => null != p && '' !== p)
-            .reduce((a, p) => (((0 < a.length && 1 === a[a.length - 1].length) ?
-            a[a.length - 1] += p : a.push(p)), a), []) :
+            // Re-attach a captured single uppercase letter to the lowercase tail
+            // that follows it (the rest of its word). Without the uppercase guard,
+            // a stray single lowercase letter between separators (e.g. `a` in
+            // `yes-as-a-service`) would also be glued to the next part.
+            .reduce((a, p) => {
+            const prev = a[a.length - 1];
+            if (0 < a.length &&
+                1 === prev.length &&
+                'A' <= prev && prev <= 'Z' &&
+                !('A' <= p[0] && p[0] <= 'Z')) {
+                a[a.length - 1] = prev + p;
+            }
+            else {
+                a.push(p);
+            }
+            return a;
+        }, []) :
         Array.isArray(input) ? input.map(n => '' + n) : ['' + input];
 }
 function names(base, name, prop = 'name') {

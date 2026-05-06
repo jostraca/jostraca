@@ -127,6 +127,7 @@ declare const OptionsShape: {
         name: string;
         message: string;
         stack?: string;
+        cause?: unknown;
     }[];
     spec(): any;
     node(): import("shape").Node<{
@@ -240,6 +241,7 @@ declare const ExistingShape: {
         name: string;
         message: string;
         stack?: string;
+        cause?: unknown;
     }[];
     spec(): any;
     node(): import("shape").Node<{

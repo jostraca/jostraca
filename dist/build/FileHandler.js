@@ -21,6 +21,20 @@ const JOSTRACA_PROTECT = 'JOSTRACA_PROTECT';
 // Log non-fatal wierdness.
 const dlog = (0, basic_1.getdlog)('jostraca', __filename);
 class FileHandler {
+    when;
+    fs;
+    now;
+    folder;
+    audit;
+    maxdepth;
+    existing;
+    control;
+    duplicateFolder;
+    last;
+    addmeta;
+    metafile;
+    files;
+    createdDirs;
     constructor(bctx, existing, control) {
         this.fs = bctx.fs;
         this.now = bctx.now;

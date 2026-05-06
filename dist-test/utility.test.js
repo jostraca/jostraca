@@ -166,6 +166,13 @@ const __1 = require("../");
         (0, expect_1.expect)((0, __1.partify)(['foo', 'bar'])).equal(['foo', 'bar']);
         (0, expect_1.expect)((0, __1.partify)(true)).equal(['true']);
         (0, expect_1.expect)((0, __1.partify)([true])).equal(['true']);
+        // Single lowercase tokens between separators must stay separate.
+        (0, expect_1.expect)((0, __1.partify)('yes-as-a-service')).equal(['yes', 'as', 'a', 'service']);
+        (0, expect_1.expect)((0, __1.partify)('a-b-c')).equal(['a', 'b', 'c']);
+        (0, expect_1.expect)((0, __1.partify)('YesAsAService')).equal(['Yes', 'As', 'A', 'Service']);
+        (0, expect_1.expect)((0, __1.kebabify)('yes-as-a-service')).equal('yes-as-a-service');
+        (0, expect_1.expect)((0, __1.kebabify)((0, __1.camelify)('yes-as-a-service'))).equal('yes-as-a-service');
+        (0, expect_1.expect)((0, __1.snakify)('yes-as-a-service')).equal('yes_as_a_service');
         (0, expect_1.expect)((0, __1.camelify)(null)).equal('Null');
         (0, expect_1.expect)((0, __1.camelify)(undefined)).equal('Undefined');
         (0, expect_1.expect)((0, __1.camelify)('foo')).equal('Foo');

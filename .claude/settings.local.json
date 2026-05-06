@@ -22,7 +22,10 @@
       "Bash(GOROOT=/usr/local/go PATH=\"/usr/local/go/bin:$PATH\" go doc github.com/rjrodger/shape/go/shape 2>&1)",
       "Bash(GOROOT=/usr/local/go PATH=\"/usr/local/go/bin:$PATH\" go doc github.com/rjrodger/shape/go/shape Schema.Validate 2>&1)",
       "Bash(npm uninstall *)",
-      "Bash(echo \"exit:$?\")"
+      "Bash(echo \"exit:$?\")",
+      "Bash(npx tsc *)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(echo \"---EXIT: $?\")"
     ]
   }
 }

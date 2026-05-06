@@ -8,6 +8,9 @@ const node_path_1 = __importDefault(require("node:path"));
 const basic_1 = require("../util/basic");
 // Handle loading, recording,and saving of build meta data
 class BuildMeta {
+    fh;
+    prev;
+    next;
     constructor(fh) {
         this.fh = fh;
         // TODO: file folder and name default can be overriden by jopts

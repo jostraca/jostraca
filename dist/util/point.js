@@ -6,6 +6,9 @@ exports.makeFuncDef = makeFuncDef;
 const shape_1 = require("shape");
 const basic_1 = require("./basic");
 class Point {
+    id;
+    name;
+    args;
     constructor(id, name) {
         this.id = id;
         this.name = name;
@@ -37,6 +40,7 @@ class Point {
 }
 exports.Point = Point;
 class SerialPoint extends Point {
+    points;
     constructor(id) {
         super(id);
         this.points = [];
@@ -59,6 +63,7 @@ class SerialPoint extends Point {
 }
 exports.SerialPoint = SerialPoint;
 class RootPoint extends SerialPoint {
+    points;
     constructor(id) {
         super(id);
         this.points = [];
@@ -96,6 +101,7 @@ class RootPoint extends SerialPoint {
 }
 exports.RootPoint = RootPoint;
 class ParallelPoint extends Point {
+    points;
     constructor(id) {
         super(id);
         this.points = [];
@@ -111,6 +117,7 @@ class ParallelPoint extends Point {
 }
 exports.ParallelPoint = ParallelPoint;
 class FuncPoint extends Point {
+    func;
     constructor(id, func) {
         super(id, func.name);
         this.func = func;
@@ -126,6 +133,7 @@ class FuncPoint extends Point {
 }
 exports.FuncPoint = FuncPoint;
 class PrintPoint extends Point {
+    path;
     constructor(id, path) {
         super(id);
         this.path = path;

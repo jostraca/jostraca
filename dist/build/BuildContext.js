@@ -10,6 +10,17 @@ const BuildMeta_1 = require("./BuildMeta");
 const CN = 'BuildContext:';
 // TODO: rename meta folder to build, move into build folder
 class BuildContext {
+    fs;
+    now;
+    bmeta;
+    fh;
+    audit;
+    when;
+    vol;
+    folder;
+    current;
+    log;
+    dfolder;
     constructor(folder, existing, control, fs, now) {
         this.fs = fs;
         this.now = now;
