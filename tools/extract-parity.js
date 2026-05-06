@@ -180,6 +180,12 @@ async function main() {
   // path normalization.
   await snapshotAbsPath('absolute_paths')
 
+  // Merge with no duplicate baseline. Existing file is left untouched;
+  // the new generated content is seeded into the duplicate folder so a
+  // future run can merge against it. Single-phase capture: pre-populate
+  // an existing file but not the baseline, then generate with merge.
+  await snapshotMergeNoBaseline('merge_no_baseline')
+
   // Multi-run merge retention. Mirrors test/merge.test.ts:'retain'.
   // Each phase takes a snapshot of /foo.txt. Sequence is:
   //   G-0 first gen (model.foo='aaa\n')
@@ -442,6 +448,32 @@ async function snapshotMergeUpdate(name) {
     model: { body: 'BBB\n' }, now: () => FROZEN_NOW,
     existing: { txt: { merge: true } },
   }, root({ body: 'BBB\n' }))
+
+  const vol = mfs.vol.toJSON()
+  require('fs').writeFileSync(
+    require('path').join(outDir, name + '.json'),
+    JSON.stringify({ scenario: name, vol }, null, 2) + '\n',
+  )
+  console.log('wrote', name)
+}
+
+async function snapshotMergeNoBaseline(name) {
+  // No baseline in /out/.jostraca/generated, but the target file already
+  // exists (e.g. user authored it before adopting jostraca). Merge mode
+  // on this state should leave the file untouched and seed the duplicate
+  // folder with the new content.
+  const j = Jostraca({})
+  const root = () => Project({ folder: 'sdk' }, () => {
+    File({ name: 'foo.txt' }, () => Content('GEN\n'))
+  })
+
+  const mfs = memfs({ '/out/sdk/foo.txt': 'USER\n' })
+  const fs = mfs.fs
+  await j.generate({
+    fs: () => fs, folder: '/out',
+    now: () => FROZEN_NOW,
+    existing: { txt: { merge: true } },
+  }, root)
 
   const vol = mfs.vol.toJSON()
   require('fs').writeFileSync(

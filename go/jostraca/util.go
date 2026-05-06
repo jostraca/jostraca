@@ -16,11 +16,13 @@ import (
 // places (PORT_PLAN §14, Phase-4 BUILD_LOG):
 //
 //	Raw    — if true, items are returned as-is (TS oval=false). If
-//	         false (default), each item is wrapped in {val$, index$}
-//	         or {key$, val$} matching TS's default oval=true behaviour.
+//	         false (default), scalar items are wrapped in {val$, index$}
+//	         or {key$, val$} matching TS's default oval=true behaviour;
+//	         items that are already map[string]any pass through and
+//	         only get the index$/key$ stamp.
 //	NoMark — if true, suppress the index$/key$ marker that TS adds by
-//	         default when oval=false. Inverted from TS so Go zero
-//	         value matches TS default mark=true.
+//	         default. Inverted from TS so Go zero value matches TS
+//	         default mark=true.
 //	Sort   — sort by stringified value (slices) or by key (maps).
 type EachSpec struct {
 	NoMark bool
@@ -51,10 +53,22 @@ func Each(subject any, spec EachSpec, apply func(any) any) []any {
 		for i, item := range items {
 			val := item
 			if !spec.Raw {
-				val = map[string]any{"val$": item, "index$": i}
+				// TS basic.ts:39-49: when oval=true (default), object
+				// items pass through untouched; non-objects get wrapped
+				// as {val$: n}. Then mark=true (default) writes index$
+				// onto whichever object now sits in the slot.
+				if m, ok := item.(map[string]any); ok {
+					if !spec.NoMark {
+						m["index$"] = i
+					}
+					val = m
+				} else {
+					val = map[string]any{"val$": item, "index$": i}
+				}
 			} else if !spec.NoMark {
-				// TS: when oval=false and mark=true (default), set
-				// index$ on object items.
+				// Raw=true (oval=false) + mark=true: set index$ only on
+				// object items, leave scalars unchanged. Mirrors TS at
+				// basic.ts:47-49.
 				if m, ok := val.(map[string]any); ok {
 					m["index$"] = i
 				}
@@ -81,7 +95,17 @@ func Each(subject any, spec EachSpec, apply func(any) any) []any {
 					}
 				}
 			} else {
-				val = map[string]any{"key$": k, "val$": v}
+				// TS basic.ts:79-89: when oval=true and value is already
+				// an object, pass through and stamp key$ onto it. Only
+				// scalars get wrapped as {key$, val$}.
+				if m, ok := v.(map[string]any); ok {
+					if !spec.NoMark {
+						m["key$"] = k
+					}
+					val = m
+				} else {
+					val = map[string]any{"key$": k, "val$": v}
+				}
 			}
 			if apply != nil {
 				val = apply(val)

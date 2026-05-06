@@ -182,6 +182,12 @@ func TestParityScenarios(t *testing.T) {
 			continue
 		}
 		name := strings.TrimSuffix(e.Name(), ".json")
+		// Phase-shaped corpora are owned by their dedicated test functions
+		// (e.g. merge_retain.json drives TestMergeRetainSequence). They
+		// don't fit the {opts, prepopulate, vol} runner shape.
+		if _, isPhaseShaped := phaseShapedCorpora[name]; isPhaseShaped {
+			continue
+		}
 		t.Run(name, func(t *testing.T) {
 			runParityCase(t, "testdata/parity/"+e.Name(), name)
 		})
@@ -270,6 +276,14 @@ func assertVol(t *testing.T, mem *MemFS, want map[string]string) {
 	}
 }
 
+// phaseShapedCorpora names parity JSON files whose top-level shape is a
+// phase replay (label/foo pairs) rather than {opts, prepopulate, vol}.
+// They have dedicated test functions and are skipped from the standard
+// runner so the parity scenario list shows only single-Generate cases.
+var phaseShapedCorpora = map[string]struct{}{
+	"merge_retain": {}, // covered by TestMergeRetainSequence
+}
+
 // scenarioMultiPhase holds runners that can't be expressed as a single
 // Generate call. Each runner builds the FS state (running multiple
 // generations + external edits) and returns the MemFS for assertion.
@@ -277,6 +291,28 @@ var scenarioMultiPhase = map[string]func(*testing.T) *MemFS{
 	"merge_basic":  func(t *testing.T) *MemFS { return mergeRunner(t, "AAA\n", "AAA\nuser-line\n", "BBB\n", "$$body$$") },
 	"merge_update": func(t *testing.T) *MemFS { return mergeRunner(t, "AAA\n", "// header\nAAA\n// user-comment\n", "BBB\n", "// header\n$$body$$") },
 	"merge_clean":  func(t *testing.T) *MemFS { return mergeRunnerNoEdit(t, "AAA\n", "CCC\n", "$$body$$") },
+	"merge_no_baseline": func(t *testing.T) *MemFS {
+		// User-authored file is in place but no duplicate baseline
+		// exists — typical "first run after adopting jostraca on
+		// existing code" state. Merge mode without a baseline falls
+		// through to the regular write path (TS FileHandler.ts:282-336
+		// leaves the merge block silently when dpath doesn't exist).
+		mem := NewMemFS()
+		_ = mem.WriteFile("/out/sdk/foo.txt", []byte("USER\n"))
+		j := New(WithFS(mem), WithFolder("/out"), WithNow(func() int64 { return frozenNow }))
+		mergeTrue := true
+		_, err := j.Generate(Options{
+			Existing: Existing{Txt: ExistingTxt{Merge: &mergeTrue}},
+		}, func(j *J) {
+			j.Project(ProjectProps{Folder: "sdk"}, func(j *J) {
+				j.File("foo.txt", func(j *J) { j.Content("GEN\n") })
+			})
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return mem
+	},
 	"fragment_subcmp": func(t *testing.T) *MemFS {
 		mem := NewMemFS()
 		_ = mem.WriteFile("/f01.txt", []byte("TWO-$$a$$-bar-zed-con-foo+<[SLOT]>\n"))

@@ -412,6 +412,48 @@ func TestEachWrapDefault(t *testing.T) {
 	}
 }
 
+func TestEachDefaultPreservesObjectSlice(t *testing.T) {
+	// Mirrors TS basic.ts:39-49: oval=true (default) preserves object
+	// items as-is and stamps index$ onto them. Mixed scalars get the
+	// {val$, index$} wrap. Cross-checked against TS:
+	//   each([{a:1}, 7]) → [{a:1, index$:0}, {val$:7, index$:1}]
+	got := Each([]any{
+		map[string]any{"a": 1},
+		7,
+	}, EachSpec{}, nil)
+	w0 := got[0].(map[string]any)
+	if w0["a"] != 1 || w0["index$"] != 0 {
+		t.Errorf("object slot lost original keys or marker: %v", w0)
+	}
+	if _, hasVal := w0["val$"]; hasVal {
+		t.Errorf("object slot must not be re-wrapped: %v", w0)
+	}
+	w1 := got[1].(map[string]any)
+	if w1["val$"] != 7 || w1["index$"] != 1 {
+		t.Errorf("scalar wrap = %v", w1)
+	}
+}
+
+func TestEachDefaultPreservesObjectMap(t *testing.T) {
+	// Mirrors TS basic.ts:79-89: object values pass through and get
+	// key$ stamped; scalar values get wrapped as {key$, val$}.
+	got := Each(map[string]any{
+		"x": map[string]any{"v": 1},
+		"y": 9,
+	}, EachSpec{}, nil)
+	w0 := got[0].(map[string]any)
+	if w0["v"] != 1 || w0["key$"] != "x" {
+		t.Errorf("object value lost shape: %v", w0)
+	}
+	if _, hasVal := w0["val$"]; hasVal {
+		t.Errorf("object value must not be re-wrapped: %v", w0)
+	}
+	w1 := got[1].(map[string]any)
+	if w1["val$"] != 9 || w1["key$"] != "y" {
+		t.Errorf("scalar value wrap = %v", w1)
+	}
+}
+
 func TestCMapAndVMap(t *testing.T) {
 	in := map[string]any{
 		"a": map[string]any{"x": 1, "y": "A"},

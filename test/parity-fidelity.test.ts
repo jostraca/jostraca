@@ -39,6 +39,21 @@ describe('parity-fidelity', () => {
   })
 
 
+  // each-default-mixed: with default oval=true, object items pass
+  // through unwrapped and only get index$/key$ stamped; scalars get
+  // the full {val$, index$|key$} wrap. Verifies the Go port doesn't
+  // double-wrap objects.
+  test('each-default-mixed-slice', () => {
+    expect(each([{ a: 1 }, 7]))
+      .equal([{ a: 1, index$: 0 }, { val$: 7, index$: 1 }])
+  })
+
+  test('each-default-mixed-map', () => {
+    expect(each({ x: { v: 1 }, y: 9 }))
+      .equal([{ v: 1, key$: 'x' }, { val$: 9, key$: 'y' }])
+  })
+
+
   // Audit `why` breadcrumbs: every save() captures which mode-dispatch
   // branches fired. The TS audit array has [tag, data] pairs where
   // data.why is an array of breadcrumbs.

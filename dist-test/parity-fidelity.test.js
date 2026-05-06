@@ -22,6 +22,18 @@ const __1 = require("../");
     (0, node_test_1.test)('each-mark-map-raw', () => {
         (0, expect_1.expect)((0, __1.each)({ x: { v: 1 }, y: { v: 2 } }, { oval: false, mark: true })).equal([{ v: 1, key$: 'x' }, { v: 2, key$: 'y' }]);
     });
+    // each-default-mixed: with default oval=true, object items pass
+    // through unwrapped and only get index$/key$ stamped; scalars get
+    // the full {val$, index$|key$} wrap. Verifies the Go port doesn't
+    // double-wrap objects.
+    (0, node_test_1.test)('each-default-mixed-slice', () => {
+        (0, expect_1.expect)((0, __1.each)([{ a: 1 }, 7]))
+            .equal([{ a: 1, index$: 0 }, { val$: 7, index$: 1 }]);
+    });
+    (0, node_test_1.test)('each-default-mixed-map', () => {
+        (0, expect_1.expect)((0, __1.each)({ x: { v: 1 }, y: 9 }))
+            .equal([{ v: 1, key$: 'x' }, { val$: 9, key$: 'y' }]);
+    });
     // Audit `why` breadcrumbs: every save() captures which mode-dispatch
     // branches fired. The TS audit array has [tag, data] pairs where
     // data.why is an array of breadcrumbs.

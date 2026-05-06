@@ -155,7 +155,15 @@ func (fh *fileHandler) save(p string, content []byte, whence string) error {
 	// merge and diff are exclusive write paths.
 	if isText && modes.merge {
 		why = append(why, "merge-0")
-		return fh.saveMerge(p, content, existing, rpath, whence, why)
+		dpath := fh.duplicateFolder + "/" + rpath
+		if fh.fs.Exists(dpath) {
+			return fh.saveMerge(p, content, existing, rpath, whence, why)
+		}
+		// No baseline: TS leaves the merge block silently at
+		// FileHandler.ts:282-336 and falls through to the regular
+		// existing.write check (line 340). Continue to preserve/
+		// present/write logic.
+		why = append(why, "no-baseline-0")
 	}
 	if isText && modes.diff {
 		why = append(why, "diff-0")
@@ -262,8 +270,10 @@ func (fh *fileHandler) savePresent(p string, content []byte, rpath, whence strin
 }
 
 // saveMerge runs a 3-way merge using the duplicate-folder baseline as
-// the common ancestor. If no baseline exists (first generation, or
-// duplicate disabled), saveMerge falls back to a 2-way diff render.
+// the common ancestor. The caller (save()) only dispatches here when a
+// baseline file exists; the no-baseline fall-through path is handled
+// before dispatch and ends in the regular write logic, mirroring TS at
+// FileHandler.ts:282-336.
 //
 // Skip semantics: if existing already contains conflict markers from
 // a previous unresolved merge, the file is left untouched (TS
@@ -292,16 +302,11 @@ func (fh *fileHandler) saveMerge(p string, content, existing []byte, rpath, when
 		return nil
 	}
 	dpath := fh.duplicateFolder + "/" + rpath
-	var baseline []byte
-	if fh.fs.Exists(dpath) {
-		var err error
-		baseline, err = fh.fs.ReadFile(dpath)
-		if err != nil {
-			return err
-		}
-	} else {
-		// No baseline: degrade to 2-way diff.
-		return fh.saveDiff(p, content, existing, rpath, whence, append(why, "no-baseline-0"))
+	// saveMerge is only entered when a baseline exists; the no-baseline
+	// fall-through is handled in save() before dispatch.
+	baseline, err := fh.fs.ReadFile(dpath)
+	if err != nil {
+		return err
 	}
 	isoWhen := time.UnixMilli(fh.when).UTC().Format("2006-01-02T15:04:05.000Z")
 	isoLast := time.UnixMilli(fh.bmeta.last()).UTC().Format("2006-01-02T15:04:05.000Z")
