@@ -25,7 +25,8 @@
       "Bash(echo \"exit:$?\")",
       "Bash(npx tsc *)",
       "Bash(echo \"EXIT: $?\")",
-      "Bash(echo \"---EXIT: $?\")"
+      "Bash(echo \"---EXIT: $?\")",
+      "Read(//Users/richard/Projects/jsonicjs/jsonic/**)"
     ]
   }
 }
