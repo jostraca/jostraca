@@ -1,0 +1,485 @@
+package jostraca
+
+import (
+	"bytes"
+	"path"
+	"path/filepath"
+	"strings"
+	"time"
+)
+
+// fileHandler is the only place that touches the filesystem during the
+// build phase. Ops in build.go push content through fh.save and fh.copy.
+type fileHandler struct {
+	fs       FS
+	now      func() int64
+	folder   string
+	when     int64
+	audit    *Audit
+	existing Existing
+	control  Control
+
+	files       Files
+	createdDirs map[string]struct{}
+
+	bmeta           *buildMeta
+	duplicateFolder string
+	maxDepth        int
+}
+
+const protectMarker = "JOSTRACA_PROTECT"
+
+// modeBits collapses the per-file mode booleans for one save call.
+type modeBits struct {
+	write    bool
+	preserve bool
+	present  bool
+	diff     bool
+	merge    bool
+}
+
+func boolOr(p *bool, def bool) bool {
+	if p == nil {
+		return def
+	}
+	return *p
+}
+
+func (fh *fileHandler) modesFor(isText bool) modeBits {
+	if isText {
+		return modeBits{
+			write:    boolOr(fh.existing.Txt.Write, true),
+			preserve: boolOr(fh.existing.Txt.Preserve, false),
+			present:  boolOr(fh.existing.Txt.Present, false),
+			diff:     boolOr(fh.existing.Txt.Diff, false),
+			merge:    boolOr(fh.existing.Txt.Merge, false),
+		}
+	}
+	return modeBits{
+		write:    boolOr(fh.existing.Bin.Write, true),
+		preserve: boolOr(fh.existing.Bin.Preserve, false),
+		present:  boolOr(fh.existing.Bin.Present, false),
+	}
+}
+
+func newFileHandler(b *buildCtx) *fileHandler {
+	st := b.st
+	fs := st.fs
+	if fs == nil {
+		fs = OsFS{}
+	}
+	folder := fwd(filepath.Clean(st.folder))
+	if folder == "" {
+		folder = "."
+	}
+	dup := folder + "/.jostraca/generated"
+	fh := &fileHandler{
+		fs:              fs,
+		now:             st.now,
+		folder:          folder,
+		when:            b.when,
+		audit:           &b.audit,
+		existing:        st.opts.Existing,
+		control:         st.opts.Control,
+		createdDirs:     map[string]struct{}{},
+		duplicateFolder: dup,
+		maxDepth:        22,
+	}
+	fh.bmeta = newBuildMeta(fh)
+	return fh
+}
+
+// fwd normalises a path to canonical-/ form. (`filepath.ToSlash` only
+// affects Windows; safe to apply unconditionally.)
+func fwd(p string) string {
+	return filepath.ToSlash(p)
+}
+
+// save writes content under the configured existing-file mode.
+func (fh *fileHandler) save(p string, content []byte, whence string) error {
+	if p == "" {
+		return ErrInvalidPath
+	}
+	p = fwd(p)
+	rpath := fh.relative(p)
+	isText := !IsBinExt(p)
+	modes := fh.modesFor(isText)
+
+	exists := fh.fs.Exists(p)
+	// why captures the mode-dispatch breadcrumbs accumulated during this
+	// save. Mirrors the `why` array in TS at src/build/FileHandler.ts:162+.
+	why := []string{}
+	wTag := "wW"
+	if modes.write {
+		wTag = "w" + wTag[1:]
+	}
+	xTag := "X"
+	if exists {
+		xTag = "x"
+	}
+	why = append(why, "start<"+wTag[:1]+xTag+">")
+
+	// New file: simple write (modes.write == true is implied by default).
+	if !exists {
+		why = append(why, "write-1")
+		return fh.write(p, content, rpath, whence, false, why)
+	}
+	why = append(why, "exists-0")
+
+	existing, err := fh.fs.ReadFile(p)
+	if err != nil {
+		return err
+	}
+
+	if isText && bytes.Contains(existing, []byte(protectMarker)) {
+		why = append(why, "protect-0")
+		fh.filelog(&fh.files.Preserved, p)
+		fh.appendAudit("protect", map[string]any{"path": rpath, "whence": whence, "why": why})
+		if fh.bmeta != nil {
+			fh.bmeta.recordAction(rpath, "skip", exists, false, true)
+		}
+		// TS still writes the duplicate baseline even when protected.
+		if !fh.control.Dryrun && fh.control.Duplicate() {
+			dup := fh.duplicateFolder + "/" + rpath
+			_ = fh.ensureDirOf(dup)
+			_ = fh.fs.WriteFile(dup, content)
+		}
+		return nil
+	}
+
+	contentEqual := bytes.Equal(existing, content)
+	if !contentEqual {
+		why = append(why, "content-0")
+	}
+
+	// merge and diff are exclusive write paths.
+	if isText && modes.merge {
+		why = append(why, "merge-0")
+		return fh.saveMerge(p, content, existing, rpath, whence, why)
+	}
+	if isText && modes.diff {
+		why = append(why, "diff-0")
+		return fh.saveDiff(p, content, existing, rpath, whence, why)
+	}
+
+	// preserve: write the .old.<ext> backup before falling through to write.
+	if modes.preserve && !contentEqual {
+		why = append(why, "preserve-0")
+		if err := fh.savePreserveBackup(p, existing, rpath, whence); err != nil {
+			return err
+		}
+	}
+	// present: write the .new.<ext> sidecar when write is OFF.
+	if modes.present && !modes.write {
+		why = append(why, "present-0")
+		return fh.savePresent(p, content, rpath, whence, why)
+	}
+
+	// Default: overwrite (or write new). When content is equal we still
+	// record a write intent (matches TS) but skip the actual fs call.
+	if modes.write {
+		if contentEqual {
+			why = append(why, "unchanged-0")
+			fh.filelog(&fh.files.Unchanged, p)
+			fh.appendAudit("unchanged", map[string]any{"path": rpath, "whence": whence, "why": why})
+			if fh.bmeta != nil {
+				fh.bmeta.recordAction(rpath, "write", exists, false, false)
+			}
+			// Still keep the duplicate baseline current.
+			if !fh.control.Dryrun && fh.control.Duplicate() {
+				dup := fh.duplicateFolder + "/" + rpath
+				_ = fh.ensureDirOf(dup)
+				_ = fh.fs.WriteFile(dup, content)
+			}
+			return nil
+		}
+		why = append(why, "write-1")
+		return fh.write(p, content, rpath, whence, exists, why)
+	}
+	why = append(why, "skip-0")
+	fh.filelog(&fh.files.Unchanged, p)
+	fh.appendAudit("skip", map[string]any{"path": rpath, "whence": whence, "why": why})
+	return nil
+}
+
+func (fh *fileHandler) write(p string, content []byte, rpath, whence string, exists bool, why []string) error {
+	if err := fh.ensureDirOf(p); err != nil {
+		return err
+	}
+	if !fh.control.Dryrun {
+		if err := fh.fs.WriteFile(p, content); err != nil {
+			return err
+		}
+		// Side-write a duplicate copy for next-run merge baseline.
+		if fh.control.Duplicate() {
+			why = append(why, "duplicate-1")
+			dup := fh.duplicateFolder + "/" + rpath
+			_ = fh.ensureDirOf(dup)
+			_ = fh.fs.WriteFile(dup, content)
+			why = append(why, "within-0")
+		}
+	}
+	fh.filelog(&fh.files.Written, p)
+	fh.appendAudit("save:write", map[string]any{
+		"action":  "write",
+		"path":    rpath,
+		"size":    len(content),
+		"whence":  whence,
+		"why":     why,
+		"exists":  exists,
+		"actions": []string{"write"},
+	})
+	if fh.bmeta != nil {
+		fh.bmeta.recordAction(rpath, "write", exists, false, false)
+	}
+	return nil
+}
+
+func (fh *fileHandler) savePresent(p string, content []byte, rpath, whence string, why []string) error {
+	out := annotatedPath(p, "new")
+	if err := fh.ensureDirOf(out); err != nil {
+		return err
+	}
+	if !fh.control.Dryrun {
+		if err := fh.fs.WriteFile(out, content); err != nil {
+			return err
+		}
+	}
+	fh.filelog(&fh.files.Presented, out)
+	fh.appendAudit("save:present", map[string]any{
+		"action":  "present",
+		"path":    rpath,
+		"out":     fh.relative(out),
+		"whence":  whence,
+		"why":     why,
+		"exists":  true,
+		"actions": []string{"present"},
+	})
+	if fh.bmeta != nil {
+		fh.bmeta.recordAction(rpath, "present", true, false, false)
+	}
+	return nil
+}
+
+// saveMerge runs a 3-way merge using the duplicate-folder baseline as
+// the common ancestor. If no baseline exists (first generation, or
+// duplicate disabled), saveMerge falls back to a 2-way diff render.
+//
+// Skip semantics: if existing already contains conflict markers from
+// a previous unresolved merge, the file is left untouched (TS
+// "merge-unresolved" action at FileHandler.ts:429-433). The duplicate
+// baseline is still refreshed so a future user-resolution can merge
+// cleanly.
+func (fh *fileHandler) saveMerge(p string, content, existing []byte, rpath, whence string, why []string) error {
+	if bytes.Contains(existing, []byte(">>>>>>> EXISTING:")) {
+		// Existing has unresolved markers; do not re-merge.
+		if !fh.control.Dryrun && fh.control.Duplicate() {
+			dup := fh.duplicateFolder + "/" + rpath
+			_ = fh.ensureDirOf(dup)
+			_ = fh.fs.WriteFile(dup, content)
+		}
+		fh.appendAudit("save:skip", map[string]any{
+		"action":  "skip",
+		"path":    rpath,
+		"whence":  whence,
+		"why":     append(why, "merge-unresolved-0"),
+		"exists":  true,
+		"actions": []string{"skip"},
+	})
+		if fh.bmeta != nil {
+			fh.bmeta.recordAction(rpath, "skip", true, false, false)
+		}
+		return nil
+	}
+	dpath := fh.duplicateFolder + "/" + rpath
+	var baseline []byte
+	if fh.fs.Exists(dpath) {
+		var err error
+		baseline, err = fh.fs.ReadFile(dpath)
+		if err != nil {
+			return err
+		}
+	} else {
+		// No baseline: degrade to 2-way diff.
+		return fh.saveDiff(p, content, existing, rpath, whence, append(why, "no-baseline-0"))
+	}
+	isoWhen := time.UnixMilli(fh.when).UTC().Format("2006-01-02T15:04:05.000Z")
+	isoLast := time.UnixMilli(fh.bmeta.last()).UTC().Format("2006-01-02T15:04:05.000Z")
+	res := merge3Labelled(content, baseline, existing, mergeLabels{
+		A: "GENERATED: " + isoWhen + "/merge",
+		B: "EXISTING: " + isoLast + "/merge",
+	})
+	if err := fh.ensureDirOf(p); err != nil {
+		return err
+	}
+	if !fh.control.Dryrun {
+		if err := fh.fs.WriteFile(p, res.Content); err != nil {
+			return err
+		}
+		if fh.control.Duplicate() {
+			dup := fh.duplicateFolder + "/" + rpath
+			_ = fh.ensureDirOf(dup)
+			_ = fh.fs.WriteFile(dup, content)
+		}
+	}
+	fh.filelog(&fh.files.Merged, p)
+	if res.Conflict {
+		fh.filelog(&fh.files.Conflicted, p)
+	}
+	fh.appendAudit("save:merge", map[string]any{
+		"action":   "merge",
+		"path":     rpath,
+		"conflict": res.Conflict,
+		"whence":   whence,
+		"why":      why,
+		"exists":   true,
+		"actions":  []string{"merge"},
+	})
+	if fh.bmeta != nil {
+		fh.bmeta.recordAction(rpath, "merge", true, res.Conflict, false)
+	}
+	return nil
+}
+
+func (fh *fileHandler) saveDiff(p string, content, existing []byte, rpath, whence string, why []string) error {
+	isoWhen := time.UnixMilli(fh.when).UTC().Format("2006-01-02T15:04:05.000Z")
+	last := int64(0)
+	if fh.bmeta != nil {
+		last = fh.bmeta.last()
+	}
+	isoLast := time.UnixMilli(last).UTC().Format("2006-01-02T15:04:05.000Z")
+	rendered := renderDiff(content, existing, isoWhen, isoLast)
+	if err := fh.ensureDirOf(p); err != nil {
+		return err
+	}
+	// TS overwrites the target file with the rendered diff content;
+	// no .diff.<ext> sidecar.
+	if !fh.control.Dryrun {
+		if err := fh.fs.WriteFile(p, rendered); err != nil {
+			return err
+		}
+		// Duplicate baseline tracks the clean generated content.
+		if fh.control.Duplicate() {
+			dup := fh.duplicateFolder + "/" + rpath
+			_ = fh.ensureDirOf(dup)
+			_ = fh.fs.WriteFile(dup, content)
+		}
+	}
+	conflict := !bytes.Equal(rendered, content)
+	fh.filelog(&fh.files.Diffed, p)
+	if conflict {
+		fh.filelog(&fh.files.Conflicted, p)
+	}
+	fh.appendAudit("save:diff", map[string]any{
+		"action":   "diff",
+		"path":     rpath,
+		"conflict": conflict,
+		"whence":   whence,
+		"why":      why,
+		"exists":   true,
+		"actions":  []string{"diff"},
+	})
+	if fh.bmeta != nil {
+		fh.bmeta.recordAction(rpath, "diff", true, conflict, false)
+	}
+	return nil
+}
+
+// savePreserveBackup writes the .old.<ext> copy of `existing` and
+// records the preserve action. The caller is responsible for the
+// subsequent `write` of new content.
+func (fh *fileHandler) savePreserveBackup(p string, existing []byte, rpath, whence string) error {
+	backup := annotatedPath(p, "old")
+	if !fh.control.Dryrun {
+		if err := fh.ensureDirOf(backup); err != nil {
+			return err
+		}
+		if err := fh.fs.WriteFile(backup, existing); err != nil {
+			return err
+		}
+	}
+	fh.filelog(&fh.files.Preserved, backup)
+	fh.appendAudit("preserve", map[string]any{
+		"path":   rpath,
+		"backup": fh.relative(backup),
+		"whence": whence,
+	})
+	if fh.bmeta != nil {
+		fh.bmeta.recordAction(rpath, "preserve", true, false, false)
+	}
+	return nil
+}
+
+func (fh *fileHandler) savePreserve(p string, content, existing []byte, rpath, whence string) error {
+	if err := fh.savePreserveBackup(p, existing, rpath, whence); err != nil {
+		return err
+	}
+	if !fh.control.Dryrun {
+		if err := fh.fs.WriteFile(p, content); err != nil {
+			return err
+		}
+	}
+	fh.filelog(&fh.files.Written, p)
+	if fh.bmeta != nil {
+		fh.bmeta.recordAction(rpath, "write", true, false, false)
+	}
+	return nil
+}
+
+func (fh *fileHandler) relative(p string) string {
+	p = fwd(p)
+	if strings.HasPrefix(p, fh.folder) {
+		rest := p[len(fh.folder):]
+		return strings.TrimLeft(rest, "/")
+	}
+	return p
+}
+
+func (fh *fileHandler) ensureDirOf(p string) error {
+	dir := path.Dir(p)
+	if dir == "" || dir == "." || dir == "/" {
+		return nil
+	}
+	return fh.ensureFolder(dir)
+}
+
+// ensureFolder creates p (treated as a directory path) and all
+// missing parents. Cached against fh.createdDirs to avoid repeat
+// MkdirAll calls.
+func (fh *fileHandler) ensureFolder(p string) error {
+	if p == "" || p == "." || p == "/" {
+		return nil
+	}
+	if _, ok := fh.createdDirs[p]; ok {
+		return nil
+	}
+	if err := fh.fs.MkdirAll(p); err != nil {
+		return err
+	}
+	fh.createdDirs[p] = struct{}{}
+	return nil
+}
+
+func (fh *fileHandler) filelog(slot *[]string, rpath string) {
+	*slot = append(*slot, rpath)
+}
+
+func (fh *fileHandler) appendAudit(tag string, data map[string]any) {
+	*fh.audit = append(*fh.audit, AuditEntry{Tag: tag, Data: data})
+}
+
+// annotatedPath rewrites foo/bar.txt → foo/bar.<kind>.txt (kind without
+// surrounding dots).
+func annotatedPath(target, kind string) string {
+	dir, base := path.Split(target)
+	ext := path.Ext(base)
+	name := base
+	if ext != "" {
+		name = base[:len(base)-len(ext)]
+		ext = ext[1:] // drop the leading dot
+	}
+	if ext == "" {
+		return dir + name + "." + kind
+	}
+	return dir + name + "." + kind + "." + ext
+}

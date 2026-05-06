@@ -57,7 +57,11 @@ spec, apply) {
     if (!isObject) {
         return out;
     }
-    let entries = Object.entries(subject);
+    // Always sort entries by key alphabetically for cross-stack
+    // determinism (Go map iteration is randomised; sorting on both
+    // sides keeps output byte-equal). spec.sort still controls the
+    // by-value sort variant below.
+    let entries = Object.entries(subject).sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
     if (call) {
         entries =
             entries.map((n) => ((n[1] = 'function' === typeof n[1] ? n[1](...args) : n[1]), n));
@@ -446,7 +450,9 @@ function template(src, model, spec) {
                 ref = '';
                 insert = '';
                 // Use first key with a defined match (that is, the alternate that matched).
-                let key = Object.keys(mg).
+                // Sort for deterministic selection across stacks (Go map
+                // iteration is randomised; both stacks now iterate alphabetically).
+                let key = Object.keys(mg).sort().
                     filter(k => k.startsWith('J_K') && null != mg[k])[0];
                 if (null != key) {
                     ref = mg[key] || '';
@@ -467,7 +473,10 @@ function template(src, model, spec) {
                 // Replacement is a function, so call it to generate a dynamic replacement string.
                 else if ('function' === ti) {
                     // Provide custom named groups, removing unique prefix.
+                    // Sorted iteration so collisions resolve deterministically
+                    // across stacks.
                     let groups = Object.entries(mg)
+                        .sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)
                         .reduce((a, n, _) => ((n[0].startsWith('J_') ? ((_ = n[0].match(/^J_[NT]\d+_(.+)$/)) && null != n[1] ?
                         (a[_[1]] = n[1],
                             // Tag also sets property `name`
@@ -505,12 +514,18 @@ function indent(src, indent) {
     // (_, p1) => p1 + indent)
     return src;
 }
-// Map child objects to new child objects
+// Map child objects to new child objects. Iterates source and spec
+// keys in alphabetical order for cross-stack determinism (Go map
+// iteration is randomised; sorting on both sides keeps output
+// byte-equal).
 function cmap(o, p) {
+    const sortByKey = (a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0;
     return Object
         .entries(o)
+        .sort(sortByKey)
         .reduce((r, n, _) => (_ = Object
         .entries(p)
+        .sort(sortByKey)
         .reduce((s, m) => (cmap.FILTER === s ? s : (s[m[0]] = (
     // transfom(val,key,current,parentkey,parent)
     'function' === typeof m[1] ? m[1](n[1][m[0]], {
@@ -522,12 +537,15 @@ cmap.COPY = (x) => x;
 // keep self if x is truthy, or function returning truthy-new-value or [truthy,new-value]
 cmap.FILTER = (x) => 'function' === typeof x ? ((y, p, _) => (_ = x(y, p), Array.isArray(_) ? !_[0] ? _[1] : cmap.FILTER : _)) : (x ? x : cmap.FILTER);
 cmap.KEY = (_, p) => p.key;
-// Map child objects to a list of child objects
+// Map child objects to a list of child objects. Sorted iteration as cmap.
 function vmap(o, p) {
+    const sortByKey = (a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0;
     return Object
         .entries(o)
+        .sort(sortByKey)
         .reduce((r, n, _) => (_ = Object
         .entries(p)
+        .sort(sortByKey)
         .reduce((s, m) => (vmap.FILTER === s ? s : (s[m[0]] = (
     // transfom(val,key,current,parentkey,parent)
     // 'function' === typeof m[1] ? m[1](n[1][m[0]], m[0], n[1], n[0], o) : m[1]

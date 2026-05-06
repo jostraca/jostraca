@@ -280,4 +280,10 @@ MIT. Copyright (c) Richard Rodger.
 
 ## Go Port
 
-A Go template utility port is available under [`go/`](./go), using `github.com/rjrodger/shape/go` from release `go/v0.1.0`.
+A Go port with full feature parity is available under [`go/`](./go),
+including all components (Project/Folder/File/Content/Fragment/Slot/
+Inject/Copy/Line/List), the full template engine, all five
+existing-file modes (write/preserve/present/diff/merge with a
+hand-ported diff3), MemFS, and a concurrent-Generate isolation
+guarantee. See [`go/README.md`](./go/README.md) for usage and
+[`go/PORT_PLAN.md`](./go/PORT_PLAN.md) for design notes.

@@ -24,11 +24,14 @@ const __1 = require("../");
             { 'key$': 'b', 'val$': 22 },
             { 'key$': 'c', 'val$': 11 },
         ]);
+        // each now sorts map entries by key alphabetically for cross-stack
+        // determinism (matches the Go port; previously TS preserved
+        // insertion order).
         (0, expect_1.expect)((0, __1.each)({ b: 22, c: 11, a: 33 }, (v, n, i) => n + '-' + i + '-' + JSON.stringify(v)))
             .equal([
-            'b-0-{"key$":"b","val$":22}',
-            'c-1-{"key$":"c","val$":11}',
-            'a-2-{"key$":"a","val$":33}',
+            'a-0-{"key$":"a","val$":33}',
+            'b-1-{"key$":"b","val$":22}',
+            'c-2-{"key$":"c","val$":11}',
         ]);
     });
     (0, node_test_1.test)('getx', () => {

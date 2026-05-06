@@ -1,0 +1,31 @@
+name: Go tests
+
+on:
+  push:
+    paths:
+      - 'go/**'
+      - '.github/workflows/go-test.yml'
+  pull_request:
+    paths:
+      - 'go/**'
+      - '.github/workflows/go-test.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: go
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - run: go vet ./...
+      - run: GOOS=darwin go vet ./...
+      - run: GOOS=windows go vet ./...
+      - run: go test ./... -race -count=1
+      - name: Concurrency stress (10 iterations)
+        run: go test ./jostraca -run TestGenerateConcurrent -race -count=10
+      - name: Parity snapshots vs TS
+        run: go test ./jostraca -run TestParity -count=1 -v

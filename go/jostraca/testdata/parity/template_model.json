@@ -1,0 +1,18 @@
+{
+  "scenario": "template_model",
+  "opts": {
+    "model": {
+      "app": {
+        "name": "Acme",
+        "version": "1.0.0"
+      }
+    }
+  },
+  "prepopulate": {},
+  "vol": {
+    "/out/app/config.txt": "App: Acme v1.0.0\n",
+    "/out/.jostraca/generated/app/config.txt": "App: Acme v1.0.0\n",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/config.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/config.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}

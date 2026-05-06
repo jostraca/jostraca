@@ -49,12 +49,15 @@ describe('util', () => {
       { 'key$': 'c', 'val$': 11 },
     ])
 
+    // each now sorts map entries by key alphabetically for cross-stack
+    // determinism (matches the Go port; previously TS preserved
+    // insertion order).
     expect(each({ b: 22, c: 11, a: 33 }, (v: any, n: string, i: number) =>
       n + '-' + i + '-' + JSON.stringify(v)))
       .equal([
-        'b-0-{"key$":"b","val$":22}',
-        'c-1-{"key$":"c","val$":11}',
-        'a-2-{"key$":"a","val$":33}',
+        'a-0-{"key$":"a","val$":33}',
+        'b-1-{"key$":"b","val$":22}',
+        'c-2-{"key$":"c","val$":11}',
       ])
   })
 

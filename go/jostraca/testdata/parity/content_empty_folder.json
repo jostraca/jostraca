@@ -1,0 +1,11 @@
+{
+  "scenario": "content_empty_folder",
+  "opts": {},
+  "prepopulate": {},
+  "vol": {
+    "/out/foo.txt": "A",
+    "/out/.jostraca/generated/foo.txt": "A",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"foo.txt\": {\n      \"action\": \"write\",\n      \"path\": \"foo.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}
