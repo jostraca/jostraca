@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/rjrodger/shape/go/shape"
+	shape "github.com/rjrodger/shape/go"
 )
 
 // ReplaceFunc generates replacement text for regex/literal replacements.

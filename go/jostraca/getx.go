@@ -252,14 +252,35 @@ func getxCompare(val any, op, argRaw string) bool {
 	vn, vErr := strconv.ParseFloat(valS, 64)
 	an, aErr := strconv.ParseFloat(argS, 64)
 	bothNum := vErr == nil && aErr == nil
+
+	// Ordering ops mirror JS `<`/`>`: when both operands are strings the
+	// comparison is lexicographic (type-based, so a string `"10"` is less than
+	// `"9"`); otherwise both sides are coerced to numbers and non-numeric
+	// operands never match. Keeps parity with src/util/basic.ts getx().
+	valStr, valIsStr := val.(string)
+	argStr, argIsStr := arg.(string)
+	bothStr := valIsStr && argIsStr
+
 	switch op {
 	case "<":
+		if bothStr {
+			return valStr < argStr
+		}
 		return bothNum && vn < an
 	case "<=":
+		if bothStr {
+			return valStr <= argStr
+		}
 		return bothNum && vn <= an
 	case ">":
+		if bothStr {
+			return valStr > argStr
+		}
 		return bothNum && vn > an
 	case ">=":
+		if bothStr {
+			return valStr >= argStr
+		}
 		return bothNum && vn >= an
 	case "=":
 		if bothNum {
