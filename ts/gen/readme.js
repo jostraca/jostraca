@@ -26,7 +26,8 @@ const jostraca = Jostraca()
 
 jostraca.generate(
   {
-  folder: __dirname+'/..' },
+  // Repo root (README.md lives there; this script now runs from ts/gen/).
+  folder: __dirname+'/../..' },
   () => {
     Folder({ name: '.' }, () => {
       Inject(

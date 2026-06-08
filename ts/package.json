@@ -13,7 +13,8 @@
   "author": "Richard Rodger (http://richardrodger.com)",
   "repository": {
     "type": "git",
-    "url": "git://github.com/jostraca/jostraca.git"
+    "url": "git://github.com/jostraca/jostraca.git",
+    "directory": "ts"
   },
   "scripts": {
     "test": "node --enable-source-maps --test dist-test/**/*.test.js",

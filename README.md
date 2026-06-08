@@ -270,8 +270,21 @@ import {
 } from 'jostraca'
 ```
 
-See [REFERENCE.md](REFERENCE.md) for full details on every component,
+See [REFERENCE.md](ts/REFERENCE.md) for full details on every component,
 option, and utility function.
+
+
+## Repository Layout
+
+The repository hosts two implementations side by side:
+
+- [`ts/`](./ts) — the canonical TypeScript package (published to npm as
+  `jostraca`). Source in `ts/src/`, tests in `ts/test/`. Build and test
+  with `cd ts && npm install && npm run build && npm test`.
+- [`go/`](./go) — the Go port, kept in feature parity with the TypeScript
+  original.
+
+`make all` from the repo root builds and tests both.
 
 
 ## License

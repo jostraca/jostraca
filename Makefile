@@ -8,15 +8,15 @@ test: test-ts test-go
 
 clean: clean-ts clean-go
 
-# TypeScript
+# TypeScript (canonical implementation, lives in ts/)
 build-ts:
-	npm run build
+	cd ts && npm run build
 
 test-ts:
-	npm test
+	cd ts && npm test
 
 clean-ts:
-	rm -rf dist dist-test
+	cd ts && rm -rf dist dist-test
 
 # Go
 build-go:
@@ -39,7 +39,7 @@ tags-go:
 	git tag -l 'go/v*' --sort=-version:refname
 
 reset:
-	npm run reset
+	cd ts && npm run reset
 	cd go/jostraca && go clean -cache
 	cd go/jostraca && go build ./...
 	cd go/jostraca && go test -v ./...

@@ -2,12 +2,13 @@
 
 ## Canonical source: TypeScript
 
-**The TypeScript package in `src/` is the canonical implementation.** The Go
-module under `go/` is a *port* that must be kept in feature parity with it.
+**The TypeScript package in `ts/` is the canonical implementation.** The Go
+module under `go/` is a *port* that must be kept in feature parity with it. The
+two implementations live side by side: `ts/` (npm package) and `go/` (Go module).
 
 When changing behaviour:
 
-1. **Make the change in TypeScript first** — `src/`, with tests in `test/`.
+1. **Make the change in TypeScript first** — `ts/src/`, with tests in `ts/test/`.
 2. **Then bring the Go port into parity** — `go/jostraca/`, with matching tests.
 3. Keep the Go parity notes (`go/REFERENCE.md`, `go/PORT_PLAN.md`,
    `go/README.md` "Deviations from the TypeScript original") accurate when
@@ -20,23 +21,27 @@ is still to correct TS first, then realign Go).
 
 ## Layout
 
-- `src/jostraca.ts` — `Jostraca()` factory + `generate()` driver.
-- `src/cmp/` — components (Project, Folder, File, Content, Fragment, Slot,
+The TypeScript package root is `ts/` (holds `package.json`, `src/`, `test/`,
+build output `dist/`/`dist-test/`, and the `gen/`/`tools/` helper scripts).
+
+- `ts/src/jostraca.ts` — `Jostraca()` factory + `generate()` driver.
+- `ts/src/cmp/` — components (Project, Folder, File, Content, Fragment, Slot,
   Inject, Copy, Line, List, plus internal None).
-- `src/op/` — one op per component, with `before()`/`after()` hooks driven by
+- `ts/src/op/` — one op per component, with `before()`/`after()` hooks driven by
   the recursive `step()` walker.
-- `src/build/` — `BuildContext`, `BuildMeta`, `FileHandler` (the
+- `ts/src/build/` — `BuildContext`, `BuildMeta`, `FileHandler` (the
   write/preserve/present/diff/merge existing-file modes).
-- `src/util/` — `basic.ts` (each/get/getx/template/name-case helpers) and
+- `ts/src/util/` — `basic.ts` (each/get/getx/template/name-case helpers) and
   `point.ts`.
-- `test/` — Node test-runner suites; compiled to `dist-test/` before running.
+- `ts/test/` — Node test-runner suites; compiled to `ts/dist-test/` before running.
 - `go/jostraca/` — the Go port and its tests.
 
 ## Build & test
 
-TypeScript (build emits JS to `dist/`, tests to `dist-test/`):
+TypeScript — run from `ts/` (build emits JS to `ts/dist/`, tests to `ts/dist-test/`):
 
 ```bash
+cd ts
 npm install          # also pulls peer deps: jsonic, memfs, shape
 npm run build        # tsc --build src test
 npm test             # node --test dist-test/**/*.test.js
