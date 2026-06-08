@@ -130,6 +130,20 @@ const __1 = require("../");
             .equal([{ n: 5 }, { n: 9 }]);
         (0, expect_1.expect)((0, __1.getx)({ x: [{ n: 1 }, { n: 5 }, { n: 9 }] }, 'x?n<5'))
             .equal([{ n: 1 }]);
+        // Ordering on string operands is lexicographic, mirroring JS `<`/`>`.
+        // The Go port (getxCompare) is kept in parity with this.
+        (0, expect_1.expect)((0, __1.getx)({ a: 'm' }, 'a>d')).equal({ a: 'm' });
+        (0, expect_1.expect)((0, __1.getx)({ a: 'd' }, 'a>m')).equal(undefined);
+        (0, expect_1.expect)((0, __1.getx)({ a: 'foo' }, 'a<goo')).equal({ a: 'foo' });
+        (0, expect_1.expect)((0, __1.getx)({ a: 'foo' }, 'a>=foo')).equal({ a: 'foo' });
+        (0, expect_1.expect)((0, __1.getx)({ a: 'foo' }, 'a<=foo')).equal({ a: 'foo' });
+        (0, expect_1.expect)((0, __1.getx)({ x: [{ s: 'a' }, { s: 'm' }, { s: 'z' }] }, 'x?s>k'))
+            .equal([{ s: 'm' }, { s: 'z' }]);
+        // Type-based, like JS: a string value compares lexicographically even when
+        // it looks numeric ('10' < '9' is true), whereas a numeric value compares
+        // numerically (10 < 9 is false).
+        (0, expect_1.expect)((0, __1.getx)({ a: '10' }, 'a<9')).equal({ a: '10' });
+        (0, expect_1.expect)((0, __1.getx)({ a: 10 }, 'a<9')).equal(undefined);
     });
     (0, node_test_1.test)('indent', () => {
         (0, expect_1.expect)((0, __1.indent)('a', 2)).equal('  a');

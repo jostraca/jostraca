@@ -192,6 +192,22 @@ describe('util', () => {
       .equal([{ n: 5 }, { n: 9 }])
     expect(getx({ x: [{ n: 1 }, { n: 5 }, { n: 9 }] }, 'x?n<5'))
       .equal([{ n: 1 }])
+
+    // Ordering on string operands is lexicographic, mirroring JS `<`/`>`.
+    // The Go port (getxCompare) is kept in parity with this.
+    expect(getx({ a: 'm' }, 'a>d')).equal({ a: 'm' })
+    expect(getx({ a: 'd' }, 'a>m')).equal(undefined)
+    expect(getx({ a: 'foo' }, 'a<goo')).equal({ a: 'foo' })
+    expect(getx({ a: 'foo' }, 'a>=foo')).equal({ a: 'foo' })
+    expect(getx({ a: 'foo' }, 'a<=foo')).equal({ a: 'foo' })
+    expect(getx({ x: [{ s: 'a' }, { s: 'm' }, { s: 'z' }] }, 'x?s>k'))
+      .equal([{ s: 'm' }, { s: 'z' }])
+
+    // Type-based, like JS: a string value compares lexicographically even when
+    // it looks numeric ('10' < '9' is true), whereas a numeric value compares
+    // numerically (10 < 9 is false).
+    expect(getx({ a: '10' }, 'a<9')).equal({ a: '10' })
+    expect(getx({ a: 10 }, 'a<9')).equal(undefined)
   })
 
 

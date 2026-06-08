@@ -113,6 +113,82 @@ func TestGetXArrayFilter(t *testing.T) {
 	}
 }
 
+// TestGetXCompareOps mirrors the comparison-operator cases in
+// test/utility.test.ts (getx): numeric ordering, regex match, and
+// lexicographic string ordering.
+func TestGetXCompareOps(t *testing.T) {
+	// Numeric ordering.
+	num := []struct {
+		path string
+		want any
+	}{
+		{"a>3", map[string]any{"a": 5}},
+		{"a>9", nil},
+		{"a<9", map[string]any{"a": 5}},
+		{"a<3", nil},
+		{"a>=5", map[string]any{"a": 5}},
+		{"a<=5", map[string]any{"a": 5}},
+	}
+	for _, tc := range num {
+		if got := GetX(map[string]any{"a": 5}, tc.path); !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("GetX({a:5}, %q) = %v, want %v", tc.path, got, tc.want)
+		}
+	}
+
+	// Regex match.
+	if got := GetX(map[string]any{"a": "hello"}, "a~ell"); !reflect.DeepEqual(got, map[string]any{"a": "hello"}) {
+		t.Errorf("a~ell = %v", got)
+	}
+	if got := GetX(map[string]any{"a": "hello"}, "a~xyz"); got != nil {
+		t.Errorf("a~xyz = %v, want nil", got)
+	}
+
+	// Numeric array filter.
+	xn := map[string]any{"x": []any{
+		map[string]any{"n": 1}, map[string]any{"n": 5}, map[string]any{"n": 9},
+	}}
+	wantN := []any{map[string]any{"n": 5}, map[string]any{"n": 9}}
+	if got := GetX(xn, "x?n>3"); !reflect.DeepEqual(got, wantN) {
+		t.Errorf("x?n>3 = %v, want %v", got, wantN)
+	}
+
+	// Lexicographic string ordering (mirrors JS `<`/`>`).
+	str := []struct {
+		val  string
+		path string
+		want any
+	}{
+		{"m", "a>d", map[string]any{"a": "m"}},
+		{"d", "a>m", nil},
+		{"foo", "a<goo", map[string]any{"a": "foo"}},
+		{"foo", "a>=foo", map[string]any{"a": "foo"}},
+		{"foo", "a<=foo", map[string]any{"a": "foo"}},
+	}
+	for _, tc := range str {
+		if got := GetX(map[string]any{"a": tc.val}, tc.path); !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("GetX({a:%q}, %q) = %v, want %v", tc.val, tc.path, got, tc.want)
+		}
+	}
+
+	// String array filter.
+	xs := map[string]any{"x": []any{
+		map[string]any{"s": "a"}, map[string]any{"s": "m"}, map[string]any{"s": "z"},
+	}}
+	wantS := []any{map[string]any{"s": "m"}, map[string]any{"s": "z"}}
+	if got := GetX(xs, "x?s>k"); !reflect.DeepEqual(got, wantS) {
+		t.Errorf("x?s>k = %v, want %v", got, wantS)
+	}
+
+	// Type-based: a numeric-looking string compares lexicographically
+	// ('10' < '9'), a real number compares numerically (10 < 9 is false).
+	if got := GetX(map[string]any{"a": "10"}, "a<9"); !reflect.DeepEqual(got, map[string]any{"a": "10"}) {
+		t.Errorf(`GetX({a:"10"}, "a<9") = %v, want {a:"10"}`, got)
+	}
+	if got := GetX(map[string]any{"a": 10}, "a<9"); got != nil {
+		t.Errorf(`GetX({a:10}, "a<9") = %v, want nil`, got)
+	}
+}
+
 func TestGetXArrayIndex(t *testing.T) {
 	xs := []any{11, 22, 33}
 	if v := GetX(xs, "0"); v != 11 {
