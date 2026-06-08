@@ -511,7 +511,10 @@ class FileHandler {
 
     validPath(path, this.maxdepth, CN + FN + 'from:' + wstr)
 
-    const fullpath = Path.isAbsolute(path) ? path : fwd(Path.join(this.folder, path))
+    // Paths are canonical (already folder-prefixed by the build phase, or
+    // absolute); use them directly. Do NOT re-join `this.folder`, which would
+    // double-prefix relative non-`.` output folders. Matches the Go port.
+    const fullpath = fwd(Path.normalize(path))
 
     try {
       const exists = fs.existsSync(fullpath)
@@ -539,8 +542,9 @@ class FileHandler {
     validPath(topath, this.maxdepth, CN + FN + 'to:' + wstr)
 
     const isBinary = isbinext(frompath)
-    const fulltopath = Path.isAbsolute(topath) ? topath : fwd(Path.join(this.folder, topath))
-    const fullfrompath = Path.isAbsolute(frompath) ? frompath : fwd(Path.join(this.folder, frompath))
+    // Canonical paths: use directly, do not re-join `this.folder` (see existsFile).
+    const fulltopath = fwd(Path.normalize(topath))
+    const fullfrompath = fwd(Path.normalize(frompath))
 
     try {
       const existed = fs.existsSync(fulltopath)
@@ -548,7 +552,7 @@ class FileHandler {
       const content = fs.readFileSync(fullfrompath, isBinary ? undefined : 'utf8')
 
       if (!this.control.dryrun) {
-        fs.writeFileSync(topath, content, { flush: true })
+        fs.writeFileSync(fulltopath, content, { flush: true })
       }
 
       this.audit.push([CN + FN + wstr,
@@ -646,7 +650,8 @@ class FileHandler {
     validPath(path, this.maxdepth, CN + FN + wstr)
 
     try {
-      const fullpath = Path.isAbsolute(path) ? path : fwd(Path.join(this.folder, path))
+      // Canonical path: use directly, do not re-join `this.folder` (see existsFile).
+      const fullpath = fwd(Path.normalize(path))
       const content = fs.readFileSync(fullpath, opts)
       this.audit.push([CN + FN + wstr,
       { path, when, size: content.length }])
@@ -704,9 +709,9 @@ class FileHandler {
     }
 
     try {
+      // Canonical path: use directly, do not re-join `this.folder` (see existsFile).
       path = fwd(Path.normalize(path))
-      const isAbsolute = Path.isAbsolute(path)
-      const fullpath = isAbsolute ? path : fwd(Path.join(this.folder, path))
+      const fullpath = path
       const parentfolder = fwd(Path.dirname(fullpath))
       const existed = fs.existsSync(fullpath)
 

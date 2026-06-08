@@ -78,7 +78,7 @@ class BuildMeta {
     saveMetaData(this.fh, this.next)
 
     if (false === this.fh.control.version) {
-      this.fh.saveFile(Path.join(this.next.foldername, '.gitignore'), `
+      this.fh.saveFile(Path.join(this.fh.folder, this.next.foldername, '.gitignore'), `
 ${this.next.filename}
 generated
 `)
@@ -90,7 +90,9 @@ generated
 
 
 function loadMetaData(fh: FileHandler, bmeta: BuildMetaData) {
-  const metapath = Path.join(bmeta.foldername, bmeta.filename)
+  // Full (folder-prefixed) path: the FileHandler FS methods use paths
+  // directly and no longer re-join `this.folder`.
+  const metapath = Path.join(fh.folder, bmeta.foldername, bmeta.filename)
   if (fh.existsFile(metapath)) {
     const json = fh.loadJSON(metapath)
     bmeta.last = json.last
@@ -102,7 +104,9 @@ function loadMetaData(fh: FileHandler, bmeta: BuildMetaData) {
 
 
 function saveMetaData(fh: FileHandler, bmeta: BuildMetaData) {
-  const metapath = Path.join(bmeta.foldername, bmeta.filename)
+  // Full (folder-prefixed) path: the FileHandler FS methods use paths
+  // directly and no longer re-join `this.folder`.
+  const metapath = Path.join(fh.folder, bmeta.foldername, bmeta.filename)
   fh.saveJSON(metapath, bmeta)
 }
 

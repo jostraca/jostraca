@@ -44,7 +44,7 @@ class BuildMeta {
         // save over previous
         saveMetaData(this.fh, this.next);
         if (false === this.fh.control.version) {
-            this.fh.saveFile(node_path_1.default.join(this.next.foldername, '.gitignore'), `
+            this.fh.saveFile(node_path_1.default.join(this.fh.folder, this.next.foldername, '.gitignore'), `
 ${this.next.filename}
 generated
 `);
@@ -54,7 +54,9 @@ generated
 }
 exports.BuildMeta = BuildMeta;
 function loadMetaData(fh, bmeta) {
-    const metapath = node_path_1.default.join(bmeta.foldername, bmeta.filename);
+    // Full (folder-prefixed) path: the FileHandler FS methods use paths
+    // directly and no longer re-join `this.folder`.
+    const metapath = node_path_1.default.join(fh.folder, bmeta.foldername, bmeta.filename);
     if (fh.existsFile(metapath)) {
         const json = fh.loadJSON(metapath);
         bmeta.last = json.last;
@@ -64,7 +66,9 @@ function loadMetaData(fh, bmeta) {
     return bmeta;
 }
 function saveMetaData(fh, bmeta) {
-    const metapath = node_path_1.default.join(bmeta.foldername, bmeta.filename);
+    // Full (folder-prefixed) path: the FileHandler FS methods use paths
+    // directly and no longer re-join `this.folder`.
+    const metapath = node_path_1.default.join(fh.folder, bmeta.foldername, bmeta.filename);
     fh.saveJSON(metapath, bmeta);
 }
 //# sourceMappingURL=BuildMeta.js.map

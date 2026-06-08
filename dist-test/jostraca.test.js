@@ -299,6 +299,27 @@ const START_TIME = 1735689600000;
         const voljson = vol.toJSON();
         (0, expect_1.expect)(voljson['/top/bar.txt']).equal('A/*S*/NEW/*E*/B');
     });
+    (0, node_test_1.test)('relative-folder', async () => {
+        // Regression: a relative non-`.` output folder must not double-prefix the
+        // output path. Previously the FileHandler FS methods re-joined
+        // `this.folder` onto an already folder-prefixed path, producing e.g.
+        // `reltest/reltest/foo.txt` and silently breaking preserve/merge.
+        const { fs, vol } = (0, memfs_1.memfs)({});
+        const jostraca = (0, __1.Jostraca)({});
+        await jostraca.generate({ fs: () => fs, folder: 'reltest' }, (0, __1.cmp)((_props) => {
+            (0, __1.Project)({}, () => {
+                (0, __1.File)({ name: 'foo.txt' }, () => (0, __1.Content)('HELLO\n'));
+            });
+        }));
+        const voljson = vol.toJSON();
+        const keys = Object.keys(voljson);
+        // No path doubles the output folder.
+        (0, expect_1.expect)(keys.filter((k) => k.includes('reltest/reltest'))).equal([]);
+        // The generated file is present exactly once with the right content.
+        const fooKeys = keys.filter((k) => k.endsWith('reltest/foo.txt'));
+        (0, expect_1.expect)(fooKeys.length).equal(1);
+        (0, expect_1.expect)(voljson[fooKeys[0]]).equal('HELLO\n');
+    });
     (0, node_test_1.test)('line', async () => {
         let nowI = 0;
         const now = () => START_TIME + (++nowI * (60 * 1000));

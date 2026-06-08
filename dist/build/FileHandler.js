@@ -346,7 +346,10 @@ class FileHandler {
         const fs = this.fs();
         const FN = 'existsFile:';
         validPath(path, this.maxdepth, CN + FN + 'from:' + wstr);
-        const fullpath = node_path_1.default.isAbsolute(path) ? path : fwd(node_path_1.default.join(this.folder, path));
+        // Paths are canonical (already folder-prefixed by the build phase, or
+        // absolute); use them directly. Do NOT re-join `this.folder`, which would
+        // double-prefix relative non-`.` output folders. Matches the Go port.
+        const fullpath = fwd(node_path_1.default.normalize(path));
         try {
             const exists = fs.existsSync(fullpath);
             this.audit.push([CN + FN + wstr,
@@ -369,14 +372,15 @@ class FileHandler {
         validPath(frompath, this.maxdepth, CN + FN + 'from:' + wstr);
         validPath(topath, this.maxdepth, CN + FN + 'to:' + wstr);
         const isBinary = (0, basic_1.isbinext)(frompath);
-        const fulltopath = node_path_1.default.isAbsolute(topath) ? topath : fwd(node_path_1.default.join(this.folder, topath));
-        const fullfrompath = node_path_1.default.isAbsolute(frompath) ? frompath : fwd(node_path_1.default.join(this.folder, frompath));
+        // Canonical paths: use directly, do not re-join `this.folder` (see existsFile).
+        const fulltopath = fwd(node_path_1.default.normalize(topath));
+        const fullfrompath = fwd(node_path_1.default.normalize(frompath));
         try {
             const existed = fs.existsSync(fulltopath);
             this.ensureDir(fwd(node_path_1.default.dirname(fulltopath)));
             const content = fs.readFileSync(fullfrompath, isBinary ? undefined : 'utf8');
             if (!this.control.dryrun) {
-                fs.writeFileSync(topath, content, { flush: true });
+                fs.writeFileSync(fulltopath, content, { flush: true });
             }
             this.audit.push([CN + FN + wstr,
                 { topath, frompath, when, existed, size: content.length }]);
@@ -457,7 +461,8 @@ class FileHandler {
         opts.encoding = undefined === opts.encoding ? 'utf8' : opts.encoding;
         validPath(path, this.maxdepth, CN + FN + wstr);
         try {
-            const fullpath = node_path_1.default.isAbsolute(path) ? path : fwd(node_path_1.default.join(this.folder, path));
+            // Canonical path: use directly, do not re-join `this.folder` (see existsFile).
+            const fullpath = fwd(node_path_1.default.normalize(path));
             const content = fs.readFileSync(fullpath, opts);
             this.audit.push([CN + FN + wstr,
                 { path, when, size: content.length }]);
@@ -500,9 +505,9 @@ class FileHandler {
                 ' content=' + content);
         }
         try {
+            // Canonical path: use directly, do not re-join `this.folder` (see existsFile).
             path = fwd(node_path_1.default.normalize(path));
-            const isAbsolute = node_path_1.default.isAbsolute(path);
-            const fullpath = isAbsolute ? path : fwd(node_path_1.default.join(this.folder, path));
+            const fullpath = path;
             const parentfolder = fwd(node_path_1.default.dirname(fullpath));
             const existed = fs.existsSync(fullpath);
             if (!this.control.dryrun) {
