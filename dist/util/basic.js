@@ -136,7 +136,7 @@ function getx(root, path) {
     for (let i = 0; i < tokens.length && undefined !== node; i++) {
         let t0 = tokens[i];
         let t1 = tokens[i + 1];
-        if (t1 && t1.match(/=|!=/)) {
+        if (t1 && t1.match(/^(<=?|>=?|==?|!=|~)$/)) {
             let val = node[t0];
             let arg = tokens[i + 2];
             const argtype = typeof arg;

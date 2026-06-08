@@ -174,6 +174,24 @@ describe('util', () => {
 
 
     expect(getx({ a: { b: 1 } }, 'a "b"')).equal(1)
+
+
+    // Regression: the comparison operators `<`, `>`, `~` do not contain `=`
+    // and were previously unreachable (the guard only matched operators
+    // containing `=`), so they silently returned undefined and diverged from
+    // the Go port. See getx() in src/util/basic.ts.
+    expect(getx({ a: 5 }, 'a>3')).equal({ a: 5 })
+    expect(getx({ a: 5 }, 'a>9')).equal(undefined)
+    expect(getx({ a: 5 }, 'a<9')).equal({ a: 5 })
+    expect(getx({ a: 5 }, 'a<3')).equal(undefined)
+    expect(getx({ a: 5 }, 'a>=5')).equal({ a: 5 })
+    expect(getx({ a: 5 }, 'a<=5')).equal({ a: 5 })
+    expect(getx({ a: 'hello' }, 'a~ell')).equal({ a: 'hello' })
+    expect(getx({ a: 'hello' }, 'a~xyz')).equal(undefined)
+    expect(getx({ x: [{ n: 1 }, { n: 5 }, { n: 9 }] }, 'x?n>3'))
+      .equal([{ n: 5 }, { n: 9 }])
+    expect(getx({ x: [{ n: 1 }, { n: 5 }, { n: 9 }] }, 'x?n<5'))
+      .equal([{ n: 1 }])
   })
 
 

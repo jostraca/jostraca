@@ -263,6 +263,42 @@ const START_TIME = 1735689600000;
             '/top/foo.txt': 'FOO\n#--START--#\nQAZ\n#--END--#\nZED',
         });
     });
+    (0, node_test_1.test)('inject-dollar', async () => {
+        // Regression: injected content containing `$` sequences (e.g. `$1`, `$&`,
+        // `$\``, and shell/PHP/JS variables) must be inserted literally and not be
+        // interpreted as String.replace replacement patterns.
+        const { fs, vol } = (0, memfs_1.memfs)({
+            '/top/foo.txt': 'FOO\n#--START--#\nBAR\n#--END--#\nZED',
+        });
+        const jostraca = (0, __1.Jostraca)({});
+        await jostraca.generate({ fs: () => fs, folder: '/top' }, (0, __1.cmp)((_props) => {
+            (0, __1.Project)({}, () => {
+                (0, __1.Inject)({ name: 'foo.txt' }, () => {
+                    (0, __1.Content)('price=$100 g$1h $& end$`');
+                });
+            });
+        }));
+        const voljson = vol.toJSON();
+        (0, expect_1.expect)(voljson['/top/foo.txt'])
+            .equal('FOO\n#--START--#\nprice=$100 g$1h $& end$`\n#--END--#\nZED');
+    });
+    (0, node_test_1.test)('inject-custom-markers', async () => {
+        // Regression: custom markers containing regex metacharacters must be
+        // matched literally (markers are escaped before building the regex).
+        const { fs, vol } = (0, memfs_1.memfs)({
+            '/top/bar.txt': 'A/*S*/old/*E*/B',
+        });
+        const jostraca = (0, __1.Jostraca)({});
+        await jostraca.generate({ fs: () => fs, folder: '/top' }, (0, __1.cmp)((_props) => {
+            (0, __1.Project)({}, () => {
+                (0, __1.Inject)({ name: 'bar.txt', markers: ['/*S*/', '/*E*/'] }, () => {
+                    (0, __1.Content)('NEW');
+                });
+            });
+        }));
+        const voljson = vol.toJSON();
+        (0, expect_1.expect)(voljson['/top/bar.txt']).equal('A/*S*/NEW/*E*/B');
+    });
     (0, node_test_1.test)('line', async () => {
         let nowI = 0;
         const now = () => START_TIME + (++nowI * (60 * 1000));

@@ -168,7 +168,7 @@ function getx(root: any, path: string | string[]): any {
     let t0 = tokens[i]
     let t1 = tokens[i + 1]
 
-    if (t1 && t1.match(/=|!=/)) {
+    if (t1 && t1.match(/^(<=?|>=?|==?|!=|~)$/)) {
       let val = node[t0]
       let arg: any = tokens[i + 2]
 

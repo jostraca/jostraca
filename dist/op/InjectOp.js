@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.InjectOp = void 0;
+const jostraca_1 = require("../jostraca");
 const ON = 'InjectOp:';
 const InjectOp = {
     before(node, _ctx$, buildctx) {
@@ -32,8 +33,12 @@ const InjectOp = {
         if (!exclude) {
             let src = fs.readFileSync(cfile.fullpath, 'utf8');
             content = node.meta.markers.join(content);
-            let re = new RegExp(node.meta.markers.join('(.*?)'), 'sg');
-            src = src.replace(re, content);
+            // Escape markers so regex metacharacters in custom markers are matched
+            // literally, and use a replacement function so `$`-sequences in the
+            // injected content (e.g. `$1`, `$&`, shell/PHP/JS variables) are not
+            // interpreted as special replacement patterns.
+            let re = new RegExp(node.meta.markers.map(jostraca_1.escre).join('(.*?)'), 'sg');
+            src = src.replace(re, () => content);
             // fs.writeFileSync(cfile.fullpath, src, { flush: true })
             buildctx.fh.save(cfile.fullpath, src);
         }

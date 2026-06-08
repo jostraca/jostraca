@@ -114,6 +114,22 @@ const __1 = require("../");
         (0, expect_1.expect)((0, __1.getx)([{ y: 1 }, { y: 2 }, { y: 2 }], '?y=2 0'))
             .equal({ y: 2 });
         (0, expect_1.expect)((0, __1.getx)({ a: { b: 1 } }, 'a "b"')).equal(1);
+        // Regression: the comparison operators `<`, `>`, `~` do not contain `=`
+        // and were previously unreachable (the guard only matched operators
+        // containing `=`), so they silently returned undefined and diverged from
+        // the Go port. See getx() in src/util/basic.ts.
+        (0, expect_1.expect)((0, __1.getx)({ a: 5 }, 'a>3')).equal({ a: 5 });
+        (0, expect_1.expect)((0, __1.getx)({ a: 5 }, 'a>9')).equal(undefined);
+        (0, expect_1.expect)((0, __1.getx)({ a: 5 }, 'a<9')).equal({ a: 5 });
+        (0, expect_1.expect)((0, __1.getx)({ a: 5 }, 'a<3')).equal(undefined);
+        (0, expect_1.expect)((0, __1.getx)({ a: 5 }, 'a>=5')).equal({ a: 5 });
+        (0, expect_1.expect)((0, __1.getx)({ a: 5 }, 'a<=5')).equal({ a: 5 });
+        (0, expect_1.expect)((0, __1.getx)({ a: 'hello' }, 'a~ell')).equal({ a: 'hello' });
+        (0, expect_1.expect)((0, __1.getx)({ a: 'hello' }, 'a~xyz')).equal(undefined);
+        (0, expect_1.expect)((0, __1.getx)({ x: [{ n: 1 }, { n: 5 }, { n: 9 }] }, 'x?n>3'))
+            .equal([{ n: 5 }, { n: 9 }]);
+        (0, expect_1.expect)((0, __1.getx)({ x: [{ n: 1 }, { n: 5 }, { n: 9 }] }, 'x?n<5'))
+            .equal([{ n: 1 }]);
     });
     (0, node_test_1.test)('indent', () => {
         (0, expect_1.expect)((0, __1.indent)('a', 2)).equal('  a');

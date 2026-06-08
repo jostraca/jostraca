@@ -371,6 +371,60 @@ describe('jostraca', () => {
 
 
 
+  test('inject-dollar', async () => {
+    // Regression: injected content containing `$` sequences (e.g. `$1`, `$&`,
+    // `$\``, and shell/PHP/JS variables) must be inserted literally and not be
+    // interpreted as String.replace replacement patterns.
+    const { fs, vol } = memfs({
+      '/top/foo.txt': 'FOO\n#--START--#\nBAR\n#--END--#\nZED',
+    })
+
+    const jostraca = Jostraca({})
+
+    await jostraca.generate(
+      { fs: () => fs, folder: '/top' },
+      cmp((_props: any) => {
+        Project({}, () => {
+          Inject({ name: 'foo.txt' }, () => {
+            Content('price=$100 g$1h $& end$`')
+          })
+        })
+      })
+    )
+
+    const voljson: any = vol.toJSON()
+    expect(voljson['/top/foo.txt'])
+      .equal('FOO\n#--START--#\nprice=$100 g$1h $& end$`\n#--END--#\nZED')
+  })
+
+
+
+  test('inject-custom-markers', async () => {
+    // Regression: custom markers containing regex metacharacters must be
+    // matched literally (markers are escaped before building the regex).
+    const { fs, vol } = memfs({
+      '/top/bar.txt': 'A/*S*/old/*E*/B',
+    })
+
+    const jostraca = Jostraca({})
+
+    await jostraca.generate(
+      { fs: () => fs, folder: '/top' },
+      cmp((_props: any) => {
+        Project({}, () => {
+          Inject({ name: 'bar.txt', markers: ['/*S*/', '/*E*/'] }, () => {
+            Content('NEW')
+          })
+        })
+      })
+    )
+
+    const voljson: any = vol.toJSON()
+    expect(voljson['/top/bar.txt']).equal('A/*S*/NEW/*E*/B')
+  })
+
+
+
   test('line', async () => {
     let nowI = 0
     const now = () => START_TIME + (++nowI * (60 * 1000))

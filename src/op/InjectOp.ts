@@ -3,6 +3,8 @@ import Path from 'node:path'
 
 import type { Node, BuildContext } from '../jostraca'
 
+import { escre } from '../jostraca'
+
 const ON = 'InjectOp:'
 
 const InjectOp = {
@@ -41,8 +43,12 @@ const InjectOp = {
       let src = fs.readFileSync(cfile.fullpath, 'utf8')
 
       content = node.meta.markers.join(content)
-      let re = new RegExp(node.meta.markers.join('(.*?)'), 'sg')
-      src = src.replace(re, content)
+      // Escape markers so regex metacharacters in custom markers are matched
+      // literally, and use a replacement function so `$`-sequences in the
+      // injected content (e.g. `$1`, `$&`, shell/PHP/JS variables) are not
+      // interpreted as special replacement patterns.
+      let re = new RegExp(node.meta.markers.map(escre).join('(.*?)'), 'sg')
+      src = src.replace(re, () => content)
       // fs.writeFileSync(cfile.fullpath, src, { flush: true })
       buildctx.fh.save(cfile.fullpath as string, src)
     }
