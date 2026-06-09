@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+// Version is the released version of the Go module. It is kept in sync
+// with the canonical TypeScript package version by `make publish-go`.
+const Version = "0.31.0"
+
 // J is the receiver-shadowing builder. Each component method on *J
 // allocates a child *J bound to the current node frame and passes it to
 // the user callback. See PORT_PLAN §2 for the rationale.

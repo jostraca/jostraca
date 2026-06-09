@@ -14,7 +14,7 @@ the deviation with reasoning.
 
 **Plan reference.** `PORT_PLAN.md` §12 Step 1, types from §4.1–4.6.
 
-**Tests committed first** (`go/jostraca/skeleton_test.go`, commit `38f0dd8`):
+**Tests committed first** (`go/skeleton_test.go`, commit `38f0dd8`):
 - `TestNewReturnsBuilder` — `New()` returns non-nil
 - `TestNewWithOptions` — `WithFolder` + `WithMem` propagate to internal state
 - `TestGenerateEmptyRoot` — empty callback returns no-error empty Result
@@ -115,7 +115,7 @@ rework required after the first compile-and-test round.
 
 **Plan reference.** `PORT_PLAN.md` §12 Step 2, §7.1.
 
-**Tests committed first** (`go/jostraca/fs_test.go`, commit `37d9929`):
+**Tests committed first** (`go/fs_test.go`, commit `37d9929`):
 - `fsContract` — shared suite (write/read, exists, stat, readdir,
   remove/rename, missing-file) parameterised by FS factory.
 - `TestOsFSContract` — runs the suite against a test-only `osFSAt`
@@ -210,7 +210,7 @@ with all 14 gaps from §9 of the plan.
 
 **Plan reference.** `PORT_PLAN.md` §12 Step 3, full feature list at §9.
 
-**Tests committed first** (`go/jostraca/template_test.go`, commit
+**Tests committed first** (`go/template_test.go`, commit
 `a85cf2f`):
 
 Replaces a 65-line file with ~250 lines of cases organised as:
@@ -344,7 +344,7 @@ helper from §9 #14 lands here.
 
 **Plan reference.** `PORT_PLAN.md` §12 Step 4, §10.
 
-**Tests committed first** (`go/jostraca/util_test.go`, commit `773b651`):
+**Tests committed first** (`go/util_test.go`, commit `773b651`):
 - `TestEachSlice`, `TestEachSliceSort`, `TestEachSliceTransform`,
   `TestEachMap`, `TestEachMapSorted`, `TestEachNil`
 - `TestNameConverters` (Camelify/Snakify/Kebabify table, 6 rows)
@@ -586,7 +586,7 @@ one fixup (test correction). Total: 2 commits.
   populated when the active FS is `*MemFS`.
 - Phase 5 builder tests now opt out of the build phase via
   `Options{Build: &false}` — without this they would produce stray
-  files under `go/jostraca/sdk/...` because the build phase is now
+  files under `go/sdk/...` because the build phase is now
   real.
 
 **Verification.**
@@ -906,7 +906,7 @@ the missing `regexp` import. Total: 2 commits.
   (Project/Folder/File/Content/Fragment/Slot/Inject/Copy/Cmp) +
   existing-file mode reference + MemFS usage + Result shape
   + deviation summary.
-- `go/jostraca/doc.go`: package godoc covering quick start,
+- `go/doc.go`: package godoc covering quick start,
   receiver-shadowing rationale, existing-file modes, concurrency
   guarantee.
 - Repo-root `README.md` Go-port section updated to claim full
@@ -926,7 +926,7 @@ the missing `regexp` import. Total: 2 commits.
 - Full shape-validated `OptionsFromMap` — Phase 1 ships a narrowed
   switch over the common keys; full schema validation needs the
   option surface to be final, which it now is.
-- `Point*` orchestration utility — to land as `go/jostraca/point/`
+- `Point*` orchestration utility — to land as `go/point/`
   sub-package when a downstream consumer needs it.
 - Parity-snapshot driver against the TS test suite — manual
   byte-equality assertions live in the per-phase tests today; a
@@ -971,7 +971,7 @@ real byte-equality (the earlier "v1" only verified my own tests).
 
 **Tooling.** `tools/extract-parity.js` runs each scenario through the
 TS package and writes `vol.toJSON()` snapshots to
-`go/jostraca/testdata/parity/<scenario>.json`. The Go-side
+`go/testdata/parity/<scenario>.json`. The Go-side
 `parity_test.go` loads each JSON, runs the equivalent component
 tree, and asserts byte-equal output per path.
 

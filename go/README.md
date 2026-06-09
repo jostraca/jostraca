@@ -9,7 +9,7 @@ write your output.
 ## Install
 
 ```bash
-go get github.com/jostraca/jostraca/go/jostraca
+go get github.com/jostraca/jostraca/go
 ```
 
 ## Quick start
@@ -17,7 +17,7 @@ go get github.com/jostraca/jostraca/go/jostraca
 ```go
 package main
 
-import "github.com/jostraca/jostraca/go/jostraca"
+import jostraca "github.com/jostraca/jostraca/go"
 
 func main() {
     j := jostraca.New(jostraca.WithFolder("./out"))

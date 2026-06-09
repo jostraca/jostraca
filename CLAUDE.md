@@ -9,7 +9,7 @@ two implementations live side by side: `ts/` (npm package) and `go/` (Go module)
 When changing behaviour:
 
 1. **Make the change in TypeScript first** — `ts/src/`, with tests in `ts/test/`.
-2. **Then bring the Go port into parity** — `go/jostraca/`, with matching tests.
+2. **Then bring the Go port into parity** — `go/`, with matching tests.
 3. Keep the Go parity notes (`go/REFERENCE.md`, `go/PORT_PLAN.md`,
    `go/README.md` "Deviations from the TypeScript original") accurate when
    behaviour shifts.
@@ -34,7 +34,8 @@ build output `dist/`/`dist-test/`, and the `gen/`/`tools/` helper scripts).
 - `ts/src/util/` — `basic.ts` (each/get/getx/template/name-case helpers) and
   `point.ts`.
 - `ts/test/` — Node test-runner suites; compiled to `ts/dist-test/` before running.
-- `go/jostraca/` — the Go port and its tests.
+- `go/` — the Go port and its tests (package `jostraca` at the module root,
+  mirroring the layout of `voxgig/util`'s `go/`).
 
 ## Build & test
 

@@ -20,17 +20,20 @@ clean-ts:
 
 # Go
 build-go:
-	cd go/jostraca && go build ./...
+	cd go && go build ./...
 
 test-go:
-	cd go/jostraca && go test -v ./...
+	cd go && go test -v ./...
 
 clean-go:
-	cd go/jostraca && go clean
+	cd go && go clean
 
 # Publish Go module: make publish-go V=0.1.7
 publish-go: test-go
 	@test -n "$(V)" || (echo "Usage: make publish-go V=x.y.z" && exit 1)
+	sed -i '' 's/^const Version = ".*"/const Version = "$(V)"/' go/jostraca.go
+	git add go/jostraca.go
+	git commit -m "go: v$(V)"
 	git tag go/v$(V)
 	git push origin master go/v$(V)
 	if command -v gh >/dev/null 2>&1; then gh release create go/v$(V) --title "go/v$(V)" --notes "Go module release v$(V)"; fi
@@ -40,6 +43,6 @@ tags-go:
 
 reset:
 	cd ts && npm run reset
-	cd go/jostraca && go clean -cache
-	cd go/jostraca && go build ./...
-	cd go/jostraca && go test -v ./...
+	cd go && go clean -cache
+	cd go && go build ./...
+	cd go && go test -v ./...

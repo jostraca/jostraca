@@ -4,7 +4,7 @@
 
 ### 1. Context
 
-**Current state.** The Go module under `go/jostraca/` is a 184-line `Template()` helper plus a 65-line test (`template.go` and `template_test.go`). It exposes one function (`Template`) and one helper (`ParseTemplateSpec`) — no components, no node tree, no build pipeline, no file handling, no context machinery. The directory's own `go/README.md` is honest about scope: *"This folder contains a Go implementation of Jostraca's template utility."* That is roughly 12% of the TypeScript surface in `src/`.
+**Current state.** The Go module under `go/` is a 184-line `Template()` helper plus a 65-line test (`template.go` and `template_test.go`). It exposes one function (`Template`) and one helper (`ParseTemplateSpec`) — no components, no node tree, no build pipeline, no file handling, no context machinery. The directory's own `go/README.md` is honest about scope: *"This folder contains a Go implementation of Jostraca's template utility."* That is roughly 12% of the TypeScript surface in `src/`.
 
 By contrast, the TS package in `src/` is a code-and-project generator:
 
@@ -15,7 +15,7 @@ By contrast, the TS package in `src/` is a code-and-project generator:
 - **Utilities** (`src/util/basic.ts`, 750 lines) — `each`, `get`, `getx`, `camelify`, `snakify`, `kebabify`, `partify`, `lcf`, `ucf`, `names`, `escre`, `indent`, `isbinext`, `cmap`, `vmap`, `template`, `getdlog`, plus point/orchestration in `point.ts`.
 - **Tests** (`test/`) — `jostraca.test.ts`, `template.test.ts`, `utility.test.ts`, `merge.test.ts`, `control.test.ts`, `point.test.ts`.
 
-**Why now.** The README at the repo root advertises a Go port (`README.md:281-283`); the actual Go module covers only the template engine. Anyone reaching for `import "github.com/jostraca/jostraca/go/jostraca"` to *generate code projects* in Go gets nothing. Closing the gap unblocks Go consumers and prevents the README from being misleading.
+**Why now.** The README at the repo root advertises a Go port (`README.md:281-283`); the actual Go module covers only the template engine. Anyone reaching for `import "github.com/jostraca/jostraca/go"` to *generate code projects* in Go gets nothing. Closing the gap unblocks Go consumers and prevents the README from being misleading.
 
 **Goal.** Bring the Go module to full feature parity with `src/`, including:
 - All 9 user-facing components and their ops.
@@ -191,7 +191,7 @@ Because `body(&J{...})` shadows the receiver inside the callback and discards th
 
 ### 3. Package layout
 
-**Decision: single `jostraca` package** at the existing import path `github.com/jostraca/jostraca/go/jostraca`. No sub-packages in v1.
+**Decision: single `jostraca` package** at the existing import path `github.com/jostraca/jostraca/go`. No sub-packages in v1.
 
 **Why not mirror the TS folder split (`build/`, `cmp/`, `op/`, `util/`).** That split is an artefact of TypeScript's file-per-export idiom and JS module ergonomics. Go packages are import boundaries, not visual organisation. Splitting along TS lines would force exporting types that should be unexported (e.g. `Node`, `BuildContext`, `op`), import cycles between `cmp` and `op` (each component has a corresponding op that needs the same node type), and verbose qualified names at every call site (`cmp.Project`, `op.FileOp`). Go conventionally puts a cohesive library in one package and uses files for organisation.
 
@@ -265,7 +265,7 @@ go/
 
 **Module path and version.** Module path stays at `github.com/jostraca/jostraca/go`; the package qualifier in user code stays `jostraca.X`. `go.mod` adds `github.com/sergi/go-diff` (2-way diff) and `github.com/google/go-cmp` (test-only) dependencies. The hand-ported diff3 lives in-package (`merge.go`), so there is no third-party diff3 dependency.
 
-**Deferred to v2.** A `point` sub-package (`go/jostraca/point/`) for the `Point*` orchestration utility from `src/util/point.ts`. It is not used by core in TS — only re-exported as `PointUtil` — and porting it has no impact on parity for the generator workflow. Splitting it into a sub-package isolates the dependency surface (it would otherwise pull in unrelated logging/runner concerns).
+**Deferred to v2.** A `point` sub-package (`go/point/`) for the `Point*` orchestration utility from `src/util/point.ts`. It is not used by core in TS — only re-exported as `PointUtil` — and porting it has no impact on parity for the generator workflow. Splitting it into a sub-package isolates the dependency surface (it would otherwise pull in unrelated logging/runner concerns).
 
 **Why this matters for §4–§9.** Subsequent sections assume:
 - All types (Node, J, Options, Result, FS, Log, NodeError, Kind) live in the same package and refer to each other directly without import qualifiers.
@@ -1533,7 +1533,7 @@ Three-way markers (with `|||||||` baseline) match the format TS produces. Tests 
 
 ##### Acceptance criteria
 
-The `test/merge.test.ts` file in the TS repo encodes the corpus. Each case is a 4-tuple `(new, prev, existing, expected)` plus a `conflict bool`. Port these as JSON files under `go/jostraca/testdata/merge/`:
+The `test/merge.test.ts` file in the TS repo encodes the corpus. Each case is a 4-tuple `(new, prev, existing, expected)` plus a `conflict bool`. Port these as JSON files under `go/testdata/merge/`:
 
 ```
 testdata/merge/
@@ -1937,7 +1937,7 @@ Deferred:
 
 | TS name | Reason | Future home |
 |---|---|---|
-| `Point` / `RootPoint` / `SerialPoint` / `ParallelPoint` / `FuncPoint` / `PrintPoint` | Not used by core (`grep PointUtil` shows only re-export and a single test reference) — orchestration utility piggybacking on the package | `go/jostraca/point/` sub-package, post-v1 |
+| `Point` / `RootPoint` / `SerialPoint` / `ParallelPoint` / `FuncPoint` / `PrintPoint` | Not used by core (`grep PointUtil` shows only re-export and a single test reference) — orchestration utility piggybacking on the package | `go/point/` sub-package, post-v1 |
 | `select` | Trivial helper not used inside core | Skip; users can write `if`/`switch` |
 | `getCachedEjectRE` | Internal to template; folded into §9 cache | n/a |
 
@@ -2166,7 +2166,7 @@ Each public utility has a unit-test row in `util_test.go` ported from `test/util
 
 - **Mirror, don't transliterate.** Each TS test file maps to a Go test file with the same case names; the *cases* port row-by-row, but the harness uses Go idioms (`testing.T`, table-driven, `go-cmp`) instead of recreating the TS `expect.ts` helper.
 - **Black-box where possible.** Tests live in `package jostraca` so they can access internals when it simplifies assertions, but every public-API test treats the package as a black box and exercises behaviour through `New(...).Generate(...)`.
-- **Goldens travel with the package.** Multi-line/multi-byte fixtures (templates, fragments, merge corpus) live under `go/jostraca/testdata/` and are loaded via `//go:embed`. Avoids retyping kilobyte string literals and keeps diffs reviewable.
+- **Goldens travel with the package.** Multi-line/multi-byte fixtures (templates, fragments, merge corpus) live under `go/testdata/` and are loaded via `//go:embed`. Avoids retyping kilobyte string literals and keeps diffs reviewable.
 - **No flaky time/log assertions.** Tests inject `WithNow(func() int64 { return 1700000000_000 })` and a buffered `Log`; never depend on wall-clock or stderr ordering.
 
 #### 11.2 Test file layout
@@ -2237,7 +2237,7 @@ Case names match TS test names verbatim where possible — this makes it obvious
 #### 11.5 `testdata/` layout
 
 ```
-go/jostraca/testdata/
+go/testdata/
   merge/                                        # JSON corpus from test/merge.test.ts
     basic_clean.json                            # {new, prev, existing, want, conflict:false}
     basic_conflict.json
@@ -2582,7 +2582,7 @@ V1 ships full TS parity (including 3-way merge — user opted into the diff3 han
 
 Authoritative list. Each TS file maps to one or more Go files; the rightmost column points to the phase from §12 that delivers the port.
 
-#### 13.1 Source code mapping (`src/` → `go/jostraca/`)
+#### 13.1 Source code mapping (`src/` → `go/`)
 
 | TS file | LoC | Go destination | Phase |
 |---|---|---|---|
@@ -2612,9 +2612,9 @@ Authoritative list. Each TS file maps to one or more Go files; the rightmost col
 | `src/op/CopyOp.ts` | — | `build.go` — `copyBefore`, `copyAfter` | 9 |
 | `src/op/NoneOp.ts` | — | `build.go` — `noopOp` | 1 |
 | `src/util/basic.ts` | 750 | `util.go` (every utility from §10), `template.go` (template engine) | 3, 4 |
-| `src/util/point.ts` | — | **deferred** to `go/jostraca/point/` post-v1 | — |
+| `src/util/point.ts` | — | **deferred** to `go/point/` post-v1 | — |
 
-#### 13.2 Test mapping (`test/` → `go/jostraca/`)
+#### 13.2 Test mapping (`test/` → `go/`)
 
 | TS test file | Go test file | Phase |
 |---|---|---|
@@ -2643,7 +2643,7 @@ Authoritative list. Each TS file maps to one or more Go files; the rightmost col
 | `README.md` (repo root) | update Go-port section to claim full parity (§12 Step 12) | 12 |
 | `REFERENCE.md` (repo root) | `go/REFERENCE.md` (verbatim per-component reference, Go signatures) | 12 |
 | `go/README.md` (current "template utility" stub) | full quick-start + API surface (replaces stub) | 12 |
-| (none) | `go/jostraca/doc.go` package godoc | 12 |
+| (none) | `go/doc.go` package godoc | 12 |
 | `go/PORT_PLAN.md` | this document; closes when v1 ships | — |
 
 #### 13.5 Module / build files
@@ -2750,7 +2750,7 @@ Each deviation is intentional and documented in `go/README.md` and `doc.go`. Whe
 
 #### D15. `Point*` orchestration utility deferred
 **TS.** Re-exports `PointUtil` from `src/util/point.ts`.
-**Go.** Not in v1; will land as `go/jostraca/point/` sub-package post-v1.
+**Go.** Not in v1; will land as `go/point/` sub-package post-v1.
 **Reason.** Not used by core; only re-exported. Splitting into a sub-package isolates its dependencies (logging, runner) from the generator.
 **Mitigation.** README calls out the omission with a forward reference; users who need orchestration can stay on TS until v2.
 
@@ -2883,8 +2883,8 @@ Each risk has a one-line entry in `go/PORT_PLAN.md` (this section). When a mitig
 
 | File | Why | First-touched in phase |
 |---|---|---|
-| `go/jostraca/template.go` | Replace 184-line stub with the full §9 implementation; keep `Template`/`ParseTemplateSpec` signatures additive (R13). | 3 |
-| `go/jostraca/template_test.go` | Extend the 65-line file with the §9.4 case table mirroring `test/template.test.ts`. Existing rows stay. | 3 |
+| `go/template.go` | Replace 184-line stub with the full §9 implementation; keep `Template`/`ParseTemplateSpec` signatures additive (R13). | 3 |
+| `go/template_test.go` | Extend the 65-line file with the §9.4 case table mirroring `test/template.test.ts`. Existing rows stay. | 3 |
 | `go/README.md` | Replace "template utility port" wording with full quick-start, API, deviations (§14). | 12 |
 | `go/go.mod` | Add `github.com/sergi/go-diff` (runtime), `github.com/google/go-cmp` (test-only). | 10–11 |
 | `go/go.sum` | Regenerate via `go mod tidy` after each new dep lands. | per-step |
@@ -2892,7 +2892,7 @@ Each risk has a one-line entry in `go/PORT_PLAN.md` (this section). When a mitig
 
 #### 16.2 Files created (new in this port)
 
-Grouped by phase from §12. Every file lives under `go/jostraca/` unless noted.
+Grouped by phase from §12. Every file lives under `go/` unless noted.
 
 **Phase 1 (skeleton).**
 - `jostraca.go` — `New`, `Generate`, glue
@@ -2960,7 +2960,7 @@ None. Every existing file in `go/` either survives unchanged or is rewritten in 
 
 #### 16.4 Files explicitly NOT created in v1
 
-- `go/jostraca/point/` sub-package — deferred (D15).
+- `go/point/` sub-package — deferred (D15).
 - A separate `go/cmd/` directory — no v1 binary; this is a library.
 - A `Makefile` — Go's `go test`/`go build` is enough.
 
@@ -3060,7 +3060,7 @@ After phase 12, the README quick-start translated to Go runs end-to-end on disk:
   go mod init smoke && go mod edit -replace github.com/jostraca/jostraca/go=$REPO/go && \
   cat > main.go <<'EOF'
 package main
-import "github.com/jostraca/jostraca/go/jostraca"
+import "github.com/jostraca/jostraca/go"
 func main() {
     j := jostraca.New(jostraca.WithFolder("./out"))
     if _, err := j.Generate(jostraca.Options{}, func(j *jostraca.J) {
