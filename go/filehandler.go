@@ -308,12 +308,29 @@ func (fh *fileHandler) saveMerge(p string, content, existing []byte, rpath, when
 	if err != nil {
 		return err
 	}
-	isoWhen := time.UnixMilli(fh.when).UTC().Format("2006-01-02T15:04:05.000Z")
-	isoLast := time.UnixMilli(fh.bmeta.last()).UTC().Format("2006-01-02T15:04:05.000Z")
-	res := merge3Labelled(content, baseline, existing, mergeLabels{
-		A: "GENERATED: " + isoWhen + "/merge",
-		B: "EXISTING: " + isoLast + "/merge",
-	})
+	// Fast paths — avoid the diff3 LCS entirely when its result is known.
+	// The LCS is quadratic, and on large generated files that change almost
+	// completely it effectively never terminates. Both cases below are
+	// semantics-identical to running the merge.
+	// Mirrors ts/src/build/FileHandler.ts merge().
+	var res mergeResult
+	if bytes.Equal(content, existing) {
+		// 1. The existing file already equals the new generate.
+		why = append(why, "merge-same-0")
+		res = mergeResult{Content: existing, Conflict: false}
+	} else if bytes.Equal(existing, baseline) {
+		// 2. The existing file is untouched since the last generate — a
+		// 3-way merge over an unchanged base yields the new content exactly.
+		why = append(why, "merge-clean-0")
+		res = mergeResult{Content: content, Conflict: false}
+	} else {
+		isoWhen := time.UnixMilli(fh.when).UTC().Format("2006-01-02T15:04:05.000Z")
+		isoLast := time.UnixMilli(fh.bmeta.last()).UTC().Format("2006-01-02T15:04:05.000Z")
+		res = merge3Labelled(content, baseline, existing, mergeLabels{
+			A: "GENERATED: " + isoWhen + "/merge",
+			B: "EXISTING: " + isoLast + "/merge",
+		})
+	}
 	if err := fh.ensureDirOf(p); err != nil {
 		return err
 	}

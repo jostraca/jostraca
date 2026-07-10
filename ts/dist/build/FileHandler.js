@@ -277,14 +277,25 @@ class FileHandler {
     merge(editA, orig, editB, why) {
         const out = { content: editB, conflict: false };
         let done = false;
-        // Only merge if needed
-        // if (origcontent.length === newcontent.length &&
-        //   origcontent === newcontent
-        // ) {
-        //   done = true
-        // }
+        // Fast paths — avoid the diff3 LCS entirely when its result is known.
+        // The LCS is quadratic, and on large generated files that change almost
+        // completely (regenerating a reshaped model over 500KB+ config/reference
+        // outputs) it effectively never terminates. Both cases below are
+        // semantics-identical to running the merge:
+        // 1. The existing file already equals the new generate — nothing to do.
+        if (!done && editA === editB) {
+            why.push('merge-same-0');
+            done = true;
+        }
+        // 2. The existing file is untouched since the last generate (no manual
+        // edits) — a 3-way merge over an unchanged base yields editA exactly.
+        if (!done && editB === orig) {
+            why.push('merge-clean-0');
+            out.content = editA;
+            done = true;
+        }
         // Don't stack conflicts
-        if (editB.includes('>>>>>>> EXISTING:')) {
+        if (!done && editB.includes('>>>>>>> EXISTING:')) {
             why.push('merge-unresolved-0');
             done = true;
             // TODO: should this be a error, or collected?
