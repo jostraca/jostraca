@@ -34,6 +34,7 @@ declare class BuildContext {
         version: boolean;
     }, fs: () => FST, now: () => number);
     addmeta(file: string, meta: any): void;
+    folderPath(): string;
     duplicateFolder(): string;
 }
 export { BuildContext };

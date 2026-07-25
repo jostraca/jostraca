@@ -117,6 +117,15 @@ var scenarioRunners = map[string]func(j *J){
 			})
 		})
 	},
+	"no_project_file": func(j *J) {
+		j.File("x.txt", func(j *J) { j.Content("hi\n") })
+	},
+	"dotfile_preserve": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File(".env", func(j *J) { j.Content("NEW-ENV\n") })
+			j.File(".npmrc", func(j *J) { j.Content("NEW-NPMRC\n") })
+		})
+	},
 	"content_empty_folder": func(j *J) {
 		j.Folder("", func(j *J) {
 			j.File("foo.txt", func(j *J) { j.Content("A") })
@@ -153,7 +162,7 @@ func scenarioOptions(scenario string) []Option {
 		})}
 	case "copy_file":
 		return []Option{WithModel(map[string]any{"name": "World"})}
-	case "preserve_mode":
+	case "preserve_mode", "dotfile_preserve":
 		t := true
 		return []Option{WithExisting(Existing{Txt: ExistingTxt{Preserve: &t}})}
 	case "present_mode":
@@ -215,7 +224,15 @@ func runParityCase(t *testing.T, path, name string) {
 
 	runner, ok := scenarioRunners[name]
 	if !ok {
-		t.Skipf("scenario %s has no Go runner; add one to scenarioRunners", name)
+		if reason, known := knownParityGaps[name]; known {
+			t.Skipf("known parity gap: %s", reason)
+			return
+		}
+		// A missing runner is a parity gap, not a non-event: the TS side has
+		// a scenario the Go port does not answer for. Fail loudly, and use
+		// knownParityGaps to carry a deliberate, documented exemption.
+		t.Fatalf("scenario %s has no Go runner; add one to scenarioRunners "+
+			"(or record a deliberate exemption in knownParityGaps)", name)
 		return
 	}
 
@@ -275,6 +292,12 @@ func assertVol(t *testing.T, mem *MemFS, want map[string]string) {
 		t.Errorf("path %s: bytes differ\nGo:\n%s\nTS:\n%s\n", p, gotS[p], want[p])
 	}
 }
+
+// knownParityGaps records scenarios deliberately not mirrored in Go, each
+// with the reason. Entries here are exemptions from the
+// missing-runner failure in runParityCase and should be rare and
+// short-lived. Empty is the healthy state.
+var knownParityGaps = map[string]string{}
 
 // phaseShapedCorpora names parity JSON files whose top-level shape is a
 // phase replay (label/foo pairs) rather than {opts, prepopulate, vol}.

@@ -5,6 +5,8 @@ import type { Node, BuildContext } from '../jostraca'
 
 import { isbinext, template } from '../jostraca'
 
+import { validName } from '../build/FileHandler'
+
 import { FileOp } from './FileOp'
 
 
@@ -64,7 +66,7 @@ const CopyOp = {
     const kind = node.after.kind
 
     const frompath = node.from as string
-    let topath = buildctx.current.folder.path.join('/')
+    let topath = buildctx.folderPath()
 
     const state = {
       fileCount: 0,
@@ -78,6 +80,8 @@ const CopyOp = {
           []
     }
 
+    // node.name carries the Copy `to` prop.
+    validName(node.name, 'Copy(to)', ON + 'after:')
     topath = null == node.name ? topath : topath + '/' + node.name
 
     if ('file' === kind) {

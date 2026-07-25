@@ -109,7 +109,36 @@ func isAbsPath(p string) bool {
 	return len(p) > 0 && p[0] == '/'
 }
 
+// validName rejects path traversal in a component name. Names compose
+// directly into output paths, and models are routinely third-party data,
+// so a name containing a ".." segment is an arbitrary-file-write
+// primitive: it escapes not just the project folder but the output
+// folder entirely.
+//
+// A leading "/" is deliberately still allowed — an absolute Folder name
+// composes with the Project folder (see the absolute_paths parity
+// scenario). ProjectProps.Folder is likewise not checked: it is
+// developer-authored top-level configuration rather than model-derived.
+//
+// Mirrors validName in ts/src/build/FileHandler.ts.
+func validName(name, kind string) error {
+	if name == "" {
+		return nil
+	}
+	for _, seg := range strings.FieldsFunc(name, func(r rune) bool {
+		return r == '/' || r == '\\'
+	}) {
+		if seg == ".." {
+			return fmt.Errorf("%w: %s name=%s", ErrNameTraversal, kind, name)
+		}
+	}
+	return nil
+}
+
 func folderBefore(n *Node, _ *jstate, b *buildCtx) error {
+	if err := validName(n.Name, "Folder"); err != nil {
+		return err
+	}
 	if b.current.folder.path == nil {
 		b.current.folder.path = []string{}
 	}
@@ -125,6 +154,9 @@ func folderAfter(_ *Node, _ *jstate, b *buildCtx) error {
 }
 
 func fileBefore(n *Node, st *jstate, b *buildCtx) error {
+	if err := validName(n.Name, "File"); err != nil {
+		return err
+	}
 	b.current.file = n
 	parent := b.current.folder.parent
 	dir := strings.Join(b.current.folder.path, "/")
@@ -202,6 +234,10 @@ func contentBefore(n *Node, _ *jstate, b *buildCtx) error {
 func copyBefore(n *Node, st *jstate, b *buildCtx) error {
 	if b.fh == nil {
 		return nil
+	}
+	// n.Name carries the Copy `To` prop.
+	if err := validName(n.Name, "Copy(To)"); err != nil {
+		return err
 	}
 	from := n.From
 	fi, err := b.fh.fs.Stat(from)
@@ -377,6 +413,9 @@ func shouldIgnoreCopyPath(name string, exclude any, ignores []*regexp.Regexp) bo
 
 // injectBefore mirrors fileBefore: set current.file and FullPath.
 func injectBefore(n *Node, _ *jstate, b *buildCtx) error {
+	if err := validName(n.Name, "Inject"); err != nil {
+		return err
+	}
 	parent := b.current.folder.parent
 	dir := strings.Join(b.current.folder.path, "/")
 	if dir != "" {

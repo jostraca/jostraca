@@ -56,5 +56,7 @@ declare class FileHandler {
     saveFile(path: string, content: string | Buffer, opts?: any | string, whence?: string): void;
     filelog(kind: string, path: string): void;
 }
+declare function annotatedPath(target: string, kind: string): string;
+declare function validName(name: any, kind: string, errmark: string): void;
 declare function validPath(path: string, maxdepth: number, errmark: string): void;
-export { validPath, FileHandler };
+export { annotatedPath, validName, validPath, FileHandler };

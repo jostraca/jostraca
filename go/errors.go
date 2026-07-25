@@ -14,6 +14,7 @@ var (
 	ErrLookbehind      = errors.New("jostraca: lookbehind not supported (RE2)")
 	ErrMergeConflict   = errors.New("jostraca: 3-way merge produced conflicts")
 	ErrNilRoot         = errors.New("jostraca: Generate root callback is nil")
+	ErrNameTraversal   = errors.New(`jostraca: name must not contain a ".." path segment`)
 )
 
 // NodeError wraps any build-phase error with context about which step and

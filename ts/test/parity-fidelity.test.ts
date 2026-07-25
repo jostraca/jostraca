@@ -95,11 +95,16 @@ describe('parity-fidelity', () => {
     )
     const vol = mfs.vol.toJSON()
     const keys = Object.keys(vol).sort()
-    // The file should be under a 'pre-a.gen.txt'-shaped name.
-    const found = keys.some(k => /pre-a\.gen\.txt/.test(k))
-    // Skip-tolerant: if TS doesn't implement the pipeline, this will
-    // not match. Document either way.
-    expect(found || true).true()
+
+    // Options.name.file.prefix/suffix is declared in OptionsShape but NOT
+    // implemented (see the `TODO: implement` in src/jostraca.ts). This
+    // asserts the current reality rather than the intent, so that whoever
+    // implements the affix pipeline gets a failure here and updates both
+    // this test and the Go port together.
+    const affixed = keys.some(k => /pre-a\.gen\.txt/.test(k))
+    const plain = keys.some(k => k.endsWith('/p/a.txt'))
+    expect(affixed).false()
+    expect(plain).true()
   })
 
 })

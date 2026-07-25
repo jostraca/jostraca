@@ -9,7 +9,9 @@ type Asserter = {
   include: (expected: unknown) => void
   includes: (expected: unknown) => void
   throws: (matcher?: Matcher) => void
+  rejects: (matcher?: Matcher) => Promise<void>
   true: () => void
+  false: () => void
 }
 
 export function expect(actual: any): Asserter {
@@ -20,6 +22,8 @@ export function expect(actual: any): Asserter {
     include: (expected) => assert.partialDeepStrictEqual(actual, expected),
     includes: (expected) => assert.partialDeepStrictEqual(actual, expected),
     throws: (matcher) => assert.throws(actual, matcher as any),
+    rejects: (matcher) => assert.rejects(actual, matcher as any),
     true: () => assert.strictEqual(actual, true),
+    false: () => assert.strictEqual(actual, false),
   }
 }

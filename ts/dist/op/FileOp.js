@@ -1,13 +1,17 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FileOp = void 0;
+const FileHandler_1 = require("../build/FileHandler");
 const ON = 'FileOp:';
 const FileOp = {
     before(node, _ctx$, buildctx) {
-        // TODO: error if not inside a folder
         const cfile = buildctx.current.file = node;
         const name = node.name;
-        cfile.fullpath = buildctx.current.folder.path.join('/') + '/' + name;
+        (0, FileHandler_1.validName)(name, 'File', ON + 'before:');
+        // folderPath() falls back to the base output folder when no Project or
+        // Folder has seeded the path, so a top-level File stays inside the
+        // output folder instead of resolving to '/<name>'.
+        cfile.fullpath = buildctx.folderPath() + '/' + name;
         cfile.content = [];
     },
     after(node, ctx$, buildctx) {

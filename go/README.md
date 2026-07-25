@@ -259,10 +259,20 @@ with these intentional ergonomic differences:
 - `Indent` uses `strings.ReplaceAll` (no JS lookbehind needed).
 - The `Point*` orchestration utility is not ported (deferred to a
   future sub-package).
-- 2-way diff render uses a unified GENERATED/EXISTING block
-  instead of TS's paired-per-region markers (under review for v1.1).
 
-A full deviation list lives in `PORT_PLAN.md` §14.
+Not deviations (both stacks behave identically, and the `parity_test.go`
+corpus asserts it byte-for-byte):
+
+- 2-way diff render emits TS's paired-per-region markers. (An earlier
+  note here claimed a unified GENERATED/EXISTING block; that was stale —
+  see the `diff_mode` parity scenario.)
+- Component names are rejected if they contain a `..` path segment, in
+  both stacks. A leading `/` is still allowed, so an absolute `Folder`
+  name composes with the `Project` folder.
+- Backup/sidecar naming: `a.txt` → `a.old.txt`, and a dotfile keeps its
+  whole name as the stem (`.env` → `.env.old`).
+
+Background on the port's design decisions lives in `PORT_PLAN.md`.
 
 ## Status
 

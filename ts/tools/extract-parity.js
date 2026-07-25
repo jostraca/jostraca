@@ -15,7 +15,8 @@ const {
 
 const { memfs } = require('memfs')
 
-const outDir = process.argv[2] || 'go/jostraca/testdata/parity'
+// Default is relative to the repo root (this script is run from ts/).
+const outDir = process.argv[2] || '../go/testdata/parity'
 
 fs.mkdirSync(outDir, { recursive: true })
 
@@ -148,6 +149,29 @@ async function main() {
       File({ name: 'foo.txt' }, () => Content('A'))
     })
   })
+
+  // A File with no enclosing Project must resolve under the output
+  // folder. This used to join onto an empty folder path and land at the
+  // filesystem root.
+  await snapshot('no_project_file', {}, () => {
+    File({ name: 'x.txt' }, () => Content('hi\n'))
+  })
+
+  // Every dotfile in a folder needs its own backup path: `.env` must back
+  // up to `.env.old`, not collapse onto a shared `.old`.
+  await snapshot('dotfile_preserve',
+    { existing: { txt: { preserve: true } } },
+    () => {
+      Project({ folder: 'app' }, () => {
+        File({ name: '.env' }, () => Content('NEW-ENV\n'))
+        File({ name: '.npmrc' }, () => Content('NEW-NPMRC\n'))
+      })
+    },
+    {
+      '/out/app/.env': 'OLD-ENV\n',
+      '/out/app/.npmrc': 'OLD-NPMRC\n',
+    },
+  )
 
   // basic-copy: Copy with multiple files + ~ default ignore.
   await snapshot('basic_copy',

@@ -490,18 +490,22 @@ func (fh *fileHandler) appendAudit(tag string, data map[string]any) {
 	*fh.audit = append(*fh.audit, AuditEntry{Tag: tag, Data: data})
 }
 
-// annotatedPath rewrites foo/bar.txt → foo/bar.<kind>.txt (kind without
-// surrounding dots).
+// annotatedPath rewrites foo/bar.txt → foo/bar.<kind>.txt, used for the
+// `.old` (preserve) and `.new` (present) annotations.
+//
+// A leading-dot name has no extension to split off, so the whole basename
+// is the stem: `.env` → `.env.old`, not `.old.env`. Go's path.Ext(".env")
+// returns ".env" (the suffix from the final dot, which here is index 0),
+// so that case needs an explicit guard. Mirrors annotatedPath in
+// ts/src/build/FileHandler.ts, where Node's Path.extname(".env") is ""
+// and produces the same result.
 func annotatedPath(target, kind string) string {
 	dir, base := path.Split(target)
 	ext := path.Ext(base)
-	name := base
-	if ext != "" {
-		name = base[:len(base)-len(ext)]
-		ext = ext[1:] // drop the leading dot
+	// A dot at index 0 marks a dotfile, not an extension separator.
+	if ext == base {
+		ext = ""
 	}
-	if ext == "" {
-		return dir + name + "." + kind
-	}
-	return dir + name + "." + kind + "." + ext
+	stem := base[:len(base)-len(ext)]
+	return dir + stem + "." + kind + ext
 }

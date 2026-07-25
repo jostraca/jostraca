@@ -148,7 +148,6 @@ class FileHandler {
 
     const existing = 'string' === typeof newContentSource ? this.existing.txt : this.existing.bin
     path = fwd(Path.normalize(path))
-    const folder = fwd(Path.dirname(path))
 
     const withinFolder = path.startsWith(this.folder) || (
       '.' === this.folder && !Path.isAbsolute(path)
@@ -188,9 +187,7 @@ class FileHandler {
           currentContent !== newContentSource) {
           why.push('content-0')
 
-          let oldpath =
-            fwd(Path.join(folder, Path.basename(path).replace(/\.[^.]+$/, '') +
-              '.old' + Path.extname(path)))
+          let oldpath = annotatedPath(path, 'old')
           this.copyFile(path, oldpath, whence + 'preserve:')
           // this.files.preserved.push(path)
           this.filelog('preserved', path)
@@ -214,9 +211,7 @@ class FileHandler {
         if (currentContent.length !== newContentSource.length || currentContent !== newContentSource) {
           why.push('content-1')
 
-          let newpath =
-            fwd(Path.join(folder, Path.basename(path).replace(/\.[^.]+$/, '') +
-              '.new' + Path.extname(path)))
+          let newpath = annotatedPath(path, 'new')
           this.saveFile(newpath, newContentSource, { flush: true }, whence + 'present:')
           this.filelog('presented', path)
 
@@ -770,6 +765,47 @@ function whenify(meta: any, now: number) {
 }
 
 
+// Rewrite `foo/bar.txt` to `foo/bar.<kind>.txt`, used for the `.old`
+// (preserve) and `.new` (present) annotations.
+//
+// Node's `Path.extname('.env')` is '', so a leading-dot name has no
+// extension to split off and the whole basename is the stem. The previous
+// implementation stripped the final `.`-suffix with a regex, which for a
+// dotfile removed the entire name: every dotfile in a folder collapsed to
+// the same `.old` path, so a second dotfile silently destroyed the first
+// one's backup.
+function annotatedPath(target: string, kind: string): string {
+  const dir = Path.dirname(target)
+  const base = Path.basename(target)
+  const ext = Path.extname(base)
+  const stem = 0 === ext.length ? base : base.substring(0, base.length - ext.length)
+  return fwd(Path.join(dir, stem + '.' + kind + ext))
+}
+
+
+// Reject path traversal in a component name. Names compose directly into
+// output paths, and models are routinely third-party data, so a name
+// containing a `..` segment is an arbitrary-file-write primitive: it
+// escapes not just the project folder but the output folder entirely.
+//
+// A leading `/` is deliberately still allowed — an absolute Folder name
+// composes with the Project folder (see the `absolute_paths` parity
+// scenario). `Project.folder` is likewise not checked here: it is
+// developer-authored top-level configuration rather than model-derived,
+// and `Project({folder: '../sibling'})` is a legitimate pattern.
+function validName(name: any, kind: string, errmark: string) {
+  if (null == name) {
+    return
+  }
+
+  const segments = ('' + name).split(/[/\\]/)
+  if (segments.includes('..')) {
+    throw new Error('ERROR:' + errmark + ' ' + kind +
+      ' name must not contain a ".." path segment, name=' + name)
+  }
+}
+
+
 function validPath(path: string, maxdepth: number, errmark: string) {
   if (null == path || '' == path || 'string' !== typeof path) {
     throw new Error('ERROR:' + errmark + ' invalid path, path=' + path)
@@ -797,6 +833,8 @@ function validPath(path: string, maxdepth: number, errmark: string) {
 
 
 export {
+  annotatedPath,
+  validName,
   validPath,
   FileHandler
 }

@@ -5,13 +5,18 @@ import type { Node, BuildContext } from '../jostraca'
 
 import { escre } from '../jostraca'
 
+import { validName } from '../build/FileHandler'
+
 const ON = 'InjectOp:'
 
 const InjectOp = {
 
   before(node: Node, _ctx$: any, buildctx: BuildContext) {
     const cfile: any = buildctx.current.file = node
-    cfile.fullpath = buildctx.current.folder.path.join('/') + '/' + node.name
+
+    validName(node.name, 'Inject', ON + 'before:')
+
+    cfile.fullpath = buildctx.folderPath() + '/' + node.name
     cfile.content = []
   },
 

@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CopyOp = void 0;
 const node_path_1 = __importDefault(require("node:path"));
 const jostraca_1 = require("../jostraca");
+const FileHandler_1 = require("../build/FileHandler");
 const FileOp_1 = require("./FileOp");
 const ON = 'Copy:';
 const IGNORED_RE = /(~|-jostraca-off)$/;
@@ -49,7 +50,7 @@ const CopyOp = {
         const fs = ctx$.fs();
         const kind = node.after.kind;
         const frompath = node.from;
-        let topath = buildctx.current.folder.path.join('/');
+        let topath = buildctx.folderPath();
         const state = {
             fileCount: 0,
             folderCount: 0,
@@ -61,6 +62,8 @@ const CopyOp = {
                 Array.isArray(node.exclude) ? node.exclude :
                     []
         };
+        // node.name carries the Copy `to` prop.
+        (0, FileHandler_1.validName)(node.name, 'Copy(to)', ON + 'after:');
         topath = null == node.name ? topath : topath + '/' + node.name;
         if ('file' === kind) {
             copyFile(frompath, topath, state, buildctx, fs);

@@ -3,17 +3,23 @@ import Path from 'node:path'
 
 import type { Node, BuildContext } from '../jostraca'
 
+import { validName } from '../build/FileHandler'
+
 
 const ON = 'FileOp:'
 
 const FileOp = {
 
   before(node: Node, _ctx$: any, buildctx: BuildContext) {
-    // TODO: error if not inside a folder
-
     const cfile: any = buildctx.current.file = node
     const name = node.name as string
-    cfile.fullpath = buildctx.current.folder.path.join('/') + '/' + name
+
+    validName(name, 'File', ON + 'before:')
+
+    // folderPath() falls back to the base output folder when no Project or
+    // Folder has seeded the path, so a top-level File stays inside the
+    // output folder instead of resolving to '/<name>'.
+    cfile.fullpath = buildctx.folderPath() + '/' + name
     cfile.content = []
   },
 

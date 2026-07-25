@@ -13,7 +13,9 @@ function expect(actual) {
         include: (expected) => node_assert_1.default.partialDeepStrictEqual(actual, expected),
         includes: (expected) => node_assert_1.default.partialDeepStrictEqual(actual, expected),
         throws: (matcher) => node_assert_1.default.throws(actual, matcher),
+        rejects: (matcher) => node_assert_1.default.rejects(actual, matcher),
         true: () => node_assert_1.default.strictEqual(actual, true),
+        false: () => node_assert_1.default.strictEqual(actual, false),
     };
 }
 //# sourceMappingURL=expect.js.map

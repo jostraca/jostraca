@@ -11,6 +11,34 @@ Reproductions were run against `ts/dist` and a scratch copy of the Go module.
 
 ---
 
+## 0. Status
+
+Fixed on this branch, each with regression tests in both stacks:
+
+| id | fix |
+|---|---|
+| §5.1 | both CI workflows now run (`working-directory: ts`; `./...` not `./jostraca`) |
+| §5.2 | `go-test.yml` also triggers on `ts/**` |
+| §5.3 | CI regenerates the parity corpus and fails on any diff |
+| §5.4 | a missing Go runner now fails instead of skipping (`knownParityGaps` carries exemptions) |
+| §5.6 | the tautological `expect(found \|\| true).true()` now asserts real behaviour |
+| T1 | a top-level `File` resolves under the output folder, not `/` |
+| T2 / G-shared | `..` in a `File`/`Folder`/`Inject`/`Copy(to)` name is rejected in both stacks |
+| T3 / G6 | dotfile backups keep their name (`.env` → `.env.old`), so two dotfiles no longer collide |
+
+Also corrected: `extract-parity.js`'s default output path (stale after the module
+flatten), and a stale "deviation" note in `go/README.md` claiming the Go 2-way diff render
+differed from TS — it does not, and `diff_mode` asserts that byte-for-byte.
+
+Two new parity scenarios (`no_project_file`, `dotfile_preserve`) cover the behaviours the
+corpus previously missed; the suite is now 23 scenarios.
+
+Still open, in the order proposed in §6: G2 (dropped baseline-write errors), T4/G3
+(atomic writes), G1 (LCS memory), T5 (binary detection), then the rest of the
+reconciliation table.
+
+---
+
 ## 1. Executive summary
 
 The architecture is sound: a declarative define phase producing a node tree, a

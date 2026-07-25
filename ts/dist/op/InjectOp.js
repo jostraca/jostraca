@@ -2,11 +2,13 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.InjectOp = void 0;
 const jostraca_1 = require("../jostraca");
+const FileHandler_1 = require("../build/FileHandler");
 const ON = 'InjectOp:';
 const InjectOp = {
     before(node, _ctx$, buildctx) {
         const cfile = buildctx.current.file = node;
-        cfile.fullpath = buildctx.current.folder.path.join('/') + '/' + node.name;
+        (0, FileHandler_1.validName)(node.name, 'Inject', ON + 'before:');
+        cfile.fullpath = buildctx.folderPath() + '/' + node.name;
         cfile.content = [];
     },
     after(node, ctx$, buildctx) {
