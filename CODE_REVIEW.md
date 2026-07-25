@@ -25,6 +25,11 @@ Fixed on this branch, each with regression tests in both stacks:
 | T1 | a top-level `File` resolves under the output folder, not `/` |
 | T2 / G-shared | `..` in a `File`/`Folder`/`Inject`/`Copy(to)` name is rejected in both stacks |
 | T3 / G6 | dotfile backups keep their name (`.env` → `.env.old`), so two dotfiles no longer collide |
+| **T0** | **`Jostraca()` with no `fs`/`mem` could not write to the real filesystem at all** (see §2.0) |
+| T4 / G3 | writes are atomic (temp + rename), with the target's mode preserved |
+| G2 | merge-baseline write errors propagate instead of being discarded |
+| T9 | `dryrun` no longer creates directories in `copyFile` |
+| G11 (part) | dead `savePreserve` removed |
 
 Also corrected: `extract-parity.js`'s default output path (stale after the module
 flatten), and a stale "deviation" note in `go/README.md` claiming the Go 2-way diff render
@@ -33,9 +38,46 @@ differed from TS — it does not, and `diff_mode` asserts that byte-for-byte.
 Two new parity scenarios (`no_project_file`, `dotfile_preserve`) cover the behaviours the
 corpus previously missed; the suite is now 23 scenarios.
 
-Still open, in the order proposed in §6: G2 (dropped baseline-write errors), T4/G3
-(atomic writes), G1 (LCS memory), T5 (binary detection), then the rest of the
-reconciliation table.
+Still open, in the order proposed in §6: G1 (LCS memory), T5 (binary detection), then the
+rest of the reconciliation table. Newly found while fixing the above, not yet addressed:
+**G16** — TS guards the duplicate-baseline write with `withinFolder` and a metafile check
+(`FileHandler.ts:361-364`); Go's `writeDuplicate` has neither, so a path resolved outside
+the output folder produces a nonsense baseline path. And the dead `writeConflict`
+(`go/merge.go`) is still there.
+
+---
+
+## 2.0 T0 — a plain `Jostraca()` had no filesystem [verified]
+
+`ts/src/jostraca.ts:198`
+
+```ts
+function get_gMemFs() { return gMemFs ? gMemFs.fs : undefined }
+const gGetFs = gOpts.fs || get_gMemFs || undefined
+```
+
+`get_gMemFs` is a function declaration, so it is always truthy and `gGetFs` was always
+set. In `generate`:
+
+```ts
+const fs = (opts.fs || (memfs && (() => memfs.fs)) || gGetFs || sysFs)()
+```
+
+`gGetFs` therefore short-circuited the `sysFs` fallback and returned `undefined` whenever
+memfs was off. The README quick start — `Jostraca()` then `generate({folder:'./out'}, …)`
+— failed with `Cannot read properties of undefined (reading 'existsSync')`.
+
+This is the library's primary documented use case. It survived because **every** test in
+the suite injects a memfs provider explicitly, so no test ever exercised the default. It
+surfaced only when a new test wrote to a real temp directory to check mode preservation.
+
+The Go port defaults correctly (`newFileHandler`: `if fs == nil { fs = OsFS{} }`), so this
+is TS-only. Fixed by installing the memfs provider globally only when memfs is actually in
+use, plus two regression tests that use the real filesystem.
+
+The wider lesson for the suite: a test double used universally hides defects in the
+production path it stands in for. Worth at least one real-filesystem smoke test per
+release.
 
 ---
 

@@ -271,6 +271,10 @@ corpus asserts it byte-for-byte):
   name composes with the `Project` folder.
 - Backup/sidecar naming: `a.txt` → `a.old.txt`, and a dotfile keeps its
   whole name as the stem (`.env` → `.env.old`).
+- Writes go through a temp file plus rename, so an interrupted run cannot
+  truncate an existing file. An existing target's mode is preserved when
+  the `FS` provider implements the optional `Chmod(path, fs.FileMode)`
+  method (`OsFS` does; `MemFS` does not need to).
 
 Background on the port's design decisions lives in `PORT_PLAN.md`.
 

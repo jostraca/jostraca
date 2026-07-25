@@ -25,6 +25,14 @@ type FS interface {
 	Rename(oldpath, newpath string) error
 }
 
+// chmodFS is an optional capability: a provider that implements it lets
+// the atomic write-then-rename preserve an existing target's mode, which
+// rename would otherwise drop along with the replaced inode. Providers
+// that do not implement it simply keep the default mode.
+type chmodFS interface {
+	Chmod(path string, mode fs.FileMode) error
+}
+
 // FileInfo is a small subset of os.FileInfo we surface across the FS
 // boundary. Times are unix milliseconds for stable JSON serialisation.
 type FileInfo struct {
@@ -54,6 +62,9 @@ func (o OsFS) Exists(p string) bool {
 }
 func (o OsFS) MkdirAll(p string) error { return os.MkdirAll(o.sys(p), 0o755) }
 func (o OsFS) Remove(p string) error   { return os.Remove(o.sys(p)) }
+func (o OsFS) Chmod(p string, mode fs.FileMode) error {
+	return os.Chmod(o.sys(p), mode)
+}
 func (o OsFS) Rename(a, b string) error {
 	return os.Rename(o.sys(a), o.sys(b))
 }

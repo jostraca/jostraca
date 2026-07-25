@@ -139,12 +139,7 @@ func (fh *fileHandler) save(p string, content []byte, whence string) error {
 			fh.bmeta.recordAction(rpath, "skip", exists, false, true)
 		}
 		// TS still writes the duplicate baseline even when protected.
-		if !fh.control.Dryrun && fh.control.Duplicate() {
-			dup := fh.duplicateFolder + "/" + rpath
-			_ = fh.ensureDirOf(dup)
-			_ = fh.fs.WriteFile(dup, content)
-		}
-		return nil
+		return fh.writeDuplicate(rpath, content)
 	}
 
 	contentEqual := bytes.Equal(existing, content)
@@ -194,12 +189,7 @@ func (fh *fileHandler) save(p string, content []byte, whence string) error {
 				fh.bmeta.recordAction(rpath, "write", exists, false, false)
 			}
 			// Still keep the duplicate baseline current.
-			if !fh.control.Dryrun && fh.control.Duplicate() {
-				dup := fh.duplicateFolder + "/" + rpath
-				_ = fh.ensureDirOf(dup)
-				_ = fh.fs.WriteFile(dup, content)
-			}
-			return nil
+			return fh.writeDuplicate(rpath, content)
 		}
 		why = append(why, "write-1")
 		return fh.write(p, content, rpath, whence, exists, why)
@@ -215,15 +205,15 @@ func (fh *fileHandler) write(p string, content []byte, rpath, whence string, exi
 		return err
 	}
 	if !fh.control.Dryrun {
-		if err := fh.fs.WriteFile(p, content); err != nil {
+		if err := fh.writeAtomic(p, content); err != nil {
 			return err
 		}
 		// Side-write a duplicate copy for next-run merge baseline.
 		if fh.control.Duplicate() {
 			why = append(why, "duplicate-1")
-			dup := fh.duplicateFolder + "/" + rpath
-			_ = fh.ensureDirOf(dup)
-			_ = fh.fs.WriteFile(dup, content)
+			if err := fh.writeDuplicate(rpath, content); err != nil {
+				return err
+			}
 			why = append(why, "within-0")
 		}
 	}
@@ -249,7 +239,7 @@ func (fh *fileHandler) savePresent(p string, content []byte, rpath, whence strin
 		return err
 	}
 	if !fh.control.Dryrun {
-		if err := fh.fs.WriteFile(out, content); err != nil {
+		if err := fh.writeAtomic(out, content); err != nil {
 			return err
 		}
 	}
@@ -283,10 +273,8 @@ func (fh *fileHandler) savePresent(p string, content []byte, rpath, whence strin
 func (fh *fileHandler) saveMerge(p string, content, existing []byte, rpath, whence string, why []string) error {
 	if bytes.Contains(existing, []byte(">>>>>>> EXISTING:")) {
 		// Existing has unresolved markers; do not re-merge.
-		if !fh.control.Dryrun && fh.control.Duplicate() {
-			dup := fh.duplicateFolder + "/" + rpath
-			_ = fh.ensureDirOf(dup)
-			_ = fh.fs.WriteFile(dup, content)
+		if err := fh.writeDuplicate(rpath, content); err != nil {
+			return err
 		}
 		fh.appendAudit("save:skip", map[string]any{
 		"action":  "skip",
@@ -335,14 +323,12 @@ func (fh *fileHandler) saveMerge(p string, content, existing []byte, rpath, when
 		return err
 	}
 	if !fh.control.Dryrun {
-		if err := fh.fs.WriteFile(p, res.Content); err != nil {
+		if err := fh.writeAtomic(p, res.Content); err != nil {
 			return err
 		}
-		if fh.control.Duplicate() {
-			dup := fh.duplicateFolder + "/" + rpath
-			_ = fh.ensureDirOf(dup)
-			_ = fh.fs.WriteFile(dup, content)
-		}
+	}
+	if err := fh.writeDuplicate(rpath, content); err != nil {
+		return err
 	}
 	fh.filelog(&fh.files.Merged, p)
 	if res.Conflict {
@@ -377,15 +363,13 @@ func (fh *fileHandler) saveDiff(p string, content, existing []byte, rpath, whenc
 	// TS overwrites the target file with the rendered diff content;
 	// no .diff.<ext> sidecar.
 	if !fh.control.Dryrun {
-		if err := fh.fs.WriteFile(p, rendered); err != nil {
+		if err := fh.writeAtomic(p, rendered); err != nil {
 			return err
 		}
-		// Duplicate baseline tracks the clean generated content.
-		if fh.control.Duplicate() {
-			dup := fh.duplicateFolder + "/" + rpath
-			_ = fh.ensureDirOf(dup)
-			_ = fh.fs.WriteFile(dup, content)
-		}
+	}
+	// Duplicate baseline tracks the clean generated content.
+	if err := fh.writeDuplicate(rpath, content); err != nil {
+		return err
 	}
 	conflict := !bytes.Equal(rendered, content)
 	fh.filelog(&fh.files.Diffed, p)
@@ -416,7 +400,7 @@ func (fh *fileHandler) savePreserveBackup(p string, existing []byte, rpath, when
 		if err := fh.ensureDirOf(backup); err != nil {
 			return err
 		}
-		if err := fh.fs.WriteFile(backup, existing); err != nil {
+		if err := fh.writeAtomic(backup, existing); err != nil {
 			return err
 		}
 	}
@@ -428,22 +412,6 @@ func (fh *fileHandler) savePreserveBackup(p string, existing []byte, rpath, when
 	})
 	if fh.bmeta != nil {
 		fh.bmeta.recordAction(rpath, "preserve", true, false, false)
-	}
-	return nil
-}
-
-func (fh *fileHandler) savePreserve(p string, content, existing []byte, rpath, whence string) error {
-	if err := fh.savePreserveBackup(p, existing, rpath, whence); err != nil {
-		return err
-	}
-	if !fh.control.Dryrun {
-		if err := fh.fs.WriteFile(p, content); err != nil {
-			return err
-		}
-	}
-	fh.filelog(&fh.files.Written, p)
-	if fh.bmeta != nil {
-		fh.bmeta.recordAction(rpath, "write", true, false, false)
 	}
 	return nil
 }
@@ -480,6 +448,59 @@ func (fh *fileHandler) ensureFolder(p string) error {
 	}
 	fh.createdDirs[p] = struct{}{}
 	return nil
+}
+
+// tmpSuffix names the sibling temp file used by writeAtomic.
+const tmpSuffix = ".jostraca-tmp"
+
+// writeAtomic replaces p by writing a sibling temp file and renaming it
+// over the target. Rename within a directory is atomic, so a crash or a
+// full disk leaves the user's existing file intact rather than truncated
+// or half-written. That matters most in merge and diff mode, where the
+// file being rewritten holds the user's hand edits.
+//
+// Rename replaces the inode, so a hard link to the target is broken and
+// the new file would otherwise take the provider's default mode — hence
+// the best-effort mode copy. Same trade-off git and npm make.
+func (fh *fileHandler) writeAtomic(p string, content []byte) error {
+	tmp := p + tmpSuffix
+	if err := fh.fs.WriteFile(tmp, content); err != nil {
+		return err
+	}
+
+	// Best-effort: a provider may stat but not chmod, and losing a
+	// permission bit is not worth failing the write over.
+	if cf, ok := fh.fs.(chmodFS); ok {
+		if fi, err := fh.fs.Stat(p); err == nil && !fi.IsDir {
+			_ = cf.Chmod(tmp, fi.Mode)
+		}
+	}
+
+	if err := fh.fs.Rename(tmp, p); err != nil {
+		_ = fh.fs.Remove(tmp)
+		return err
+	}
+	return nil
+}
+
+// writeDuplicate refreshes the merge baseline under
+// <folder>/.jostraca/generated.
+//
+// The baseline is what makes edit-preserving merges possible: if it is
+// missing on the next run, save() takes the no-baseline path and
+// overwrites the user's edits with generated content. A failure here must
+// therefore surface rather than be discarded — a silent failure now is
+// data loss on the next run, with nothing in the audit trail connecting
+// the two.
+func (fh *fileHandler) writeDuplicate(rpath string, content []byte) error {
+	if fh.control.Dryrun || !fh.control.Duplicate() {
+		return nil
+	}
+	dup := fh.duplicateFolder + "/" + rpath
+	if err := fh.ensureDirOf(dup); err != nil {
+		return err
+	}
+	return fh.writeAtomic(dup, content)
 }
 
 func (fh *fileHandler) filelog(slot *[]string, rpath string) {

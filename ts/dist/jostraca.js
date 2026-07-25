@@ -182,7 +182,12 @@ function Jostraca(gopts_in) {
     const gVol = deep({}, gOpts.vol);
     const gMemFs = gUseMemFs ? (0, memfs_1.memfs)(gVol) : undefined;
     function get_gMemFs() { return gMemFs ? gMemFs.fs : undefined; }
-    const gGetFs = gOpts.fs || get_gMemFs || undefined;
+    // `get_gMemFs` is a function declaration, so it is always truthy. Only
+    // install it as the global provider when memfs is actually in use —
+    // otherwise it short-circuits the `sysFs` fallback in `generate` and
+    // resolves to `undefined`, leaving a plain `Jostraca()` with no
+    // filesystem at all.
+    const gGetFs = gOpts.fs || (gUseMemFs ? get_gMemFs : undefined);
     async function generate(opts_in, root) {
         const opts = OptionsShape(opts_in);
         // Parameters to `generate` override any global options.

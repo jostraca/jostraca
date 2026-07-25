@@ -19,6 +19,8 @@ function fwd(p) {
     return p.includes('\\') ? p.replace(/\\/g, '/') : p;
 }
 const JOSTRACA_PROTECT = 'JOSTRACA_PROTECT';
+// Suffix for the sibling temp file used by the atomic write-then-rename.
+const TMP_SUFFIX = '.jostraca-tmp';
 // TODO: if EOL != '\n', normalize to '\n' in load,save 
 // Log non-fatal wierdness.
 const dlog = (0, basic_1.getdlog)('jostraca', __filename);
@@ -247,8 +249,7 @@ class FileHandler {
                 const dpath = fwd(node_path_1.default.join(dfolder, rpath));
                 if (!this.control.dryrun) {
                     this.ensureDir(fwd(node_path_1.default.dirname(dpath)));
-                    const dopts = { flush: true };
-                    fs.writeFileSync(dpath, newContentSource, dopts);
+                    this.writeFileAtomic(dpath, newContentSource, { flush: true });
                 }
                 if (null == meta.when) {
                     whenify(meta, this.now());
@@ -387,10 +388,13 @@ class FileHandler {
         const fullfrompath = fwd(node_path_1.default.normalize(frompath));
         try {
             const existed = fs.existsSync(fulltopath);
-            this.ensureDir(fwd(node_path_1.default.dirname(fulltopath)));
             const content = fs.readFileSync(fullfrompath, isBinary ? undefined : 'utf8');
+            // ensureDir must stay inside the dryrun guard: a dry run must not
+            // mutate the tree, and creating the destination folder is a mutation
+            // (saveFile already gets this right).
             if (!this.control.dryrun) {
-                fs.writeFileSync(fulltopath, content, { flush: true });
+                this.ensureDir(fwd(node_path_1.default.dirname(fulltopath)));
+                this.writeFileAtomic(fulltopath, content, { flush: true });
             }
             this.audit.push([CN + FN + wstr,
                 { topath, frompath, when, existed, size: content.length }]);
@@ -496,6 +500,56 @@ class FileHandler {
             this.createdDirs.add(dir);
         }
     }
+    // Replace `path` atomically: write a sibling temp file, then rename it
+    // over the target. Rename within a directory is atomic, so a crash, a
+    // SIGINT, or a full disk leaves the user's existing file intact rather
+    // than truncated or half-written. That matters most in `merge` and
+    // `diff` mode, where the file being rewritten is the one holding the
+    // user's hand edits.
+    //
+    // Rename replaces the inode, so a hard link to the target is broken and
+    // the new file would otherwise take default permissions — hence the
+    // mode copy below. This is the same trade-off git and npm make.
+    //
+    // The `fs` provider is pluggable; fall back to a direct write when it
+    // has no rename.
+    writeFileAtomic(path, content, opts) {
+        const fs = this.fs();
+        if ('function' !== typeof fs.renameSync) {
+            fs.writeFileSync(path, content, opts);
+            return;
+        }
+        const tmppath = path + TMP_SUFFIX;
+        try {
+            fs.writeFileSync(tmppath, content, opts);
+            // Best-effort mode preservation: a provider may stat but not chmod,
+            // and losing a permission bit is not worth failing the write over.
+            if ('function' === typeof fs.chmodSync && 'function' === typeof fs.statSync) {
+                try {
+                    const stat = fs.statSync(path);
+                    if (stat && !stat.isDirectory()) {
+                        fs.chmodSync(tmppath, stat.mode);
+                    }
+                }
+                catch (err) {
+                    // Target absent (the common case for a new file): keep the
+                    // default mode.
+                }
+            }
+            fs.renameSync(tmppath, path);
+        }
+        catch (err) {
+            try {
+                if ('function' === typeof fs.unlinkSync) {
+                    fs.unlinkSync(tmppath);
+                }
+            }
+            catch (cleanuperr) {
+                dlog('writeFileAtomic', 'temp cleanup failed: ' + tmppath);
+            }
+            throw err;
+        }
+    }
     saveFile(path, content, opts, whence) {
         const when = this.now();
         const wstr = null == whence ? '' : whence + ':';
@@ -522,7 +576,7 @@ class FileHandler {
             const existed = fs.existsSync(fullpath);
             if (!this.control.dryrun) {
                 this.ensureDir(parentfolder);
-                fs.writeFileSync(fullpath, content, opts);
+                this.writeFileAtomic(fullpath, content, opts);
             }
             this.audit.push([CN + FN + wstr,
                 { path, when, existed, size: content.length }]);
