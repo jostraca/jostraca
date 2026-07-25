@@ -54,8 +54,10 @@ Also corrected: `extract-parity.js`'s default output path (stale after the modul
 flatten), and a stale "deviation" note in `go/README.md` claiming the Go 2-way diff render
 differed from TS — it does not, and `diff_mode` asserts that byte-for-byte.
 
-Two new parity scenarios (`no_project_file`, `dotfile_preserve`) cover the behaviours the
-corpus previously missed; the suite is now 23 scenarios.
+New parity scenarios cover behaviours the corpus previously missed — `no_project_file`,
+`dotfile_preserve`, `preserve_and_diff`, `protect_and_present`, `inject_two_blocks`,
+`inject_stray_end_marker`, `inject_no_markers`, `fragment_nested_in_slot`,
+`copy_ignore_text`. The suite is now 31 scenarios.
 
 **A parity-harness limitation found while adding coverage:** the corpus cannot express
 binary content. Values are JSON strings, so a byte above 0x7F round-trips as its UTF-8
@@ -65,14 +67,60 @@ therefore covered by per-stack unit tests (`ts/test/robustness.test.ts`,
 `go/robustness_test.go`), and the corpus carries only the text half. Adding binary
 scenarios needs a base64 escape hatch in the format.
 
-Still open: **T24** below (port the Go merge to TS), plus T15/T16 (Fragment re-runs its
-children; its relative `from` resolves under the enclosing file name), G12 (file modes not
-configurable), G13 (`alignLCS` re-derives the alignment greedily), G15 (package-global
-dlog buffer). Newly found while fixing the above, not yet addressed:
-**G16** — TS guards the duplicate-baseline write with `withinFolder` and a metafile check
-(`FileHandler.ts:361-364`); Go's `writeDuplicate` has neither, so a path resolved outside
-the output folder produces a nonsense baseline path. And the dead `writeConflict`
-(`go/merge.go`) is still there.
+Still open, and needing a decision rather than a patch: **G17** below — the two stacks'
+merge and diff algorithms disagree on most non-trivial inputs. Also open: T15/T16
+(Fragment re-runs its children; its relative `from` resolves under the enclosing file
+name), G12 (file modes not configurable), G13 (`alignLCS` re-derives the alignment
+greedily), G15 (package-global dlog buffer).
+
+### G17 — the two stacks' merge algorithms disagree [verified — measured]
+
+This is the most significant finding still open, and it was invisible until the T24 work
+made it testable.
+
+The Go port hand-implements 3-way merge and 2-way diff; TS delegates to `node-diff3` and
+`diff`. They were assumed equivalent because every parity scenario passes. They are not.
+Measured over randomised inputs with a small line vocabulary — heavily repeated lines, the
+realistic shape for generated config and reference output:
+
+| | disagree |
+|---|---|
+| 3-way merge | **2014 / 2800 (71.9 %)** |
+| 2-way diff | **338 / 1600 (21.1 %)** |
+
+The smallest reproducer (`go/merge_divergence_test.go` pins it):
+
+```
+a = "L0\nL1\nL0\nL0\n"   o = "L1\nL1\nL0\nL1\n"   b = "L1\nL1\nL1\nL0\n"
+```
+
+Both outputs are *valid* three-way merges — each preserves the conflicting content inside
+markers, and a test asserts neither side ever drops content. They differ in how the
+regions between anchors are split, which changes the bytes written into a user's file.
+
+**Why the corpus missed it.** All six merge/diff scenarios (`merge_basic`, `merge_update`,
+`merge_clean`, `merge_no_baseline`, `merge_retain`, `diff_mode`) have one changed region
+and distinct lines — precisely the shape where the two algorithms agree. Passing parity
+tests were evidence about a narrow slice of the input space, not about the algorithms.
+
+**Why it is not fixed here.** The resolution is a maintainer decision with a real
+trade-off, and either choice changes something users can see:
+
+1. *Make Go match TS* by porting `node-diff3`'s region splitter. Restores strict parity,
+   but hands Go `node-diff3`'s performance — 62 s on a 10 000-line repeated-vocabulary
+   merge, and effectively unbounded beyond that (§T24).
+2. *Adopt Go's algorithm in TS*, dropping the `node-diff3` and `diff` dependencies. Fixes
+   the performance wall, gives both stacks one implementation to maintain, and removes two
+   runtime deps — at the cost of a one-time change to the merge output existing users see.
+
+I prototyped (2), including the full TS port and a differential test against the current
+dependencies. It works and is fast, but merge output goes directly into users' source
+files, so silently changing it for ~72 % of non-trivial merges is not a call to make
+unasked. The prototype was reverted; the measurement and the pinned reproducer remain.
+
+Recommendation: (2), in a release that says so plainly. The current situation — two
+implementations that agree only on simple inputs, with tests that only try simple inputs
+— is the worst of both.
 
 ### T24 — TS merge is now the slow side [verified — measured]
 
