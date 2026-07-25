@@ -25,6 +25,14 @@ type FS interface {
 	Rename(oldpath, newpath string) error
 }
 
+// realpathFS is an optional capability: a provider that implements it lets
+// the copy walk resolve a directory to its canonical path, so a symlink
+// and its target compare equal and a cycle can be detected. Providers
+// without it (MemFS has no symlinks) fall back to the depth cap.
+type realpathFS interface {
+	Realpath(path string) (string, error)
+}
+
 // chmodFS is an optional capability: a provider that implements it lets
 // the atomic write-then-rename preserve an existing target's mode, which
 // rename would otherwise drop along with the replaced inode. Providers
@@ -64,6 +72,13 @@ func (o OsFS) MkdirAll(p string) error { return os.MkdirAll(o.sys(p), 0o755) }
 func (o OsFS) Remove(p string) error   { return os.Remove(o.sys(p)) }
 func (o OsFS) Chmod(p string, mode fs.FileMode) error {
 	return os.Chmod(o.sys(p), mode)
+}
+func (o OsFS) Realpath(p string) (string, error) {
+	r, err := filepath.EvalSymlinks(o.sys(p))
+	if err != nil {
+		return "", err
+	}
+	return filepath.ToSlash(r), nil
 }
 func (o OsFS) Rename(a, b string) error {
 	return os.Rename(o.sys(a), o.sys(b))

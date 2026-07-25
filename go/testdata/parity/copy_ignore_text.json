@@ -1,0 +1,22 @@
+{
+  "scenario": "copy_ignore_text",
+  "opts": {
+    "model": {
+      "v": "V"
+    }
+  },
+  "prepopulate": {
+    "/tm/readme.txt": "hello $$v$$\n",
+    "/tm/skip.txt-jostraca-off": "SKIP\n",
+    "/tm/backup.txt~": "BACKUP\n"
+  },
+  "vol": {
+    "/tm/readme.txt": "hello $$v$$\n",
+    "/tm/skip.txt-jostraca-off": "SKIP\n",
+    "/tm/backup.txt~": "BACKUP\n",
+    "/out/app/readme.txt": "hello V\n",
+    "/out/.jostraca/generated/app/readme.txt": "hello V\n",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/readme.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/readme.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}

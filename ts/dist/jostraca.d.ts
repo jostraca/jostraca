@@ -1,6 +1,6 @@
 import type { Node, Component, JostracaResult } from './types';
 import { BuildContext } from './build/BuildContext';
-import { each, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, isbinext, partify, lcf, ucf } from './util/basic';
+import { each, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, isbincontent, isbinext, partify, lcf, ucf } from './util/basic';
 import * as PointUtil from './util/point';
 declare const deep: (...args: any[]) => any;
 declare const omap: (...args: any[]) => any;
@@ -279,4 +279,4 @@ declare function Jostraca(gopts_in?: JostracaOptions | {}): {
 };
 declare function cmp(component: Function): Component;
 export type { JostracaResult, JostracaOptions, Component, Node, Existing, };
-export { Jostraca, BuildContext, cmp, each, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, isbinext, partify, lcf, ucf, deep, omap, Project, Content, File, Inject, Fragment, Folder, Copy, Line, Slot, List, PointUtil, };
+export { Jostraca, BuildContext, cmp, each, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, isbincontent, isbinext, partify, lcf, ucf, deep, omap, Project, Content, File, Inject, Fragment, Folder, Copy, Line, Slot, List, PointUtil, };

@@ -85,8 +85,19 @@ func (bm *buildMeta) load() {
 		return
 	}
 	bm.prev = map[string]any{}
-	_ = json.Unmarshal(b, &bm.prev)
+	if err := json.Unmarshal(b, &bm.prev); err != nil {
+		// A truncated or hand-edited meta log must not block generation:
+		// the file is bookkeeping, regenerated on every run. Reset to empty
+		// rather than carrying a half-decoded map forward. Mirrors the
+		// recovery in ts/src/build/BuildMeta.ts.
+		metaDlog.Log("meta", "unreadable meta log, continuing with empty state: "+
+			bm.metaPath()+" err="+err.Error())
+		bm.prev = map[string]any{}
+	}
 }
+
+// metaDlog records non-fatal meta-log weirdness.
+var metaDlog = NewDLog("jostraca", "buildmeta.go")
 
 // recordAction is called by FileHandler each time a save touches a path.
 // kind is the action token (write/preserve/present/diff/merge/protect/

@@ -267,7 +267,9 @@ func copyBefore(n *Node, st *jstate, b *buildCtx) error {
 	if err != nil {
 		return err
 	}
-	if !IsBinExt(from) {
+	// Extension alone is not enough to know a file is safe to decode and
+	// re-encode as UTF-8; sniff the content too.
+	if !IsBinExt(from) && !IsBinContent(body) {
 		out, err := Template(string(body), st.model, &TemplateSpec{Replace: n.Replace})
 		if err != nil {
 			return err
@@ -309,7 +311,42 @@ func copyWalk(n *Node, st *jstate, b *buildCtx) error {
 	return walkCopy(b, st, from, to, n)
 }
 
+// maxCopyDepth bounds recursion in the copy walk. Go's ReadDir reports a
+// symlink-to-directory as a non-directory entry, so unlike TS (whose
+// statSync follows the link) there is no cycle to fall into — but a
+// backstop is cheap and keeps the two stacks' failure modes comparable.
+// Mirrors MAX_COPY_DEPTH in ts/src/op/CopyOp.ts.
+const maxCopyDepth = 64
+
 func walkCopy(b *buildCtx, st *jstate, from, to string, n *Node) error {
+	return walkCopyDepth(b, st, from, to, n, 0, map[string]struct{}{})
+}
+
+// realpathOf resolves p to its canonical location when the provider can,
+// so a symlink and its target compare equal for cycle detection.
+func realpathOf(fsys FS, p string) string {
+	if rp, ok := fsys.(realpathFS); ok {
+		if r, err := rp.Realpath(p); err == nil {
+			return r
+		}
+	}
+	return p
+}
+
+func walkCopyDepth(b *buildCtx, st *jstate, from, to string, n *Node,
+	depth int, visited map[string]struct{}) error {
+
+	if depth > maxCopyDepth {
+		return fmt.Errorf("Copy: tree too deep (>%d), possible symlink cycle, path=%s",
+			maxCopyDepth, from)
+	}
+	real := realpathOf(b.fh.fs, from)
+	if _, seen := visited[real]; seen {
+		copyDlog.Log("copy", "symlink cycle, not descending: "+from+" -> "+real)
+		return nil
+	}
+	visited[real] = struct{}{}
+
 	entries, err := b.fh.fs.ReadDir(from)
 	if err != nil {
 		return err
@@ -320,8 +357,19 @@ func walkCopy(b *buildCtx, st *jstate, from, to string, n *Node) error {
 		if shouldIgnoreCopyPath(e.Name, n.Exclude, st.opts.Cmp.Copy.Ignore) {
 			continue
 		}
-		if e.IsDir {
-			if err := walkCopy(b, st, src, dst, n); err != nil {
+		// ReadDir reports a symlink by the link's own type, so a symlinked
+		// directory arrives as a non-directory entry. TS's statSync follows
+		// the link, so resolve it here too — otherwise the entry would be
+		// read as a file and fail with "is a directory".
+		isDir := e.IsDir
+		if !isDir {
+			if fi, serr := b.fh.fs.Stat(src); serr == nil && fi.IsDir {
+				isDir = true
+			}
+		}
+
+		if isDir {
+			if err := walkCopyDepth(b, st, src, dst, n, depth+1, visited); err != nil {
 				return err
 			}
 			continue
@@ -330,7 +378,7 @@ func walkCopy(b *buildCtx, st *jstate, from, to string, n *Node) error {
 		if err != nil {
 			return err
 		}
-		if !IsBinExt(src) {
+		if !IsBinExt(src) && !IsBinContent(body) {
 			rendered, err := Template(string(body), st.model, &TemplateSpec{Replace: n.Replace})
 			if err != nil {
 				return err
@@ -344,12 +392,17 @@ func walkCopy(b *buildCtx, st *jstate, from, to string, n *Node) error {
 	return nil
 }
 
-// defaultCopyIgnoreRE matches the TS default ignore pattern (~$).
-var defaultCopyIgnoreRE = regexp.MustCompile(`~$`)
+// defaultCopyIgnoreRE matches the TS default ignore pattern, IGNORED_RE in
+// src/op/CopyOp.ts: editor backups and explicitly disabled files.
+var defaultCopyIgnoreRE = regexp.MustCompile(`(~|-jostraca-off)$`)
 
 // injectDlog records non-fatal Inject weirdness, mirroring the dlog in
 // ts/src/op/InjectOp.ts.
 var injectDlog = NewDLog("jostraca", "build.go")
+
+// copyDlog records non-fatal Copy weirdness, mirroring the dlog in
+// ts/src/op/CopyOp.ts.
+var copyDlog = NewDLog("jostraca", "build.go")
 
 // injectExcluded reports whether name is excluded by the user's Inject
 // Exclude setting. Accepts bool (true → always exclude), string,

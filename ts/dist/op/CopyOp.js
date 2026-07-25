@@ -6,6 +6,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CopyOp = void 0;
 const node_path_1 = __importDefault(require("node:path"));
 const jostraca_1 = require("../jostraca");
+const basic_1 = require("../util/basic");
+// Log non-fatal weirdness.
+const dlog = (0, basic_1.getdlog)('jostraca', __filename);
 const FileHandler_1 = require("../build/FileHandler");
 const FileOp_1 = require("./FileOp");
 const ON = 'Copy:';
@@ -31,7 +34,7 @@ const CopyOp = {
                 buildctx,
             };
             const spec = { name, frompath: from, topath: topath.join('/') };
-            let content = processTemplate(state, fs.readFileSync(from).toString(), spec);
+            let content = processTemplate(state, fs.readFileSync(from), spec);
             buildctx.current.file.content.push(content);
             node.after = node.after || {};
             node.after.kind = 'file';
@@ -58,6 +61,8 @@ const CopyOp = {
             ctx$,
             buildctx,
             node,
+            // Real directory paths already entered, for symlink-cycle detection.
+            visited: new Set(),
             excludes: 'string' === node.exclude ? [node.exclude] :
                 Array.isArray(node.exclude) ? node.exclude :
                     []
@@ -79,9 +84,24 @@ const CopyOp = {
     },
 };
 exports.CopyOp = CopyOp;
+const MAX_COPY_DEPTH = 64;
 function walk(fs, state, nodepath, from, to) {
     const FN = 'walk:';
     const buildctx = state.buildctx;
+    // statSync follows symlinks, so a link pointing at one of its own
+    // ancestors used to recurse until the stack blew. Track the real paths
+    // already entered on this branch, and cap depth as a backstop for
+    // filesystems where realpath cannot resolve.
+    const realfrom = realpath(fs, from);
+    if (state.visited.has(realfrom)) {
+        dlog('copy', 'symlink cycle, not descending: ' + from + ' -> ' + realfrom);
+        return;
+    }
+    if (MAX_COPY_DEPTH < nodepath.length) {
+        throw new Error(ON + FN + ' copy tree too deep (>' + MAX_COPY_DEPTH +
+            '), possible symlink cycle, path=' + from);
+    }
+    state.visited.add(realfrom);
     const entries = fs.readdirSync(from).sort();
     for (let name of entries) {
         const frompath = from + '/' + name;
@@ -90,6 +110,13 @@ function walk(fs, state, nodepath, from, to) {
         const isDirectory = stat.isDirectory();
         const isTemplateFile = isTemplate(name);
         const isIgnored = ignored(state, nodepath, name, topath);
+        // The ignore rule (`~` backups, `-jostraca-off`) has to be checked
+        // before the template/binary split. It used to sit only on the binary
+        // branch, so it never applied to text files — i.e. to almost
+        // everything, and `-jostraca-off` did nothing at all.
+        if (isIgnored) {
+            continue;
+        }
         if (isDirectory) {
             state.folderCount++;
             walk(fs, state, nodepath.concat(name), frompath, topath);
@@ -103,7 +130,7 @@ function walk(fs, state, nodepath, from, to) {
             state.fileCount++;
             state.tmCount++;
         }
-        else if (!isIgnored) {
+        else {
             const excluded = excludeFile(fs, state, nodepath, name, topath);
             if (excluded) {
                 continue;
@@ -115,13 +142,37 @@ function walk(fs, state, nodepath, from, to) {
 }
 function copyFile(frompath, topath, state, buildctx, fs) {
     const FN = 'copyFile:';
-    const src = fs.readFileSync(frompath, 'utf8');
+    // Read bytes, not utf8. The extension list that routed us here cannot be
+    // exhaustive (.wasm, .zst, .sqlite, extensionless binaries), and decoding
+    // a binary as utf8 then re-encoding it replaces every invalid sequence
+    // with U+FFFD — corrupting the copy. Sniff the content and pass bytes
+    // through untouched when it does not look like text.
+    const raw = fs.readFileSync(frompath);
+    if ((0, basic_1.isbincontent)(raw)) {
+        buildctx.fh.save(topath, raw, ON + FN);
+        return;
+    }
+    const src = raw.toString('utf8');
     const out = (0, jostraca_1.template)(src, state.ctx$.model, { replace: state.node.replace });
     buildctx.fh.save(topath, out, ON + FN);
 }
 // TODO: needs an option
 function ignored(state, nodepath, name, topath) {
     return IGNORED_RE.test(name);
+}
+// Resolve a directory to its canonical path so a symlink and its target
+// compare equal. Providers without realpathSync (or a path that cannot be
+// resolved) fall back to the path as given — the depth cap still applies.
+function realpath(fs, p) {
+    if ('function' !== typeof fs.realpathSync) {
+        return p;
+    }
+    try {
+        return fs.realpathSync(p);
+    }
+    catch (err) {
+        return p;
+    }
 }
 function excludeFile(fs, state, nodepath, name, topath) {
     const { opts } = state.ctx$;
@@ -175,15 +226,17 @@ function excluded(path, excludes) {
     }
     return false;
 }
-function processTemplate(state, src, spec) {
-    if (isTemplate(spec.name)) {
-        return (0, jostraca_1.template)(src, state.ctx$.model, {
+function processTemplate(state, raw, spec) {
+    // Same reasoning as copyFile: the extension check alone is not enough to
+    // know a file is safe to decode and re-encode as utf8.
+    if (isTemplate(spec.name) && !(0, basic_1.isbincontent)(raw)) {
+        return (0, jostraca_1.template)(raw.toString('utf8'), state.ctx$.model, {
             replace: {
                 ...(state.node?.replace || {}),
             }
         });
     }
-    return src;
+    return raw;
 }
 function isTemplate(name) {
     return !(0, jostraca_1.isbinext)(name);

@@ -31,6 +31,15 @@ Fixed on this branch, each with regression tests in both stacks:
 | T9 | `dryrun` no longer creates directories in `copyFile` |
 | G11 (part) | dead `savePreserve` removed |
 | G1 | Go LCS rewritten: prefix/suffix trim + Hirschberg. Output byte-identical (pinned against the old algorithm over randomised inputs); memory now O(min(N,M)) |
+| G4, G5, T12 | Inject: every marker pair rewritten, end marker searched after the start marker, missing target errors in both stacks, missing markers warn |
+| T8 | byte-identical files are no longer rewritten (no mtime churn); duplicate-save detection made robust |
+| G7 | Go mode dispatch mirrors TS's block order — `preserve` fires alongside `diff`/`merge`, `present` fires under protect |
+| T14, G9, G16 | path prefixes matched on a separator boundary; Go's baseline write gained TS's `withinFolder` + metafile guard |
+| T5 | binary detection sniffs content (NUL in first 8 KB), so `.wasm`-class files survive `Copy` intact |
+| T6 | a corrupt meta log no longer blocks generation |
+| T10 | copy walk detects symlink cycles (and Go now follows directory symlinks, as TS does) |
+| T11 | `-jostraca-off` / `~` ignore rules now apply to text files, not only binaries |
+| T22 | `isbinext` uses a Set |
 
 Also corrected: `extract-parity.js`'s default output path (stale after the module
 flatten), and a stale "deviation" note in `go/README.md` claiming the Go 2-way diff render
@@ -39,9 +48,16 @@ differed from TS — it does not, and `diff_mode` asserts that byte-for-byte.
 Two new parity scenarios (`no_project_file`, `dotfile_preserve`) cover the behaviours the
 corpus previously missed; the suite is now 23 scenarios.
 
-Still open, in the order proposed in §6: T5 (binary detection), then the rest of the
-reconciliation table — plus **T24** below, which the G1 work turned up. Newly found while
-fixing the above, not yet addressed:
+**A parity-harness limitation found while adding coverage:** the corpus cannot express
+binary content. Values are JSON strings, so a byte above 0x7F round-trips as its UTF-8
+encoding — `0xFF 0xFE` reaches the Go side as `0xC3 0xBF 0xC3 0xBE`. A binary scenario
+would fail spuriously, or worse, be "fixed" by making one stack wrong. Binary behaviour is
+therefore covered by per-stack unit tests (`ts/test/robustness.test.ts`,
+`go/robustness_test.go`), and the corpus carries only the text half. Adding binary
+scenarios needs a base64 escape hatch in the format.
+
+Still open: **T24** below (port the Go merge to TS), plus the core-hygiene items
+T15–T21, G8, G10–G15. Newly found while fixing the above, not yet addressed:
 **G16** — TS guards the duplicate-baseline write with `withinFolder` and a metafile check
 (`FileHandler.ts:361-364`); Go's `writeDuplicate` has neither, so a path resolved outside
 the output folder produces a nonsense baseline path. And the dead `writeConflict`

@@ -117,6 +117,11 @@ var scenarioRunners = map[string]func(j *J){
 			})
 		})
 	},
+	"copy_ignore_text": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.Copy(CopyProps{From: "/tm"})
+		})
+	},
 	"preserve_and_diff": func(j *J) {
 		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
 			j.File("a.txt", func(j *J) { j.Content("NEW\n") })
@@ -204,6 +209,8 @@ func scenarioOptions(scenario string) []Option {
 		return []Option{WithExisting(Existing{Txt: ExistingTxt{Write: &f, Present: &t}})}
 	case "basic_copy":
 		return []Option{WithModel(map[string]any{"x": map[string]any{"y": "Y", "z": "Z"}})}
+	case "copy_ignore_text":
+		return []Option{WithModel(map[string]any{"v": "V"})}
 	case "absolute_paths":
 		return []Option{WithFolder("/top")}
 	}

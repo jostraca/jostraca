@@ -13,6 +13,7 @@ exports.get = get;
 exports.getx = getx;
 exports.humanify = humanify;
 exports.indent = indent;
+exports.isbincontent = isbincontent;
 exports.isbinext = isbinext;
 exports.kebabify = kebabify;
 exports.names = names;
@@ -612,7 +613,29 @@ function getdlog(tagin, filepath) {
 */
 const BINARY_EXT = '3dm;3ds;3g2;3gp;7z;a;aac;adp;afdesign;afphoto;afpub;ai;aif;aiff;alz;ape;apk;appimage;ar;arj;asf;au;avi;bak;baml;bh;bin;bk;bmp;btif;bz2;bzip2;cab;caf;cgm;class;cmx;cpio;cr2;cur;dat;dcm;deb;dex;djvu;dll;dmg;dng;doc;docm;docx;dot;dotm;dra;DS_Store;dsk;dts;dtshd;dvb;dwg;dxf;ecelp4800;ecelp7470;ecelp9600;egg;eol;eot;epub;exe;f4v;fbs;fh;fla;flac;flatpak;fli;flv;fpx;fst;fvt;g3;gh;gif;graffle;gz;gzip;h261;h263;h264;icns;ico;ief;img;ipa;iso;jar;jpeg;jpg;jpgv;jpm;jxr;key;ktx;lha;lib;lvp;lz;lzh;lzma;lzo;m3u;m4a;m4v;mar;mdi;mht;mid;midi;mj2;mka;mkv;mmr;mng;mobi;mov;movie;mp3;mp4;mp4a;mpeg;mpg;mpga;mxu;nef;npx;numbers;nupkg;o;odp;ods;odt;oga;ogg;ogv;otf;ott;pages;pbm;pcx;pdb;pdf;pea;pgm;pic;png;pnm;pot;potm;potx;ppa;ppam;ppm;pps;ppsm;ppsx;ppt;pptm;pptx;psd;pya;pyc;pyo;pyv;qt;rar;ras;raw;resources;rgb;rip;rlc;rmf;rmvb;rpm;rtf;rz;s3m;s7z;scpt;sgi;shar;snap;sil;sketch;slk;smv;snk;so;stl;suo;sub;swf;tar;tbz;tbz2;tga;tgz;thmx;tif;tiff;tlz;ttc;ttf;txz;udf;uvh;uvi;uvm;uvp;uvs;uvu;viv;vob;war;wav;wax;wbmp;wdp;weba;webm;webp;whl;wim;wm;wma;wmv;wmx;woff;woff2;wrm;wvx;xbm;xif;xla;xlam;xls;xlsb;xlsm;xlsx;xlt;xltm;xltx;xm;xmind;xpi;xpm;xwd;xz;z;zip;zipx;bin'.split(';');
 exports.BINARY_EXT = BINARY_EXT;
+// Membership set, not a linear scan of ~250 entries on every copied file.
+const BINARY_EXT_SET = new Set(BINARY_EXT);
 function isbinext(path) {
-    return BINARY_EXT.includes(node_path_1.default.extname(path || '').substring(1).toLowerCase());
+    return BINARY_EXT_SET.has(node_path_1.default.extname(path || '').substring(1).toLowerCase());
+}
+// Whether the bytes look binary, judged by a NUL in the first 8 KB — the
+// same heuristic git and file(1) use.
+//
+// An extension list can never be exhaustive: `.wasm`, `.zst`, `.br`,
+// `.sqlite`, `.parquet` and every extensionless binary are absent from
+// BINARY_EXT. Anything it misses used to be read as UTF-8, run through
+// template substitution and written back, replacing invalid sequences with
+// U+FFFD — silent corruption of the copied file.
+function isbincontent(content) {
+    if ('string' === typeof content) {
+        return content.includes('\u0000');
+    }
+    const len = Math.min(content.length, 8192);
+    for (let i = 0; i < len; i++) {
+        if (0 === content[i]) {
+            return true;
+        }
+    }
+    return false;
 }
 //# sourceMappingURL=basic.js.map

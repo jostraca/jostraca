@@ -604,6 +604,27 @@ func Humanify(when int64, flags HumanifyFlags) any {
 // IsBinExt reports whether the path's extension is in the curated list
 // of binary file extensions. Case-insensitive. Mirrors
 // src/util/basic.ts:716-721.
+// IsBinContent reports whether the bytes look binary, judged by a NUL in
+// the first 8 KB — the same heuristic git and file(1) use.
+//
+// An extension list can never be exhaustive: .wasm, .zst, .br, .sqlite,
+// .parquet and every extensionless binary are absent from binaryExts.
+// Anything it misses would otherwise be decoded as UTF-8, run through
+// template substitution and written back, silently corrupting the copy.
+// Mirrors isbincontent in ts/src/util/basic.ts.
+func IsBinContent(content []byte) bool {
+	n := len(content)
+	if n > 8192 {
+		n = 8192
+	}
+	for i := 0; i < n; i++ {
+		if content[i] == 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func IsBinExt(path string) bool {
 	ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(path)), ".")
 	if ext == "" {

@@ -150,6 +150,30 @@ async function main() {
     })
   })
 
+  // NOTE: binary content cannot be expressed in this corpus. Values are
+  // JSON strings, so bytes >0x7F round-trip as their UTF-8 encoding —
+  // 0xFF 0xFE arrives on the Go side as 0xC3 0xBF 0xC3 0xBE. Binary
+  // behaviour (Copy must not corrupt a file whose extension is absent from
+  // BINARY_EXT) is therefore covered by per-stack unit tests instead:
+  // ts/test/robustness.test.ts and go/robustness_test.go. Adding binary
+  // scenarios here would need a base64 escape hatch in the format.
+
+  // Text-only half of the same behaviour: the ignore rules must apply to
+  // text files, not just binaries.
+  await snapshot('copy_ignore_text',
+    { model: { v: 'V' } },
+    () => {
+      Project({ folder: 'app' }, () => {
+        Copy({ from: '/tm' })
+      })
+    },
+    {
+      '/tm/readme.txt': 'hello $$v$$\n',
+      '/tm/skip.txt-jostraca-off': 'SKIP\n',
+      '/tm/backup.txt~': 'BACKUP\n',
+    },
+  )
+
   // Mode combinations. The existing-file modes are NOT mutually
   // exclusive: preserve runs independently of diff, so a `.old` backup and
   // an annotated diff must both appear.
