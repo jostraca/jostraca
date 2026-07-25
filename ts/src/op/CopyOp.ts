@@ -82,7 +82,9 @@ const CopyOp = {
       node,
       // Real directory paths already entered, for symlink-cycle detection.
       visited: new Set<string>(),
-      excludes: 'string' === node.exclude ? [node.exclude] :
+      // `'string' === node.exclude` compared the value against the literal
+      // text "string", so a string exclude never matched.
+      excludes: 'string' === typeof node.exclude ? [node.exclude] :
         Array.isArray(node.exclude) ? node.exclude :
           []
     }

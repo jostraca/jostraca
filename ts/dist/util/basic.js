@@ -302,7 +302,11 @@ function partify(input) {
             }
             return a;
         }, []) :
-        Array.isArray(input) ? input.map(n => '' + n) : ['' + input];
+        // Array inputs are filtered the same way the string branch filters its
+        // split results: without this, an empty element made camelify() throw
+        // on `p[0].toUpperCase()`.
+        Array.isArray(input) ? input.map(n => '' + n).filter(p => '' !== p) :
+            '' === '' + input ? [] : ['' + input];
 }
 function names(base, name, prop = 'name') {
     name = '' + name;
@@ -588,6 +592,8 @@ function humanify(when, flags = {}) {
     }
     return +(iso.replace(/[^\d]/g, '').replace(/\d$/, ''));
 }
+// Cap on the process-global debug-log buffer; oldest entries are dropped.
+const DLOG_MAX = 1000;
 function getdlog(tagin, filepath) {
     const tag = tagin || '-';
     const file = node_path_1.default.basename(filepath || '-');
@@ -595,12 +601,20 @@ function getdlog(tagin, filepath) {
     g.__dlog__ = (g.__dlog__ || []);
     const dlog = (...args) => {
         const stack = '' + new Error().stack;
+        // Bounded: this buffer is process-global and was never drained, so a
+        // long-lived process generating repeatedly grew it without limit.
+        if (DLOG_MAX <= g.__dlog__.length) {
+            g.__dlog__.splice(0, g.__dlog__.length - DLOG_MAX + 1);
+        }
         g.__dlog__.push([tag, file, Date.now(), ...args, stack]);
     };
     dlog.tag = tag;
     dlog.file = file;
+    // Entry shape is [tag, file, when, ...args, stack] — the file is at
+    // index 1. This compared index 2 (the timestamp) against a basename, so
+    // filtering by file could never match.
     dlog.log = (filepath, __f) => (__f = null == filepath ? null : node_path_1.default.basename(filepath),
-        g.__dlog__.filter((n) => n[0] === tag && (null == __f || n[2] === __f)));
+        g.__dlog__.filter((n) => n[0] === tag && (null == __f || n[1] === __f)));
     return dlog;
 }
 /*

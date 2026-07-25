@@ -333,6 +333,9 @@ class FileHandler {
         // outputs) it effectively never terminates. Both cases below are
         // semantics-identical to running the merge:
         // 1. The existing file already equals the new generate — nothing to do.
+        //
+        // Kept for defence in depth even though the current caller only reaches
+        // merge() when the two already differ, so this cannot fire from there.
         if (!done && editA === editB) {
             why.push('merge-same-0');
             done = true;

@@ -32,51 +32,43 @@ const FileOp = {
     const content = cfile.content?.join('')
     const rpath = cfile.path?.join('/') // NOT Path.sep - needs to be canonical
 
-    const fileExists = fs.existsSync(cfile.fullpath)
-
-    let exclude = true === node.exclude
+    const fullpath = cfile.fullpath as string
+    const fileExists = fs.existsSync(fullpath)
 
     if (fileExists) {
-      if (true === exclude) {
+      if (true === node.exclude) {
         return
       }
 
-      const excludes = 'string' === node.exclude ? [node.exclude] :
+      // `'string' === node.exclude` compared the value against the literal
+      // text "string", so a string exclude never matched anything.
+      const excludes = 'string' === typeof node.exclude ? [node.exclude] :
         Array.isArray(node.exclude) ? node.exclude :
           []
 
       if (excludes.includes(rpath)) {
         return
       }
-    }
-    else {
-      exclude = false
-    }
 
-
-    if (log && null == exclude) {
-      exclude = log.exclude.includes(rpath)
-      if (!exclude && true === ctx$.opts.exclude) {
-        const stat = fs.statSync(cfile.fullpath, { throwIfNoEntry: false })
-        if (stat) {
-          let timedelta = stat.mtimeMs - log.last
-          if ((timedelta > 0 && timedelta < stat.mtimeMs)) {
-            exclude = true
+      // Global Options.exclude: leave alone any output file modified on
+      // disk since the last successful build.
+      //
+      // This was unreachable: `exclude` had already been assigned a boolean
+      // above, so the `null == exclude` guard it sat behind was never true.
+      // The Go port implements it, so TS is the side that was wrong.
+      if (true === ctx$.opts.exclude) {
+        const last = buildctx.bmeta.prev.last
+        const stat = fs.statSync(fullpath, { throwIfNoEntry: false })
+        if (stat && 0 < last && stat.mtimeMs > last) {
+          if (!log.exclude.includes(rpath)) {
+            log.exclude.push(rpath)
           }
+          return
         }
       }
     }
 
-    const fullpath = cfile.fullpath as string
-
-    if (!exclude) {
-      buildctx.fh.save(fullpath, content, ON + FN)
-    }
-    else {
-      if (!log.exclude.includes(rpath)) {
-        log.exclude.push(rpath)
-      }
-    }
+    buildctx.fh.save(fullpath, content, ON + FN)
   },
 
 }

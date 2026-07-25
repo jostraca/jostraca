@@ -40,6 +40,15 @@ Fixed on this branch, each with regression tests in both stacks:
 | T10 | copy walk detects symlink cycles (and Go now follows directory symlinks, as TS does) |
 | T11 | `-jostraca-off` / `~` ignore rules now apply to text files, not only binaries |
 | T22 | `isbinext` uses a Set |
+| T17 | one shared `AsyncLocalStorage` instead of one replaced per `Jostraca()`; clear error when a component is used outside `generate()` |
+| T18 | the define callback is awaited, so an async one no longer yields a partial tree |
+| T19 | `cmp()` restores the tree cursor in a `finally` |
+| T13 | debug-log buffer bounded; its file filter compared the wrong field; each `generate()` reports only its own warnings |
+| T7 | `Options.exclude` (skip files modified since the last build) actually works in TS, matching Go |
+| T20, T21 | unreachable merge fast-path documented; `camelify` no longer throws on an array with an empty element |
+| G8 | Go collects replayed content at any depth — a `Fragment` inside a `Slot` was silently dropped |
+| G10 | Go's unresolved-conflict guard keys on the end marker alone, as TS's does |
+| G11 | dead `writeConflict` removed |
 
 Also corrected: `extract-parity.js`'s default output path (stale after the module
 flatten), and a stale "deviation" note in `go/README.md` claiming the Go 2-way diff render
@@ -56,8 +65,10 @@ therefore covered by per-stack unit tests (`ts/test/robustness.test.ts`,
 `go/robustness_test.go`), and the corpus carries only the text half. Adding binary
 scenarios needs a base64 escape hatch in the format.
 
-Still open: **T24** below (port the Go merge to TS), plus the core-hygiene items
-T15–T21, G8, G10–G15. Newly found while fixing the above, not yet addressed:
+Still open: **T24** below (port the Go merge to TS), plus T15/T16 (Fragment re-runs its
+children; its relative `from` resolves under the enclosing file name), G12 (file modes not
+configurable), G13 (`alignLCS` re-derives the alignment greedily), G15 (package-global
+dlog buffer). Newly found while fixing the above, not yet addressed:
 **G16** — TS guards the duplicate-baseline write with `withinFolder` and a metafile check
 (`FileHandler.ts:361-364`); Go's `writeDuplicate` has neither, so a path resolved outside
 the output folder produces a nonsense baseline path. And the dead `writeConflict`

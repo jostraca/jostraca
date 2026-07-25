@@ -186,27 +186,6 @@ func writeAll(buf *bytes.Buffer, lines []string) {
 	}
 }
 
-func writeConflict(buf *bytes.Buffer, a, o, b []string) {
-	buf.WriteString("<<<<<<< GENERATED:\n")
-	writeAll(buf, a)
-	if !endsWithNL(buf.Bytes()) {
-		buf.WriteString("\n")
-	}
-	if o != nil {
-		buf.WriteString("||||||| BASELINE:\n")
-		writeAll(buf, o)
-		if !endsWithNL(buf.Bytes()) {
-			buf.WriteString("\n")
-		}
-	}
-	buf.WriteString("=======\n")
-	writeAll(buf, b)
-	if !endsWithNL(buf.Bytes()) {
-		buf.WriteString("\n")
-	}
-	buf.WriteString(">>>>>>> EXISTING:\n")
-}
-
 func endsWithNL(b []byte) bool {
 	return len(b) > 0 && b[len(b)-1] == '\n'
 }
@@ -214,7 +193,10 @@ func endsWithNL(b []byte) bool {
 // stringsHasMergeMarkers detects whether content already contains the
 // 3-way merge conflict markers (used by saveMerge to know whether the
 // merge produced clean content).
+// TS's unresolved-conflict guard keys on the end marker alone
+// (ts/src/build/FileHandler.ts merge()), so a half-resolved file — the user
+// removed the opening marker but not the closing one — is skipped by both
+// stacks rather than re-merged by one of them.
 func stringsHasMergeMarkers(s string) bool {
-	return strings.Contains(s, "<<<<<<< GENERATED:") &&
-		strings.Contains(s, ">>>>>>> EXISTING:")
+	return strings.Contains(s, ">>>>>>> EXISTING:")
 }

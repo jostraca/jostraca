@@ -158,6 +158,25 @@ async function main() {
   // ts/test/robustness.test.ts and go/robustness_test.go. Adding binary
   // scenarios here would need a base64 escape hatch in the format.
 
+  // A Fragment nested inside a Slot: content one level deeper than the
+  // Slot's own children must still be emitted. The Go port collected only
+  // direct children here and silently dropped it.
+  await snapshot('fragment_nested_in_slot', {}, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'out.txt' }, () => {
+        Fragment({ from: '/f.txt' }, () => {
+          Slot({ name: 's' }, () => {
+            Fragment({ from: '/f2.txt' }, () => { })
+            Content('DIRECT')
+          })
+        })
+      })
+    })
+  }, {
+    '/f.txt': 'A<[SLOT:s]>B\n',
+    '/f2.txt': 'NESTED',
+  })
+
   // Text-only half of the same behaviour: the ignore rules must apply to
   // text files, not just binaries.
   await snapshot('copy_ignore_text',

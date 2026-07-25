@@ -219,6 +219,49 @@ func fileAfter(n *Node, st *jstate, b *buildCtx) error {
 	return b.fh.save(n.FullPath, []byte(body), "FileOp:after")
 }
 
+// nodeText renders a node from a *replayed* subtree to its text.
+//
+// A replay (Fragment's slot/default handlers, and user func(*J) replace
+// callbacks) builds nodes outside the main tree walk, so their ops never
+// fire. Content nodes already carry their text, but a nested Fragment has
+// to be rendered here on demand. Inject and Copy are rendered by their own
+// after-hooks during the real walk, so their Content is taken as-is.
+//
+// Any other container is descended into, so content nested arbitrarily
+// deep is collected — matching TS, which accumulates into the current
+// file's buffer as the walk descends and so never had a depth limit.
+func nodeText(n *Node, st *jstate, b *buildCtx) string {
+	if n == nil {
+		return ""
+	}
+
+	var sb strings.Builder
+
+	switch n.Kind {
+	case KindContent, KindInject, KindCopy:
+		for _, s := range n.Content {
+			sb.WriteString(s)
+		}
+		return sb.String()
+
+	case KindFragment:
+		if len(n.Content) == 0 {
+			if err := fragmentAfter(n, st, b); err != nil && b.replayErr == nil {
+				b.replayErr = err
+			}
+		}
+		for _, s := range n.Content {
+			sb.WriteString(s)
+		}
+		return sb.String()
+	}
+
+	for _, c := range n.Children {
+		sb.WriteString(nodeText(c, st, b))
+	}
+	return sb.String()
+}
+
 func contentBefore(n *Node, _ *jstate, b *buildCtx) error {
 	// Append the rendered content to the current file's accumulator.
 	if b.current.file != nil && b.current.file != n {
@@ -615,17 +658,16 @@ func fragmentAfter(n *Node, st *jstate, b *buildCtx) error {
 		body(&J{st: st, cur: throwaway})
 		return collect(throwaway)
 	}
+	// Collect the replayed subtree in source order, at any depth. These used
+	// to look only one level down (Slot's direct Content grandchildren, or
+	// the parent's direct Content children), so anything nested deeper — a
+	// Fragment inside a Slot, most obviously — was silently dropped where TS
+	// emits it.
 	collectSlot := func(parent *Node) string {
 		var sb strings.Builder
 		for _, c := range parent.Children {
 			if c.Kind == KindSlot {
-				for _, gc := range c.Children {
-					if gc.Kind == KindContent {
-						for _, s := range gc.Content {
-							sb.WriteString(s)
-						}
-					}
-				}
+				sb.WriteString(nodeText(c, st, b))
 			}
 		}
 		return sb.String()
@@ -633,10 +675,8 @@ func fragmentAfter(n *Node, st *jstate, b *buildCtx) error {
 	collectContent := func(parent *Node) string {
 		var sb strings.Builder
 		for _, c := range parent.Children {
-			if c.Kind == KindContent {
-				for _, s := range c.Content {
-					sb.WriteString(s)
-				}
+			if c.Kind != KindSlot {
+				sb.WriteString(nodeText(c, st, b))
 			}
 		}
 		return sb.String()
@@ -664,6 +704,10 @@ func fragmentAfter(n *Node, st *jstate, b *buildCtx) error {
 		Replace: replace,
 	})
 	if err != nil {
+		return err
+	}
+	if b.replayErr != nil {
+		err, b.replayErr = b.replayErr, nil
 		return err
 	}
 	if n.Indent != nil {

@@ -83,6 +83,14 @@ import { NoneOp } from './op/NoneOp'
 const GLOBAL = (global as any)
 const KONSOLE = GLOBAL['con' + 'sole']
 
+// One AsyncLocalStorage, created once and shared.
+//
+// `cmp()` resolves this at call time, so replacing it on every Jostraca()
+// construction made every component depend on whichever instance happened
+// to be built last. It stays on `global` so that two copies of the package
+// (an npm dedupe miss) still interoperate.
+GLOBAL.jostraca = GLOBAL.jostraca || new AsyncLocalStorage()
+
 const DEFAULT_LOGGER = {
   trace: (...args: any[]) => KONSOLE.log(new Date().toISOString(), 'TRACE', ...args),
   debug: (...args: any[]) => KONSOLE.log(new Date().toISOString(), 'DEBUG', ...args),
@@ -187,8 +195,6 @@ const sysFs = () => Fs
 
 
 function Jostraca(gopts_in?: JostracaOptions | {}) {
-  GLOBAL.jostraca = new AsyncLocalStorage()
-
   // Global options are shared by calls to `generate`.
   const gOpts = OptionsShape(gopts_in || {})
 
@@ -275,9 +281,19 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
       model,
     }
 
+    // Only report warnings raised by *this* generate: the dlog buffer is
+    // process-global, so reading all of it re-emitted every warning from
+    // every earlier run.
+    const dlogMark = dlog.log().length
+
     return GLOBAL.jostraca.run(ctx$, async () => {
-      // Define phase
-      root()
+      // Define phase.
+      //
+      // Awaited: an async define callback used to have its promise dropped
+      // on the floor, so the build phase ran against a partially built tree
+      // with no error. Awaiting a synchronous callback is a no-op beyond a
+      // microtask, and AsyncLocalStorage propagates across it.
+      await root()
 
       const ctx$ = GLOBAL.jostraca.getStore()
 
@@ -305,7 +321,8 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
         res.fs = () => fs
       }
 
-      const dlogs = dlog.log()
+      const alldlogs = dlog.log()
+      const dlogs = alldlogs.length < dlogMark ? alldlogs : alldlogs.slice(dlogMark)
       if (0 < dlogs.length) {
         for (let dlogentry of dlogs) {
           log.debug({ point: 'jostraca-warning', dlogentry, note: String(dlogentry) })
@@ -384,6 +401,15 @@ function cmp(component: Function): Component {
   const cf = (props: any, children?: any) => {
     const ctx$ = GLOBAL.jostraca.getStore()
 
+    // Components only mean anything inside the define phase. Without this
+    // the next line throws a bare "Cannot read properties of undefined",
+    // which says nothing about the actual mistake.
+    if (null == ctx$) {
+      throw new Error('jostraca: component ' + (component.name || '<anon>') +
+        ' called outside generate(); components can only be used inside the ' +
+        'callback passed to Jostraca().generate()')
+    }
+
     children = null == children ?
       (('function' === typeof props || Array.isArray(props)) ? props : null) : children
 
@@ -432,12 +458,17 @@ function cmp(component: Function): Component {
       node.path.push(props.name)
     }
 
-    let out = component(props, children)
-
-    ctx$.children = siblings
-    ctx$.node = parent
-
-    return out
+    // finally: a component that throws must not leave the ambient tree
+    // cursor pointing at its own node — the error propagates out of
+    // generate(), but a caller that catches it would otherwise be left
+    // with a corrupted context.
+    try {
+      return component(props, children)
+    }
+    finally {
+      ctx$.children = siblings
+      ctx$.node = parent
+    }
   }
   Object.defineProperty(cf, 'name', { value: component.name })
   return cf

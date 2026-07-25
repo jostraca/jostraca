@@ -117,6 +117,18 @@ var scenarioRunners = map[string]func(j *J){
 			})
 		})
 	},
+	"fragment_nested_in_slot": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("out.txt", func(j *J) {
+				j.Fragment(FragmentProps{From: "/f.txt"}, func(j *J) {
+					j.Slot("s", func(j *J) {
+						j.Fragment(FragmentProps{From: "/f2.txt"}, func(j *J) {})
+						j.Content("DIRECT")
+					})
+				})
+			})
+		})
+	},
 	"copy_ignore_text": func(j *J) {
 		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
 			j.Copy(CopyProps{From: "/tm"})
