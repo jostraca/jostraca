@@ -39,6 +39,7 @@ class FileHandler {
     metafile;
     files;
     createdDirs;
+    savedPaths;
     constructor(bctx, existing, control) {
         this.fs = bctx.fs;
         this.now = bctx.now;
@@ -58,6 +59,7 @@ class FileHandler {
             unchanged: [],
         };
         this.createdDirs = new Set();
+        this.savedPaths = new Set();
         // Yikes!
         this.duplicateFolder = bctx.duplicateFolder.bind(bctx);
         this.last = () => bctx.bmeta.prev.last;
@@ -73,10 +75,29 @@ class FileHandler {
         if ('string' !== typeof path) {
             throw new Error(CN + FN + wstr + ' invalid path, path=' + path);
         }
-        const withinFolder = path.startsWith(this.folder);
-        const rpath = withinFolder ? path.substring(this.folder.length).replace(/^[/\\]+/, '') : path;
+        const rpath = this.withinFolder(path) ?
+            path.substring('.' === this.folder || '/' === this.folder ? this.folder.length :
+                this.folder.length).replace(/^[/\\]+/, '') :
+            path;
         // Canonical paths use forward slashes, NOT Path.sep
         return rpath.replace(/\\/g, '/');
+    }
+    // Whether `path` resolves inside the configured output folder.
+    //
+    // Matched on a separator boundary, not a raw string prefix: with folder
+    // `/out`, the path `/output/x.txt` is NOT inside it. The plain
+    // `startsWith` this replaced yielded the relative path `put/x.txt`, and
+    // from there a bogus duplicate-baseline location and meta key.
+    withinFolder(path) {
+        if ('.' === this.folder) {
+            return !node_path_1.default.isAbsolute(path);
+        }
+        if ('/' === this.folder) {
+            return path.startsWith('/');
+        }
+        return path === this.folder ||
+            path.startsWith(this.folder + '/') ||
+            path.startsWith(this.folder + '\\');
     }
     save(path, newContentSource, write, whence) {
         const wstr = null == whence ? '' : whence + ':';
@@ -93,8 +114,19 @@ class FileHandler {
         whence = null == whence ? '' : whence;
         const existing = 'string' === typeof newContentSource ? this.existing.txt : this.existing.bin;
         path = fwd(node_path_1.default.normalize(path));
-        const withinFolder = path.startsWith(this.folder) || ('.' === this.folder && !node_path_1.default.isAbsolute(path));
+        const withinFolder = this.withinFolder(path);
         const rpath = this.relative(path, FN + wstr);
+        // Two components resolving to the same output path is almost always a
+        // mistake (the second silently wins). Detect it here rather than
+        // inferring it from adjacent entries in one of the `files` lists —
+        // that only caught the case where both saves happened to take the same
+        // branch, so it stopped firing as soon as one of them became a no-op.
+        if (this.savedPaths.has(path)) {
+            dlog('save', 'duplicate save, later content wins: ' + path);
+        }
+        else {
+            this.savedPaths.add(path);
+        }
         const exists = fs.existsSync(path);
         write = write || !exists;
         why.push(`start<${write ? 'w' : 'W'}${exists ? 'x' : 'X'}>`);
@@ -106,11 +138,16 @@ class FileHandler {
             protect: false,
             conflict: false,
         };
+        // Tracks whether the generated content actually differs from what is
+        // already on disk, so the write path can skip a no-op rewrite.
+        let unchanged = false;
         if (exists) {
             why.push('exists-0');
             let currentContent = this.loadFile(path);
             const protect = 0 <= currentContent.indexOf(JOSTRACA_PROTECT);
             meta.protect = protect;
+            unchanged = currentContent.length === newContentSource.length &&
+                currentContent === newContentSource;
             if (existing.preserve) {
                 why.push('preserve-0');
                 if (protect) {
@@ -224,11 +261,24 @@ class FileHandler {
             }
         }
         if (write) {
-            why.push('write-1');
-            meta.action = 'write';
-            this.saveFile(path, newContentSource, whence + meta.action);
-            // this.files.written.push(path)
-            this.filelog('written', path);
+            // A byte-identical rewrite is a no-op that still bumps mtime, which
+            // re-triggers every watcher, bundler and incremental compiler
+            // downstream — and costs a full write per file on every run. Record
+            // the intent (so meta still says `write`, and the duplicate baseline
+            // below is still refreshed) but skip touching the file. Matches the
+            // Go port, which already did this.
+            if (unchanged) {
+                why.push('unchanged-0');
+                meta.action = 'write';
+                this.filelog('unchanged', path);
+            }
+            else {
+                why.push('write-1');
+                meta.action = 'write';
+                this.saveFile(path, newContentSource, whence + meta.action);
+                // this.files.written.push(path)
+                this.filelog('written', path);
+            }
             meta.actions.push(meta.action);
             whenify(meta, this.now());
             this.audit.push([CN + FN + wstr + meta.action,

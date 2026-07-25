@@ -1,0 +1,22 @@
+{
+  "scenario": "preserve_and_diff",
+  "opts": {
+    "existing": {
+      "txt": {
+        "preserve": true,
+        "diff": true
+      },
+      "bin": {}
+    }
+  },
+  "prepopulate": {
+    "/out/app/a.txt": "OLD\n"
+  },
+  "vol": {
+    "/out/app/a.txt": "<<<<<<< EXISTING: 1969-12-31T23:59:59.999Z/diff\nOLD\n>>>>>>> EXISTING: 1969-12-31T23:59:59.999Z/diff\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/diff\nNEW\n>>>>>>> GENERATED: 2025-01-01T00:00:00.000Z/diff\n",
+    "/out/app/a.old.txt": "OLD\n",
+    "/out/.jostraca/generated/app/a.txt": "NEW\n",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"app/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}

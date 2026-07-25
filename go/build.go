@@ -347,6 +347,10 @@ func walkCopy(b *buildCtx, st *jstate, from, to string, n *Node) error {
 // defaultCopyIgnoreRE matches the TS default ignore pattern (~$).
 var defaultCopyIgnoreRE = regexp.MustCompile(`~$`)
 
+// injectDlog records non-fatal Inject weirdness, mirroring the dlog in
+// ts/src/op/InjectOp.ts.
+var injectDlog = NewDLog("jostraca", "build.go")
+
 // injectExcluded reports whether name is excluded by the user's Inject
 // Exclude setting. Accepts bool (true → always exclude), string,
 // *regexp.Regexp, or a []any of those.
@@ -447,10 +451,11 @@ func injectAfter(n *Node, _ *jstate, b *buildCtx) error {
 	}
 	body := sb.String()
 
+	// Inject rewrites a region of an existing file; a missing target is a
+	// user error. TS throws here, so the port must too.
 	if !b.fh.fs.Exists(n.FullPath) {
-		// No target — silently skip; matches TS read-error tolerance for
-		// missing inject targets in tests.
-		return nil
+		return fmt.Errorf("%w: path=%s (Inject rewrites an existing file; use File to create one)",
+			ErrInjectTargetMissing, n.FullPath)
 	}
 	src, err := b.fh.fs.ReadFile(n.FullPath)
 	if err != nil {
@@ -458,21 +463,42 @@ func injectAfter(n *Node, _ *jstate, b *buildCtx) error {
 	}
 
 	startM, endM := n.Markers[0], n.Markers[1]
-	startIdx := strings.Index(string(src), startM)
-	if startIdx < 0 {
-		return nil
+	s := string(src)
+
+	// TS builds a /start(.*?)end/sg regex, so *every* marker pair in the
+	// file is rewritten, and the end marker is always searched for after
+	// the start marker. Scanning once from the front missed later blocks
+	// and could be defeated by a stray end marker earlier in the file.
+	var out strings.Builder
+	out.Grow(len(s) + len(body))
+	pos, matched := 0, false
+	for {
+		si := strings.Index(s[pos:], startM)
+		if si < 0 {
+			break
+		}
+		si += pos
+		after := si + len(startM)
+		ei := strings.Index(s[after:], endM)
+		if ei < 0 {
+			break
+		}
+		ei += after
+
+		out.WriteString(s[pos:after])
+		out.WriteString(body)
+		pos = ei
+		matched = true
 	}
-	endIdx := strings.Index(string(src), endM)
-	if endIdx < 0 || endIdx < startIdx {
-		return nil
+	if !matched {
+		// Nothing to inject into. Not fatal — the target may not be marked
+		// up yet — but it should not be invisible.
+		injectDlog.Log("inject", "markers not found, nothing injected: path="+n.FullPath)
+		return b.fh.save(n.FullPath, src, "InjectOp:after")
 	}
-	// Replace [startIdx+len(startM), endIdx) with body.
-	replaceFrom := startIdx + len(startM)
-	out := make([]byte, 0, len(src)+len(body))
-	out = append(out, src[:replaceFrom]...)
-	out = append(out, []byte(body)...)
-	out = append(out, src[endIdx:]...)
-	return b.fh.save(n.FullPath, out, "InjectOp:after")
+	out.WriteString(s[pos:])
+
+	return b.fh.save(n.FullPath, []byte(out.String()), "InjectOp:after")
 }
 
 // fragmentBefore stashes the parent file's current content slot so we

@@ -30,6 +30,7 @@ declare class FileHandler {
         unchanged: string[];
     };
     createdDirs: Set<string>;
+    savedPaths: Set<string>;
     constructor(bctx: BuildContext, existing: {
         txt: any;
         bin: any;
@@ -39,6 +40,7 @@ declare class FileHandler {
         version: boolean;
     });
     relative(path: string, whence?: string): string;
+    withinFolder(path: string): boolean;
     save(path: string, newContentSource: string | Buffer, write?: boolean | string, whence?: string): void;
     copy(frompath: string, topath: string, write?: boolean | string, whence?: string): void;
     merge(editA: string, orig: string, editB: string, why: string[]): {

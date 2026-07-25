@@ -92,6 +92,19 @@ func (bm *buildMeta) load() {
 // kind is the action token (write/preserve/present/diff/merge/protect/
 // unchanged); the entry's Action is the *primary* action and Actions[]
 // records every applied action in order.
+// recordProtect flags the entry for rpath as protected. TS sets
+// meta.protect once for the whole save() (as soon as the marker is seen),
+// independent of which action later fires, so it is applied here at the
+// end of save() rather than threaded through every action helper.
+func (bm *buildMeta) recordProtect(rpath string, protect bool) {
+	if bm == nil || !protect {
+		return
+	}
+	if e, ok := bm.next.byPath[rpath]; ok {
+		e.Protect = true
+	}
+}
+
 func (bm *buildMeta) recordAction(rpath, action string, exists, conflict, protect bool) {
 	if bm == nil {
 		return

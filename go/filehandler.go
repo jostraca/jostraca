@@ -29,6 +29,10 @@ type fileHandler struct {
 
 const protectMarker = "JOSTRACA_PROTECT"
 
+// metaFilename is the build meta log's basename. save() never duplicates
+// it into the baseline folder (mirrors the guard in TS save()).
+const metaFilename = "jostraca.meta.log"
+
 // modeBits collapses the per-file mode booleans for one save call.
 type modeBits struct {
 	write    bool
@@ -119,85 +123,177 @@ func (fh *fileHandler) save(p string, content []byte, whence string) error {
 	}
 	why = append(why, "start<"+wTag[:1]+xTag+">")
 
-	// New file: simple write (modes.write == true is implied by default).
-	if !exists {
-		why = append(why, "write-1")
-		return fh.write(p, content, rpath, whence, false, why)
-	}
-	why = append(why, "exists-0")
+	// Mirrors the block order of TS save() at src/build/FileHandler.ts:175+.
+	// The modes are NOT mutually exclusive: `preserve` runs independently of
+	// `diff`/`merge`, and `present` can still fire for a protected file.
+	// Structuring these as early returns (as this used to) silently dropped
+	// the backup whenever preserve was combined with diff or merge.
+	write := !exists
+	actions := 0
 
-	existing, err := fh.fs.ReadFile(p)
-	if err != nil {
-		return err
-	}
+	var existing []byte
+	protect := false
+	contentEqual := false
 
-	if isText && bytes.Contains(existing, []byte(protectMarker)) {
-		why = append(why, "protect-0")
-		fh.filelog(&fh.files.Preserved, p)
-		fh.appendAudit("protect", map[string]any{"path": rpath, "whence": whence, "why": why})
-		if fh.bmeta != nil {
-			fh.bmeta.recordAction(rpath, "skip", exists, false, true)
-		}
-		// TS still writes the duplicate baseline even when protected.
-		return fh.writeDuplicate(rpath, content)
-	}
+	if exists {
+		why = append(why, "exists-0")
 
-	contentEqual := bytes.Equal(existing, content)
-	if !contentEqual {
-		why = append(why, "content-0")
-	}
-
-	// merge and diff are exclusive write paths.
-	if isText && modes.merge {
-		why = append(why, "merge-0")
-		dpath := fh.duplicateFolder + "/" + rpath
-		if fh.fs.Exists(dpath) {
-			return fh.saveMerge(p, content, existing, rpath, whence, why)
-		}
-		// No baseline: TS leaves the merge block silently at
-		// FileHandler.ts:282-336 and falls through to the regular
-		// existing.write check (line 340). Continue to preserve/
-		// present/write logic.
-		why = append(why, "no-baseline-0")
-	}
-	if isText && modes.diff {
-		why = append(why, "diff-0")
-		return fh.saveDiff(p, content, existing, rpath, whence, why)
-	}
-
-	// preserve: write the .old.<ext> backup before falling through to write.
-	if modes.preserve && !contentEqual {
-		why = append(why, "preserve-0")
-		if err := fh.savePreserveBackup(p, existing, rpath, whence); err != nil {
+		var err error
+		existing, err = fh.fs.ReadFile(p)
+		if err != nil {
 			return err
 		}
-	}
-	// present: write the .new.<ext> sidecar when write is OFF.
-	if modes.present && !modes.write {
-		why = append(why, "present-0")
-		return fh.savePresent(p, content, rpath, whence, why)
+		if isText {
+			protect = bytes.Contains(existing, []byte(protectMarker))
+		}
+		contentEqual = bytes.Equal(existing, content)
+
+		// preserve: keep a .old.<ext> copy of what is being replaced.
+		if modes.preserve {
+			why = append(why, "preserve-0")
+			if protect {
+				why = append(why, "protect-0")
+				write = false
+			} else if !contentEqual {
+				why = append(why, "content-0")
+				if err := fh.savePreserveBackup(p, existing, rpath, whence); err != nil {
+					return err
+				}
+				actions++
+			}
+		}
+
+		// write wins over present; present is the "write is off" path.
+		if modes.write && !protect {
+			why = append(why, "write-0")
+			write = true
+		} else if modes.present {
+			why = append(why, "present-0")
+			if !contentEqual {
+				why = append(why, "content-1")
+				if err := fh.savePresent(p, content, rpath, whence, why); err != nil {
+					return err
+				}
+				actions++
+			}
+		}
+
+		if !protect {
+			why = append(why, "not-protect-1")
+
+			if isText && modes.diff {
+				why = append(why, "diff-0")
+				write = false
+				if !contentEqual {
+					why = append(why, "content-2")
+					if err := fh.saveDiff(p, content, existing, rpath, whence, why); err != nil {
+						return err
+					}
+					actions++
+				} else {
+					fh.filelog(&fh.files.Unchanged, p)
+				}
+			} else if isText && modes.merge {
+				why = append(why, "merge-0")
+				if !contentEqual {
+					why = append(why, "content-3")
+					if fh.control.Duplicate() {
+						why = append(why, "duplicate-0")
+						dpath := fh.duplicateFolder + "/" + rpath
+						if fh.fs.Exists(dpath) {
+							why = append(why, "dupexists-0")
+							write = false
+							if err := fh.saveMerge(p, content, existing, rpath, whence, why); err != nil {
+								return err
+							}
+							actions++
+						} else {
+							// No baseline: TS leaves the merge block silently
+							// and falls through to the regular write check.
+							why = append(why, "no-baseline-0")
+						}
+					}
+				} else {
+					why = append(why, "unchanged-0")
+					write = false
+					fh.filelog(&fh.files.Unchanged, p)
+				}
+			}
+		}
 	}
 
-	// Default: overwrite (or write new). When content is equal we still
-	// record a write intent (matches TS) but skip the actual fs call.
-	if modes.write {
-		if contentEqual {
+	// Decide the duplicate baseline before emitting the write/skip audit, so
+	// that entry carries the same breadcrumbs TS records. (TS pushes these
+	// after the audit entry, but its entries alias one shared `why` array,
+	// so they end up with the full set either way.)
+	dup := false
+	if fh.control.Duplicate() {
+		why = append(why, "duplicate-1")
+		// TS guards the baseline on the path being inside the output folder
+		// and not being the meta log itself; without that a path resolved
+		// outside the folder produces a nonsense baseline location.
+		if fh.withinFolder(p) && path.Base(p) != metaFilename {
+			why = append(why, "within-0")
+			dup = true
+		}
+	}
+
+	if write {
+		if exists && contentEqual {
+			// Byte-identical rewrite: record the intent but do not touch the
+			// file, so mtime is not bumped for nothing.
 			why = append(why, "unchanged-0")
 			fh.filelog(&fh.files.Unchanged, p)
-			fh.appendAudit("unchanged", map[string]any{"path": rpath, "whence": whence, "why": why})
+			fh.appendAudit("save:write", map[string]any{
+				"action": "write", "path": rpath, "size": len(content),
+				"whence": whence, "why": why, "exists": exists,
+				"actions": []string{"write"},
+			})
 			if fh.bmeta != nil {
 				fh.bmeta.recordAction(rpath, "write", exists, false, false)
 			}
-			// Still keep the duplicate baseline current.
-			return fh.writeDuplicate(rpath, content)
+		} else {
+			why = append(why, "write-1")
+			if err := fh.write(p, content, rpath, whence, exists, why); err != nil {
+				return err
+			}
 		}
-		why = append(why, "write-1")
-		return fh.write(p, content, rpath, whence, exists, why)
+		actions++
+	} else if actions == 0 {
+		// TS records the skip in the audit and the meta log but adds nothing
+		// to any files.* list — a protected or write-disabled file is not
+		// "preserved" or "unchanged", it simply was not acted on.
+		why = append(why, "skip-0")
+		fh.appendAudit("save:skip", map[string]any{
+			"action": "skip", "path": rpath, "whence": whence, "why": why,
+			"exists": exists, "actions": []string{"skip"},
+		})
+		if fh.bmeta != nil {
+			fh.bmeta.recordAction(rpath, "skip", exists, false, protect)
+		}
 	}
-	why = append(why, "skip-0")
-	fh.filelog(&fh.files.Unchanged, p)
-	fh.appendAudit("skip", map[string]any{"path": rpath, "whence": whence, "why": why})
+
+	fh.bmeta.recordProtect(rpath, protect)
+
+	if dup {
+		return fh.writeDuplicate(rpath, content)
+	}
 	return nil
+}
+
+// withinFolder reports whether p resolves inside the configured output
+// folder. Mirrors the guard in TS save().
+//
+// The comparison is on a separator boundary, not a raw string prefix:
+// with folder "/out", the path "/output/x.txt" is *not* inside it.
+func (fh *fileHandler) withinFolder(p string) bool {
+	switch fh.folder {
+	case ".":
+		return !isAbsPath(p)
+	case "/":
+		return isAbsPath(p)
+	}
+	return p == fh.folder || strings.HasPrefix(p, fh.folder+"/")
 }
 
 func (fh *fileHandler) write(p string, content []byte, rpath, whence string, exists bool, why []string) error {
@@ -207,14 +303,6 @@ func (fh *fileHandler) write(p string, content []byte, rpath, whence string, exi
 	if !fh.control.Dryrun {
 		if err := fh.writeAtomic(p, content); err != nil {
 			return err
-		}
-		// Side-write a duplicate copy for next-run merge baseline.
-		if fh.control.Duplicate() {
-			why = append(why, "duplicate-1")
-			if err := fh.writeDuplicate(rpath, content); err != nil {
-				return err
-			}
-			why = append(why, "within-0")
 		}
 	}
 	fh.filelog(&fh.files.Written, p)
@@ -272,10 +360,9 @@ func (fh *fileHandler) savePresent(p string, content []byte, rpath, whence strin
 // cleanly.
 func (fh *fileHandler) saveMerge(p string, content, existing []byte, rpath, whence string, why []string) error {
 	if bytes.Contains(existing, []byte(">>>>>>> EXISTING:")) {
-		// Existing has unresolved markers; do not re-merge.
-		if err := fh.writeDuplicate(rpath, content); err != nil {
-			return err
-		}
+		// Existing has unresolved markers; do not re-merge. The baseline is
+		// still refreshed by save()'s centralised duplicate write, so a
+		// future user-resolution merges cleanly.
 		fh.appendAudit("save:skip", map[string]any{
 		"action":  "skip",
 		"path":    rpath,
@@ -327,9 +414,6 @@ func (fh *fileHandler) saveMerge(p string, content, existing []byte, rpath, when
 			return err
 		}
 	}
-	if err := fh.writeDuplicate(rpath, content); err != nil {
-		return err
-	}
 	fh.filelog(&fh.files.Merged, p)
 	if res.Conflict {
 		fh.filelog(&fh.files.Conflicted, p)
@@ -366,10 +450,6 @@ func (fh *fileHandler) saveDiff(p string, content, existing []byte, rpath, whenc
 		if err := fh.writeAtomic(p, rendered); err != nil {
 			return err
 		}
-	}
-	// Duplicate baseline tracks the clean generated content.
-	if err := fh.writeDuplicate(rpath, content); err != nil {
-		return err
 	}
 	conflict := !bytes.Equal(rendered, content)
 	fh.filelog(&fh.files.Diffed, p)
@@ -416,11 +496,20 @@ func (fh *fileHandler) savePreserveBackup(p string, existing []byte, rpath, when
 	return nil
 }
 
+// relative strips the output folder prefix from p. Matched on a separator
+// boundary: a raw string prefix test would treat "/output/x.txt" as living
+// under "/out" and yield the bogus relative path "put/x.txt", which then
+// becomes a bogus baseline and meta key.
 func (fh *fileHandler) relative(p string) string {
 	p = fwd(p)
-	if strings.HasPrefix(p, fh.folder) {
-		rest := p[len(fh.folder):]
-		return strings.TrimLeft(rest, "/")
+	if fh.folder == "." || fh.folder == "/" {
+		return strings.TrimLeft(strings.TrimPrefix(p, fh.folder), "/")
+	}
+	if p == fh.folder {
+		return ""
+	}
+	if strings.HasPrefix(p, fh.folder+"/") {
+		return strings.TrimLeft(p[len(fh.folder):], "/")
 	}
 	return p
 }

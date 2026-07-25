@@ -150,6 +150,61 @@ async function main() {
     })
   })
 
+  // Mode combinations. The existing-file modes are NOT mutually
+  // exclusive: preserve runs independently of diff, so a `.old` backup and
+  // an annotated diff must both appear.
+  await snapshot('preserve_and_diff',
+    { existing: { txt: { preserve: true, diff: true } }, now: () => FROZEN_NOW },
+    () => {
+      Project({ folder: 'app' }, () => {
+        File({ name: 'a.txt' }, () => Content('NEW\n'))
+      })
+    },
+    { '/out/app/a.txt': 'OLD\n' },
+  )
+
+  // A protected file is never written, but `present` still deposits the
+  // .new sidecar so the user can see what would have been generated.
+  await snapshot('protect_and_present',
+    { existing: { txt: { write: false, present: true } } },
+    () => {
+      Project({ folder: 'app' }, () => {
+        File({ name: 'a.txt' }, () => Content('NEW\n'))
+      })
+    },
+    { '/out/app/a.txt': '# JOSTRACA_PROTECT\nkeep me\n' },
+  )
+
+  // Inject rewrites *every* marker pair in the target, and finds the end
+  // marker after the start marker (a stray end marker earlier in the file
+  // must not defeat it).
+  await snapshot('inject_two_blocks', {}, () => {
+    Project({ folder: 'app' }, () => {
+      Inject({ name: 'foo.txt' }, () => Content('NEW'))
+    })
+  }, {
+    '/out/app/foo.txt':
+      'A\n#--START--#\nold1\n#--END--#\nB\n#--START--#\nold2\n#--END--#\nC\n',
+  })
+
+  await snapshot('inject_stray_end_marker', {}, () => {
+    Project({ folder: 'app' }, () => {
+      Inject({ name: 'foo.txt' }, () => Content('NEW'))
+    })
+  }, {
+    '/out/app/foo.txt': '\n#--END--#\nA\n#--START--#\nold\n#--END--#\nZ\n',
+  })
+
+  // No marker pair: the file is left byte-identical (and a debug warning
+  // is recorded, since a silent no-op is otherwise invisible).
+  await snapshot('inject_no_markers', {}, () => {
+    Project({ folder: 'app' }, () => {
+      Inject({ name: 'foo.txt' }, () => Content('NEW'))
+    })
+  }, {
+    '/out/app/foo.txt': 'no markers here\n',
+  })
+
   // A File with no enclosing Project must resolve under the output
   // folder. This used to join onto an empty folder path and land at the
   // filesystem root.

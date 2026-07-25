@@ -117,6 +117,31 @@ var scenarioRunners = map[string]func(j *J){
 			})
 		})
 	},
+	"preserve_and_diff": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("a.txt", func(j *J) { j.Content("NEW\n") })
+		})
+	},
+	"protect_and_present": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("a.txt", func(j *J) { j.Content("NEW\n") })
+		})
+	},
+	"inject_two_blocks": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.Inject("foo.txt", func(j *J) { j.Content("NEW") })
+		})
+	},
+	"inject_stray_end_marker": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.Inject("foo.txt", func(j *J) { j.Content("NEW") })
+		})
+	},
+	"inject_no_markers": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.Inject("foo.txt", func(j *J) { j.Content("NEW") })
+		})
+	},
 	"no_project_file": func(j *J) {
 		j.File("x.txt", func(j *J) { j.Content("hi\n") })
 	},
@@ -171,6 +196,12 @@ func scenarioOptions(scenario string) []Option {
 	case "diff_mode":
 		t := true
 		return []Option{WithExisting(Existing{Txt: ExistingTxt{Diff: &t}})}
+	case "preserve_and_diff":
+		t := true
+		return []Option{WithExisting(Existing{Txt: ExistingTxt{Preserve: &t, Diff: &t}})}
+	case "protect_and_present":
+		t, f := true, false
+		return []Option{WithExisting(Existing{Txt: ExistingTxt{Write: &f, Present: &t}})}
 	case "basic_copy":
 		return []Option{WithModel(map[string]any{"x": map[string]any{"y": "Y", "z": "Z"}})}
 	case "absolute_paths":

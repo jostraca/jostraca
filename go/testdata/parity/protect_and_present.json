@@ -1,0 +1,22 @@
+{
+  "scenario": "protect_and_present",
+  "opts": {
+    "existing": {
+      "txt": {
+        "write": false,
+        "present": true
+      },
+      "bin": {}
+    }
+  },
+  "prepopulate": {
+    "/out/app/a.txt": "# JOSTRACA_PROTECT\nkeep me\n"
+  },
+  "vol": {
+    "/out/app/a.txt": "# JOSTRACA_PROTECT\nkeep me\n",
+    "/out/app/a.new.txt": "NEW\n",
+    "/out/.jostraca/generated/app/a.txt": "NEW\n",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/a.txt\": {\n      \"action\": \"present\",\n      \"path\": \"app/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}
