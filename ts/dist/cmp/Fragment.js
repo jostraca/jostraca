@@ -17,19 +17,30 @@ const FragmentShape = (0, shape_1.Shape)({
     eject: (0, shape_1.Optional)([(0, shape_1.One)(String, RegExp)])
 }, { name: 'Fragment' });
 const Fragment = (0, jostraca_1.cmp)(function Fragment(props, children) {
+    // Resolve a relative `from` BEFORE validating.
+    //
+    // The `from` check stats the path, and it used to stat the raw relative
+    // string — so it resolved against the process CWD and a relative `from`
+    // threw a validation error no matter where the file actually was. The
+    // resolution further down (which joined `node.path`, and so looked under
+    // the *enclosing file's name* as though it were a directory) was
+    // unreachable.
+    //
+    // Relative paths now resolve against the output folder, which is
+    // predictable and matches the Go port.
+    if ('string' === typeof props.from && !node_path_1.default.isAbsolute(props.from)) {
+        props = { ...props, from: node_path_1.default.join(props.ctx$.folder, props.from) };
+    }
     props = FragmentShape(props, { fs: props.ctx$.fs });
     const node = props.ctx$.node;
     node.kind = 'fragment';
     node.from = props.from;
     node.indent = props.indent;
     const replace = props.replace || {};
-    const { folder, model } = props.ctx$;
+    const { model } = props.ctx$;
     const fs = props.ctx$.fs();
-    let frompath = node.from;
-    // TODO: this is relative to the output - but that is just one case - provide more control?
-    if (!node_path_1.default.isAbsolute(frompath)) {
-        frompath = node_path_1.default.join(folder, ...node.path, frompath);
-    }
+    // Already absolute by here: resolved above, before validation.
+    const frompath = node.from;
     let src = fs.readFileSync(frompath, 'utf8');
     const slotnames = {};
     node.filter = (({ props, component }) => (('Slot' === component.name ? slotnames[props.name] = true : null), false));

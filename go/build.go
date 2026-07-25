@@ -104,6 +104,21 @@ func projectBefore(n *Node, st *jstate, b *buildCtx) error {
 	return nil
 }
 
+// resolveFragmentFrom resolves a relative Fragment From against the output
+// folder. A bare relative path used to be passed through literally, so it
+// resolved against the process working directory. Mirrors
+// ts/src/cmp/Fragment.ts.
+func resolveFragmentFrom(st *jstate, from string) string {
+	if from == "" || isAbsPath(from) {
+		return from
+	}
+	folder := st.folder
+	if folder == "" {
+		folder = "."
+	}
+	return path.Clean(fwd(folder + "/" + from))
+}
+
 // isAbsPath reports whether p is an absolute canonical-/ path.
 func isAbsPath(p string) bool {
 	return len(p) > 0 && p[0] == '/'
@@ -614,7 +629,9 @@ func fragmentAfter(n *Node, st *jstate, b *buildCtx) error {
 	body, _ := n.Meta["fragmentBody"].(func(*J))
 	slotNames, _ := n.Meta["slotNames"].([]string)
 
-	src, err := b.fh.fs.ReadFile(n.From)
+	// Already resolved at define time (see resolveFragmentFrom), but resolve
+	// again so a Node built directly is handled too.
+	src, err := b.fh.fs.ReadFile(resolveFragmentFrom(st, n.From))
 	if err != nil {
 		return err
 	}

@@ -177,6 +177,21 @@ async function main() {
     '/f2.txt': 'NESTED',
   })
 
+  // A relative Fragment `from` resolves against the output folder. This
+  // used to throw: the shape check stat'd the raw relative string against
+  // the process CWD, so it failed regardless of where the file was.
+  await snapshot('fragment_relative_from', {}, () => {
+    Project({ folder: 'app' }, () => {
+      Folder({ name: 'sub' }, () => {
+        File({ name: 'out.txt' }, () => {
+          Fragment({ from: 'frag.txt' })
+        })
+      })
+    })
+  }, {
+    '/out/frag.txt': 'FRAG\n',
+  })
+
   // Text-only half of the same behaviour: the ignore rules must apply to
   // text files, not just binaries.
   await snapshot('copy_ignore_text',

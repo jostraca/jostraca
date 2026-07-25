@@ -49,6 +49,8 @@ Fixed on this branch, each with regression tests in both stacks:
 | G8 | Go collects replayed content at any depth — a `Fragment` inside a `Slot` was silently dropped |
 | G10 | Go's unresolved-conflict guard keys on the end marker alone, as TS's does |
 | G11 | dead `writeConflict` removed |
+| T16 | a relative Fragment `from` works at all — it used to throw, because the shape check stat'd the raw relative path against the process CWD |
+| G15 | Go's package-global dlog buffer is capped, matching TS |
 
 Also corrected: `extract-parity.js`'s default output path (stale after the module
 flatten), and a stale "deviation" note in `go/README.md` claiming the Go 2-way diff render
@@ -67,11 +69,22 @@ therefore covered by per-stack unit tests (`ts/test/robustness.test.ts`,
 `go/robustness_test.go`), and the corpus carries only the text half. Adding binary
 scenarios needs a base64 escape hatch in the format.
 
-Still open, and needing a decision rather than a patch: **G17** below — the two stacks'
-merge and diff algorithms disagree on most non-trivial inputs. Also open: T15/T16
-(Fragment re-runs its children; its relative `from` resolves under the enclosing file
-name), G12 (file modes not configurable), G13 (`alignLCS` re-derives the alignment
-greedily), G15 (package-global dlog buffer).
+**Still open**, each deliberately left alone rather than patched:
+
+- **G17** (below) — the two stacks' merge and diff algorithms disagree on most non-trivial
+  inputs. Needs a maintainer decision, not a patch.
+- **T15** — `Fragment` re-runs its children once per slot marker plus once to collect slot
+  names. Collapsing that to a single pass is possible but would change the semantics of
+  side-effecting children in the most intricate component here, to buy CPU on a define
+  phase that is not the bottleneck. Not worth the risk without a reported problem.
+- **G12** — created files are always 0644 and directories 0755, with no way to configure
+  them, so a generated shell script is not executable. That is a feature (a `mode` prop or
+  option), not a defect, and belongs in an API design pass.
+- **G13** — `alignLCS` re-derives the LCS embedding by greedy first-value match rather
+  than recording positions during reconstruction. Every input I tried produced a correct
+  monotonic map, so this is fragility rather than a demonstrated bug — and changing it
+  would change merge output, which is exactly the decision G17 is about. Bundle it with
+  G17.
 
 ### G17 — the two stacks' merge algorithms disagree [verified — measured]
 

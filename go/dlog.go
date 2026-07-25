@@ -14,6 +14,12 @@ type dLogEntry struct {
 	Args []any
 }
 
+// dLogMax caps the package-level buffer; oldest entries are dropped. It is
+// process-global and never drained implicitly, so without a cap a
+// long-lived process generating repeatedly grows it without limit. Mirrors
+// DLOG_MAX in ts/src/util/basic.ts.
+const dLogMax = 1000
+
 var (
 	dLogMu      sync.Mutex
 	dLogEntries []dLogEntry
@@ -40,6 +46,9 @@ func (d *DLog) Log(args ...any) {
 	}
 	dLogMu.Lock()
 	defer dLogMu.Unlock()
+	if len(dLogEntries) >= dLogMax {
+		dLogEntries = append([]dLogEntry(nil), dLogEntries[len(dLogEntries)-dLogMax+1:]...)
+	}
 	dLogEntries = append(dLogEntries, dLogEntry{
 		Tag:  d.tag,
 		File: d.file,

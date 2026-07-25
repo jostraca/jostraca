@@ -129,6 +129,15 @@ var scenarioRunners = map[string]func(j *J){
 			})
 		})
 	},
+	"fragment_relative_from": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.Folder("sub", func(j *J) {
+				j.File("out.txt", func(j *J) {
+					j.Fragment(FragmentProps{From: "frag.txt"}, func(j *J) {})
+				})
+			})
+		})
+	},
 	"copy_ignore_text": func(j *J) {
 		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
 			j.Copy(CopyProps{From: "/tm"})

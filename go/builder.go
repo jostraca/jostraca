@@ -247,6 +247,11 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 		j.st.err = &NodeError{Step: "fragment", Err: fmtErrorf("Fragment: From is required")}
 		return
 	}
+	// Resolve a relative From against the output folder before checking it
+	// exists, so validation and the later read agree. Mirrors
+	// ts/src/cmp/Fragment.ts, which resolves before its shape check for the
+	// same reason.
+	p.From = resolveFragmentFrom(j.st, p.From)
 	if j.st.fs != nil && !j.st.fs.Exists(p.From) {
 		j.st.err = &NodeError{Step: "fragment", Err: fmtErrorf("Fragment: From file does not exist: %s", p.From)}
 		return
