@@ -25,7 +25,9 @@
     "reset": "npm run clean && npm i && npm run build && npm test",
     "repo-tag": "REPO_VERSION=`node -e \"console.log(require('./package').version)\"` && echo TAG: v$REPO_VERSION && git commit -a -m v$REPO_VERSION && git push && git tag v$REPO_VERSION && git push --tags;",
     "repo-publish": "npm run clean && npm i && npm run repo-publish-quick",
-    "repo-publish-quick": "npm run build && npm run test && npm run repo-tag && npm stage publish --registry https://registry.npmjs.org --access=public"
+    "repo-publish-quick": "npm run build && npm run test && npm run repo-tag && npm stage publish --registry https://registry.npmjs.org --access=public",
+    "test-coverage": "node --enable-source-maps --test --experimental-test-coverage dist-test/**/*.test.js",
+    "test-diff-coverage": "node tools/check-diff-coverage.js"
   },
   "license": "MIT",
   "files": [
@@ -43,8 +45,5 @@
     "memfs": ">=4",
     "shape": ">=10"
   },
-  "dependencies": {
-    "diff": "9.0.0",
-    "node-diff3": "3.2.1"
-  }
+  "dependencies": {}
 }

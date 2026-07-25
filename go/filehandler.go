@@ -5,7 +5,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 // fileHandler is the only place that touches the filesystem during the
@@ -32,6 +31,16 @@ const protectMarker = "JOSTRACA_PROTECT"
 // metaFilename is the build meta log's basename. save() never duplicates
 // it into the baseline folder (mirrors the guard in TS save()).
 const metaFilename = "jostraca.meta.log"
+
+// mergeWhy is the audit breadcrumb per merge outcome, so the `why` trail
+// says which fast path (if any) the merge took. Mirrors MERGE_WHY in
+// ts/src/build/FileHandler.ts.
+var mergeWhy = map[MergeOutcome]string{
+	MergeSame:       "merge-same-0",
+	MergeClean:      "merge-clean-0",
+	MergeUnresolved: "merge-unresolved-0",
+	MergeMerged:     "merge-run-0",
+}
 
 // modeBits collapses the per-file mode booleans for one save call.
 type modeBits struct {
@@ -359,7 +368,7 @@ func (fh *fileHandler) savePresent(p string, content []byte, rpath, whence strin
 // baseline is still refreshed so a future user-resolution can merge
 // cleanly.
 func (fh *fileHandler) saveMerge(p string, content, existing []byte, rpath, whence string, why []string) error {
-	if bytes.Contains(existing, []byte(">>>>>>> EXISTING:")) {
+	if HasConflicts(string(existing)) {
 		// Existing has unresolved markers; do not re-merge. The baseline is
 		// still refreshed by save()'s centralised duplicate write, so a
 		// future user-resolution merges cleanly.
@@ -383,34 +392,20 @@ func (fh *fileHandler) saveMerge(p string, content, existing []byte, rpath, when
 	if err != nil {
 		return err
 	}
-	// Fast paths — avoid the diff3 LCS entirely when its result is known.
-	// The LCS is quadratic, and on large generated files that change almost
-	// completely it effectively never terminates. Both cases below are
-	// semantics-identical to running the merge.
-	// Mirrors ts/src/build/FileHandler.ts merge().
-	var res mergeResult
-	if bytes.Equal(content, existing) {
-		// 1. The existing file already equals the new generate.
-		why = append(why, "merge-same-0")
-		res = mergeResult{Content: existing, Conflict: false}
-	} else if bytes.Equal(existing, baseline) {
-		// 2. The existing file is untouched since the last generate — a
-		// 3-way merge over an unchanged base yields the new content exactly.
-		why = append(why, "merge-clean-0")
-		res = mergeResult{Content: content, Conflict: false}
-	} else {
-		isoWhen := time.UnixMilli(fh.when).UTC().Format("2006-01-02T15:04:05.000Z")
-		isoLast := time.UnixMilli(fh.bmeta.last()).UTC().Format("2006-01-02T15:04:05.000Z")
-		res = merge3Labelled(content, baseline, existing, mergeLabels{
-			A: "GENERATED: " + isoWhen + "/merge",
-			B: "EXISTING: " + isoLast + "/merge",
-		})
-	}
+	// The fast paths and the choice between them live in the diff engine,
+	// which reports an Outcome; record it as a breadcrumb.
+	res := Merge(string(content), string(baseline), string(existing), DiffSpec{
+		When: fh.when,
+		Last: fh.bmeta.last(),
+		Kind: "merge",
+	})
+	why = append(why, mergeWhy[res.Outcome])
+
 	if err := fh.ensureDirOf(p); err != nil {
 		return err
 	}
 	if !fh.control.Dryrun {
-		if err := fh.writeAtomic(p, res.Content); err != nil {
+		if err := fh.writeAtomic(p, []byte(res.Content)); err != nil {
 			return err
 		}
 	}
@@ -434,13 +429,15 @@ func (fh *fileHandler) saveMerge(p string, content, existing []byte, rpath, when
 }
 
 func (fh *fileHandler) saveDiff(p string, content, existing []byte, rpath, whence string, why []string) error {
-	isoWhen := time.UnixMilli(fh.when).UTC().Format("2006-01-02T15:04:05.000Z")
 	last := int64(0)
 	if fh.bmeta != nil {
 		last = fh.bmeta.last()
 	}
-	isoLast := time.UnixMilli(last).UTC().Format("2006-01-02T15:04:05.000Z")
-	rendered := renderDiff(content, existing, isoWhen, isoLast)
+	rendered := []byte(Diff(string(content), string(existing), DiffSpec{
+		When: fh.when,
+		Last: last,
+		Kind: "diff",
+	}).Content)
 	if err := fh.ensureDirOf(p); err != nil {
 		return err
 	}

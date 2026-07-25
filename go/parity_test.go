@@ -364,6 +364,7 @@ var knownParityGaps = map[string]string{}
 // runner so the parity scenario list shows only single-Generate cases.
 var phaseShapedCorpora = map[string]struct{}{
 	"merge_retain": {}, // covered by TestMergeRetainSequence
+	"diff_corpus":  {}, // covered by TestDiffCorpusMatchesTS
 }
 
 // scenarioMultiPhase holds runners that can't be expressed as a single

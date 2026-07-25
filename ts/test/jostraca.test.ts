@@ -839,11 +839,17 @@ describe('jostraca', () => {
         'B1\n' +
         'B2\n' +
         '>>>>>>> GENERATED: 2025-01-01T00:01:00.000Z/diff\n',
+      // zed.txt's last existing line has no trailing newline. The previous
+      // (jsdiff-based) render glued the closing marker onto it, producing
+      // `Z9>>>>>>> EXISTING: ...` — a marker that does not start its own
+      // line, which no tool or human can parse as a conflict. The marker
+      // now always starts at column 0.
       '/top/p0/zed.txt': 'Z0\n' +
         '<<<<<<< EXISTING: 1969-12-31T23:59:59.999Z/diff\n' +
         'Z7\n' +
         'Z8\n' +
-        'Z9>>>>>>> EXISTING: 1969-12-31T23:59:59.999Z/diff\n' +
+        'Z9\n' +
+        '>>>>>>> EXISTING: 1969-12-31T23:59:59.999Z/diff\n' +
         '<<<<<<< GENERATED: 2025-01-01T00:01:00.000Z/diff\n' +
         'Z1\n' +
         'Z2\n' +

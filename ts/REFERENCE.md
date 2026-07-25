@@ -995,3 +995,104 @@ The metadata enables:
 - **Unchanged detection**: skips files where the generated output hasn't
   changed.
 - **Audit**: tracks which files were written, preserved, etc.
+
+
+## Diff and merge
+
+`DiffUtil` is jostraca's own line-diff and three-way-merge engine. It
+replaces the `node-diff3` and `diff` dependencies, and `go/diff.go` mirrors
+it function for function so both stacks produce byte-identical output.
+
+```typescript
+import { DiffUtil } from 'jostraca'
+```
+
+### `DiffUtil.merge(generated, baseline, existing, spec?)`
+
+Three-way merge, named for what the three inputs actually are:
+
+| argument | meaning |
+|---|---|
+| `generated` | what this run produced |
+| `baseline` | what the last run produced — the merge base |
+| `existing` | what is on disk now, possibly hand-edited |
+
+Using the previous generate as the ancestor is what preserves manual
+edits: anything in `existing` that is not in `baseline` is the user's.
+
+```typescript
+const res = DiffUtil.merge(generated, baseline, existing, {
+  when: Date.now(),   // stamped into the GENERATED label
+  last: lastRunTime,  // stamped into the EXISTING label
+  kind: 'merge',      // label suffix
+})
+
+res.content   // merged text
+res.conflict  // true if any region conflicted
+res.outcome   // 'same' | 'clean' | 'unresolved' | 'merged'
+```
+
+`outcome` reports which path was taken, so a caller does not have to
+re-derive the decision the merge already made:
+
+| outcome | meaning | content |
+|---|---|---|
+| `same` | the file on disk already equals the new generate | `existing` |
+| `clean` | the file is untouched since the last generate | `generated` |
+| `unresolved` | the file still holds conflict markers from an earlier merge | `existing`, untouched |
+| `merged` | a real three-way merge ran | the merged text |
+
+The first three are fast paths: each is semantics-identical to running the
+full merge, and each skips the quadratic core entirely.
+
+### `DiffUtil.diff(generated, existing, spec?)`
+
+Two-way annotated diff. Unchanged text passes through; each changed region
+becomes a pair of marked blocks, existing side first.
+
+```typescript
+const res = DiffUtil.diff(generated, existing, { when, last })
+res.content   // annotated text
+res.outcome   // 'same' | 'changed'
+```
+
+### `DiffUtil.hasConflicts(text)`
+
+Whether `text` still holds an unresolved conflict from an earlier merge.
+Keyed on the closing `EXISTING` marker alone, so a half-resolved file — the
+opening marker removed but not the closing one — still counts.
+
+### Labels
+
+By default the markers are stamped from `when`/`last`/`kind`:
+
+```
+<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge
+=======
+>>>>>>> EXISTING: 2024-12-01T00:00:00.000Z/merge
+```
+
+Pass `labels` to override either side outright:
+
+```typescript
+DiffUtil.merge(g, b, e, { labels: { generated: 'MINE', existing: 'YOURS' } })
+```
+
+### Primitives
+
+`lines(text)`, `lcs(a, b)`, `alignLcs(base, target)` and
+`hunks(generated, existing)` are exported for reuse and testing.
+`lines` keeps the newline on each line, so `lines(s).join('') === s` for
+every input, including one with no trailing newline.
+
+### Notes
+
+- **Complexity.** Common prefix and suffix are trimmed first, then
+  Hirschberg's algorithm runs on the remainder: O(N·M) time, O(min(N,M))
+  space. A regenerated file with a few changed lines is dominated by the
+  trim — 50 000 lines in ~10 ms.
+- **Conflict markers always start their own line**, including when the last
+  line of a region has no trailing newline.
+- **A three-way merge can drop content, correctly.** If the user deleted a
+  region the generator did not touch, the deletion wins. "Every generated
+  line survives" is not an invariant.

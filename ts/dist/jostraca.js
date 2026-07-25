@@ -34,7 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PointUtil = exports.List = exports.Slot = exports.Line = exports.Copy = exports.Folder = exports.Fragment = exports.Inject = exports.File = exports.Content = exports.Project = exports.omap = exports.deep = exports.ucf = exports.lcf = exports.partify = exports.isbinext = exports.isbincontent = exports.indent = exports.escre = exports.template = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.each = exports.BuildContext = void 0;
+exports.DiffUtil = exports.PointUtil = exports.List = exports.Slot = exports.Line = exports.Copy = exports.Folder = exports.Fragment = exports.Inject = exports.File = exports.Content = exports.Project = exports.omap = exports.deep = exports.ucf = exports.lcf = exports.partify = exports.isbinext = exports.isbincontent = exports.indent = exports.escre = exports.template = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.each = exports.BuildContext = void 0;
 exports.Jostraca = Jostraca;
 exports.cmp = cmp;
 // TODO:
@@ -69,6 +69,8 @@ Object.defineProperty(exports, "lcf", { enumerable: true, get: function () { ret
 Object.defineProperty(exports, "ucf", { enumerable: true, get: function () { return basic_1.ucf; } });
 const PointUtil = __importStar(require("./util/point"));
 exports.PointUtil = PointUtil;
+const DiffUtil = __importStar(require("./diff"));
+exports.DiffUtil = DiffUtil;
 // TODO: the actual signatures
 const deep = jsonic_1.util.deep;
 exports.deep = deep;

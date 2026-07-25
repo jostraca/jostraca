@@ -51,6 +51,7 @@ Fixed on this branch, each with regression tests in both stacks:
 | G11 | dead `writeConflict` removed |
 | T16 | a relative Fragment `from` works at all — it used to throw, because the shape check stat'd the raw relative path against the process CWD |
 | G15 | Go's package-global dlog buffer is capped, matching TS |
+| **G17 / T24** | **resolved** — both stacks now run one shared diff/merge engine (`ts/src/diff.ts` ↔ `go/diff.go`), held byte-identical by a 1 190-case differential corpus, at 100% coverage on both sides, with `node-diff3` and `diff` dropped |
 
 Also corrected: `extract-parity.js`'s default output path (stale after the module
 flatten), and a stale "deviation" note in `go/README.md` claiming the Go 2-way diff render
@@ -71,8 +72,6 @@ scenarios needs a base64 escape hatch in the format.
 
 **Still open**, each deliberately left alone rather than patched:
 
-- **G17** (below) — the two stacks' merge and diff algorithms disagree on most non-trivial
-  inputs. Needs a maintainer decision, not a patch.
 - **T15** — `Fragment` re-runs its children once per slot marker plus once to collect slot
   names. Collapsing that to a single pass is possible but would change the semantics of
   side-effecting children in the most intricate component here, to buy CPU on a define
@@ -80,84 +79,49 @@ scenarios needs a base64 escape hatch in the format.
 - **G12** — created files are always 0644 and directories 0755, with no way to configure
   them, so a generated shell script is not executable. That is a feature (a `mode` prop or
   option), not a defect, and belongs in an API design pass.
-- **G13** — `alignLCS` re-derives the LCS embedding by greedy first-value match rather
-  than recording positions during reconstruction. Every input I tried produced a correct
-  monotonic map, so this is fragility rather than a demonstrated bug — and changing it
-  would change merge output, which is exactly the decision G17 is about. Bundle it with
-  G17.
 
-### G17 — the two stacks' merge algorithms disagree [verified — measured]
+### G17 / T24 — RESOLVED: one shared diff/merge engine
 
-This is the most significant finding still open, and it was invisible until the T24 work
-made it testable.
+Both stacks now run the same algorithm, in `ts/src/diff.ts` and `go/diff.go`, mirrored
+function for function. `node-diff3` and `diff` are gone; the TS package has no runtime
+dependencies left.
 
-The Go port hand-implements 3-way merge and 2-way diff; TS delegates to `node-diff3` and
-`diff`. They were assumed equivalent because every parity scenario passes. They are not.
-Measured over randomised inputs with a small line vocabulary — heavily repeated lines, the
-realistic shape for generated config and reference output:
+**Why this was necessary.** The two stacks previously ran different algorithms and
+disagreed on ~72% of non-trivial merges and ~21% of diffs — both producing valid but
+different output. Every parity scenario passed anyway, because all six merge/diff
+scenarios had one changed region and distinct lines, exactly the shape where the two
+algorithms agree. And `node-diff3` was unusable on the workload this project has: 62 s on
+a 10 000-line repeated-vocabulary merge, effectively unbounded beyond.
 
-| | disagree |
-|---|---|
-| 3-way merge | **2014 / 2800 (71.9 %)** |
-| 2-way diff | **338 / 1600 (21.1 %)** |
+**What holds it together now.**
 
-The smallest reproducer (`go/merge_divergence_test.go` pins it):
+- `go/testdata/parity/diff_corpus.json` — 1 190 cases (595 merge, 595 diff, 474 of them
+  conflicting), generated from TS, replayed through Go, asserted byte-equal.
+  `TestDiffCorpusMatchesTS` fails the build on any drift.
+- 100% coverage on both `diff.ts` (line, branch and function) and `diff.go` (statement),
+  gated in CI by `npm run test-diff-coverage` and `go/check_diff_coverage.sh`, and
+  available locally as `make coverage`.
+- Mirrored unit suites (`ts/test/diff.test.ts` ↔ `go/diff_engine_test.go`) plus property
+  tests: the LCS is a common subsequence and matches a full-table oracle; a merge never
+  invents content; a reported conflict always carries both markers; every marker starts
+  its own line.
 
-```
-a = "L0\nL1\nL0\nL0\n"   o = "L1\nL1\nL0\nL1\n"   b = "L1\nL1\nL1\nL0\n"
-```
+**Behaviour changes.** The six existing merge/diff parity fixtures are byte-identical, so
+simple merges are unaffected. One real fix: when the last line of a changed region had no
+trailing newline, the old jsdiff render emitted `Z9>>>>>>> EXISTING: ...`, gluing the
+closing marker onto the content. A marker that does not start its own line cannot be
+parsed by any tool or human. Markers now always start at column 0.
 
-Both outputs are *valid* three-way merges — each preserves the conflicting content inside
-markers, and a test asserts neither side ever drops content. They differ in how the
-regions between anchors are split, which changes the bytes written into a user's file.
+**Two things the tests encode that are easy to get wrong.**
 
-**Why the corpus missed it.** All six merge/diff scenarios (`merge_basic`, `merge_update`,
-`merge_clean`, `merge_no_baseline`, `merge_retain`, `diff_mode`) have one changed region
-and distinct lines — precisely the shape where the two algorithms agree. Passing parity
-tests were evidence about a narrow slice of the input space, not about the algorithms.
-
-**Why it is not fixed here.** The resolution is a maintainer decision with a real
-trade-off, and either choice changes something users can see:
-
-1. *Make Go match TS* by porting `node-diff3`'s region splitter. Restores strict parity,
-   but hands Go `node-diff3`'s performance — 62 s on a 10 000-line repeated-vocabulary
-   merge, and effectively unbounded beyond that (§T24).
-2. *Adopt Go's algorithm in TS*, dropping the `node-diff3` and `diff` dependencies. Fixes
-   the performance wall, gives both stacks one implementation to maintain, and removes two
-   runtime deps — at the cost of a one-time change to the merge output existing users see.
-
-I prototyped (2), including the full TS port and a differential test against the current
-dependencies. It works and is fast, but merge output goes directly into users' source
-files, so silently changing it for ~72 % of non-trivial merges is not a call to make
-unasked. The prototype was reverted; the measurement and the pinned reproducer remain.
-
-Recommendation: (2), in a release that says so plainly. The current situation — two
-implementations that agree only on simple inputs, with tests that only try simple inputs
-— is the worst of both.
-
-### T24 — TS merge is now the slow side [verified — measured]
-
-Fixing G1 made it worth measuring both stacks on the workload commit 4a59f4e describes:
-a large, heavily reshaped file with a small line vocabulary (config/reference output,
-where most lines repeat). Identical inputs, same machine:
-
-| lines | TS (`node-diff3`) | Go (after G1) |
-|------:|------------------:|--------------:|
-| 2 000 | 0.47 s | 0.11 s |
-| 5 000 | 6.4 s | 0.72 s |
-| 10 000 | 62 s | 3.0 s |
-| 20 000 | ~10 min (extrapolated) | 12 s |
-
-TS grows at roughly n³ here; Go is cleanly quadratic with bounded memory (27.8 MB at
-20 000 lines). This is what 4a59f4e meant by "effectively never terminates", and it is
-now a TS-only problem — the fast-paths added in that commit avoid it for identical and
-untouched files, but a genuine 3-way merge of a large reshaped file still hits it.
-
-Note this is *performance*, not behaviour: the two stacks' merge output is byte-identical
-and the parity corpus proves it. So there is no divergence to reconcile — the option is to
-port Go's `lcsLines`/`merge3` back to TS and drop the `node-diff3` dependency, which would
-also remove a runtime dep and give both stacks one algorithm to maintain. Worth doing;
-sizeable enough to deserve its own change.
+- *Tie-breaking is load-bearing.* Several subsequences can be equally long but different,
+  and the choice changes the bytes written into a user's file. Both stacks fix the same
+  rules — largest split point on a tie, last occurrence in the single-row base case — and
+  a randomised oracle test pins them.
+- *A three-way merge can drop content, correctly.* If the user deleted a region the
+  generator did not touch, the deletion wins. The obvious-looking property "every
+  generated line survives" is FALSE, and asserting it would be asserting a bug. (I wrote
+  it, watched it fail, and traced the failure to the property rather than the code.)
 
 ---
 

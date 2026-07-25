@@ -43,11 +43,11 @@ declare class FileHandler {
     withinFolder(path: string): boolean;
     save(path: string, newContentSource: string | Buffer, write?: boolean | string, whence?: string): void;
     copy(frompath: string, topath: string, write?: boolean | string, whence?: string): void;
-    merge(editA: string, orig: string, editB: string, why: string[]): {
+    merge(generated: string, baseline: string, existing: string, why: string[]): {
         content: string;
         conflict: boolean;
     };
-    diff(oldcontent: string, newcontent: string): string;
+    diff(generated: string, existing: string): string;
     existsFile(path: string, whence?: string): boolean;
     copyFile(frompath: string, topath: string, whence?: string): void;
     loadJSON(path: string, opts?: any | string, whence?: string): any;

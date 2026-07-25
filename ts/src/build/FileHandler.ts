@@ -1,8 +1,7 @@
 
-const Diff = require('diff')
-const Diff3 = require('node-diff3')
-
 import Path from 'node:path'
+
+import * as DiffUtil from '../diff'
 // import Os from 'node:os'
 
 import { BuildContext } from './BuildContext'
@@ -26,6 +25,15 @@ function fwd(p: string): string {
 }
 
 const JOSTRACA_PROTECT = 'JOSTRACA_PROTECT'
+
+// Audit breadcrumb per merge outcome, so the `why` trail says which fast
+// path (if any) the merge took.
+const MERGE_WHY: Record<string, string> = {
+  same: 'merge-same-0',
+  clean: 'merge-clean-0',
+  unresolved: 'merge-unresolved-0',
+  merged: 'merge-run-0',
+}
 
 // Suffix for the sibling temp file used by the atomic write-then-rename.
 const TMP_SUFFIX = '.jostraca-tmp'
@@ -336,9 +344,9 @@ class FileHandler {
                 const prevGenContent = this.loadFile(dpath, { encoding: 'utf8' }) as string
 
                 const mergeres = this.merge(
-                  newContent,
-                  prevGenContent,
-                  currentContent.toString(),
+                  newContent,                    // generated
+                  prevGenContent,                // baseline (last generate)
+                  currentContent.toString(),     // existing (on disk)
                   why
                 )
                 const diffcontent = mergeres.content
@@ -455,118 +463,44 @@ class FileHandler {
   }
 
 
+  // Three-way merge of the new generate against what is on disk, using
+  // the previous generate (kept under .jostraca/generated) as the common
+  // ancestor. That ancestor choice is what preserves the user's manual
+  // edits.
+  //
+  // The fast paths and the decision of which applied now live in the diff
+  // engine, which reports an `outcome`; this just records it as a
+  // breadcrumb.
   merge(
-    editA: string,
-    orig: string,
-    editB: string,
+    generated: string,
+    baseline: string,
+    existing: string,
     why: string[]
   ): {
     content: string,
     conflict: boolean
   } {
-    const out = { content: editB, conflict: false }
-    let done = false
-
-    // Fast paths — avoid the diff3 LCS entirely when its result is known.
-    // The LCS is quadratic, and on large generated files that change almost
-    // completely (regenerating a reshaped model over 500KB+ config/reference
-    // outputs) it effectively never terminates. Both cases below are
-    // semantics-identical to running the merge:
-
-    // 1. The existing file already equals the new generate — nothing to do.
-    //
-    // Kept for defence in depth even though the current caller only reaches
-    // merge() when the two already differ, so this cannot fire from there.
-    if (!done && editA === editB) {
-      why.push('merge-same-0')
-      done = true
-    }
-
-    // 2. The existing file is untouched since the last generate (no manual
-    // edits) — a 3-way merge over an unchanged base yields editA exactly.
-    if (!done && editB === orig) {
-      why.push('merge-clean-0')
-      out.content = editA
-      done = true
-    }
-
-    // Don't stack conflicts
-
-    if (!done && editB.includes('>>>>>>> EXISTING:')) {
-      why.push('merge-unresolved-0')
-      done = true
-      // TODO: should this be a error, or collected?
-    }
-
-
-    if (!done) {
-      why.push('merge-run-0')
-      const isowhen = new Date(this.when).toISOString()
-      const isolast = new Date(this.last()).toISOString()
-
-      // Consider the previously generated pure version, stored in
-      // .jostraca/generated to be the "original". That preserves
-      // manual edits in the main generated output.
-      const diffres = Diff3.merge(
-        editA,
-        orig,
-        editB,
-        {
-          // stringSeparator: '\n',
-          stringSeparator: /\r?\n/,
-          excludeFalseConflicts: true,
-          label: {
-            a: 'GENERATED: ' + isowhen + '/merge',
-            b: 'EXISTING: ' + isolast + '/merge',
-          }
-        })
-
-      const conflict = diffres.conflict
-      const content = diffres.result.join('\n')
-
-      out.content = content
-      out.conflict = conflict
-    }
-
-    return out
-  }
-
-
-  diff(oldcontent: string, newcontent: string): string {
-
-    // Only diff if needed
-    if (oldcontent.length === newcontent.length &&
-      oldcontent === newcontent) {
-      return newcontent
-    }
-
-    const isowhen = new Date(this.when).toISOString()
-    const isolast = new Date(this.last()).toISOString()
-
-    const difflines = Diff.diffLines(newcontent, oldcontent)
-
-    const out: string[] = []
-
-    difflines.forEach((part: any) => {
-      if (part.added) {
-        out.push('<<<<<<< GENERATED: ' + isowhen + '/diff\n')
-        out.push(part.value)
-        out.push('>>>>>>> GENERATED: ' + isowhen + '/diff\n')
-      }
-      else if (part.removed) {
-        out.push('<<<<<<< EXISTING: ' + isolast + '/diff\n')
-        out.push(part.value)
-        out.push('>>>>>>> EXISTING: ' + isolast + '/diff\n')
-      }
-      else {
-        out.push(part.value)
-      }
+    const res = DiffUtil.merge(generated, baseline, existing, {
+      when: this.when,
+      last: this.last(),
+      kind: 'merge',
     })
 
-    const content = out.join('')
-    return content
+    why.push(MERGE_WHY[res.outcome])
+
+    return { content: res.content, conflict: res.conflict }
   }
 
+
+  // Annotated two-way view of the difference between the new generate and
+  // what is on disk.
+  diff(generated: string, existing: string): string {
+    return DiffUtil.diff(generated, existing, {
+      when: this.when,
+      last: this.last(),
+      kind: 'diff',
+    }).content
+  }
 
 
   existsFile(path: string, whence?: string): boolean {

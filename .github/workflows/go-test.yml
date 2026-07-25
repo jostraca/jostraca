@@ -57,3 +57,9 @@ jobs:
         run: go test ./... -run TestGenerateConcurrent -race -count=10
       - name: Parity snapshots vs TS
         run: go test ./... -run TestParity -count=1 -v
+      # The diff/merge engine is the one piece that must be byte-identical
+      # across the two stacks, so it gets its own gates.
+      - name: Diff engine matches TS byte-for-byte
+        run: go test ./... -run TestDiffCorpus -count=1 -v
+      - name: Diff engine coverage is 100%
+        run: ./check_diff_coverage.sh

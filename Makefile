@@ -1,4 +1,4 @@
-.PHONY: all build test clean build-ts build-go test-ts test-go clean-ts clean-go publish-go tags-go reset
+.PHONY: all build test clean build-ts build-go test-ts test-go clean-ts clean-go publish-go tags-go reset coverage coverage-ts coverage-go
 
 all: build test
 
@@ -14,6 +14,16 @@ build-ts:
 
 test-ts:
 	cd ts && npm test
+
+# The diff/merge engine must stay at 100% coverage in both stacks; it is
+# the one piece that has to be byte-identical across them.
+coverage: coverage-ts coverage-go
+
+coverage-ts:
+	cd ts && npm run test-diff-coverage
+
+coverage-go:
+	cd go && ./check_diff_coverage.sh
 
 clean-ts:
 	cd ts && rm -rf dist dist-test

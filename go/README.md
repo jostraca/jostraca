@@ -260,6 +260,20 @@ with these intentional ergonomic differences:
 - The `Point*` orchestration utility is not ported (deferred to a
   future sub-package).
 
+### Diff and merge
+
+`Diff`, `Merge`, `HasConflicts`, `Lines`, `LCS`, `AlignLCS` and `Hunks` in
+`diff.go` are jostraca's own engine, mirroring `ts/src/diff.ts` function for
+function so both stacks produce byte-identical output. See the TS reference
+for the API; the Go shape is the same with `DiffSpec{When, Last, Kind,
+Labels}` in place of the options object.
+
+`testdata/parity/diff_corpus.json` records TS's exact output for 1 190
+merge and diff cases; `TestDiffCorpusMatchesTS` replays them through Go and
+asserts byte equality. Both stacks hold `diff.go` / `diff.ts` at 100%
+coverage, gated by `./check_diff_coverage.sh` and `npm run
+test-diff-coverage`.
+
 Not deviations (both stacks behave identically, and the `parity_test.go`
 corpus asserts it byte-for-byte):
 

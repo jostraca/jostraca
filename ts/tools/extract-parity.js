@@ -46,7 +46,122 @@ async function snapshot(name, opts, root, prepopulate) {
   console.log('wrote', name)
 }
 
+
+// Cross-stack differential corpus for the diff/merge engine.
+//
+// Every case records TS's exact output. go/diff_corpus_test.go replays the
+// same inputs and asserts byte equality, which is what actually holds the
+// two implementations together — the scenario corpus below only exercises
+// merge through a handful of well-behaved end-to-end cases, and that is how
+// the two stacks silently diverged before.
+//
+// All content is plain ASCII lines, so it round-trips through JSON exactly.
+function diffCorpus() {
+  const { DiffUtil } = require('../dist/jostraca')
+
+  // Deterministic PRNG: the corpus is committed, and CI regenerates it and
+  // fails on any diff, so it has to be stable.
+  let seed = 20260725 >>> 0
+  const rnd = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0
+    return seed / 0x100000000
+  }
+  const mk = (n, vocab) => {
+    const out = []
+    for (let i = 0; i < n; i++) {
+      out.push('L' + Math.floor(rnd() * vocab) + '\n')
+    }
+    return out.join('')
+  }
+  const trimNL = (s) => s.endsWith('\n') ? s.slice(0, -1) : s
+
+  const labels = { generated: 'G', existing: 'E' }
+  const spec = { labels }
+  const cases = []
+
+  const push3 = (generated, baseline, existing) => {
+    const r = DiffUtil.merge(generated, baseline, existing, spec)
+    cases.push({
+      kind: 'merge', generated, baseline, existing,
+      content: r.content, conflict: r.conflict, outcome: r.outcome,
+    })
+  }
+  const push2 = (generated, existing) => {
+    const r = DiffUtil.diff(generated, existing, spec)
+    cases.push({
+      kind: 'diff', generated, existing,
+      content: r.content, conflict: r.conflict, outcome: r.outcome,
+    })
+  }
+
+  // Hand-picked edge shapes.
+  const edges = [
+    ['', '', ''],
+    ['a\n', '', ''],
+    ['', 'a\n', ''],
+    ['', '', 'a\n'],
+    ['a\n', 'a\n', 'a\n'],
+    ['NEW\n', 'OLD\n', 'OLD\n'],
+    ['a\nNEW\nc\n', 'a\nORIG\nc\n', 'a\nUSER\nc\n'],
+    ['keep\ndrop\n', 'keep\ndrop\n', 'keep\n'],
+    ['keep\n', 'keep\ndrop\n', 'keep\ndrop\n'],
+    ['X', '', 'Y'],
+    ['a\nX', 'a\n', 'a\nY'],
+    ['\n\n\n', '\n', '\n\n'],
+    ['a\r\nb\r\n', 'a\r\n', 'a\r\nc\r\n'],
+    ['x\ny\nz\n', 'y\n', 'w\ny\nv\n'],
+    ['}\n}\n}\n', '}\n}\n', '}\n}\n}\n}\n'],
+  ]
+  for (const [g, b, e] of edges) {
+    push3(g, b, e)
+    push2(g, e)
+  }
+
+  // Randomised shapes, weighted towards small vocabularies where repeated
+  // lines make tie-breaking observable.
+  const shapes = [
+    { n: 1, v: 1 }, { n: 2, v: 2 }, { n: 3, v: 2 }, { n: 4, v: 2 },
+    { n: 5, v: 3 }, { n: 6, v: 2 }, { n: 8, v: 3 }, { n: 10, v: 4 },
+    { n: 12, v: 3 }, { n: 16, v: 5 }, { n: 20, v: 6 }, { n: 24, v: 8 },
+    { n: 32, v: 4 }, { n: 40, v: 12 },
+  ]
+  for (const s of shapes) {
+    for (let i = 0; i < 20; i++) {
+      const b = mk(s.n, s.v)
+      const g = mk(s.n, s.v)
+      const e = mk(s.n, s.v)
+      push3(g, b, e)
+      push2(g, e)
+      // Same shapes without trailing newlines, to stress marker placement.
+      push3(trimNL(g), trimNL(b), trimNL(e))
+      push2(trimNL(g), trimNL(e))
+    }
+  }
+
+  // Realistic shape: a mostly-unchanged file with a couple of edits.
+  for (let i = 0; i < 20; i++) {
+    const baseLines = []
+    for (let k = 0; k < 30; k++) {
+      baseLines.push('  key_' + k + ': value_' + k + '\n')
+    }
+    const genLines = baseLines.slice()
+    const exiLines = baseLines.slice()
+    genLines[Math.floor(rnd() * 30)] = '  key_gen: CHANGED\n'
+    exiLines[Math.floor(rnd() * 30)] = '  key_user: EDITED\n'
+    push3(genLines.join(''), baseLines.join(''), exiLines.join(''))
+    push2(genLines.join(''), exiLines.join(''))
+  }
+
+  fs.writeFileSync(
+    path.join(outDir, 'diff_corpus.json'),
+    JSON.stringify({ scenario: 'diff_corpus', labels, cases }, null, 2) + '\n',
+  )
+  console.log('wrote diff_corpus (' + cases.length + ' cases)')
+}
+
 async function main() {
+  diffCorpus()
+
   // Quickstart from the README.
   await snapshot('quickstart', {}, () => {
     Project({ folder: 'my-app' }, () => {

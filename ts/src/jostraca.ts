@@ -51,6 +51,7 @@ import {
 
 
 import * as PointUtil from './util/point'
+import * as DiffUtil from './diff'
 
 // TODO: the actual signatures
 const deep: (...args: any[]) => any = JsonicUtil.deep
@@ -529,6 +530,7 @@ export {
   List,
 
   PointUtil,
+  DiffUtil,
 }
 
 

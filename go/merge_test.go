@@ -5,59 +5,7 @@ import (
 	"testing"
 )
 
-// Phase 11 — 3-way merge. The corpus mirrors test/merge.test.ts
-// scenarios: clean merge (only one side changed), shared change
-// (both sides changed identically), conflict (both sides changed
-// differently).
-
-func TestMerge3Clean(t *testing.T) {
-	// Only the "new" side (a) changed; b matches the baseline.
-	a := []byte("a\nNEW\nc\n")
-	o := []byte("a\nORIG\nc\n")
-	b := []byte("a\nORIG\nc\n")
-	res := merge3(a, o, b)
-	if res.Conflict {
-		t.Errorf("clean merge flagged conflict")
-	}
-	if string(res.Content) != "a\nNEW\nc\n" {
-		t.Errorf("got %q, want a\\nNEW\\nc\\n", res.Content)
-	}
-}
-
-func TestMerge3SharedChange(t *testing.T) {
-	// Both a and b changed identically.
-	a := []byte("a\nSAME\nc\n")
-	o := []byte("a\nORIG\nc\n")
-	b := []byte("a\nSAME\nc\n")
-	res := merge3(a, o, b)
-	if res.Conflict {
-		t.Errorf("shared change flagged conflict")
-	}
-	if string(res.Content) != "a\nSAME\nc\n" {
-		t.Errorf("got %q", res.Content)
-	}
-}
-
-func TestMerge3Conflict(t *testing.T) {
-	a := []byte("a\nNEW\nc\n")
-	o := []byte("a\nORIG\nc\n")
-	b := []byte("a\nUSER\nc\n")
-	res := merge3(a, o, b)
-	if !res.Conflict {
-		t.Errorf("expected conflict")
-	}
-	s := string(res.Content)
-	// Markers match TS exactly: 2-side, no BASELINE block.
-	if !strings.Contains(s, "<<<<<<< GENERATED:") {
-		t.Errorf("missing GENERATED marker: %q", s)
-	}
-	if !strings.Contains(s, ">>>>>>> EXISTING:") {
-		t.Errorf("missing EXISTING marker: %q", s)
-	}
-	if !strings.Contains(s, "NEW") || !strings.Contains(s, "USER") {
-		t.Errorf("missing change content: %q", s)
-	}
-}
+// Integration: merge mode end-to-end through Generate.
 
 func TestSaveMergeMode(t *testing.T) {
 	mem := NewMemFS()

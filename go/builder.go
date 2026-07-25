@@ -132,14 +132,14 @@ func (j *J) ContentP(p ContentProps) {
 
 // Line is Content with a trailing newline.
 func (j *J) Line(src string) {
-	if !endsWithNewline(src) {
+	if !strEndsWithNewline(src) {
 		src = src + "\n"
 	}
 	j.ContentP(ContentProps{Src: src})
 }
 
 func (j *J) LineP(p ContentProps) {
-	if !endsWithNewline(p.Src) {
+	if !strEndsWithNewline(p.Src) {
 		p.Src = p.Src + "\n"
 	}
 	j.ContentP(p)
@@ -407,6 +407,6 @@ func mergeModel(base, extra map[string]any) map[string]any {
 	return out
 }
 
-func endsWithNewline(s string) bool {
+func strEndsWithNewline(s string) bool {
 	return len(s) > 0 && s[len(s)-1] == '\n'
 }
