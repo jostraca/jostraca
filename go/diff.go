@@ -142,47 +142,124 @@ func lineDiff(a, b []string) []hunk {
 }
 
 // lcsLines returns the longest common subsequence of two string slices.
+//
+// The previous implementation built the full O(N·M) DP table. That is
+// O(N·M) *memory*, not just time: two 8 000-line files allocated 500 MB,
+// and growth is quadratic, so ~16 000 lines needed ~2 GB and anything
+// larger was an OOM rather than a slowdown. Regenerating a large SDK is
+// exactly the workload that hits it.
+//
+// This version keeps the same result but bounds memory:
+//
+//  1. Trim the common prefix and suffix first. Those lines are in every
+//     optimal LCS, and for a regenerated file — where most content is
+//     unchanged — this usually reduces the quadratic core to almost
+//     nothing.
+//  2. Run Hirschberg's algorithm on what remains: still O(N·M) time, but
+//     O(min(N,M)) space, because each divide step only ever holds two
+//     rows.
+//
+// Tie-breaking is chosen to match the old table walk exactly, so the
+// emitted LCS — and therefore every merge and diff byte — is unchanged.
+// TestLCSMatchesReferenceDP pins that against the original algorithm over
+// randomised inputs.
 func lcsLines(a, b []string) []string {
 	if len(a) == 0 || len(b) == 0 {
 		return nil
 	}
-	// Standard O(N·M) DP table.
-	n, m := len(a), len(b)
-	dp := make([][]int, n+1)
-	for i := range dp {
-		dp[i] = make([]int, m+1)
+
+	// 1. Common prefix.
+	p := 0
+	for p < len(a) && p < len(b) && a[p] == b[p] {
+		p++
 	}
-	for i := 1; i <= n; i++ {
-		for j := 1; j <= m; j++ {
-			if a[i-1] == b[j-1] {
-				dp[i][j] = dp[i-1][j-1] + 1
-			} else if dp[i-1][j] >= dp[i][j-1] {
-				dp[i][j] = dp[i-1][j]
-			} else {
-				dp[i][j] = dp[i][j-1]
+	// 2. Common suffix of what is left.
+	s := 0
+	for s < len(a)-p && s < len(b)-p &&
+		a[len(a)-1-s] == b[len(b)-1-s] {
+		s++
+	}
+
+	prefix, suffix := a[:p], a[len(a)-s:]
+	midA, midB := a[p:len(a)-s], b[p:len(b)-s]
+
+	out := make([]string, 0, p+s+min(len(midA), len(midB)))
+	out = append(out, prefix...)
+	out = hirschbergLCS(midA, midB, out)
+	out = append(out, suffix...)
+	return out
+}
+
+// hirschbergLCS appends the LCS of a and b to out and returns it, using
+// O(min(len(a),len(b))) working space.
+func hirschbergLCS(a, b []string, out []string) []string {
+	switch {
+	case len(a) == 0 || len(b) == 0:
+		return out
+
+	case len(a) == 1:
+		// For a single row the old walk starts at j = len(b) and steps j
+		// down until it finds a match, so it lands on the *last*
+		// occurrence of a[0] in b.
+		for i := len(b) - 1; i >= 0; i-- {
+			if b[i] == a[0] {
+				return append(out, a[0])
 			}
 		}
+		return out
 	}
-	// Reconstruct.
-	out := make([]string, 0, dp[n][m])
-	i, j := n, m
-	for i > 0 && j > 0 {
-		switch {
-		case a[i-1] == b[j-1]:
-			out = append(out, a[i-1])
-			i--
-			j--
-		case dp[i-1][j] >= dp[i][j-1]:
-			i--
-		default:
-			j--
+
+	mid := len(a) / 2
+	// Length of the LCS of a[:mid] with each prefix of b, and of a[mid:]
+	// with each suffix of b. Two rows each, not a table.
+	head := lcsRow(a[:mid], b, false)
+	tail := lcsRow(a[mid:], b, true)
+
+	// On a tie take the *largest* split. Several splits can yield an
+	// equally long LCS but a different one, and this is the choice that
+	// reproduces the old table walk's preference for stepping i down
+	// before j. TestLCSMatchesReferenceDP pins it; `sum > best` here
+	// silently changes merge output.
+	best, split := -1, 0
+	for k := 0; k <= len(b); k++ {
+		if sum := head[k] + tail[len(b)-k]; sum >= best {
+			best, split = sum, k
 		}
 	}
-	// Reverse.
-	for k, l := 0, len(out)-1; k < l; k, l = k+1, l-1 {
-		out[k], out[l] = out[l], out[k]
+
+	out = hirschbergLCS(a[:mid], b[:split], out)
+	return hirschbergLCS(a[mid:], b[split:], out)
+}
+
+// lcsRow returns the final row of the LCS length table for a against b.
+// With reverse set, both sequences are walked back-to-front, so the
+// result is indexed by suffix length rather than prefix length.
+func lcsRow(a, b []string, reverse bool) []int {
+	prev := make([]int, len(b)+1)
+	cur := make([]int, len(b)+1)
+
+	at := func(xs []string, i int) string {
+		if reverse {
+			return xs[len(xs)-1-i]
+		}
+		return xs[i]
 	}
-	return out
+
+	for i := 0; i < len(a); i++ {
+		ai := at(a, i)
+		cur[0] = 0
+		for j := 0; j < len(b); j++ {
+			if ai == at(b, j) {
+				cur[j+1] = prev[j] + 1
+			} else if prev[j+1] >= cur[j] {
+				cur[j+1] = prev[j+1]
+			} else {
+				cur[j+1] = cur[j]
+			}
+		}
+		prev, cur = cur, prev
+	}
+	return prev
 }
 
 // splitLinesKeepNL splits on \n, retaining the trailing newline on

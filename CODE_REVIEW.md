@@ -30,6 +30,7 @@ Fixed on this branch, each with regression tests in both stacks:
 | G2 | merge-baseline write errors propagate instead of being discarded |
 | T9 | `dryrun` no longer creates directories in `copyFile` |
 | G11 (part) | dead `savePreserve` removed |
+| G1 | Go LCS rewritten: prefix/suffix trim + Hirschberg. Output byte-identical (pinned against the old algorithm over randomised inputs); memory now O(min(N,M)) |
 
 Also corrected: `extract-parity.js`'s default output path (stale after the module
 flatten), and a stale "deviation" note in `go/README.md` claiming the Go 2-way diff render
@@ -38,12 +39,37 @@ differed from TS — it does not, and `diff_mode` asserts that byte-for-byte.
 Two new parity scenarios (`no_project_file`, `dotfile_preserve`) cover the behaviours the
 corpus previously missed; the suite is now 23 scenarios.
 
-Still open, in the order proposed in §6: G1 (LCS memory), T5 (binary detection), then the
-rest of the reconciliation table. Newly found while fixing the above, not yet addressed:
+Still open, in the order proposed in §6: T5 (binary detection), then the rest of the
+reconciliation table — plus **T24** below, which the G1 work turned up. Newly found while
+fixing the above, not yet addressed:
 **G16** — TS guards the duplicate-baseline write with `withinFolder` and a metafile check
 (`FileHandler.ts:361-364`); Go's `writeDuplicate` has neither, so a path resolved outside
 the output folder produces a nonsense baseline path. And the dead `writeConflict`
 (`go/merge.go`) is still there.
+
+### T24 — TS merge is now the slow side [verified — measured]
+
+Fixing G1 made it worth measuring both stacks on the workload commit 4a59f4e describes:
+a large, heavily reshaped file with a small line vocabulary (config/reference output,
+where most lines repeat). Identical inputs, same machine:
+
+| lines | TS (`node-diff3`) | Go (after G1) |
+|------:|------------------:|--------------:|
+| 2 000 | 0.47 s | 0.11 s |
+| 5 000 | 6.4 s | 0.72 s |
+| 10 000 | 62 s | 3.0 s |
+| 20 000 | ~10 min (extrapolated) | 12 s |
+
+TS grows at roughly n³ here; Go is cleanly quadratic with bounded memory (27.8 MB at
+20 000 lines). This is what 4a59f4e meant by "effectively never terminates", and it is
+now a TS-only problem — the fast-paths added in that commit avoid it for identical and
+untouched files, but a genuine 3-way merge of a large reshaped file still hits it.
+
+Note this is *performance*, not behaviour: the two stacks' merge output is byte-identical
+and the parity corpus proves it. So there is no divergence to reconcile — the option is to
+port Go's `lcsLines`/`merge3` back to TS and drop the `node-diff3` dependency, which would
+also remove a runtime dep and give both stacks one algorithm to maintain. Worth doing;
+sizeable enough to deserve its own change.
 
 ---
 
@@ -339,8 +365,29 @@ observing that the LCS "effectively never terminates" on 500 KB+ regenerated fil
 Go port inherits the same workload, and its failure mode is a hard OOM rather than a
 slowdown.
 
-Fix: Hirschberg's algorithm (O(min(n,m)) space) or Myers diff; plus a size guard that
-degrades to whole-file conflict rather than dying.
+**FIXED.** `lcsLines` now trims the common prefix and suffix, then runs Hirschberg's
+algorithm on the remainder — same time complexity, O(min(N,M)) space. Measured after:
+
+| lines | before (time / alloc) | after (time / alloc) |
+|------:|----------------------:|---------------------:|
+| 4 000 | 164 ms / 125 MB | 97 ms / 1.4 MB |
+| 8 000 | 1.85 s / 500 MB | 473 ms / 3.1 MB |
+| 16 000 | ~2 GB (OOM territory) | 1.47 s / 6.8 MB |
+
+And the case that actually matters — regenerating a file where ~2 % of lines changed —
+is now dominated by the affix trim: **50 000 lines in 10 ms and 1.0 MB**, where the old
+table would have needed ~20 GB.
+
+The risk in this rewrite is not correctness of the LCS *length* but *which* of several
+equally-long subsequences is returned, since that changes real merge and diff bytes. The
+first attempt did diverge. `TestLCSMatchesReferenceDP` keeps the original full-table
+algorithm as an oracle and compares over randomised inputs — deliberately including a
+small line vocabulary, so duplicate lines (the `}`/blank-line case) are well covered. The
+matching rule turned out to be: prefer the *largest* split point on a tie, and take the
+*last* occurrence in the single-row base case.
+
+A size guard that degrades to a whole-file conflict is still worth considering, but it
+would be a behaviour change and so needs to land in both stacks together.
 
 **G2. Merge-baseline write errors are discarded.** `go/filehandler.go:145, 200, 226, 289, 344`
 
