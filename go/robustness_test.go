@@ -155,3 +155,70 @@ func TestCorruptMetaLogDoesNotBlockGeneration(t *testing.T) {
 		t.Errorf("meta log missing p/a.txt: %v", meta["files"])
 	}
 }
+
+// A generated script has to be executable. Needs a real filesystem: MemFS
+// does not track modes.
+func TestFileModeIsApplied(t *testing.T) {
+	dir := t.TempDir()
+
+	j := New(WithFolder(fwd(dir)), WithNow(func() int64 { return robWhen }))
+	if _, err := j.Generate(Options{}, func(j *J) {
+		j.Project(ProjectProps{Folder: "p"}, func(j *J) {
+			j.FileP(FileProps{Name: "run.sh", Mode: 0o755}, func(j *J) {
+				j.Content("#!/bin/sh\necho hi\n")
+			})
+			// No Mode: platform default, and definitely not executable.
+			j.File("plain.txt", func(j *J) { j.Content("hi\n") })
+		})
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	fi, err := os.Stat(filepath.Join(dir, "p", "run.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fi.Mode().Perm() != 0o755 {
+		t.Errorf("run.sh mode = %v, want 0755", fi.Mode().Perm())
+	}
+
+	fi, err = os.Stat(filepath.Join(dir, "p", "plain.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fi.Mode().Perm()&0o111 != 0 {
+		t.Errorf("plain.txt should not be executable: %v", fi.Mode().Perm())
+	}
+}
+
+// An explicit Mode wins over the existing file's mode on regeneration —
+// otherwise a mode change in the generator would never take effect.
+func TestFileModeOverridesExisting(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "p", "run.sh")
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(target, []byte("old\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	j := New(WithFolder(fwd(dir)), WithNow(func() int64 { return robWhen }))
+	if _, err := j.Generate(Options{}, func(j *J) {
+		j.Project(ProjectProps{Folder: "p"}, func(j *J) {
+			j.FileP(FileProps{Name: "run.sh", Mode: 0o755}, func(j *J) {
+				j.Content("new\n")
+			})
+		})
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	fi, err := os.Stat(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fi.Mode().Perm() != 0o755 {
+		t.Errorf("mode = %v, want 0755 (explicit Mode must win)", fi.Mode().Perm())
+	}
+}

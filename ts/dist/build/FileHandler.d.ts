@@ -41,7 +41,7 @@ declare class FileHandler {
     });
     relative(path: string, whence?: string): string;
     withinFolder(path: string): boolean;
-    save(path: string, newContentSource: string | Buffer, write?: boolean | string, whence?: string): void;
+    save(path: string, newContentSource: string | Buffer, write?: boolean | string, whence?: string, mode?: number): void;
     copy(frompath: string, topath: string, write?: boolean | string, whence?: string): void;
     merge(generated: string, baseline: string, existing: string, why: string[]): {
         content: string;

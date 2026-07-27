@@ -559,7 +559,13 @@ describe('diff-engine', () => {
 
   // The reason this engine exists. The previous dependency took ~6.4 s at
   // 5 000 lines and ~62 s at 10 000 on this shape.
-  test('merge-large-repeated-vocabulary-is-fast', () => {
+  //
+  // Skipped under coverage: instrumented timings measure the instrumentation,
+  // not the algorithm.
+  test('merge-large-repeated-vocabulary-is-fast', {
+    skip: process.env.JOSTRACA_COVERAGE ?
+      'timings are meaningless under coverage instrumentation' : false,
+  }, () => {
     const n = 8000
     const mk = (seed: number) => {
       let s = seed

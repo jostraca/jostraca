@@ -14,7 +14,13 @@ const out = execFileSync(process.execPath, [
   '--experimental-test-coverage',
   '--test-reporter=tap',
   'dist-test/diff.test.js',
-], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] })
+], {
+  encoding: 'utf8',
+  stdio: ['ignore', 'pipe', 'inherit'],
+  // Lets the suite skip its timing test: instrumented timings measure the
+  // instrumentation, not the algorithm.
+  env: { ...process.env, JOSTRACA_COVERAGE: '1' },
+})
 
 // Coverage table row: # diff.js | 100.00 | 100.00 | 100.00 |
 const row = out.split('\n').find(l => /^#\s+diff\.js\s*\|/.test(l.trim()))

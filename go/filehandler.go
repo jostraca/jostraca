@@ -2,6 +2,7 @@ package jostraca
 
 import (
 	"bytes"
+	"io/fs"
 	"path"
 	"path/filepath"
 	"strings"
@@ -110,6 +111,14 @@ func fwd(p string) string {
 
 // save writes content under the configured existing-file mode.
 func (fh *fileHandler) save(p string, content []byte, whence string) error {
+	return fh.saveMode(p, content, whence, 0)
+}
+
+// saveMode is save with explicit POSIX permission bits for the target.
+// Zero means unset. The bits apply to the target only — the .old/.new
+// sidecars and the merge baseline stay at the provider default, since they
+// are jostraca's bookkeeping rather than the user's output.
+func (fh *fileHandler) saveMode(p string, content []byte, whence string, mode fs.FileMode) error {
 	if p == "" {
 		return ErrInvalidPath
 	}
@@ -263,7 +272,7 @@ func (fh *fileHandler) save(p string, content []byte, whence string) error {
 			}
 		} else {
 			why = append(why, "write-1")
-			if err := fh.write(p, content, rpath, whence, exists, why); err != nil {
+			if err := fh.write(p, content, rpath, whence, exists, why, mode); err != nil {
 				return err
 			}
 		}
@@ -305,12 +314,12 @@ func (fh *fileHandler) withinFolder(p string) bool {
 	return p == fh.folder || strings.HasPrefix(p, fh.folder+"/")
 }
 
-func (fh *fileHandler) write(p string, content []byte, rpath, whence string, exists bool, why []string) error {
+func (fh *fileHandler) write(p string, content []byte, rpath, whence string, exists bool, why []string, mode fs.FileMode) error {
 	if err := fh.ensureDirOf(p); err != nil {
 		return err
 	}
 	if !fh.control.Dryrun {
-		if err := fh.writeAtomic(p, content); err != nil {
+		if err := fh.writeAtomicMode(p, content, mode); err != nil {
 			return err
 		}
 	}
@@ -373,13 +382,13 @@ func (fh *fileHandler) saveMerge(p string, content, existing []byte, rpath, when
 		// still refreshed by save()'s centralised duplicate write, so a
 		// future user-resolution merges cleanly.
 		fh.appendAudit("save:skip", map[string]any{
-		"action":  "skip",
-		"path":    rpath,
-		"whence":  whence,
-		"why":     append(why, "merge-unresolved-0"),
-		"exists":  true,
-		"actions": []string{"skip"},
-	})
+			"action":  "skip",
+			"path":    rpath,
+			"whence":  whence,
+			"why":     append(why, "merge-unresolved-0"),
+			"exists":  true,
+			"actions": []string{"skip"},
+		})
 		if fh.bmeta != nil {
 			fh.bmeta.recordAction(rpath, "skip", true, false, false)
 		}
@@ -549,15 +558,26 @@ const tmpSuffix = ".jostraca-tmp"
 // the new file would otherwise take the provider's default mode — hence
 // the best-effort mode copy. Same trade-off git and npm make.
 func (fh *fileHandler) writeAtomic(p string, content []byte) error {
+	return fh.writeAtomicMode(p, content, 0)
+}
+
+// writeAtomicMode is writeAtomic with explicit permission bits; zero means
+// preserve whatever the target already had.
+func (fh *fileHandler) writeAtomicMode(p string, content []byte, mode fs.FileMode) error {
 	tmp := p + tmpSuffix
 	if err := fh.fs.WriteFile(tmp, content); err != nil {
 		return err
 	}
 
+	// An explicit mode wins; otherwise preserve whatever the target already
+	// had, since rename replaces the inode.
+	//
 	// Best-effort: a provider may stat but not chmod, and losing a
 	// permission bit is not worth failing the write over.
 	if cf, ok := fh.fs.(chmodFS); ok {
-		if fi, err := fh.fs.Stat(p); err == nil && !fi.IsDir {
+		if mode != 0 {
+			_ = cf.Chmod(tmp, mode)
+		} else if fi, err := fh.fs.Stat(p); err == nil && !fi.IsDir {
 			_ = cf.Chmod(tmp, fi.Mode)
 		}
 	}

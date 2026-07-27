@@ -260,6 +260,22 @@ with these intentional ergonomic differences:
 - The `Point*` orchestration utility is not ported (deferred to a
   future sub-package).
 
+### File permissions
+
+`FileProps.Mode` sets POSIX permission bits on the generated file:
+
+```go
+j.FileP(jostraca.FileProps{Name: "run.sh", Mode: 0o755}, func(j *jostraca.J) {
+    j.Content("#!/bin/sh\n...")
+})
+```
+
+Zero leaves the provider default. An explicit mode wins over the existing
+file's mode on regeneration. Applies to the target only, not the
+`.old`/`.new` sidecars or the merge baseline. Preserved across the atomic
+write-then-rename via the optional `Chmod` capability on the `FS`
+interface (`OsFS` implements it; `MemFS` does not track modes).
+
 ### Diff and merge
 
 `Diff`, `Merge`, `HasConflicts`, `Lines`, `LCS`, `AlignLCS` and `Hunks` in

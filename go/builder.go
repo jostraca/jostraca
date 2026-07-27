@@ -2,6 +2,7 @@ package jostraca
 
 import (
 	"fmt"
+	"io/fs"
 	"sort"
 )
 
@@ -60,6 +61,11 @@ func (j *J) Folder(name string, body func(*J)) {
 type FileProps struct {
 	Name    string
 	Exclude any
+
+	// Mode sets POSIX permission bits on the generated file, e.g. 0o755 to
+	// make a script executable. Zero leaves the platform default (or, when
+	// the file already exists, its current mode).
+	Mode fs.FileMode
 }
 
 // File represents an output file. Children populate its content during
@@ -76,6 +82,7 @@ func (j *J) FileP(p FileProps, body func(*J)) {
 		Kind:    KindFile,
 		Name:    p.Name,
 		Exclude: p.Exclude,
+		Mode:    p.Mode,
 		Path:    childPath(j.cur, p.Name),
 		Meta:    map[string]any{},
 	}

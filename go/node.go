@@ -1,6 +1,9 @@
 package jostraca
 
-import "regexp"
+import (
+	"io/fs"
+	"regexp"
+)
 
 // Kind identifies the role a Node plays during the build phase.
 type Kind uint8
@@ -32,6 +35,11 @@ type Node struct {
 	From     string
 	Indent   any
 	Exclude  any
+
+	// Mode sets POSIX permission bits on the generated file. Zero means
+	// unset: keep the platform default, or the file's current mode.
+	Mode fs.FileMode
+
 	Replace  map[string]any
 	Markers  [2]string
 	Filter   FilterFunc

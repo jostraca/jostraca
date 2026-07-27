@@ -11,6 +11,9 @@ const File = cmp(function File(props: any, children: any) {
   node.name = props.name
   node.exclude = null == props.exclude ? node.exclude : props.exclude
 
+  // e.g. File({ name: 'run.sh', mode: 0o755 })
+  node.mode = props.mode
+
   each(children, { call: true })
 })
 

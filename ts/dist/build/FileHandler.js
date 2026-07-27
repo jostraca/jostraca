@@ -139,7 +139,14 @@ class FileHandler {
             path.startsWith(this.folder + '/') ||
             path.startsWith(this.folder + '\\');
     }
-    save(path, newContentSource, write, whence) {
+    // `mode` sets POSIX permission bits on the generated file (e.g. 0o755
+    // for a script). It applies to the target only — the `.old`/`.new`
+    // sidecars and the merge baseline stay at the platform default, since
+    // they are jostraca's bookkeeping rather than the user's output.
+    save(path, newContentSource, write, whence, mode) {
+        // Only ever set the key when a mode was actually given: a literal
+        // `mode: undefined` is rejected by some fs providers.
+        const modeopts = () => (null == mode ? {} : { mode });
         const wstr = null == whence ? '' : whence + ':';
         const fs = this.fs();
         const FN = 'save:';
@@ -238,7 +245,7 @@ class FileHandler {
                         const newContent = 'string' === typeof newContentSource ? newContentSource :
                             newContentSource.toString('utf8');
                         const diffContent = this.diff(newContent, currentContent.toString());
-                        this.saveFile(path, diffContent, { encoding: 'utf8' }, whence + meta.action);
+                        this.saveFile(path, diffContent, { encoding: 'utf8', ...modeopts() }, whence + meta.action);
                         // this.files.diffed.push(path)
                         this.filelog('diffed', path);
                         const conflict = newContent !== diffContent;
@@ -279,7 +286,7 @@ class FileHandler {
                                 why);
                                 const diffcontent = mergeres.content;
                                 const conflict = mergeres.conflict;
-                                this.saveFile(path, diffcontent, { encoding: 'utf8' }, whence + meta.action);
+                                this.saveFile(path, diffcontent, { encoding: 'utf8', ...modeopts() }, whence + meta.action);
                                 // this.files.merged.push(path)
                                 this.filelog('merged', path);
                                 if (conflict) {
@@ -318,7 +325,7 @@ class FileHandler {
             else {
                 why.push('write-1');
                 meta.action = 'write';
-                this.saveFile(path, newContentSource, whence + meta.action);
+                this.saveFile(path, newContentSource, modeopts(), whence + meta.action);
                 // this.files.written.push(path)
                 this.filelog('written', path);
             }
@@ -555,27 +562,38 @@ class FileHandler {
     //
     // The `fs` provider is pluggable; fall back to a direct write when it
     // has no rename.
-    writeFileAtomic(path, content, opts) {
+    writeFileAtomic(path, content, opts, mode) {
         const fs = this.fs();
         if ('function' !== typeof fs.renameSync) {
             fs.writeFileSync(path, content, opts);
+            if (null != mode && 'function' === typeof fs.chmodSync) {
+                fs.chmodSync(path, mode);
+            }
             return;
         }
         const tmppath = path + TMP_SUFFIX;
         try {
             fs.writeFileSync(tmppath, content, opts);
-            // Best-effort mode preservation: a provider may stat but not chmod,
-            // and losing a permission bit is not worth failing the write over.
-            if ('function' === typeof fs.chmodSync && 'function' === typeof fs.statSync) {
-                try {
-                    const stat = fs.statSync(path);
-                    if (stat && !stat.isDirectory()) {
-                        fs.chmodSync(tmppath, stat.mode);
-                    }
+            // An explicit mode wins; otherwise preserve whatever the target
+            // already had, since rename replaces the inode.
+            //
+            // Best-effort: a provider may stat but not chmod, and losing a
+            // permission bit is not worth failing the write over.
+            if ('function' === typeof fs.chmodSync) {
+                if (null != mode) {
+                    fs.chmodSync(tmppath, mode);
                 }
-                catch (err) {
-                    // Target absent (the common case for a new file): keep the
-                    // default mode.
+                else if ('function' === typeof fs.statSync) {
+                    try {
+                        const stat = fs.statSync(path);
+                        if (stat && !stat.isDirectory()) {
+                            fs.chmodSync(tmppath, stat.mode);
+                        }
+                    }
+                    catch (err) {
+                        // Target absent (the common case for a new file): keep the
+                        // default mode.
+                    }
                 }
             }
             fs.renameSync(tmppath, path);
@@ -618,7 +636,7 @@ class FileHandler {
             const existed = fs.existsSync(fullpath);
             if (!this.control.dryrun) {
                 this.ensureDir(parentfolder);
-                this.writeFileAtomic(fullpath, content, opts);
+                this.writeFileAtomic(fullpath, content, opts, opts.mode);
             }
             this.audit.push([CN + FN + wstr,
                 { path, when, existed, size: content.length }]);

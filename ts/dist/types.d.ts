@@ -26,6 +26,7 @@ type Node = {
     folder?: string;
     after?: any;
     exclude?: boolean | string | (string | RegExp)[];
+    mode?: number;
     indent?: string;
     filter?: (props: any, children: any, component: any) => boolean;
     fullpath?: string;

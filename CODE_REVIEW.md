@@ -51,6 +51,7 @@ Fixed on this branch, each with regression tests in both stacks:
 | G11 | dead `writeConflict` removed |
 | T16 | a relative Fragment `from` works at all — it used to throw, because the shape check stat'd the raw relative path against the process CWD |
 | G15 | Go's package-global dlog buffer is capped, matching TS |
+| G12 | `File` takes a `mode` prop in both stacks, so a generated script can be executable |
 | **G17 / T24** | **resolved** — both stacks now run one shared diff/merge engine (`ts/src/diff.ts` ↔ `go/diff.go`), held byte-identical by a 1 190-case differential corpus, at 100% coverage on both sides, with `node-diff3` and `diff` dropped |
 
 Also corrected: `extract-parity.js`'s default output path (stale after the module
@@ -76,9 +77,10 @@ scenarios needs a base64 escape hatch in the format.
   names. Collapsing that to a single pass is possible but would change the semantics of
   side-effecting children in the most intricate component here, to buy CPU on a define
   phase that is not the bottleneck. Not worth the risk without a reported problem.
-- **G12** — created files are always 0644 and directories 0755, with no way to configure
-  them, so a generated shell script is not executable. That is a feature (a `mode` prop or
-  option), not a defect, and belongs in an API design pass.
+
+That leaves T15 as the only item from this review not acted on. Directory modes are still
+fixed at 0755 and there is no global default-mode option; both are straightforward
+additions if a need appears, and neither blocks anything today.
 
 ### G17 / T24 — RESOLVED: one shared diff/merge engine
 

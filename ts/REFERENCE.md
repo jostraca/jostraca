@@ -997,6 +997,25 @@ The metadata enables:
 - **Audit**: tracks which files were written, preserved, etc.
 
 
+## File permissions
+
+`File` takes an optional `mode` — POSIX permission bits for the generated
+file. Without it, files get the platform default; a generated shell script
+would not be executable.
+
+```typescript
+File({ name: 'run.sh', mode: 0o755 }, () => Content('#!/bin/sh\n...'))
+```
+
+An explicit `mode` also wins over the existing file's mode on
+regeneration, so changing it in the generator actually takes effect. It
+applies to the target only — the `.old`/`.new` sidecars and the merge
+baseline stay at the default, since those are jostraca's bookkeeping
+rather than your output.
+
+In Go: `j.FileP(jostraca.FileProps{Name: "run.sh", Mode: 0o755}, ...)`.
+
+
 ## Diff and merge
 
 `DiffUtil` is jostraca's own line-diff and three-way-merge engine. It

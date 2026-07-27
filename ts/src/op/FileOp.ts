@@ -68,7 +68,7 @@ const FileOp = {
       }
     }
 
-    buildctx.fh.save(fullpath, content, ON + FN)
+    buildctx.fh.save(fullpath, content, ON + FN, undefined, node.mode)
   },
 
 }

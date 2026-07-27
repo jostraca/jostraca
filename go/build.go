@@ -231,7 +231,7 @@ func fileAfter(n *Node, st *jstate, b *buildCtx) error {
 			}
 		}
 	}
-	return b.fh.save(n.FullPath, []byte(body), "FileOp:after")
+	return b.fh.saveMode(n.FullPath, []byte(body), "FileOp:after", n.Mode)
 }
 
 // nodeText renders a node from a *replayed* subtree to its text.
