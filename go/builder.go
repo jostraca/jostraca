@@ -212,9 +212,17 @@ func (j *J) InjectP(p InjectProps, body func(*J)) {
 	if j.st.err != nil {
 		return
 	}
+	// Mirrors markersOf in ts/src/cmp/Inject.ts: a pair with exactly one
+	// empty marker is rejected, a fully empty pair means "not supplied".
+	// An empty marker is a zero-width match, not a marker — it used to hang
+	// this stack's scan loop outright and produce regex fallout in TS.
 	markers := p.Markers
 	if markers == [2]string{} {
 		markers = defaultInjectMarkers
+	} else if markers[0] == "" || markers[1] == "" {
+		j.st.err = fmt.Errorf(
+			"Inject: both markers must be non-empty, got %q", markers)
+		return
 	}
 	n := &Node{
 		Kind:    KindInject,

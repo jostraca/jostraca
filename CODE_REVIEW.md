@@ -341,6 +341,16 @@ claim was wrong, in four places. Corrected rather than "fixed".
 shape as T0 and T26: a default nobody tested, a platform nobody ran. Three instances of one
 lesson in one branch.
 
+**R7's first fix was incomplete, and my own self-check caught it.** Stopping the hang was
+not the same as making the stacks agree: a differential probe over degenerate markers found
+them differing on 4 of 5 inputs. TS's behaviour there was regex fallout — an empty marker
+pair interleaved the injected body between *every character* of the file — which no scan
+loop would ever reproduce, and the commit message claimed the rune-advance "reproduces what
+JS does". It did not. Both stacks now reject a half-specified marker pair up front and treat
+a fully empty one as "not supplied", which is the only reading that lets them agree; the
+progress guard stays as a backstop, because a hang is the worst failure mode a generator
+has. Pinned by a shared table in both suites.
+
 Each fix carries a regression test in both stacks, and I verified every test in both
 directions — reverting each fix in isolation and confirming the corresponding test fails.
 Two of them initially did *not* fail on revert, because a second layer of the same fix
@@ -919,8 +929,8 @@ deliberate no-change.
 
 | | before | after |
 |---|---|---|
-| TS tests | 36 | 111 |
-| Go tests | 147 | 223 |
+| TS tests | 36 | 112 |
+| Go tests | 147 | 224 |
 | TS runtime dependencies | 2 (`node-diff3`, `diff`) | 0 |
 | CI workflows that run | 0 | 2 |
 | Parity scenarios | 17 | 32 + 2 generated corpora (1 200 diff, 471 template) |

@@ -612,13 +612,16 @@ func injectAfter(n *Node, _ *jstate, b *buildCtx) error {
 
 		// Guarantee forward progress.
 		//
-		// With an empty start marker, `si` and `after` both stay at `pos`,
-		// the end marker resolves at that same position, and `pos = ei` is
-		// a no-op — the loop spins forever and hangs the generator. Nothing
-		// validates the markers, so a plain InjectP call could do this.
-		// JS advances past a zero-length regex match, so TS never hung;
-		// stepping one rune here is what reproduces that behaviour rather
-		// than diverging from it.
+		// With a zero-width start marker, si and after both stay at pos,
+		// the end marker can resolve at that same position, and pos = ei
+		// is a no-op — the loop spins forever. InjectP now rejects an
+		// empty marker (as TS does), so this is a backstop rather than the
+		// primary defence, kept because a hang is the worst possible
+		// failure mode for a code generator.
+		//
+		// It does NOT reproduce TS's zero-width behaviour, and is not
+		// meant to: TS's own output for such markers was regex fallout
+		// that both stacks now reject up front.
 		if pos == prev {
 			if pos >= len(s) {
 				break

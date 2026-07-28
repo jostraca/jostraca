@@ -261,6 +261,88 @@ func TestInjectEmptyStartMarkerTerminates(t *testing.T) {
 	}
 }
 
+// Degenerate Inject markers must behave identically in both stacks.
+//
+// This is the follow-up to C7. The first fix stopped the Go hang but did
+// NOT make the two stacks agree — a self-check found them differing on 4
+// of 5 degenerate inputs, because TS's behaviour there was regex fallout
+// (an empty pair interleaved the body between every character) that no
+// scan loop would ever reproduce. Both stacks now reject a half-specified
+// pair and treat a fully empty one as "not supplied".
+//
+// The expectations here are transcribed from TS. Kept in step by
+// ts/test/robustness.test.ts:inject-degenerate-markers, which asserts the
+// same table.
+func TestInjectDegenerateMarkers(t *testing.T) {
+	const src = "A\n#--START--#\nold\n#--END--#\nB\n"
+
+	cases := []struct {
+		name    string
+		markers [2]string
+		set     bool
+		wantErr bool
+		want    string
+	}{
+		{name: "default", want: "A\n#--START--#\nNEW\n\n#--END--#\nB\n"},
+		// A fully empty pair is indistinguishable from "not supplied", so
+		// both stacks fall back to the defaults rather than to a
+		// zero-width match.
+		{name: "both-empty", markers: [2]string{"", ""}, set: true,
+			want: "A\n#--START--#\nNEW\n\n#--END--#\nB\n"},
+		{name: "empty-start", markers: [2]string{"", "#--END--#"}, set: true, wantErr: true},
+		{name: "empty-end", markers: [2]string{"#--START--#", ""}, set: true, wantErr: true},
+		{name: "normal", markers: [2]string{"#--START--#", "#--END--#"}, set: true,
+			want: "A\n#--START--#NEW\n#--END--#\nB\n"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			mem := NewMemFS()
+			if err := mem.WriteFile("/out/a.txt", []byte(src)); err != nil {
+				t.Fatal(err)
+			}
+			props := InjectProps{Name: "a.txt"}
+			if c.set {
+				props.Markers = c.markers
+			}
+
+			done := make(chan error, 1)
+			go func() {
+				j := New(WithFS(mem), WithFolder("/out"),
+					WithNow(func() int64 { return revWhen }))
+				_, err := j.Generate(Options{}, func(j *J) {
+					j.InjectP(props, func(j *J) { j.Content("NEW\n") })
+				})
+				done <- err
+			}()
+
+			var err error
+			select {
+			case err = <-done:
+			case <-time.After(20 * time.Second):
+				t.Fatal("inject did not terminate")
+			}
+
+			if c.wantErr {
+				if err == nil {
+					t.Fatalf("%s: want an error, got none", c.name)
+				}
+				if !strings.Contains(err.Error(), "both markers must be non-empty") {
+					t.Errorf("%s: unexpected error %v", c.name, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, _ := mem.ReadFile("/out/a.txt")
+			if string(got) != c.want {
+				t.Errorf("%s:\n got %q\nwant %q", c.name, got, c.want)
+			}
+		})
+	}
+}
+
 // C8. resolveFragmentFrom is NOT idempotent for a relative output folder
 // other than ".": re-resolving turned "generated/frag.txt" into
 // "generated/generated/frag.txt", so define-time validation passed and
