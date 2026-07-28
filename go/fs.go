@@ -87,15 +87,26 @@ func (o OsFS) MkdirAll(p string) error { return os.MkdirAll(o.sys(p), 0o755) }
 // WriteFileExcl implements exclusiveFS: O_EXCL fails with fs.ErrExist
 // rather than truncating an existing file.
 func (o OsFS) WriteFileExcl(p string, b []byte) error {
-	f, err := os.OpenFile(o.sys(p), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	sp := o.sys(p)
+	f, err := os.OpenFile(sp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 	if err != nil {
 		return err
 	}
-	if _, err := f.Write(b); err != nil {
+
+	// O_EXCL succeeded, so this call created the file and owns it. Any
+	// later failure (ENOSPC mid-write, a close error) must not leave the
+	// partial file behind: the caller cannot clean it up, because it never
+	// learns the path of a write that failed.
+	if _, werr := f.Write(b); werr != nil {
 		f.Close()
-		return err
+		_ = os.Remove(sp)
+		return werr
 	}
-	return f.Close()
+	if cerr := f.Close(); cerr != nil {
+		_ = os.Remove(sp)
+		return cerr
+	}
+	return nil
 }
 func (o OsFS) Remove(p string) error { return os.Remove(o.sys(p)) }
 func (o OsFS) Chmod(p string, mode fs.FileMode) error {
@@ -205,7 +216,13 @@ func (m *MemFS) WriteFileExcl(p string, data []byte) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	cp := memClean(p)
+	// A directory occupies the name too — O_EXCL fails on one, and OsFS
+	// does. Checking only m.files let a file be stored under a key that
+	// m.dirs also held, which Stat then reported as a file.
 	if _, exists := m.files[cp]; exists {
+		return &os.PathError{Op: "open", Path: p, Err: fs.ErrExist}
+	}
+	if m.dirs[cp] {
 		return &os.PathError{Op: "open", Path: p, Err: fs.ErrExist}
 	}
 	return m.writeLocked(cp, data)

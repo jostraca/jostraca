@@ -579,3 +579,120 @@ func TestFileModeAppliedWhenUnchangedInEveryMode(t *testing.T) {
 		})
 	}
 }
+
+// S1. A temp file created by an atomic write must not survive a write
+// failure. O_EXCL/WriteFile creates before writing, so a mid-write error
+// (ENOSPC) leaves a partial file that only this call knows the path of —
+// writeAtomicMode returns before `tmp` is assigned, so its own cleanup
+// cannot reach it.
+type midWriteFailFS struct {
+	*MemFS
+	err error
+}
+
+func (f *midWriteFailFS) WriteFileExcl(p string, data []byte) error {
+	// Mimic O_EXCL succeeding and the write then failing: create, then fail.
+	if err := f.MemFS.WriteFileExcl(p, data); err != nil {
+		return err
+	}
+	return f.err
+}
+
+func TestAtomicWriteLeavesNoTempAfterWriteFailure(t *testing.T) {
+	mem := NewMemFS()
+	fh := &fileHandler{
+		fs:              &midWriteFailFS{MemFS: mem, err: errDiskFull},
+		folder:          "/out",
+		duplicateFolder: "/out/.jostraca/generated",
+		createdDirs:     map[string]struct{}{},
+	}
+
+	err := fh.writeAtomicMode("/out/p/a.txt", []byte("GENERATED\n"), 0)
+	if err == nil {
+		t.Fatal("expected the write failure to surface")
+	}
+	for k := range mem.Vol() {
+		if strings.Contains(k, tmpSuffix) {
+			t.Errorf("temp file survived a failed write: %s", k)
+		}
+	}
+}
+
+// S2. `relative` is not the same as `inside`. With the default folder, a
+// `..` segment walks OUT, and withinFolder returning true for it let the
+// merge baseline normalize to a path outside .jostraca/generated and
+// overwrite whatever was there.
+func TestParentRelativePathIsNotWithinFolder(t *testing.T) {
+	fh := &fileHandler{folder: ".", duplicateFolder: "./.jostraca/generated"}
+
+	for _, in := range []string{"..", "../x.txt", "../../victim/app.txt", "a/../../b.txt"} {
+		if fh.withinFolder(in) {
+			t.Errorf("withinFolder(%q) = true, want false", in)
+		}
+	}
+	for _, in := range []string{"a.txt", ".env", "sub/a.txt", "./a.txt", "a/../b.txt"} {
+		if !fh.withinFolder(in) {
+			t.Errorf("withinFolder(%q) = false, want true", in)
+		}
+	}
+}
+
+// And the baseline write itself refuses to escape, independently of the
+// containment check above.
+func TestWriteDuplicateRefusesToEscapeItsRoot(t *testing.T) {
+	mem := NewMemFS()
+	fh := &fileHandler{
+		fs:              mem,
+		folder:          ".",
+		duplicateFolder: "./.jostraca/generated",
+		control:         Control{},
+		createdDirs:     map[string]struct{}{},
+	}
+
+	if err := fh.writeDuplicate("../../victim.txt", []byte("CLOBBERED\n")); err != nil {
+		t.Fatal(err)
+	}
+	for k := range mem.Vol() {
+		if !strings.HasPrefix(k, ".jostraca/generated/") {
+			t.Errorf("baseline escaped its root: %s", k)
+		}
+	}
+
+	// A normal path still lands where it should.
+	if err := fh.writeDuplicate("a.txt", []byte("OK\n")); err != nil {
+		t.Fatal(err)
+	}
+	if got := string(mem.Vol()[".jostraca/generated/a.txt"]); got != "OK\n" {
+		t.Errorf("normal baseline = %q, want %q", got, "OK\n")
+	}
+}
+
+// S3. The temp-path retry budget must be identical in both stacks, or an
+// identical collision schedule succeeds in one and fails in the other.
+func TestTempPathAttemptsMatchesTS(t *testing.T) {
+	// Mirrors TMP_PATH_ATTEMPTS in ts/src/build/FileHandler.ts. If you
+	// change one, change both — the constant is the contract.
+	if tmpPathAttempts != 9 {
+		t.Errorf("tmpPathAttempts = %d, want 9 to match TS", tmpPathAttempts)
+	}
+}
+
+// S4. Exclusive create must treat a directory as an occupied name, the way
+// O_EXCL and OsFS do. Checking only m.files let a file be stored under a
+// key m.dirs also held, which Stat then reported as a regular file.
+func TestMemFSExclusiveCreateRefusesDirectory(t *testing.T) {
+	mem := NewMemFS()
+	if err := mem.MkdirAll("/out/adir"); err != nil {
+		t.Fatal(err)
+	}
+	if err := mem.WriteFileExcl("/out/adir", []byte("X")); err == nil {
+		t.Error("WriteFileExcl must fail on a path occupied by a directory")
+	}
+	fi, err := mem.Stat("/out/adir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !fi.IsDir {
+		t.Error("the directory was replaced by a synthetic file")
+	}
+}

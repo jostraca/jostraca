@@ -334,7 +334,17 @@ func (fh *fileHandler) saveMode(p string, content []byte, whence string, mode fs
 func (fh *fileHandler) withinFolder(p string) bool {
 	switch fh.folder {
 	case ".":
-		return !isAbsPath(p)
+		if isAbsPath(p) {
+			return false
+		}
+		// "relative" is not the same as "inside". A `..` segment walks OUT
+		// of the output folder, and returning true for it let the merge
+		// baseline — duplicateFolder joined to the relative path —
+		// normalize to a location outside the baseline directory entirely
+		// and silently overwrite whatever was there. Mirrors
+		// ts/src/build/FileHandler.ts.
+		c := path.Clean(p)
+		return c != ".." && !strings.HasPrefix(c, "../")
 	case "/":
 		return isAbsPath(p)
 	}
@@ -589,6 +599,15 @@ func (fh *fileHandler) ensureFolder(p string) error {
 // tmpSuffix prefixes the sibling temp file used by writeAtomic.
 const tmpSuffix = ".jostraca-tmp"
 
+// tmpPathAttempts is how many candidate temp paths an atomic write may try
+// before giving up.
+//
+// MUST match TMP_PATH_ATTEMPTS in ts/src/build/FileHandler.ts — an
+// identical collision schedule has to succeed or fail identically in both
+// stacks. The R11 restructure moved the first candidate inside the loop and
+// left the bound at 8, quietly dropping Go from 9 tries to 8.
+const tmpPathAttempts = 9
+
 // tmpSeq makes each temp path unique within this process.
 var tmpSeq uint64
 
@@ -662,7 +681,7 @@ func (fh *fileHandler) writeAtomicMode(p string, content []byte, mode fs.FileMod
 	var werr error
 	xfs, exclusive := fh.fs.(exclusiveFS)
 
-	for attempt := 0; attempt < 8; attempt++ {
+	for attempt := 0; attempt < tmpPathAttempts; attempt++ {
 		cand := tmppathFor(p)
 
 		if exclusive {
@@ -672,6 +691,13 @@ func (fh *fileHandler) writeAtomicMode(p string, content []byte, mode fs.FileMod
 				break
 			}
 			if !errors.Is(werr, fs.ErrExist) {
+				// The create may have succeeded and the WRITE failed, so a
+				// partial file can be sitting at cand. OsFS.WriteFileExcl
+				// cleans up after itself, but a third-party provider need
+				// not, and this is the last point that knows the path —
+				// the error returns before `tmp` is assigned, so the
+				// cleanup below can never see it.
+				_ = fh.fs.Remove(cand)
 				return werr
 			}
 			continue
@@ -684,6 +710,9 @@ func (fh *fileHandler) writeAtomicMode(p string, content []byte, mode fs.FileMod
 			continue
 		}
 		if err := fh.fs.WriteFile(cand, content); err != nil {
+			// WriteFile creates before writing, so a mid-write failure
+			// leaves a partial temp file that only this call knows about.
+			_ = fh.fs.Remove(cand)
 			return err
 		}
 		tmp = cand
@@ -692,7 +721,8 @@ func (fh *fileHandler) writeAtomicMode(p string, content []byte, mode fs.FileMod
 
 	if tmp == "" {
 		return fmt.Errorf(
-			"jostraca: no free temp path for %s after 8 attempts", p)
+			"jostraca: no free temp path for %s after %d attempts",
+			p, tmpPathAttempts)
 	}
 
 	// An explicit mode wins; otherwise preserve whatever the target already
@@ -724,11 +754,32 @@ func (fh *fileHandler) writeAtomicMode(p string, content []byte, mode fs.FileMod
 // therefore surface rather than be discarded — a silent failure now is
 // data loss on the next run, with nothing in the audit trail connecting
 // the two.
+// fhDlog records non-fatal FileHandler weirdness, mirroring the dlog in
+// ts/src/build/FileHandler.ts.
+var fhDlog = NewDLog("jostraca", "filehandler.go")
+
 func (fh *fileHandler) writeDuplicate(rpath string, content []byte) error {
 	if fh.control.Dryrun || !fh.control.Duplicate() {
 		return nil
 	}
 	dup := fh.duplicateFolder + "/" + rpath
+
+	// Clamp: withinFolder already gates this, but the baseline root is the
+	// one place a stray `..` would do real damage, so containment is
+	// re-checked here rather than trusted.
+	//
+	// Both sides are Cleaned before comparing — duplicateFolder is built as
+	// `<folder>/.jostraca/generated`, so for the default folder it is
+	// `./.jostraca/generated`, and comparing a cleaned path against that
+	// raw prefix rejects everything.
+	root := path.Clean(fh.duplicateFolder)
+	if cleaned := path.Clean(dup); cleaned != root &&
+		!strings.HasPrefix(cleaned, root+"/") {
+		fhDlog.Log("save",
+			"baseline path escapes the duplicate folder, skipping: "+dup)
+		return nil
+	}
+
 	if err := fh.ensureDirOf(dup); err != nil {
 		return err
 	}

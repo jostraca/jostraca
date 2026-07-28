@@ -57,6 +57,7 @@ Fixed on this branch, each with regression tests in both stacks:
 | T26 | mode assertions skip on Windows, which has no execute bit — found the moment CI ran there for the first time (see §2.1) |
 | **R1–R9** | **nine defects an automated reviewer found on the PR, all verified with reproductions and all real** (see §2.2) |
 | **R10–R14** | **a second review round on the fixes themselves: four more real defects, one refuted** (see §2.3) |
+| **S1–S4** | **a third round: four more, two of them containment/cleanup defects older than this branch** (see §2.5) |
 
 Also corrected: `extract-parity.js`'s default output path (stale after the module
 flatten), and a stale "deviation" note in `go/README.md` claiming the Go 2-way diff render
@@ -450,6 +451,49 @@ absolute prefix — which meant the `.` axis was silently testing `/work/.` and 
 all, i.e. exactly the setting that produced the two worst defects was the one case still
 uncovered. The generator now passes relative folders through verbatim and strips the cwd
 prefix from the recorded keys instead.
+
+---
+
+## 2.5 S1–S4 — the third round
+
+Same reasoning as the second: `13acbd9` was a fresh fix commit reviewed by nobody but its
+author, so it got a pass of its own. Four findings, all four real.
+
+| id | defect | origin |
+|---|---|---|
+| S1 | a temp file created by an atomic write survived a mid-write failure (ENOSPC) — the error returns before the path is recorded, so the function's own cleanup could never reach it. Both stacks. | pre-existing |
+| S2 | with the default folder, `withinFolder` treated *any relative path* as inside, including one with `..`. The merge baseline — `.jostraca/generated` joined to that path — then normalized to a location outside the baseline directory and overwrote whatever was there. Both stacks. | pre-existing |
+| S3 | the R11 restructure moved the first candidate inside the loop and left the bound at 8, dropping Go from 9 temp-path attempts to 8 while TS kept 9 | this branch |
+| S4 | `MemFS.WriteFileExcl` checked only `m.files`, so it would create a file at a path already held as a directory — diverging from `O_EXCL` and from `OsFS` | this branch |
+
+**S2 is the one that matters.** It is reachable through the public API — `Project({folder:
+'../sibling'})` with the default output folder, and `ProjectProps.Folder` is deliberately
+exempt from the `..` rejection that covers `File`/`Folder`/`Inject`/`Copy` names, because it
+is developer-authored config. Writing into a sibling directory is a legitimate thing to ask
+for; silently overwriting a file outside `.jostraca/generated` while doing it is not.
+
+And it is worth being exact about my own contribution: **the R10 boundary fix made this
+easier to trigger.** The old one-character bite turned `../x` into `./../x`, consuming a
+level of escape, so three `..` segments landed harmlessly and four were needed to escape. At
+`13acbd9` three suffice. The defect class is older; my fix removed the accident that was
+partly masking it.
+
+`withinFolder` now rejects a path that normalizes to `..` or starts with `../`, in both
+stacks, and `writeDuplicate` re-checks containment against the cleaned path as a clamp — the
+baseline root being the one place a stray `..` does real damage.
+
+**S1 shows the limit of a fix I was pleased with.** R12 added a `created` flag so the
+cleanup could not delete a file this call never made. Correct — but it left the mirror
+case open: a `wx`/`O_EXCL` create that *succeeds* and then fails mid-write has created a
+partial file that nothing cleans up. `created` was set after the write returned, so an
+ENOSPC left it false. The guard was right about one direction and silent about the other.
+Fixed on both sides, and in Go at both layers: `OsFS.WriteFileExcl` removes its own partial
+file, and `writeAtomicMode` also removes the candidate, since a third-party `exclusiveFS`
+implementation need not clean up after itself.
+
+That last point came from the regression test failing after the first fix — the test double
+implements `exclusiveFS` without self-cleaning, which is exactly the case the provider-side
+fix misses.
 
 ---
 
@@ -1016,8 +1060,8 @@ deliberate no-change.
 
 | | before | after |
 |---|---|---|
-| TS tests | 36 | 115 |
-| Go tests | 147 | 228 |
+| TS tests | 36 | 117 |
+| Go tests | 147 | 234 |
 | TS runtime dependencies | 2 (`node-diff3`, `diff`) | 0 |
 | CI workflows that run | 0 | 2 |
 | Parity scenarios | 17 | 32 + 2 generated corpora (1 200 diff, 471 template) |

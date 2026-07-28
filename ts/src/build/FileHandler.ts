@@ -38,6 +38,12 @@ const MERGE_WHY: Record<string, string> = {
 // Suffix for the sibling temp file used by the atomic write-then-rename.
 const TMP_SUFFIX = '.jostraca-tmp'
 
+// How many candidate temp paths an atomic write may try before giving up.
+//
+// MUST match tmpPathAttempts in go/filehandler.go — an identical collision
+// schedule has to succeed or fail identically in both stacks.
+const TMP_PATH_ATTEMPTS = 9
+
 // A unique sibling temp path for an atomic write.
 //
 // Never a fixed name: a fixed one both destroys a user file that happens to
@@ -189,7 +195,16 @@ class FileHandler {
   // from there a bogus duplicate-baseline location and meta key.
   withinFolder(path: string): boolean {
     if ('.' === this.folder) {
-      return !Path.isAbsolute(path)
+      if (Path.isAbsolute(path)) {
+        return false
+      }
+      // "relative" is not the same as "inside". A `..` segment walks OUT
+      // of the output folder, and this returning true for it let the merge
+      // baseline — `.jostraca/generated` joined to the relative path — nor-
+      // malize to a location outside the baseline directory entirely, and
+      // silently overwrite whatever was there.
+      const norm = fwd(Path.normalize(path))
+      return '..' !== norm && !norm.startsWith('../')
     }
     if ('/' === this.folder) {
       return path.startsWith('/')
@@ -847,7 +862,17 @@ class FileHandler {
           break
         }
         catch (err: any) {
-          if ('EEXIST' !== err?.code || 8 <= attempt) {
+          // EEXIST means `wx` refused and this call created NOTHING — that
+          // is the R12 case, and `created` must stay false so the cleanup
+          // does not delete somebody else's file.
+          //
+          // Any OTHER error (ENOSPC, EIO) happened AFTER the create
+          // succeeded, so a partial temp file is on disk and is ours to
+          // remove. Without this it survived the failed build.
+          if ('EEXIST' !== err?.code) {
+            created = true
+          }
+          if ('EEXIST' !== err?.code || TMP_PATH_ATTEMPTS - 1 <= attempt) {
             throw err
           }
           tmppath = tmppathFor(path)
