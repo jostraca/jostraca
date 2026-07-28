@@ -108,8 +108,9 @@ function hirschberg(a, b, out) {
     const headRow = lcsRow(a.slice(0, mid), b, false);
     const tailRow = lcsRow(a.slice(mid), b, true);
     // `>=` so a tie takes the LARGEST split. This is THE load-bearing
-    // tie-break: changing it to `>` changes the merged content on 658 of the
-    // 1 190 corpus cases. See the note at the top of this file.
+    // tie-break: changing it to `>` changes the merged content on 658 of
+    // the differential corpus cases (`make mutation` prints the live
+    // number). See the note at the top of this file.
     let best = -1;
     let split = 0;
     for (let k = 0; k <= b.length; k++) {

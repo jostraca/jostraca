@@ -72,5 +72,14 @@ jobs:
       # implementations have to agree; same differential treatment.
       - name: Template engine matches TS byte-for-byte
         run: go test ./... -run TestTemplateCorpusMatchesTS -count=1 -v
+      # A short soak per target. The seed corpus already runs under
+      # `go test`; this is what finds the next seed. A failure writes the
+      # input to testdata/fuzz — commit it.
+      - name: Fuzz the engines (20s per target)
+        run: |
+          for t in FuzzMerge FuzzDiff FuzzLines FuzzLCS FuzzTemplate; do
+            echo "== $t"
+            go test -run "$t" -fuzz "^$t$" -fuzztime 20s ./...
+          done
       - name: Diff engine coverage is 100%
         run: ./check_diff_coverage.sh

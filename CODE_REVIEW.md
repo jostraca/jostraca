@@ -52,7 +52,7 @@ Fixed on this branch, each with regression tests in both stacks:
 | T16 | a relative Fragment `from` works at all — it used to throw, because the shape check stat'd the raw relative path against the process CWD |
 | G15 | Go's package-global dlog buffer is capped, matching TS |
 | G12 | `File` takes a `mode` prop in both stacks, so a generated script can be executable |
-| **G17 / T24** | **resolved** — both stacks now run one shared diff/merge engine (`ts/src/diff.ts` ↔ `go/diff.go`), held byte-identical by a 1 190-case differential corpus, at 100% coverage on both sides, with `node-diff3` and `diff` dropped |
+| **G17 / T24** | **resolved** — both stacks now run one shared diff/merge engine (`ts/src/diff.ts` ↔ `go/diff.go`), held byte-identical by a 1 200-case differential corpus, at 100% coverage on both sides, with `node-diff3` and `diff` dropped |
 | **T25 / G18** | **the template engine is now under the same differential corpus** — 471 cases, and it found six real divergences on the way in: inverted `eject` markers, JS number formatting, HTML escaping, object key order |
 
 Also corrected: `extract-parity.js`'s default output path (stale after the module
@@ -99,9 +99,10 @@ a 10 000-line repeated-vocabulary merge, effectively unbounded beyond.
 
 **What holds it together now.**
 
-- `go/testdata/parity/diff_corpus.json` — 1 190 cases (595 merge, 595 diff, 474 of them
-  conflicting), generated from TS, replayed through Go, asserted byte-equal.
-  `TestDiffCorpusMatchesTS` fails the build on any drift.
+- `go/testdata/parity/diff_corpus.json` — 1 200 cases (600 merge, 476 of them
+  conflicting; 600 diff, 545 of them conflicting), generated from TS, replayed
+  through Go, asserted byte-equal. `TestDiffCorpusMatchesTS` fails the build on any
+  drift.
 - 100% coverage on both `diff.ts` (line, branch and function) and `diff.go` (statement),
   gated in CI by `npm run test-diff-coverage` and `go/check_diff_coverage.sh`, and
   available locally as `make coverage`.
@@ -121,13 +122,30 @@ parsed by any tool or human. Markers now always start at column 0.
 - *Exactly one tie-break is load-bearing.* Several subsequences can be equally long but
   different, and the choice changes the bytes written into a user's file. The rule is:
   on a tie, take the largest split point. Flipping that one `>=` to `>` changes the
-  merged content on 658 of the 1 190 corpus cases.
+  merged content on 658 of the 1 200 corpus cases.
 
   I first wrote that *three* rules were load-bearing. Two of them are not, and mutating
   them proves it: the `>=` in `lcsRow` picks between two numbers already known to be
   equal, and the single-row base case appends the same string whichever position in `b`
   matched. Both are unobservable by construction — worth knowing, because a comment
   claiming a line is load-bearing when it isn't makes the next person afraid to touch it.
+
+- *Fuzzing picks the inputs I would not have.* Every corpus here shares one shape — lines
+  from a small vocabulary joined with `\n` — which is precisely the distribution that let
+  the two merge engines agree on the tests and disagree on ~72% of real inputs.
+  `go/fuzz_test.go` adds five targets (`FuzzMerge`, `FuzzDiff`, `FuzzLines`, `FuzzLCS`,
+  `FuzzTemplate`) asserting the invariants that hold for *any* input: invents nothing,
+  a reported conflict carries both markers, `Lines` round-trips, the LCS is a common
+  subsequence of both inputs and is deterministic.
+
+  In under a second it found that one of my invariants was wrong. `Merge("0", "0",
+  "0<<<<<<< ")` — the user's file contains conflict-marker text and the generator changed
+  nothing, so their text is kept verbatim. "Every marker starts its own line" holds only
+  for markers *the engine emitted*; it cannot rewrite a marker it never wrote, and git
+  does not either. The property is now scoped that way, both discovered inputs are
+  permanent seeds in `go/testdata/fuzz/`, and — this is the part that matters — they are
+  also pinned in `diff_corpus.json`, so the TypeScript side is held to the same handling
+  rather than only the stack that happened to have a fuzzer.
 
 - *Coverage says the corpus reached every line; it does not say the corpus would notice a
   change.* `ts/tools/mutate-diff.js` closes that gap: it breaks the engine in four named

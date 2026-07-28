@@ -191,8 +191,8 @@ func TestLCSTieBreakPrefersLargestSplit(t *testing.T) {
 	// 1: ["a"] and ["b"]. Neither is more correct. Hirschberg picks
 	// between them by which split point it takes when two splits score
 	// equally, and taking the LARGEST yields ["a"]. Flipping that one `>=`
-	// to `>` yields ["b"] here, and changes the merged content on 658 of
-	// the 1 190 corpus cases — i.e. it silently rewrites user files.
+	// to `>` yields ["b"] here, and changes the merged content on 658
+	// differential corpus cases — i.e. it silently rewrites user files.
 	//
 	// The point of this test is to say so in one screen, rather than
 	// leaving the rule to be inferred from a randomised oracle comparison.

@@ -262,6 +262,91 @@
     },
     {
       "kind": "merge",
+      "generated": "0",
+      "baseline": "0",
+      "existing": "0<<<<<<< ",
+      "content": "0<<<<<<< ",
+      "conflict": false,
+      "outcome": "merged"
+    },
+    {
+      "kind": "diff",
+      "generated": "0",
+      "existing": "0<<<<<<< ",
+      "content": "<<<<<<< E\n0<<<<<<< \n>>>>>>> E\n<<<<<<< G\n0\n>>>>>>> G\n",
+      "conflict": true,
+      "outcome": "changed"
+    },
+    {
+      "kind": "merge",
+      "generated": "0=======",
+      "baseline": "",
+      "existing": "0",
+      "content": "<<<<<<< G\n0=======\n=======\n0\n>>>>>>> E\n",
+      "conflict": true,
+      "outcome": "merged"
+    },
+    {
+      "kind": "diff",
+      "generated": "0=======",
+      "existing": "0",
+      "content": "<<<<<<< E\n0\n>>>>>>> E\n<<<<<<< G\n0=======\n>>>>>>> G\n",
+      "conflict": true,
+      "outcome": "changed"
+    },
+    {
+      "kind": "merge",
+      "generated": "a\n<<<<<<< x\nb\n",
+      "baseline": "a\n",
+      "existing": "a\nc\n",
+      "content": "a\n<<<<<<< G\n<<<<<<< x\nb\n=======\nc\n>>>>>>> E\n",
+      "conflict": true,
+      "outcome": "merged"
+    },
+    {
+      "kind": "diff",
+      "generated": "a\n<<<<<<< x\nb\n",
+      "existing": "a\nc\n",
+      "content": "a\n<<<<<<< E\nc\n>>>>>>> E\n<<<<<<< G\n<<<<<<< x\nb\n>>>>>>> G\n",
+      "conflict": true,
+      "outcome": "changed"
+    },
+    {
+      "kind": "merge",
+      "generated": "a\n",
+      "baseline": "a\n",
+      "existing": "a\n=======\nb\n",
+      "content": "a\n=======\nb\n",
+      "conflict": false,
+      "outcome": "merged"
+    },
+    {
+      "kind": "diff",
+      "generated": "a\n",
+      "existing": "a\n=======\nb\n",
+      "content": "a\n<<<<<<< E\n=======\nb\n>>>>>>> E\n",
+      "conflict": true,
+      "outcome": "changed"
+    },
+    {
+      "kind": "merge",
+      "generated": ">>>>>>> ",
+      "baseline": "",
+      "existing": "",
+      "content": ">>>>>>> ",
+      "conflict": false,
+      "outcome": "clean"
+    },
+    {
+      "kind": "diff",
+      "generated": ">>>>>>> ",
+      "existing": "",
+      "content": "<<<<<<< G\n>>>>>>> \n>>>>>>> G\n",
+      "conflict": true,
+      "outcome": "changed"
+    },
+    {
+      "kind": "merge",
       "generated": "L0\n",
       "baseline": "L0\n",
       "existing": "L0\n",

@@ -1,4 +1,4 @@
-.PHONY: all build test clean build-ts build-go test-ts test-go clean-ts clean-go publish-go tags-go reset coverage coverage-ts coverage-go mutation
+.PHONY: all build test clean build-ts build-go test-ts test-go clean-ts clean-go publish-go tags-go reset coverage coverage-ts coverage-go mutation fuzz
 
 all: build test
 
@@ -30,6 +30,16 @@ coverage-go:
 # decisions genuinely are not.
 mutation:
 	cd ts && npm run test-diff-mutation
+
+# Fuzz the engines that take arbitrary user text. Seeds live in
+# go/testdata/fuzz and run as ordinary tests; this is the real thing.
+# make fuzz FUZZTIME=5m for a longer soak.
+FUZZTIME ?= 30s
+fuzz:
+	cd go && for t in FuzzMerge FuzzDiff FuzzLines FuzzLCS FuzzTemplate; do \
+	  echo "== $$t"; \
+	  go test -run "$$t" -fuzz "^$$t$$" -fuzztime $(FUZZTIME) ./... || exit 1; \
+	done
 
 clean-ts:
 	cd ts && rm -rf dist dist-test

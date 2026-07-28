@@ -111,6 +111,18 @@ function diffCorpus() {
     ['a\r\nb\r\n', 'a\r\n', 'a\r\nc\r\n'],
     ['x\ny\nz\n', 'y\n', 'w\ny\nv\n'],
     ['}\n}\n}\n', '}\n}\n', '}\n}\n}\n}\n'],
+
+    // Input that already contains conflict-marker text. Found by the Go
+    // fuzzer (go/fuzz_test.go); pinned here so BOTH stacks are held to the
+    // same handling, not just the one that found it. The engine keeps such
+    // text verbatim — it cannot rewrite a marker it never emitted — so
+    // these are exactly the cases where "every marker starts its own line"
+    // stops holding, and the two implementations must stop together.
+    ['0', '0', '0<<<<<<< '],
+    ['0=======', '', '0'],
+    ['a\n<<<<<<< x\nb\n', 'a\n', 'a\nc\n'],
+    ['a\n', 'a\n', 'a\n=======\nb\n'],
+    ['>>>>>>> ', '', ''],
   ]
   for (const [g, b, e] of edges) {
     push3(g, b, e)

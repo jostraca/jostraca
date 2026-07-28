@@ -235,7 +235,8 @@ func hirschberg(a, b, out []string) []string {
 
 	// `>=` so a tie takes the LARGEST split. This is THE load-bearing
 	// tie-break: changing it to `>` changes the merged content on 658 of
-	// the 1 190 corpus cases. See the note at the top of this file.
+	// the differential corpus cases (`make mutation` prints the live
+	// number). See the note at the top of this file.
 	best, split := -1, 0
 	for k := 0; k <= len(b); k++ {
 		if sum := headRow[k] + tailRow[len(b)-k]; sum >= best {
