@@ -235,8 +235,20 @@ is TS-only. Fixed by installing the memfs provider globally only when memfs is a
 use, plus two regression tests that use the real filesystem.
 
 The wider lesson for the suite: a test double used universally hides defects in the
-production path it stands in for. Worth at least one real-filesystem smoke test per
-release.
+production path it stands in for.
+
+**Acted on:** `ts/test/provider.test.ts` and `go/provider_test.go` run the same eight
+scenarios — fresh generate, regenerate, preserve, merge, diff, inject, copy, nested
+folders — through *both* providers and assert the output trees are byte-identical. The
+assertion is differential, so no expected output is transcribed and a new scenario covers
+both paths by construction; a `produces` list guards against a scenario passing by
+producing nothing on both sides. Mode preservation gets a separate real-filesystem test,
+since mode bits do not exist on the doubles.
+
+I checked the suite is not decorative by breaking each stack's real-filesystem write and
+confirming it fails: appending a byte in TS's `saveFile` when the path is under the temp
+dir fails 8/8 scenarios, and the same injection in Go's `OsFS.WriteFile` fails 8/8. That
+is the shape of defect T0 was, and it is now caught.
 
 ---
 
