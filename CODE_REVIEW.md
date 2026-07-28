@@ -56,6 +56,7 @@ Fixed on this branch, each with regression tests in both stacks:
 | **T25 / G18** | **the template engine is now under the same differential corpus** — 471 cases, and it found six real divergences on the way in: inverted `eject` markers, JS number formatting, HTML escaping, object key order |
 | T26 | mode assertions skip on Windows, which has no execute bit — found the moment CI ran there for the first time (see §2.1) |
 | **R1–R9** | **nine defects an automated reviewer found on the PR, all verified with reproductions and all real** (see §2.2) |
+| **R10–R14** | **a second review round on the fixes themselves: four more real defects, one refuted** (see §2.3) |
 
 Also corrected: `extract-parity.js`'s default output path (stale after the module
 flatten), and a stale "deviation" note in `go/README.md` claiming the Go 2-way diff render
@@ -363,6 +364,47 @@ components with no `Project` or `Folder` wrapper silently drop everything after 
 siblings. This is pre-existing (byte-identical at the branch base), architecturally
 significant, and outside this PR's scope. The test uses the documented `Folder({}, ...)`
 grouping form instead, with a comment pointing at the issue.
+
+---
+
+## 2.3 R10–R14 — reviewing the fixes to the fixes
+
+Rather than merge on green, I asked for a second review pass over `dc6434a` — the commit
+fixing R1–R9. The reasoning was actuarial: eight of the previous nine defects had been in
+the fixes, and `dc6434a` had been reviewed by nobody but its author.
+
+Five more findings came back. Four were real.
+
+| id | defect | origin |
+|---|---|---|
+| R10 | with folder `.`, the prefix strip matched as a raw string, so `.env` lost its leading dot and shared a merge baseline and meta key with a sibling `env` — each then merged against the *other's* ancestor, writing whole-file conflict markers into the user's real `.env` | **pre-existing** |
+| R11 | Go's temp-path retry loop exited with the candidate still known to exist and fell through to a truncating write — the one path meant to protect an occupied file was the path that destroyed it | this branch |
+| R12 | on `wx` exhaustion, the cleanup unlinked a temp path this invocation never created — deleting exactly the file the exclusive flag had just protected | this branch |
+| R13 | *refuted* — the marker validation in `98b34bf` already made it unreachable, and its stated mechanism (`[2]string{}` reaching `injectAfter` in Go) was never accurate at any commit | — |
+| R14 | `chmodUnchanged` sat inside `if (write)`, but the diff and merge branches clear `write` first — so an explicit `mode` was still dropped in exactly the configurations most likely to carry one | this branch |
+
+**R10 corrects something I asserted earlier.** I reported this round as "all five in code I
+wrote". That was wrong: R10 reproduces byte-for-byte at the branch base, so it is a
+pre-existing defect that my R5 fix failed to fix — while its comment claimed the prefix was
+"only stripped when it is ACTUALLY there". The comment was more wrong than the code.
+
+**R11 and R12 are the same shape and worth naming.** Both are *safety mechanisms whose
+failure path does the damage they exist to prevent*. R11: a retry loop guarding an occupied
+path, which on exhaustion writes to it. R12: an exclusive-create flag that refuses to
+clobber a colliding file, followed by a `catch` that unlinks it. In both cases the happy
+path is correct and the guard inverts on the edge. That is a category worth checking for
+directly, not just testing into.
+
+Go now carries an `exclusiveFS` optional capability (`WriteFileExcl`, alongside the existing
+`realpathFS`/`chmodFS` pattern) so `OsFS` gets a real `O_EXCL` and `MemFS` an atomic
+check-and-store under one lock — matching TS's `wx` rather than approximating it with a
+check-then-act pair.
+
+**Adding that capability silently disarmed a test double.** `failFS` in the Go durability
+suite embeds `*MemFS`, so it inherited `WriteFileExcl` — and because the atomic write now
+prefers the exclusive path, the double stopped intercepting and two durability tests went
+green against a write that could no longer fail. A double that quietly stops intercepting is
+worse than no double, because it still reads as coverage. It now overrides both methods.
 
 ---
 
@@ -929,8 +971,8 @@ deliberate no-change.
 
 | | before | after |
 |---|---|---|
-| TS tests | 36 | 112 |
-| Go tests | 147 | 224 |
+| TS tests | 36 | 115 |
+| Go tests | 147 | 228 |
 | TS runtime dependencies | 2 (`node-diff3`, `diff`) | 0 |
 | CI workflows that run | 0 | 2 |
 | Parity scenarios | 17 | 32 + 2 generated corpora (1 200 diff, 471 template) |

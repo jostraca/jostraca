@@ -28,6 +28,31 @@ func (f *failFS) WriteFile(p string, data []byte) error {
 	return f.MemFS.WriteFile(p, data)
 }
 
+// WriteFileExcl must be overridden too, not just inherited.
+//
+// This double embeds *MemFS, so when MemFS gained the exclusiveFS
+// capability the double silently inherited it — and since the atomic write
+// prefers the exclusive path, the failure injection stopped intercepting
+// anything and two durability tests went green against a write that could
+// no longer fail. A test double that stops intercepting is worse than no
+// double, because it still looks like coverage.
+//
+// Note the temp path, not the target, is what gets written here: match
+// failOn against the path with any temp suffix stripped, so a caller
+// naming the real target still injects a failure on the write that
+// produces it.
+func (f *failFS) WriteFileExcl(p string, data []byte) error {
+	target := p
+	if at := strings.Index(target, tmpSuffix); at >= 0 {
+		target = target[:at]
+	}
+	if f.failOn != "" &&
+		(strings.Contains(p, f.failOn) || strings.Contains(target, f.failOn)) {
+		return f.err
+	}
+	return f.MemFS.WriteFileExcl(p, data)
+}
+
 var errDiskFull = errors.New("simulated: no space left on device")
 
 func durJ(fsys FS, extra ...Option) *J {

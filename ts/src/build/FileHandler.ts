@@ -152,15 +152,29 @@ class FileHandler {
     // loaded the wrong ancestor. (The ternary this replaced had the same
     // expression in both branches — a half-finished special case.)
     //
-    // This mirrors Go's `strings.TrimPrefix` + `TrimLeft`, which was right.
+    // The prefix must match on a PATH BOUNDARY, not as a raw string.
+    //
+    // A bare `startsWith` looked right and was not: with folder `.`, the
+    // folder is the single character `.`, so `.env` "starts with" it and
+    // the strip produced `env` — the same relative key as a sibling file
+    // literally named `env`. Their merge baselines and meta entries then
+    // collided, and the next run merged each against the OTHER's ancestor,
+    // writing whole-file conflict markers into the user's real `.env`.
+    // That is the very collision this function was fixed to prevent, one
+    // case narrower. `.gitignore`, `.npmrc` and friends are all affected.
+    //
+    // So `.` strips only an explicit `./`, `/` strips only separators, and
+    // everything else defers to `withinFolder`, which already does
+    // boundary matching properly.
     const stripFolder = (s: string) =>
       (s.startsWith(this.folder) ? s.substring(this.folder.length) : s)
         .replace(/^[/\\]+/, '')
 
     const rpath =
-      '.' === this.folder || '/' === this.folder ? stripFolder(path) :
-        this.withinFolder(path) ? stripFolder(path) :
-          path
+      '.' === this.folder ? path.replace(/^\.[/\\]+/, '') :
+        '/' === this.folder ? path.replace(/^[/\\]+/, '') :
+          this.withinFolder(path) ? stripFolder(path) :
+            path
 
     // Canonical paths use forward slashes, NOT Path.sep
     return rpath.replace(/\\/g, '/')
@@ -351,6 +365,12 @@ class FileHandler {
             { ...meta, why, action: meta.action, path }])
           }
           else {
+            // Equal content is still not a no-op when an explicit mode was
+            // asked for — and `write` was already cleared above, so the
+            // chmod on the plain-write path below is unreachable from here.
+            if (this.chmodUnchanged(path, mode)) {
+              why.push('chmod-0')
+            }
             // this.files.unchanged.push(path)
             this.filelog('unchanged', path)
           }
@@ -413,6 +433,11 @@ class FileHandler {
           else {
             why.push('unchanged-0')
             write = false
+            // As in the diff branch: `write` is cleared here, so an
+            // explicit mode has to be applied on this path too.
+            if (this.chmodUnchanged(path, mode)) {
+              why.push('chmod-0')
+            }
             // this.files.unchanged.push(path)
             this.filelog('unchanged', path)
           }
@@ -808,10 +833,17 @@ class FileHandler {
     let tmppath = tmppathFor(path)
     let tmpopts = { ...opts, flag: 'wx' }
 
+    // Whether THIS invocation created the temp file. The cleanup below must
+    // not delete a path we only ever failed to create: on EEXIST exhaustion
+    // that path holds someone else's file, and unlinking it would undo
+    // exactly what the `wx` flag is here to guarantee.
+    let created = false
+
     try {
       for (let attempt = 0; ; attempt++) {
         try {
           fs.writeFileSync(tmppath, content, tmpopts)
+          created = true
           break
         }
         catch (err: any) {
@@ -849,7 +881,7 @@ class FileHandler {
     }
     catch (err: any) {
       try {
-        if ('function' === typeof fs.unlinkSync) {
+        if (created && 'function' === typeof fs.unlinkSync) {
           fs.unlinkSync(tmppath)
         }
       }

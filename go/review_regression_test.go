@@ -1,6 +1,7 @@
 package jostraca
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -381,5 +382,200 @@ func TestFragmentRelativeFromWithRelativeFolder(t *testing.T) {
 		if !strings.Contains(string(body), "HELLO") {
 			t.Errorf("folder=%q: fragment not included: %q", folder, body)
 		}
+	}
+}
+
+// R10. The folder prefix must match on a PATH BOUNDARY.
+//
+// TrimPrefix(p, ".") ate the leading dot of `.env`, producing the same
+// relative key as a sibling `env` — the collision the previous fix existed
+// to prevent, reintroduced one case narrower. Mirrors
+// ts/test/robustness.test.ts:default-dot-folder-keeps-leading-dots.
+func TestDefaultDotFolderKeepsLeadingDots(t *testing.T) {
+	mem := NewMemFS()
+	j := New(WithFS(mem), WithFolder("."), WithNow(func() int64 { return revWhen }))
+
+	if _, err := j.Generate(Options{}, func(j *J) {
+		j.Folder("", func(j *J) {
+			j.File(".env", func(j *J) { j.Content("SECRET=1\n") })
+			j.File("env", func(j *J) { j.Content("PLAIN\n") })
+			j.File(".gitignore", func(j *J) { j.Content("node_modules\n") })
+		})
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	vol := mem.Vol()
+	for _, tc := range [][2]string{
+		{".env", "SECRET=1\n"},
+		{"env", "PLAIN\n"},
+		{".gitignore", "node_modules\n"},
+	} {
+		if got := string(vol[tc[0]]); got != tc[1] {
+			t.Errorf("%s = %q, want %q", tc[0], got, tc[1])
+		}
+		// The merge baseline is the part that actually collided.
+		dup := ".jostraca/generated/" + tc[0]
+		if got := string(vol[dup]); got != tc[1] {
+			t.Errorf("%s = %q, want %q", dup, got, tc[1])
+		}
+	}
+}
+
+// R11. Exhausting the temp-path retries must be an ERROR, never a write.
+//
+// The loop used to exit with `tmp` last known to EXIST and fall straight
+// through to a truncating WriteFile — so the one path meant to protect an
+// occupied file was the path that destroyed it.
+
+// occupiedExcl provides exclusiveFS and always reports a collision, which
+// is the path both real providers take.
+type occupiedExcl struct {
+	*MemFS
+}
+
+func (f *occupiedExcl) WriteFileExcl(p string, data []byte) error {
+	return &os.PathError{Op: "open", Path: p, Err: fs.ErrExist}
+}
+
+// occupiedPlain deliberately does NOT embed *MemFS, so it does not inherit
+// WriteFileExcl and exercises the check-then-write fallback for providers
+// without the capability. Every method forwards explicitly.
+type occupiedPlain struct {
+	m *MemFS
+}
+
+func (f *occupiedPlain) ReadFile(p string) ([]byte, error) { return f.m.ReadFile(p) }
+func (f *occupiedPlain) WriteFile(p string, d []byte) error {
+	return f.m.WriteFile(p, d)
+}
+func (f *occupiedPlain) Exists(p string) bool {
+	if strings.Contains(p, tmpSuffix) {
+		return true
+	}
+	return f.m.Exists(p)
+}
+func (f *occupiedPlain) Stat(p string) (FileInfo, error)      { return f.m.Stat(p) }
+func (f *occupiedPlain) MkdirAll(p string) error              { return f.m.MkdirAll(p) }
+func (f *occupiedPlain) ReadDir(p string) ([]DirEntry, error) { return f.m.ReadDir(p) }
+func (f *occupiedPlain) Remove(p string) error                { return f.m.Remove(p) }
+func (f *occupiedPlain) Rename(a, b string) error             { return f.m.Rename(a, b) }
+
+func TestTempPathExhaustionErrorsInsteadOfOverwriting(t *testing.T) {
+	victim := "/out/p/a.txt" + tmpSuffix + "-squatter"
+
+	for _, tc := range []struct {
+		name string
+		wrap func(*MemFS) FS
+	}{
+		{"exclusive", func(m *MemFS) FS { return &occupiedExcl{MemFS: m} }},
+		{"fallback", func(m *MemFS) FS { return &occupiedPlain{m: m} }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			mem := NewMemFS()
+			if err := mem.WriteFile(victim, []byte("NOT MINE\n")); err != nil {
+				t.Fatal(err)
+			}
+
+			fh := &fileHandler{fs: tc.wrap(mem), folder: "/out"}
+			err := fh.writeAtomicMode("/out/p/a.txt", []byte("GENERATED\n"), 0)
+			if err == nil {
+				t.Fatal("exhausting the retries must return an error, not write")
+			}
+			if !strings.Contains(err.Error(), "no free temp path") {
+				t.Errorf("unexpected error: %v", err)
+			}
+			if got := string(mem.Vol()[victim]); got != "NOT MINE\n" {
+				t.Errorf("bystander was damaged: %q", got)
+			}
+		})
+	}
+}
+
+// OsFS and MemFS must both provide exclusive creation, since the atomic
+// write depends on it to close the check-then-act race.
+func TestProvidersImplementExclusiveCreate(t *testing.T) {
+	var o FS = OsFS{}
+	if _, ok := o.(exclusiveFS); !ok {
+		t.Error("OsFS should implement exclusiveFS")
+	}
+
+	mem := NewMemFS()
+	var m FS = mem
+	if _, ok := m.(exclusiveFS); !ok {
+		t.Error("MemFS should implement exclusiveFS")
+	}
+
+	if err := mem.WriteFile("/x", []byte("first")); err != nil {
+		t.Fatal(err)
+	}
+	if err := mem.WriteFileExcl("/x", []byte("second")); err == nil {
+		t.Error("WriteFileExcl must fail on an existing path")
+	}
+	if got := string(mem.Vol()["/x"]); got != "first" {
+		t.Errorf("WriteFileExcl clobbered an existing file: %q", got)
+	}
+}
+
+// R14. An explicit Mode must be applied on the unchanged path in EVERY
+// existing-file configuration, not just plain write.
+//
+// The first fix put the chmod inside `if write { if exists && contentEqual
+// }`, but the diff and merge branches clear `write` before reaching it —
+// so in exactly the configurations most likely to carry a mode, an
+// existing 0644 script asked for 0755 stayed non-executable forever.
+// Mirrors ts/test/robustness.test.ts.
+func TestFileModeAppliedWhenUnchangedInEveryMode(t *testing.T) {
+	const body = "#!/bin/sh\necho hi\n"
+	tr := true
+
+	for _, tc := range []struct {
+		name     string
+		existing Existing
+	}{
+		{"write", Existing{}},
+		{"diff", Existing{Txt: ExistingTxt{Diff: &tr}}},
+		{"merge", Existing{Txt: ExistingTxt{Merge: &tr}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			target := filepath.Join(dir, "p", "run.sh")
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(target, []byte(body), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			// merge needs a baseline to take its equal-content path.
+			dup := filepath.Join(dir, ".jostraca", "generated", "p", "run.sh")
+			if err := os.MkdirAll(filepath.Dir(dup), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(dup, []byte(body), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			j := revJ(t, fwd(dir))
+			if _, err := j.Generate(Options{Existing: tc.existing}, func(j *J) {
+				j.Project(ProjectProps{Folder: "p"}, func(j *J) {
+					j.FileP(FileProps{Name: "run.sh", Mode: 0o755}, func(j *J) {
+						j.Content(body)
+					})
+				})
+			}); err != nil {
+				t.Fatal(err)
+			}
+
+			if got, _ := os.ReadFile(target); string(got) != body {
+				t.Errorf("%s: content = %q", tc.name, got)
+			}
+			fi, err := os.Stat(target)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if posixModes && fi.Mode().Perm() != 0o755 {
+				t.Errorf("%s: mode = %v, want 0755", tc.name, fi.Mode().Perm())
+			}
+		})
 	}
 }

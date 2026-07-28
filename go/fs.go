@@ -41,6 +41,20 @@ type chmodFS interface {
 	Chmod(path string, mode fs.FileMode) error
 }
 
+// exclusiveFS is an optional capability: a provider that implements it can
+// create a file ONLY if it does not already exist, the way TS passes the
+// `wx` flag to writeFileSync.
+//
+// The atomic write needs this. Checking Exists and then writing is a
+// check-then-act race — another process can create the path in between —
+// and, more simply, a check that ends up occupied must not fall through to
+// a clobbering write. Providers without the capability get the Exists
+// check plus a hard error on exhaustion, which closes the deterministic
+// hole even though it cannot close the race.
+type exclusiveFS interface {
+	WriteFileExcl(path string, data []byte) error
+}
+
 // FileInfo is a small subset of os.FileInfo we surface across the FS
 // boundary. Times are unix milliseconds for stable JSON serialisation.
 type FileInfo struct {
@@ -69,7 +83,21 @@ func (o OsFS) Exists(p string) bool {
 	return err == nil
 }
 func (o OsFS) MkdirAll(p string) error { return os.MkdirAll(o.sys(p), 0o755) }
-func (o OsFS) Remove(p string) error   { return os.Remove(o.sys(p)) }
+
+// WriteFileExcl implements exclusiveFS: O_EXCL fails with fs.ErrExist
+// rather than truncating an existing file.
+func (o OsFS) WriteFileExcl(p string, b []byte) error {
+	f, err := os.OpenFile(o.sys(p), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		return err
+	}
+	if _, err := f.Write(b); err != nil {
+		f.Close()
+		return err
+	}
+	return f.Close()
+}
+func (o OsFS) Remove(p string) error { return os.Remove(o.sys(p)) }
 func (o OsFS) Chmod(p string, mode fs.FileMode) error {
 	return os.Chmod(o.sys(p), mode)
 }
@@ -170,10 +198,27 @@ func (m *MemFS) ReadFile(p string) ([]byte, error) {
 	return out, nil
 }
 
-func (m *MemFS) WriteFile(p string, data []byte) error {
+// WriteFileExcl implements exclusiveFS: it fails rather than replacing an
+// existing entry. The existence test and the store happen under one lock,
+// so unlike an Exists-then-Write pair it is genuinely atomic.
+func (m *MemFS) WriteFileExcl(p string, data []byte) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	cp := memClean(p)
+	if _, exists := m.files[cp]; exists {
+		return &os.PathError{Op: "open", Path: p, Err: fs.ErrExist}
+	}
+	return m.writeLocked(cp, data)
+}
+
+func (m *MemFS) WriteFile(p string, data []byte) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.writeLocked(memClean(p), data)
+}
+
+// writeLocked stores data at an already-cleaned path. Caller holds m.mu.
+func (m *MemFS) writeLocked(cp string, data []byte) error {
 	stored := make([]byte, len(data))
 	copy(stored, data)
 	m.files[cp] = stored

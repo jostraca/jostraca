@@ -5,6 +5,8 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path"
@@ -215,6 +217,13 @@ func (fh *fileHandler) saveMode(p string, content []byte, whence string, mode fs
 					}
 					actions++
 				} else {
+					// Equal content is still not a no-op when an explicit
+					// mode was asked for — and `write` was already cleared
+					// above, so the chmod on the plain-write path below is
+					// unreachable from here.
+					if fh.chmodUnchanged(p, mode) {
+						why = append(why, "chmod-0")
+					}
 					fh.filelog(&fh.files.Unchanged, p)
 				}
 			} else if isText && modes.merge {
@@ -240,6 +249,11 @@ func (fh *fileHandler) saveMode(p string, content []byte, whence string, mode fs
 				} else {
 					why = append(why, "unchanged-0")
 					write = false
+					// As in the diff branch: `write` is cleared here, so an
+					// explicit mode has to be applied on this path too.
+					if fh.chmodUnchanged(p, mode) {
+						why = append(why, "chmod-0")
+					}
 					fh.filelog(&fh.files.Unchanged, p)
 				}
 			}
@@ -525,8 +539,18 @@ func (fh *fileHandler) savePreserveBackup(p string, existing []byte, rpath, when
 // becomes a bogus baseline and meta key.
 func (fh *fileHandler) relative(p string) string {
 	p = fwd(p)
-	if fh.folder == "." || fh.folder == "/" {
-		return strings.TrimLeft(strings.TrimPrefix(p, fh.folder), "/")
+	// Boundary match, not a raw string prefix: TrimPrefix(p, ".") ate the
+	// leading dot of `.env`, producing the same relative key as a sibling
+	// `env` and collapsing their merge baselines onto one another. See the
+	// note in ts/src/build/FileHandler.ts.
+	if fh.folder == "." {
+		if strings.HasPrefix(p, "./") {
+			return strings.TrimLeft(p[1:], "/")
+		}
+		return p
+	}
+	if fh.folder == "/" {
+		return strings.TrimLeft(p, "/")
 	}
 	if p == fh.folder {
 		return ""
@@ -625,16 +649,50 @@ func (fh *fileHandler) chmodUnchanged(p string, mode fs.FileMode) bool {
 // writeAtomicMode is writeAtomic with explicit permission bits; zero means
 // preserve whatever the target already had.
 func (fh *fileHandler) writeAtomicMode(p string, content []byte, mode fs.FileMode) error {
-	// A unique name per write — see tmppathFor. The FS interface has no
-	// exclusive-create, so a pre-existing file at this exact path cannot be
-	// ruled out by the write itself; check first, and regenerate on the
-	// astronomically unlikely collision rather than clobbering.
-	tmp := tmppathFor(p)
-	for attempt := 0; fh.fs.Exists(tmp) && attempt < 8; attempt++ {
-		tmp = tmppathFor(p)
+	// A unique name per write — see tmppathFor — created EXCLUSIVELY where
+	// the provider supports it, mirroring TS's `wx` flag.
+	//
+	// The previous shape was `for attempt := 0; Exists(tmp) && attempt < 8`
+	// followed by an unconditional WriteFile. Exhausting the retries left
+	// the loop with `tmp` last known to EXIST and fell straight through to
+	// a truncating write, so the one path that was supposed to protect an
+	// occupied file was the path that destroyed it. Exhaustion is now an
+	// error, never a write.
+	tmp := ""
+	var werr error
+	xfs, exclusive := fh.fs.(exclusiveFS)
+
+	for attempt := 0; attempt < 8; attempt++ {
+		cand := tmppathFor(p)
+
+		if exclusive {
+			werr = xfs.WriteFileExcl(cand, content)
+			if werr == nil {
+				tmp = cand
+				break
+			}
+			if !errors.Is(werr, fs.ErrExist) {
+				return werr
+			}
+			continue
+		}
+
+		// No exclusive-create: check then write. Racy against another
+		// process, but it must still never clobber a path it just saw
+		// occupied.
+		if fh.fs.Exists(cand) {
+			continue
+		}
+		if err := fh.fs.WriteFile(cand, content); err != nil {
+			return err
+		}
+		tmp = cand
+		break
 	}
-	if err := fh.fs.WriteFile(tmp, content); err != nil {
-		return err
+
+	if tmp == "" {
+		return fmt.Errorf(
+			"jostraca: no free temp path for %s after 8 attempts", p)
 	}
 
 	// An explicit mode wins; otherwise preserve whatever the target already
