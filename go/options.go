@@ -100,11 +100,11 @@ func WithMem() Option                   { return func(o *Options) { o.Mem = true
 func WithVol(v map[string][]byte) Option {
 	return func(o *Options) { o.Vol = v }
 }
-func WithFS(fs FS) Option              { return func(o *Options) { o.FS = fs } }
-func WithNow(f func() int64) Option    { return func(o *Options) { o.Now = f } }
-func WithExisting(e Existing) Option   { return func(o *Options) { o.Existing = e } }
-func WithControl(c Control) Option     { return func(o *Options) { o.Control = c } }
-func WithBuild(b bool) Option          { return func(o *Options) { o.Build = &b } }
+func WithFS(fs FS) Option            { return func(o *Options) { o.FS = fs } }
+func WithNow(f func() int64) Option  { return func(o *Options) { o.Now = f } }
+func WithExisting(e Existing) Option { return func(o *Options) { o.Existing = e } }
+func WithControl(c Control) Option   { return func(o *Options) { o.Control = c } }
+func WithBuild(b bool) Option        { return func(o *Options) { o.Build = &b } }
 
 // applyOptions builds an Options value from the variadic constructors.
 func applyOptions(opts []Option) Options {

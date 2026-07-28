@@ -159,8 +159,21 @@ function diffCorpus() {
   console.log('wrote diff_corpus (' + cases.length + ' cases)')
 }
 
+// Cross-stack differential corpus for the template engine. See
+// tools/template-corpus.js for why it exists.
+function templateCorpus() {
+  const { buildCases } = require('./template-corpus.js')
+  const cases = buildCases()
+  fs.writeFileSync(
+    path.join(outDir, 'template_corpus.json'),
+    JSON.stringify({ scenario: 'template_corpus', cases }, null, 2) + '\n',
+  )
+  console.log('wrote template_corpus (' + cases.length + ' cases)')
+}
+
 async function main() {
   diffCorpus()
+  templateCorpus()
 
   // Quickstart from the README.
   await snapshot('quickstart', {}, () => {

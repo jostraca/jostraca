@@ -350,7 +350,17 @@ function template(src, model, spec) {
             if (endMatch) {
                 endIndex = endMatch.index;
             }
-            src = src.substring(startIndex, endIndex);
+            // An end marker resolving before the start marker is malformed: there
+            // is no region between them. Leave the source alone, which is what
+            // already happens when neither marker is found.
+            //
+            // This used to fall through to `substring`, which SWAPS its arguments
+            // when start > end — so the source came back reversed-region, purely
+            // as an accident of the JS built-in. The Go port guarded the same
+            // case and returned '' instead, so the two silently disagreed.
+            if (startIndex <= endIndex) {
+                src = src.substring(startIndex, endIndex);
+            }
         }
     }
     let open = null == spec?.open ? '\\$\\$' : spec.open;
@@ -491,7 +501,7 @@ function template(src, model, spec) {
                 }
                 // Insert a plain replacement value, JSONifying if necessary.
                 else {
-                    handle(('object' === ti ? JSON.stringify(insert) : insert));
+                    handle(('object' === ti ? jsonify(insert) : insert));
                 }
                 remain = remain.substring(mi + skip + ref.length);
             }
@@ -502,6 +512,47 @@ function template(src, model, spec) {
         }
     }
     return hasCustomHandle ? out : parts.join('');
+}
+// JSONify a template replacement value with object keys in sorted order.
+//
+// `JSON.stringify` emits keys in insertion order; Go's `json.Marshal`
+// emits them sorted, and a Go map has no insertion order to reproduce.
+// Values reaching a template are almost always loaded from JSON or YAML
+// config, so without this the two stacks emit the same object with
+// different key order. Sorting on the TS side is the same convention
+// `each`, `cmap` and `vmap` already follow for cross-stack determinism.
+function jsonify(val) {
+    return JSON.stringify(sortKeys(val, new Set()));
+}
+// Deep copy with object keys sorted. Arrays keep their order (they have
+// a meaningful one). `toJSON` is honoured so Date and friends serialize
+// as they did before this existed, rather than collapsing to `{}`.
+// Cycles are rejected the way `JSON.stringify` rejects them, instead of
+// recursing until the stack blows; repeated non-cyclic references are
+// fine, as they are for `JSON.stringify`.
+function sortKeys(val, seen) {
+    if (null == val || 'object' !== typeof val) {
+        return val;
+    }
+    if ('function' === typeof val.toJSON) {
+        return val.toJSON();
+    }
+    if (seen.has(val)) {
+        throw new TypeError('Converting circular structure to JSON');
+    }
+    seen.add(val);
+    let out;
+    if (Array.isArray(val)) {
+        out = val.map((entry) => sortKeys(entry, seen));
+    }
+    else {
+        out = {};
+        for (const key of Object.keys(val).sort()) {
+            out[key] = sortKeys(val[key], seen);
+        }
+    }
+    seen.delete(val);
+    return out;
 }
 function getCachedEjectRE(s) {
     let re = ejectRECache.get(s);

@@ -185,12 +185,12 @@ type osFSAt struct {
 func (o *osFSAt) join(p string) string {
 	return filepath.Join(o.root, filepath.FromSlash(p))
 }
-func (o *osFSAt) ReadFile(p string) ([]byte, error)     { return os.ReadFile(o.join(p)) }
-func (o *osFSAt) WriteFile(p string, b []byte) error    { return os.WriteFile(o.join(p), b, 0o644) }
-func (o *osFSAt) Exists(p string) bool                  { _, err := os.Stat(o.join(p)); return err == nil }
-func (o *osFSAt) MkdirAll(p string) error               { return os.MkdirAll(o.join(p), 0o755) }
-func (o *osFSAt) Remove(p string) error                 { return os.Remove(o.join(p)) }
-func (o *osFSAt) Rename(a, b string) error              { return os.Rename(o.join(a), o.join(b)) }
+func (o *osFSAt) ReadFile(p string) ([]byte, error)  { return os.ReadFile(o.join(p)) }
+func (o *osFSAt) WriteFile(p string, b []byte) error { return os.WriteFile(o.join(p), b, 0o644) }
+func (o *osFSAt) Exists(p string) bool               { _, err := os.Stat(o.join(p)); return err == nil }
+func (o *osFSAt) MkdirAll(p string) error            { return os.MkdirAll(o.join(p), 0o755) }
+func (o *osFSAt) Remove(p string) error              { return os.Remove(o.join(p)) }
+func (o *osFSAt) Rename(a, b string) error           { return os.Rename(o.join(a), o.join(b)) }
 func (o *osFSAt) Stat(p string) (FileInfo, error) {
 	fi, err := os.Stat(o.join(p))
 	if err != nil {

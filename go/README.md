@@ -259,6 +259,11 @@ with these intentional ergonomic differences:
 - `Indent` uses `strings.ReplaceAll` (no JS lookbehind needed).
 - The `Point*` orchestration utility is not ported (deferred to a
   future sub-package).
+- A template value that is an integer wider than 2^53 keeps its exact
+  value in Go and loses precision in TS, whose numbers are all
+  `float64`. Everything a `float64` can hold exactly formats
+  identically on both stacks (`template_format_test.go` pins this);
+  beyond that there is nothing to reconcile.
 
 ### File permissions
 

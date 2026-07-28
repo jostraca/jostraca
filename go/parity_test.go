@@ -363,17 +363,20 @@ var knownParityGaps = map[string]string{}
 // They have dedicated test functions and are skipped from the standard
 // runner so the parity scenario list shows only single-Generate cases.
 var phaseShapedCorpora = map[string]struct{}{
-	"merge_retain": {}, // covered by TestMergeRetainSequence
-	"diff_corpus":  {}, // covered by TestDiffCorpusMatchesTS
+	"merge_retain":    {}, // covered by TestMergeRetainSequence
+	"diff_corpus":     {}, // covered by TestDiffCorpusMatchesTS
+	"template_corpus": {}, // covered by TestTemplateCorpusMatchesTS
 }
 
 // scenarioMultiPhase holds runners that can't be expressed as a single
 // Generate call. Each runner builds the FS state (running multiple
 // generations + external edits) and returns the MemFS for assertion.
 var scenarioMultiPhase = map[string]func(*testing.T) *MemFS{
-	"merge_basic":  func(t *testing.T) *MemFS { return mergeRunner(t, "AAA\n", "AAA\nuser-line\n", "BBB\n", "$$body$$") },
-	"merge_update": func(t *testing.T) *MemFS { return mergeRunner(t, "AAA\n", "// header\nAAA\n// user-comment\n", "BBB\n", "// header\n$$body$$") },
-	"merge_clean":  func(t *testing.T) *MemFS { return mergeRunnerNoEdit(t, "AAA\n", "CCC\n", "$$body$$") },
+	"merge_basic": func(t *testing.T) *MemFS { return mergeRunner(t, "AAA\n", "AAA\nuser-line\n", "BBB\n", "$$body$$") },
+	"merge_update": func(t *testing.T) *MemFS {
+		return mergeRunner(t, "AAA\n", "// header\nAAA\n// user-comment\n", "BBB\n", "// header\n$$body$$")
+	},
+	"merge_clean": func(t *testing.T) *MemFS { return mergeRunnerNoEdit(t, "AAA\n", "CCC\n", "$$body$$") },
 	"merge_no_baseline": func(t *testing.T) *MemFS {
 		// User-authored file is in place but no duplicate baseline
 		// exists — typical "first run after adopting jostraca on

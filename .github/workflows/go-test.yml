@@ -50,6 +50,13 @@ jobs:
       - run: go vet ./...
       - run: GOOS=darwin go vet ./...
       - run: GOOS=windows go vet ./...
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "::error::gofmt needed: $unformatted"
+            exit 1
+          fi
       - run: go test ./... -race -count=1
       # The module was flattened to the go/ root (a39979f); the package
       # pattern is ./..., not ./jostraca.
@@ -61,5 +68,9 @@ jobs:
       # across the two stacks, so it gets its own gates.
       - name: Diff engine matches TS byte-for-byte
         run: go test ./... -run TestDiffCorpus -count=1 -v
+      # The template engine is the other place two independent
+      # implementations have to agree; same differential treatment.
+      - name: Template engine matches TS byte-for-byte
+        run: go test ./... -run TestTemplateCorpusMatchesTS -count=1 -v
       - name: Diff engine coverage is 100%
         run: ./check_diff_coverage.sh

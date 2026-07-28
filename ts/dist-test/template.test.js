@@ -66,5 +66,54 @@ B
         (0, expect_1.expect)((0, __1.template)(src0, m0, { eject: ['START', 'END'] })).equal('Q1\n');
         (0, expect_1.expect)((0, __1.template)(src0, m0, { eject: [/START/, /END/] })).equal('  \nQ1\n  ');
     });
+    (0, node_test_1.test)('eject-inverted', () => {
+        // End marker resolving before the start marker: there is no region
+        // between them, so the source is left alone — the same thing that
+        // happens when neither marker is found.
+        //
+        // This used to reach `substring`, which SWAPS its arguments when
+        // start > end, handing back the reversed region as an accident of
+        // the JS built-in. Go guarded the case and returned '' instead, so
+        // the two stacks silently disagreed. Neither was designed.
+        const src = 'a\nEND\nmiddle\nSTART\nb\n';
+        (0, expect_1.expect)((0, __1.template)(src, {}, { eject: ['START', 'END'] })).equal(src);
+        (0, expect_1.expect)((0, __1.template)('ENDSTART\n', {}, { eject: ['START', 'END'] }))
+            .equal('ENDSTART\n');
+    });
+    (0, node_test_1.test)('jsonify-sorts-keys', () => {
+        // Go maps have no insertion order, so `json.Marshal` sorts and TS
+        // has to sort too or the same model emits different bytes on each
+        // stack. Found by the cross-stack template corpus.
+        (0, expect_1.expect)((0, __1.template)('$$a$$', { a: { z: 1, a: 2, m: 3 } }))
+            .equal('{"a":2,"m":3,"z":1}');
+        // All the way down, and arrays keep their own (meaningful) order.
+        (0, expect_1.expect)((0, __1.template)('$$a$$', { a: { b: [{ y: 1, x: 2 }, { n: 3 }] } }))
+            .equal('{"b":[{"x":2,"y":1},{"n":3}]}');
+        // Same object, different insertion order, same output.
+        const one = {};
+        one.z = 1;
+        one.a = 2;
+        const two = {};
+        two.a = 2;
+        two.z = 1;
+        (0, expect_1.expect)((0, __1.template)('$$v$$', { v: one })).equal((0, __1.template)('$$v$$', { v: two }));
+    });
+    (0, node_test_1.test)('jsonify-edge-values', () => {
+        // toJSON is honoured, so Date and friends serialize as they always
+        // did rather than collapsing to `{}` once sorting was introduced.
+        (0, expect_1.expect)((0, __1.template)('$$d$$', { d: new Date(0) }))
+            .equal('"1970-01-01T00:00:00.000Z"');
+        // A repeated (non-cyclic) reference is fine, as it is for
+        // JSON.stringify.
+        const shared = { s: 1 };
+        (0, expect_1.expect)((0, __1.template)('$$v$$', { v: { a: shared, b: shared } }))
+            .equal('{"a":{"s":1},"b":{"s":1}}');
+        // A cycle is rejected, not recursed until the stack blows.
+        const cyclic = { a: 1 };
+        cyclic.self = cyclic;
+        (0, expect_1.expect)(() => (0, __1.template)('$$v$$', { v: cyclic })).throws(/circular/);
+        (0, expect_1.expect)((0, __1.template)('$$v$$', { v: [] })).equal('[]');
+        (0, expect_1.expect)((0, __1.template)('$$v$$', { v: {} })).equal('{}');
+    });
 });
 //# sourceMappingURL=template.test.js.map

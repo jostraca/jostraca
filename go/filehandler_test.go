@@ -50,8 +50,8 @@ func TestQuickstartViaMemFS(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string]string{
-		"/out/my-app/src/index.js":   "console.log(\"hello world\")\n",
-		"/out/my-app/package.json":   "{ \"name\": \"my-app\" }\n",
+		"/out/my-app/src/index.js": "console.log(\"hello world\")\n",
+		"/out/my-app/package.json": "{ \"name\": \"my-app\" }\n",
 	}
 	for path, body := range want {
 		got, err := mem.ReadFile(path)

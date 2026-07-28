@@ -53,6 +53,7 @@ Fixed on this branch, each with regression tests in both stacks:
 | G15 | Go's package-global dlog buffer is capped, matching TS |
 | G12 | `File` takes a `mode` prop in both stacks, so a generated script can be executable |
 | **G17 / T24** | **resolved** — both stacks now run one shared diff/merge engine (`ts/src/diff.ts` ↔ `go/diff.go`), held byte-identical by a 1 190-case differential corpus, at 100% coverage on both sides, with `node-diff3` and `diff` dropped |
+| **T25 / G18** | **the template engine is now under the same differential corpus** — 471 cases, and it found six real divergences on the way in: inverted `eject` markers, JS number formatting, HTML escaping, object key order |
 
 Also corrected: `extract-parity.js`'s default output path (stale after the module
 flatten), and a stale "deviation" note in `go/README.md` claiming the Go 2-way diff render
@@ -61,7 +62,8 @@ differed from TS — it does not, and `diff_mode` asserts that byte-for-byte.
 New parity scenarios cover behaviours the corpus previously missed — `no_project_file`,
 `dotfile_preserve`, `preserve_and_diff`, `protect_and_present`, `inject_two_blocks`,
 `inject_stray_end_marker`, `inject_no_markers`, `fragment_nested_in_slot`,
-`copy_ignore_text`. The suite is now 31 scenarios.
+`copy_ignore_text`. The suite is now 32 scenarios, plus the two generated corpora
+(`diff_corpus`, `template_corpus`).
 
 **A parity-harness limitation found while adding coverage:** the corpus cannot express
 binary content. Values are JSON strings, so a byte above 0x7F round-trips as its UTF-8
@@ -124,6 +126,69 @@ parsed by any tool or human. Markers now always start at column 0.
   generator did not touch, the deletion wins. The obvious-looking property "every
   generated line survives" is FALSE, and asserting it would be asserting a bug. (I wrote
   it, watched it fail, and traced the failure to the property rather than the code.)
+
+---
+
+### T25 / G18 — the template engine, differentially tested
+
+The diff engine was the *first* place two independent implementations had to agree
+byte-for-byte. The template engine is the other one: `go/template.go` is 746 lines
+against a TS engine in `ts/src/util/basic.ts`, and its only cross-stack check was
+`go/template_corpus_test.go` — Go expectations **hand-transcribed** from the TS test file.
+That covers the cases someone thought to write, and nothing checks it still matches TS.
+It is the same setup that let the merge engines disagree on ~72% of non-trivial inputs
+while every test passed.
+
+`ts/tools/template-corpus.js` now generates 471 cases — model substitution, custom
+delimiters, plain / regex / `#Tag` / function replaces, eject, and value formatting, plus
+400 randomised ones — recording TS's exact output *or its exact failure*. Go replays them
+and asserts byte equality (`TestTemplateCorpusMatchesTS`), gated in CI alongside the diff
+corpus. Function-valued replaces travel as `{"$fn":"upper"}` against a fixed set both
+stacks implement by name, so that path is covered too despite JSON not carrying closures.
+
+**It found six divergences in two rounds.** Every one of them was live in released code.
+
+*Round 1 — `eject` with the markers inverted (3/446).* When the end marker resolves
+before the start marker, TS reached `src.substring(start, end)`, which **swaps its
+arguments** when `start > end` — so the source came back reversed-region, purely as an
+accident of the JS built-in. Go guarded the case and returned `''`. Neither was designed;
+both were what the code happened to do. Fixed both to leave the source unchanged, which is
+what already happened when neither marker was found, and pinned it with named
+`eject-inverted` cases on both sides.
+
+*Round 2 — value formatting (3/471).* Three separate defects in one line of Go:
+
+| case | Go | TS |
+|---|---|---|
+| `num-tiny` | `1e-07` | `1e-7` |
+| `num-huge` | `9.007199254740992e+15` | `9007199254740992` |
+| `shape-objkeys` | `{"a":2,"m":3,"z":1}` | `{"z":1,"a":2,"m":3}` |
+
+1. **Number formatting.** Go's `%v` zero-pads exponents and switches to exponential
+   notation at a different threshold than ECMAScript. TS is canonical and every number
+   there is a `float64`, so `formatJSNumber` now reproduces `Number::toString`:
+   positional while `1e-6 <= |v| < 1e21`, exponential outside it, no exponent padding,
+   and `String(-0) === "0"`.
+2. **HTML escaping.** Go's `encoding/json` escapes `<`, `>` and `&` to `\u003c`, `\u003e`
+   and `\u0026` by default; `JSON.stringify` does not. Generated code is full of angle
+   brackets, so a model value carrying markup came out mangled on the Go side only.
+3. **Key ordering.** `JSON.stringify` emits keys in insertion order and `json.Marshal`
+   emits them sorted. This one is **fixed in TS, not Go** — a Go map has no insertion
+   order to reproduce, so sorting is the only order both stacks can agree on. It is also
+   the convention the project already follows: `each`, `cmap` and `vmap` all sort
+   explicitly for exactly this reason. `jsonify` in `ts/src/util/basic.ts` sorts on the
+   way out, honouring `toJSON` so `Date` still serializes as it always did, and rejecting
+   cycles the way `JSON.stringify` rejects them rather than recursing until the stack
+   blows.
+
+**What the corpus structurally cannot reach.** Cases travel as JSON, so every number
+arrives in Go as a `float64` — which is what a user gets from JSON or YAML config, and the
+path most worth covering, but not the only one. A Go caller building a model in code can
+pass a native `int`, `uint` or `float32`, which takes a different branch. Nothing on the TS
+side can pin that branch, so `go/template_format_test.go` does: every value both an `int`
+and a `float64` hold exactly must format identically. Beyond 2^53 the two genuinely differ
+— Go keeps the value, TS cannot — and that is now written down in `go/README.md` rather
+than left to be discovered.
 
 ---
 
