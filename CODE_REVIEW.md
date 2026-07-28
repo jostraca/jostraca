@@ -408,6 +408,51 @@ worse than no double, because it still reads as coverage. It now overrides both 
 
 ---
 
+## 2.4 Closing the loop: differential testing the option surface
+
+Three review rounds found fourteen defects on this branch. Reading back over them, the
+pattern is not subtle — **every single one needed a default, a degenerate value, or an
+option combination to reach.** None needed unusual file content.
+
+| defect | what it needed |
+|---|---|
+| `.` folder path strip | the DEFAULT folder |
+| leading-dot strip | a DOTFILE at the top level |
+| copy `visited` unwind | a symlink that is NOT an ancestor loop |
+| temp collision | a pre-existing file AT the temp path |
+| temp retry exhaustion | the retry limit REACHED |
+| `wx` cleanup | the exclusive create FAILING |
+| mode on unchanged | `mode` COMBINED with equal content |
+| mode on diff/merge | `mode` COMBINED with an existing-file mode |
+| dlog cursor | a FULL buffer |
+| empty inject marker | a DEGENERATE marker value |
+| fragment double-resolve | a RELATIVE non-`.` folder |
+
+The diff corpus (1 200 cases) and template corpus (471) vary *content* exhaustively while
+holding options at typical values. That is why they caught none of these — and why each one
+had to be found by a human or a bot reading code, one at a time.
+
+`ts/tools/scenario-corpus.js` inverts the axis: modest content, exhaustive options. It
+crosses output folder (unset, `.`, `out`, `./out`, absolute, nested) × existing-file mode
+(write, preserve, diff, merge, present, no-write, preserve+diff) × on-disk state (fresh,
+byte-identical, user-edited, empty) × filename shape (plain, dotfile, dotfile *and* its
+non-dot sibling, nested, two files) — 840 cases, each recording TS's whole output tree,
+replayed through Go and asserted byte-equal.
+
+It passed on first run, which is the point: the fixes had already brought the stacks into
+agreement, and that agreement is now pinned rather than incidental. Verified non-vacuous by
+reverting the leading-dot fix (12 cases fail) and by swapping the diff/merge branch order
+(fails).
+
+One detail worth recording, because it nearly made the corpus useless: memfs resolves a
+relative path against `process.cwd()`, so a first attempt rooted every folder under an
+absolute prefix — which meant the `.` axis was silently testing `/work/.` and not `.` at
+all, i.e. exactly the setting that produced the two worst defects was the one case still
+uncovered. The generator now passes relative folders through verbatim and strips the cwd
+prefix from the recorded keys instead.
+
+---
+
 ## 1. Executive summary
 
 The architecture is sound: a declarative define phase producing a node tree, a

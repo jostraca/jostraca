@@ -72,6 +72,13 @@ jobs:
       # implementations have to agree; same differential treatment.
       - name: Template engine matches TS byte-for-byte
         run: go test ./... -run TestTemplateCorpusMatchesTS -count=1 -v
+      # The option surface — folder, existing-file mode, on-disk state and
+      # filename shape, crossed. Every defect review found on this branch
+      # needed a default, a degenerate value or an option combination to
+      # reach, not unusual content; this is the axis the other two corpora
+      # hold fixed.
+      - name: Option surface matches TS byte-for-byte
+        run: go test ./... -run TestScenarioCorpusMatchesTS -count=1 -v
       # A short soak per target. The seed corpus already runs under
       # `go test`; this is what finds the next seed. A failure writes the
       # input to testdata/fuzz — commit it.

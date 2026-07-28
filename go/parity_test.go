@@ -366,6 +366,7 @@ var phaseShapedCorpora = map[string]struct{}{
 	"merge_retain":    {}, // covered by TestMergeRetainSequence
 	"diff_corpus":     {}, // covered by TestDiffCorpusMatchesTS
 	"template_corpus": {}, // covered by TestTemplateCorpusMatchesTS
+	"scenario_corpus": {}, // covered by TestScenarioCorpusMatchesTS
 }
 
 // scenarioMultiPhase holds runners that can't be expressed as a single

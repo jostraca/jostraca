@@ -171,6 +171,20 @@ function diffCorpus() {
   console.log('wrote diff_corpus (' + cases.length + ' cases)')
 }
 
+// Cross-stack differential corpus for the OPTION SURFACE — folder,
+// existing-file mode, on-disk state and filename shape, crossed. See
+// tools/scenario-corpus.js for why.
+async function scenarioCorpus() {
+  const { buildCorpus } = require('./scenario-corpus.js')
+  const cases = await buildCorpus()
+  fs.writeFileSync(
+    path.join(outDir, 'scenario_corpus.json'),
+    JSON.stringify({ scenario: 'scenario_corpus', cases }, null, 2) + '\n',
+  )
+  console.log('wrote scenario_corpus (' + cases.length + ' cases)')
+}
+
+
 // Cross-stack differential corpus for the template engine. See
 // tools/template-corpus.js for why it exists.
 function templateCorpus() {
@@ -186,6 +200,7 @@ function templateCorpus() {
 async function main() {
   diffCorpus()
   templateCorpus()
+  await scenarioCorpus()
 
   // Quickstart from the README.
   await snapshot('quickstart', {}, () => {
