@@ -2,7 +2,7 @@
 // leaves the user's existing file intact. Mirrors go/durability_test.go.
 
 import { test, describe } from 'node:test'
-import { expect } from './expect'
+import { expect, POSIX_MODES } from './expect'
 
 import Fs from 'node:fs'
 import Os from 'node:os'
@@ -149,8 +149,10 @@ describe('durability', () => {
         Project({ folder: 'p' }, () =>
           File({ name: 'run.sh' }, () => Content('#!/bin/sh\necho new\n'))))
 
-      const stat = Fs.statSync(target)
-      expect(0 !== (stat.mode & 0o111)).true()
+      // Skipped on Windows, which has no execute bit — see POSIX_MODES.
+      if (POSIX_MODES) {
+        expect(0 !== (Fs.statSync(target).mode & 0o111)).true()
+      }
       expect(Fs.readFileSync(target, 'utf8')).equal('#!/bin/sh\necho new\n')
 
       const stray = Fs.readdirSync(Path.dirname(target))

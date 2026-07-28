@@ -15,7 +15,7 @@
 // adding a scenario costs nothing and covers both paths by construction.
 
 import { test, describe } from 'node:test'
-import { expect } from './expect'
+import { expect, POSIX_MODES } from './expect'
 
 import Fs from 'node:fs'
 import Os from 'node:os'
@@ -307,13 +307,21 @@ describe('provider-parity', () => {
             File({ name: 'run.sh', mode: 0o755 }, () => Content(body))))
       }
 
+      const target = Path.join(h.folder, 'app', 'run.sh')
+
+      // The mode half is skipped on Windows, which has no execute bit
+      // (see POSIX_MODES); the rename half below is checked everywhere.
       await gen('#!/bin/sh\necho one\n')
-      const first = Fs.statSync(Path.join(h.folder, 'app', 'run.sh'))
-      expect(0 !== (first.mode & 0o111)).true()
+      if (POSIX_MODES) {
+        expect(0 !== (Fs.statSync(target).mode & 0o111)).true()
+      }
+      expect(Fs.readFileSync(target, 'utf8')).equal('#!/bin/sh\necho one\n')
 
       await gen('#!/bin/sh\necho two\n')
-      const second = Fs.statSync(Path.join(h.folder, 'app', 'run.sh'))
-      expect(0 !== (second.mode & 0o111)).true()
+      if (POSIX_MODES) {
+        expect(0 !== (Fs.statSync(target).mode & 0o111)).true()
+      }
+      expect(Fs.readFileSync(target, 'utf8')).equal('#!/bin/sh\necho two\n')
 
       // Rename swaps the inode; a leftover temp file means the swap did
       // not complete cleanly.

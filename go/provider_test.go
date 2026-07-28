@@ -385,12 +385,14 @@ func TestProviderFileModeSurvivesRegeneration(t *testing.T) {
 
 	target := filepath.Join(h.folder, "app", "run.sh")
 
+	// The mode half is skipped on Windows, which has no execute bit (see
+	// posixModes); the rename half below is checked everywhere.
 	gen("#!/bin/sh\necho one\n")
 	first, err := os.Stat(target)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if first.Mode()&0o111 == 0 {
+	if posixModes && first.Mode()&0o111 == 0 {
 		t.Fatalf("first write is not executable: %v", first.Mode())
 	}
 
@@ -399,8 +401,15 @@ func TestProviderFileModeSurvivesRegeneration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if second.Mode()&0o111 == 0 {
+	if posixModes && second.Mode()&0o111 == 0 {
 		t.Fatalf("regeneration dropped +x: %v", second.Mode())
+	}
+	body, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != "#!/bin/sh\necho two\n" {
+		t.Errorf("content: got %q", body)
 	}
 
 	// Rename swaps the inode; a leftover temp file means the swap did not

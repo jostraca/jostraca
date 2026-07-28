@@ -54,6 +54,7 @@ Fixed on this branch, each with regression tests in both stacks:
 | G12 | `File` takes a `mode` prop in both stacks, so a generated script can be executable |
 | **G17 / T24** | **resolved** — both stacks now run one shared diff/merge engine (`ts/src/diff.ts` ↔ `go/diff.go`), held byte-identical by a 1 200-case differential corpus, at 100% coverage on both sides, with `node-diff3` and `diff` dropped |
 | **T25 / G18** | **the template engine is now under the same differential corpus** — 471 cases, and it found six real divergences on the way in: inverted `eject` markers, JS number formatting, HTML escaping, object key order |
+| T26 | mode assertions skip on Windows, which has no execute bit — found the moment CI ran there for the first time (see §2.1) |
 
 Also corrected: `extract-parity.js`'s default output path (stale after the module
 flatten), and a stale "deviation" note in `go/README.md` claiming the Go 2-way diff render
@@ -267,6 +268,40 @@ I checked the suite is not decorative by breaking each stack's real-filesystem w
 confirming it fails: appending a byte in TS's `saveFile` when the path is under the temp
 dir fails 8/8 scenarios, and the same injection in Go's `OsFS.WriteFile` fails 8/8. That
 is the shape of defect T0 was, and it is now caught.
+
+---
+
+## 2.1 T26 — the first Windows run
+
+Fixing the CI workflows (§5.1) meant the TS matrix ran on Windows and macOS for the
+first time since the repo was restructured. macOS was clean. Windows failed four
+assertions, all one root cause: **Windows has no POSIX permission bits.** `fs.chmod`
+there only toggles the read-only attribute, and `fs.stat` always reports `0o666` —
+so a file created with `mode: 0o755` comes back as `0o666` (`438 !== 493` in the log),
+and nothing is wrong.
+
+Two of the four were pre-existing tests (`atomic-write-preserves-mode`,
+`file-mode-is-applied`) that had simply never executed on Windows. The other two were
+mine, added this branch.
+
+The `mode` feature itself degrades correctly — `chmod` does not error, it just has
+nothing to do — so the fix is in the tests, not the library. The narrowest thing that is
+untestable is the mode *assertion*, so that is what is guarded (`POSIX_MODES` in
+`ts/test/expect.ts`, `posixModes` in `go/platform_test.go`); the tests still run, and
+everything around the assertion — content written, atomic rename completed, no temp file
+left behind — is checked on every platform. Where a guarded test had no content
+assertion, I added one, so skipping the mode check does not leave it vacuous. Verified
+by forcing the flag false on Linux: 105 TS and 216 Go tests still pass, so the remaining
+assertions are real.
+
+Go's CI runs Linux only, but it had the same latent failure in six places and
+`GOOS=windows go vet` is already part of the build, so it is guarded symmetrically rather
+than left to be discovered. The platform limitation is now documented in
+`ts/REFERENCE.md` and `go/README.md` — `mode` was previously undocumented on the TS side
+entirely.
+
+This is the same lesson as T0 one level out: **a platform never exercised is a platform
+where anything may be true.** The suite was green on Linux for the entire review.
 
 ---
 

@@ -220,12 +220,19 @@ const SCENARIOS = [
                 const jostraca = (0, __1.Jostraca)({ now: () => START_TIME });
                 await jostraca.generate(h.opts(), () => (0, __1.Project)({ folder: 'app' }, () => (0, __1.File)({ name: 'run.sh', mode: 0o755 }, () => (0, __1.Content)(body))));
             };
+            const target = node_path_1.default.join(h.folder, 'app', 'run.sh');
+            // The mode half is skipped on Windows, which has no execute bit
+            // (see POSIX_MODES); the rename half below is checked everywhere.
             await gen('#!/bin/sh\necho one\n');
-            const first = node_fs_1.default.statSync(node_path_1.default.join(h.folder, 'app', 'run.sh'));
-            (0, expect_1.expect)(0 !== (first.mode & 0o111)).true();
+            if (expect_1.POSIX_MODES) {
+                (0, expect_1.expect)(0 !== (node_fs_1.default.statSync(target).mode & 0o111)).true();
+            }
+            (0, expect_1.expect)(node_fs_1.default.readFileSync(target, 'utf8')).equal('#!/bin/sh\necho one\n');
             await gen('#!/bin/sh\necho two\n');
-            const second = node_fs_1.default.statSync(node_path_1.default.join(h.folder, 'app', 'run.sh'));
-            (0, expect_1.expect)(0 !== (second.mode & 0o111)).true();
+            if (expect_1.POSIX_MODES) {
+                (0, expect_1.expect)(0 !== (node_fs_1.default.statSync(target).mode & 0o111)).true();
+            }
+            (0, expect_1.expect)(node_fs_1.default.readFileSync(target, 'utf8')).equal('#!/bin/sh\necho two\n');
             // Rename swaps the inode; a leftover temp file means the swap did
             // not complete cleanly.
             const stray = node_fs_1.default.readdirSync(node_path_1.default.join(h.folder, 'app'))

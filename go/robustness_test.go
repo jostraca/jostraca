@@ -174,11 +174,21 @@ func TestFileModeIsApplied(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Content is checked everywhere; the mode assertions are skipped on
+	// Windows, which has no execute bit — see posixModes.
+	body, err := os.ReadFile(filepath.Join(dir, "p", "run.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != "#!/bin/sh\necho hi\n" {
+		t.Errorf("run.sh content: got %q", body)
+	}
+
 	fi, err := os.Stat(filepath.Join(dir, "p", "run.sh"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if fi.Mode().Perm() != 0o755 {
+	if posixModes && fi.Mode().Perm() != 0o755 {
 		t.Errorf("run.sh mode = %v, want 0755", fi.Mode().Perm())
 	}
 
@@ -186,7 +196,7 @@ func TestFileModeIsApplied(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if fi.Mode().Perm()&0o111 != 0 {
+	if posixModes && fi.Mode().Perm()&0o111 != 0 {
 		t.Errorf("plain.txt should not be executable: %v", fi.Mode().Perm())
 	}
 }
@@ -214,11 +224,20 @@ func TestFileModeOverridesExisting(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	body, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != "new\n" {
+		t.Errorf("content: got %q", body)
+	}
+
 	fi, err := os.Stat(target)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if fi.Mode().Perm() != 0o755 {
+	// Skipped on Windows, which has no execute bit — see posixModes.
+	if posixModes && fi.Mode().Perm() != 0o755 {
 		t.Errorf("mode = %v, want 0755 (explicit Mode must win)", fi.Mode().Perm())
 	}
 }

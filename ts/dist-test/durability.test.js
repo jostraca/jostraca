@@ -101,8 +101,10 @@ function failWrites(base, failOn, message) {
             node_fs_1.default.chmodSync(target, 0o755);
             const jostraca = (0, __1.Jostraca)({ now: () => START_TIME });
             await jostraca.generate({ folder: dir }, () => (0, __1.Project)({ folder: 'p' }, () => (0, __1.File)({ name: 'run.sh' }, () => (0, __1.Content)('#!/bin/sh\necho new\n'))));
-            const stat = node_fs_1.default.statSync(target);
-            (0, expect_1.expect)(0 !== (stat.mode & 0o111)).true();
+            // Skipped on Windows, which has no execute bit — see POSIX_MODES.
+            if (expect_1.POSIX_MODES) {
+                (0, expect_1.expect)(0 !== (node_fs_1.default.statSync(target).mode & 0o111)).true();
+            }
             (0, expect_1.expect)(node_fs_1.default.readFileSync(target, 'utf8')).equal('#!/bin/sh\necho new\n');
             const stray = node_fs_1.default.readdirSync(node_path_1.default.dirname(target))
                 .filter(n => n.includes(TMP_SUFFIX));

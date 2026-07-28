@@ -281,6 +281,13 @@ file's mode on regeneration. Applies to the target only, not the
 write-then-rename via the optional `Chmod` capability on the `FS`
 interface (`OsFS` implements it; `MemFS` does not track modes).
 
+**Windows has no POSIX permission bits.** `os.Chmod` there only toggles the
+read-only attribute, so a `Mode` of `0o755` is accepted and silently has no
+effect beyond that — `Perm()` still reports `0o666`. Nothing errors; there
+is simply no execute bit to set. The tests skip their mode assertions on
+Windows (`posixModes` in `go/platform_test.go`, `POSIX_MODES` in
+`ts/test/expect.ts`) while still checking everything around them.
+
 ### Diff and merge
 
 `Diff`, `Merge`, `HasConflicts`, `Lines`, `LCS`, `AlignLCS` and `Hunks` in

@@ -137,7 +137,8 @@ func TestAtomicWritePreservesMode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if fi.Mode().Perm()&0o111 == 0 {
+	// Skipped on Windows, which has no execute bit — see posixModes.
+	if posixModes && fi.Mode().Perm()&0o111 == 0 {
 		t.Errorf("executable bit lost: mode now %v", fi.Mode().Perm())
 	}
 	body, _ := os.ReadFile(target)

@@ -182,12 +182,28 @@ File(props, children)
 |---|---|---|
 | `name` | `string` | File name including extension |
 | `exclude` | `boolean \| string \| (string \| RegExp)[]` | Exclude file from generation if it already exists |
+| `mode` | `number` | POSIX permission bits, e.g. `0o755` to make a script executable |
 
 ```typescript
 File({ name: 'config.json' }, () => {
   Content('{ "key": "value" }\n')
 })
+
+File({ name: 'run.sh', mode: 0o755 }, () => {
+  Content('#!/bin/sh\necho hi\n')
+})
 ```
+
+`mode` is left to the platform default when omitted. An explicit mode wins
+over the existing file's mode on regeneration, and is preserved across the
+atomic write-then-rename (which swaps the inode, so it has to be re-applied
+deliberately). It applies to the target only, not the `.old`/`.new`
+sidecars or the merge baseline.
+
+**Windows has no POSIX permission bits.** `fs.chmod` there only toggles the
+read-only attribute, so a `mode` of `0o755` is accepted and silently has no
+effect beyond that — `fs.stat` still reports `0o666`. Nothing errors; there
+is simply no execute bit to set.
 
 
 ### Content
