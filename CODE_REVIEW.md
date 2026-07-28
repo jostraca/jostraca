@@ -761,13 +761,19 @@ large inputs.
 
 ### 5.8 Recommendations, in order
 
-1. Fix both CI workflows (`working-directory: ts`; `./...` not `./jostraca`).
-2. Add `ts/**` to the `go-test.yml` trigger.
-3. Add a CI step that regenerates the parity corpus and fails on any diff.
-4. Turn the missing-runner skip into a failure, with a dated `knownGaps` allowlist.
-5. Delete or fix `expect(found || true).true()`.
-6. Add the §5.7 divergence classes as corpus scenarios.
-7. Generate the Go runners from a shared declarative spec instead of transcribing them.
+1. ✅ Fix both CI workflows (`working-directory: ts`; `./...` not `./jostraca`).
+2. ✅ Add `ts/**` to the `go-test.yml` trigger.
+3. ✅ Add a CI step that regenerates the parity corpus and fails on any diff.
+4. ✅ Turn the missing-runner skip into a failure, with a dated `knownGaps` allowlist.
+5. ✅ Delete or fix `expect(found || true).true()`.
+6. ✅ Add the §5.7 divergence classes as corpus scenarios.
+7. ⬜ Generate the Go runners from a shared declarative spec instead of transcribing
+   them. **Not done, and largely overtaken.** The two places where transcription actually
+   bit — the diff/merge engine and the template engine — are now covered by generated
+   differential corpora, which is the same idea applied where it pays. The remaining
+   hand-written scenario runners assert small, stable trees; converting them would be a
+   large mechanical change for a risk the corpora already carry. Worth revisiting if a
+   drifted runner is ever observed.
 
 ---
 
@@ -817,3 +823,47 @@ wall time and `runtime.MemStats.TotalAlloc` deltas.
 
 Claims I checked and did **not** report as defects are listed at the end of §2 and in
 §3.3.
+
+---
+
+## 8. Final state
+
+Every finding in this review is fixed except **T15**, which is documented above as a
+deliberate no-change.
+
+| | before | after |
+|---|---|---|
+| TS tests | 36 | 105 |
+| Go tests | 147 | 216 |
+| TS runtime dependencies | 2 (`node-diff3`, `diff`) | 0 |
+| CI workflows that run | 0 | 2 |
+| Parity scenarios | 17 | 32 + 2 generated corpora (1 200 diff, 471 template) |
+| Fuzz targets | 0 | 5 |
+| Diff engine coverage | not measured | 100% both stacks, gated |
+
+Gates, all in CI and all runnable locally:
+
+```
+make all         # build + test, both stacks
+make coverage    # diff engine at 100%, both stacks
+make mutation    # the corpus would notice if a load-bearing line changed
+make fuzz        # 30s per target; FUZZTIME=5m for a soak
+```
+
+**What actually found the bugs**, in rough order of yield — worth recording, because it is
+not the order I would have guessed:
+
+1. **Cross-stack differential corpora.** The single most productive technique here. The
+   diff/merge unification exposed a ~72% disagreement that six passing parity scenarios
+   had never touched; the template corpus found six live divergences in two rounds, one
+   of them a JS built-in quietly swapping its own arguments.
+2. **Using a production default in a test.** T0 — the library's primary documented use
+   case was broken, and surfaced only because one new test happened to write to a real
+   temp directory instead of the memfs double every other test injected.
+3. **Fuzzing.** Found a wrong *property* in under a second, which is the failure mode a
+   hand-written corpus structurally cannot catch: I do not write the inputs I did not
+   think of.
+4. **Mutation testing.** Found no bugs, and was still worth it: it disproved a claim I
+   had written into two source files about which lines were load-bearing.
+5. **Reading the code.** Most of the individual T- and G- findings. Reliable, but it
+   produced no surprises — every genuinely surprising defect came from running something.
