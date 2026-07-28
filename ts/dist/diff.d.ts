@@ -20,7 +20,7 @@ type DiffResult = {
     conflict: boolean;
     outcome: DiffOutcome;
 };
-declare function hasConflicts(text: string): boolean;
+declare function hasConflicts(text: string, existingLabel?: string): boolean;
 declare function lines(text: string): string[];
 declare function lcs(a: string[], b: string[]): string[];
 declare function alignLcs(base: string[], target: string[]): number[];

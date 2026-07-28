@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path"
 	"regexp"
+	"runtime"
 	"strings"
 	"unicode/utf8"
 )
@@ -109,8 +110,45 @@ func projectBefore(n *Node, st *jstate, b *buildCtx) error {
 // folder. A bare relative path used to be passed through literally, so it
 // resolved against the process working directory. Mirrors
 // ts/src/cmp/Fragment.ts.
+// isAbsFromPath mirrors node's Path.isAbsolute, which is PLATFORM
+// DISPATCHED — ts/src/cmp/Fragment.ts guards the same join with it.
+//
+// isAbsPath is slash-only, so on Windows a drive-absolute source such as
+// `C:/templates/page.html` was treated as relative and rewritten to
+// `<output>/C:/templates/page.html`; FragmentP then stat'd that and
+// rejected a file that exists. The Go CI job runs Linux only, and
+// path.Clean is slash-only on every platform, so nothing in the suite
+// could have caught it.
+//
+// filepath.IsAbs is NOT the right substitute: on Windows it reports false
+// for "/foo", where node's win32.isAbsolute reports true.
+func isAbsFromPath(p string) bool {
+	if p == "" {
+		return false
+	}
+	if p[0] == '/' {
+		return true
+	}
+	if runtime.GOOS != "windows" {
+		return false
+	}
+	if p[0] == '\\' {
+		return true
+	}
+	// Drive-ABSOLUTE ("C:/x", "c:\\x") only; drive-relative ("C:x") is not.
+	if len(p) >= 3 && isDriveLetter(p[0]) && p[1] == ':' &&
+		(p[2] == '/' || p[2] == '\\') {
+		return true
+	}
+	return false
+}
+
+func isDriveLetter(c byte) bool {
+	return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')
+}
+
 func resolveFragmentFrom(st *jstate, from string) string {
-	if from == "" || isAbsPath(from) {
+	if from == "" || isAbsFromPath(from) {
 		return from
 	}
 	folder := st.folder
@@ -328,7 +366,8 @@ func copyBefore(n *Node, st *jstate, b *buildCtx) error {
 	}
 	// Extension alone is not enough to know a file is safe to decode and
 	// re-encode as UTF-8; sniff the content too.
-	if !IsBinExt(from) && !IsBinContent(body) {
+	isBin := IsBinExt(from) || IsBinContent(body)
+	if !isBin {
 		out, err := Template(string(body), st.model, &TemplateSpec{Replace: n.Replace})
 		if err != nil {
 			return err
@@ -338,6 +377,12 @@ func copyBefore(n *Node, st *jstate, b *buildCtx) error {
 	n.After = &AfterRef{Kind: "file"}
 	n.FullPath = dest
 	n.Content = []string{string(body)}
+	// Record the sniff so copyAfter's save can honour it — save otherwise
+	// re-derives the classification from the extension and loses it.
+	if n.Meta == nil {
+		n.Meta = map[string]any{}
+	}
+	n.Meta["copyBinary"] = isBin
 	return nil
 }
 
@@ -347,6 +392,12 @@ func copyAfter(n *Node, st *jstate, b *buildCtx) error {
 	}
 	switch n.After.Kind {
 	case "file":
+		// Carry the sniff result recorded by copyBefore, so a
+		// content-detected binary with an unlisted extension is governed by
+		// existing.bin rather than existing.txt.
+		if bin, _ := n.Meta["copyBinary"].(bool); bin {
+			return b.fh.saveBinary(n.FullPath, []byte(n.Content[0]), "CopyOp:after")
+		}
 		return b.fh.save(n.FullPath, []byte(n.Content[0]), "CopyOp:after")
 	case "copy":
 		return copyWalk(n, st, b)
@@ -378,7 +429,7 @@ func copyWalk(n *Node, st *jstate, b *buildCtx) error {
 const maxCopyDepth = 64
 
 func walkCopy(b *buildCtx, st *jstate, from, to string, n *Node) error {
-	return walkCopyDepth(b, st, from, to, n, 0, map[string]struct{}{})
+	return walkCopyDepth(b, st, from, to, n, 0, map[string]struct{}{}, "")
 }
 
 // realpathOf resolves p to its canonical location when the provider can,
@@ -393,7 +444,7 @@ func realpathOf(fsys FS, p string) string {
 }
 
 func walkCopyDepth(b *buildCtx, st *jstate, from, to string, n *Node,
-	depth int, visited map[string]struct{}) error {
+	depth int, visited map[string]struct{}, rel string) error {
 
 	if depth > maxCopyDepth {
 		return fmt.Errorf("Copy: tree too deep (>%d), possible symlink cycle, path=%s",
@@ -420,7 +471,11 @@ func walkCopyDepth(b *buildCtx, st *jstate, from, to string, n *Node,
 	for _, e := range entries {
 		src := from + "/" + e.Name
 		dst := to + "/" + e.Name
-		if shouldIgnoreCopyPath(e.Name, n.Exclude, st.opts.Cmp.Copy.Ignore) {
+		entryRel := e.Name
+		if rel != "" {
+			entryRel = rel + "/" + e.Name
+		}
+		if shouldIgnoreCopyPath(e.Name, entryRel, n.Exclude, st.opts.Cmp.Copy.Ignore) {
 			continue
 		}
 		// ReadDir reports a symlink by the link's own type, so a symlinked
@@ -435,7 +490,7 @@ func walkCopyDepth(b *buildCtx, st *jstate, from, to string, n *Node,
 		}
 
 		if isDir {
-			if err := walkCopyDepth(b, st, src, dst, n, depth+1, visited); err != nil {
+			if err := walkCopyDepth(b, st, src, dst, n, depth+1, visited, entryRel); err != nil {
 				return err
 			}
 			continue
@@ -444,14 +499,19 @@ func walkCopyDepth(b *buildCtx, st *jstate, from, to string, n *Node,
 		if err != nil {
 			return err
 		}
-		if !IsBinExt(src) && !IsBinContent(body) {
+		isBin := IsBinExt(src) || IsBinContent(body)
+		if !isBin {
 			rendered, err := Template(string(body), st.model, &TemplateSpec{Replace: n.Replace})
 			if err != nil {
 				return err
 			}
 			body = []byte(rendered)
 		}
-		if err := b.fh.save(dst, body, "CopyOp:walk"); err != nil {
+		if isBin {
+			if err := b.fh.saveBinary(dst, body, "CopyOp:walk"); err != nil {
+				return err
+			}
+		} else if err := b.fh.save(dst, body, "CopyOp:walk"); err != nil {
 			return err
 		}
 	}
@@ -506,7 +566,21 @@ func injectExcluded(name string, exclude any) bool {
 	return false
 }
 
-func shouldIgnoreCopyPath(name string, exclude any, ignores []*regexp.Regexp) bool {
+// shouldIgnoreCopyPath decides whether a copy entry is skipped.
+//
+// The two kinds of rule match DIFFERENT things, mirroring
+// ts/src/op/CopyOp.ts:
+//
+//   - the built-in ignore rules (`~` backups, `-jostraca-off`) and the
+//     configured Cmp.Copy.Ignore regexes match the bare NAME, as TS's
+//     `ignored()` does;
+//   - the caller's Copy `exclude` entries match the SOURCE-RELATIVE PATH,
+//     as TS's `excludeFile()` does via `nodepath.concat(name).join('/')`.
+//
+// Matching excludes on the basename made `sub/a.txt` silently ineffective
+// in Go while TS honoured it, and made `a.txt` exclude every same-named
+// file at any depth in Go while TS excluded only the root one.
+func shouldIgnoreCopyPath(name, rel string, exclude any, ignores []*regexp.Regexp) bool {
 	if defaultCopyIgnoreRE.MatchString(name) {
 		return true
 	}
@@ -515,18 +589,21 @@ func shouldIgnoreCopyPath(name string, exclude any, ignores []*regexp.Regexp) bo
 			return true
 		}
 	}
+	if rel == "" {
+		rel = name
+	}
 	switch v := exclude.(type) {
 	case nil, bool:
 	case string:
-		if v == name {
+		if v == rel {
 			return true
 		}
 	case []any:
 		for _, x := range v {
-			if s, ok := x.(string); ok && s == name {
+			if s, ok := x.(string); ok && s == rel {
 				return true
 			}
-			if r, ok := x.(*regexp.Regexp); ok && r.MatchString(name) {
+			if r, ok := x.(*regexp.Regexp); ok && r.MatchString(rel) {
 				return true
 			}
 		}

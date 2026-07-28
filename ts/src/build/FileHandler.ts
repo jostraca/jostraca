@@ -628,14 +628,26 @@ class FileHandler {
     validPath(frompath, this.maxdepth, CN + FN + 'from:' + wstr)
     validPath(topath, this.maxdepth, CN + FN + 'to:' + wstr)
 
-    const isBinary = isbinext(frompath)
     // Canonical paths: use directly, do not re-join `this.folder` (see existsFile).
     const fulltopath = fwd(Path.normalize(topath))
     const fullfrompath = fwd(Path.normalize(frompath))
 
     try {
       const existed = fs.existsSync(fulltopath)
-      const content = fs.readFileSync(fullfrompath, isBinary ? undefined : 'utf8')
+
+      // Copy BYTES, always — never decode as UTF-8 first.
+      //
+      // This used to pick the encoding from `isbinext(frompath)`, i.e. from
+      // the extension alone. Content-sniffed binaries (T5) whose extension
+      // is not on the list therefore reached the `preserve` branch, which
+      // backs up via this method, and were decoded as UTF-8 on the way to
+      // the `.old` file: bytes `00 ff 02` were written as `00 ef bf bd 02`.
+      // The preserve option silently corrupted the only backup it existed
+      // to make.
+      //
+      // A copy has no reason to know the file type — bytes round-trip for
+      // text too — so the classification is simply gone.
+      const content = fs.readFileSync(fullfrompath)
 
       // ensureDir must stay inside the dryrun guard: a dry run must not
       // mutate the tree, and creating the destination folder is a mutation

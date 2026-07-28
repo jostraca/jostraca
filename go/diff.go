@@ -127,7 +127,27 @@ const unresolvedMark = markEnd + labelExisting + ":"
 // the opening marker was removed but the closing one was not, must still
 // count as unresolved rather than being re-merged.
 func HasConflicts(text string) bool {
-	return strings.Contains(text, unresolvedMark)
+	return HasConflictsLabel(text, "")
+}
+
+// HasConflictsLabel is HasConflicts with an explicitly-supplied custom
+// existing-label taken into account.
+//
+// writeConflict emits markEnd + whatever label was configured, so a file
+// conflicted under DiffLabels{Existing: "E"} contains no default sentinel
+// at all. Without this, Merge's unresolved guard did not fire and the
+// markers nested one level deeper on every run — exactly what the guard
+// exists to prevent.
+//
+// The default sentinel is a PREFIX (">>>>>>> EXISTING:") so it matches
+// whatever timestamp follows; the formatted default label would only match
+// a conflict written in the same millisecond, which is why the caller
+// passes the EXPLICIT label or nothing. Mirrors ts/src/diff.ts.
+func HasConflictsLabel(text, existingLabel string) bool {
+	if strings.Contains(text, unresolvedMark) {
+		return true
+	}
+	return existingLabel != "" && strings.Contains(text, markEnd+existingLabel)
 }
 
 func isoOf(when int64) string {
@@ -390,7 +410,13 @@ func Merge(generated, baseline, existing string, spec DiffSpec) MergeResult {
 
 	// Never merge into an unresolved merge — that stacks conflict markers
 	// inside conflict markers and is unreadable. Leave it for the user.
-	if HasConflicts(existing) {
+	// Pass the EXPLICIT custom label, not the formatted one: the formatted
+	// default carries a timestamp and would never match an older conflict.
+	customExisting := ""
+	if spec.Labels != nil {
+		customExisting = spec.Labels.Existing
+	}
+	if HasConflictsLabel(existing, customExisting) {
 		return MergeResult{Content: existing, Outcome: MergeUnresolved}
 	}
 

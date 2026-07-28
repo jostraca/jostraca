@@ -109,8 +109,26 @@ const UNRESOLVED_MARK = MARK_END + LABEL_EXISTING + ':'
 // Keyed on the closing EXISTING marker alone: a half-resolved file, where
 // the opening marker was removed but the closing one was not, must still
 // count as unresolved rather than being re-merged.
-function hasConflicts(text: string): boolean {
-  return text.includes(UNRESOLVED_MARK)
+//
+// The `existingLabel` argument matters when the caller supplied a custom
+// one: `writeConflict` emits `>>>>>>> ` + whatever label was configured, so
+// a file conflicted under `labels.existing = 'E'` does not contain the
+// default sentinel at all. Without it, merge's unresolved guard did not
+// fire and the markers nested one level deeper on every run — exactly what
+// the guard exists to prevent.
+//
+// Detection only holds when the SAME existing label is used across runs. A
+// caller that changes its labels between generations cannot expect an older
+// conflict to be recognised, and the default is unchanged for callers that
+// never set one.
+function hasConflicts(text: string, existingLabel?: string): boolean {
+  // The default sentinel is a PREFIX (`>>>>>>> EXISTING:`), so it matches
+  // whatever timestamp follows. Checking the fully-formatted label instead
+  // would only match a conflict written in the same millisecond.
+  if (text.includes(UNRESOLVED_MARK)) {
+    return true
+  }
+  return null != existingLabel && text.includes(MARK_END + existingLabel)
 }
 
 
@@ -385,13 +403,15 @@ function merge(
     return { content: generated, conflict: false, outcome: 'clean' }
   }
 
+  const labels = labelsOf(spec, 'merge')
+
   // Never merge into an unresolved merge — that stacks conflict markers
   // inside conflict markers and is unreadable. Leave it for the user.
-  if (hasConflicts(existing)) {
+  // Pass the EXPLICIT custom label, not the formatted one: the formatted
+  // default carries a timestamp and would never match an older conflict.
+  if (hasConflicts(existing, spec?.labels?.existing)) {
     return { content: existing, conflict: false, outcome: 'unresolved' }
   }
-
-  const labels = labelsOf(spec, 'merge')
 
   const gl = lines(generated)
   const bl = lines(baseline)

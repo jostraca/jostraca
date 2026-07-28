@@ -122,17 +122,40 @@ func (fh *fileHandler) save(p string, content []byte, whence string) error {
 	return fh.saveMode(p, content, whence, 0)
 }
 
+// saveBinary is save for content already KNOWN to be binary, whatever its
+// extension says.
+//
+// Copy sniffs content for NUL bytes so an unlisted extension (.wasm and
+// friends) is still treated as binary for templating — but save then
+// re-derived the classification from the destination path alone and threw
+// that knowledge away. A sniffed binary therefore took the `existing.txt`
+// mode set: with txt.diff on, a diff render wrote textual conflict markers
+// into binary data, and bin.preserve was ignored entirely.
+//
+// TS does not need this because its Buffer-vs-string argument type carries
+// the bit; Go's []byte cannot, so it is an explicit parameter.
+func (fh *fileHandler) saveBinary(p string, content []byte, whence string) error {
+	return fh.saveClassified(p, content, whence, 0, false)
+}
+
 // saveMode is save with explicit POSIX permission bits for the target.
 // Zero means unset. The bits apply to the target only — the .old/.new
 // sidecars and the merge baseline stay at the provider default, since they
 // are jostraca's bookkeeping rather than the user's output.
 func (fh *fileHandler) saveMode(p string, content []byte, whence string, mode fs.FileMode) error {
+	return fh.saveClassified(p, content, whence, mode, !IsBinExt(p))
+}
+
+// saveClassified is saveMode with the text/binary decision supplied rather
+// than derived from the path. See saveBinary.
+func (fh *fileHandler) saveClassified(
+	p string, content []byte, whence string, mode fs.FileMode, isText bool,
+) error {
 	if p == "" {
 		return ErrInvalidPath
 	}
 	p = fwd(p)
 	rpath := fh.relative(p)
-	isText := !IsBinExt(p)
 	modes := fh.modesFor(isText)
 
 	exists := fh.fs.Exists(p)

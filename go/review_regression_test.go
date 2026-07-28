@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -709,5 +710,90 @@ func TestMemFSExclusiveCreateRefusesDirectory(t *testing.T) {
 	}
 	if !fi.IsDir {
 		t.Error("the directory was replaced by a synthetic file")
+	}
+}
+
+// U5. Copy `exclude` entries must match the SOURCE-RELATIVE PATH, as TS
+// does, not the bare basename. `sub/a.txt` was silently ineffective in Go,
+// and `a.txt` excluded every same-named file at any depth here while
+// excluding only the root one in TS.
+func TestCopyExcludeMatchesRelativePath(t *testing.T) {
+	for _, tc := range []struct {
+		exclude any
+		want    []string
+	}{
+		{[]any{"sub/a.txt"}, []string{"/out/p/lib/a.txt"}},
+		{[]any{"a.txt"}, []string{"/out/p/lib/sub/a.txt"}},
+	} {
+		mem := NewMemFS()
+		if err := mem.WriteFile("/src/a.txt", []byte("ROOT\n")); err != nil {
+			t.Fatal(err)
+		}
+		if err := mem.WriteFile("/src/sub/a.txt", []byte("NESTED\n")); err != nil {
+			t.Fatal(err)
+		}
+
+		j := New(WithFS(mem), WithFolder("/out"),
+			WithNow(func() int64 { return revWhen }))
+		if _, err := j.Generate(Options{}, func(j *J) {
+			j.Project(ProjectProps{Folder: "p"}, func(j *J) {
+				j.Copy(CopyProps{From: "/src", To: "lib", Exclude: tc.exclude})
+			})
+		}); err != nil {
+			t.Fatal(err)
+		}
+
+		var got []string
+		for k := range mem.Vol() {
+			if strings.HasPrefix(k, "/out/p/lib") {
+				got = append(got, k)
+			}
+		}
+		sort.Strings(got)
+		if strings.Join(got, ",") != strings.Join(tc.want, ",") {
+			t.Errorf("exclude=%v: got %v, want %v", tc.exclude, got, tc.want)
+		}
+	}
+}
+
+// U3. A content-sniffed binary must be governed by existing.bin, not
+// existing.txt. save re-derived the classification from the extension and
+// lost the sniff, so with txt.diff on, a diff render wrote textual conflict
+// markers into binary data.
+func TestSniffedBinaryUsesBinaryModes(t *testing.T) {
+	binary := []byte{0x00, 0xff, 0x02, 0x00}
+	tr := true
+
+	mem := NewMemFS()
+	if err := mem.WriteFile("/src/data.txt", binary); err != nil {
+		t.Fatal(err)
+	}
+	if err := mem.WriteFile("/out/p/data.txt", []byte{0x00, 0xfe, 0x03}); err != nil {
+		t.Fatal(err)
+	}
+
+	j := New(WithFS(mem), WithFolder("/out"),
+		WithNow(func() int64 { return revWhen }))
+	if _, err := j.Generate(Options{
+		// txt.diff would write conflict markers; bin.write must win.
+		Existing: Existing{
+			Txt: ExistingTxt{Diff: &tr},
+			Bin: ExistingBin{Write: &tr},
+		},
+	}, func(j *J) {
+		j.Project(ProjectProps{Folder: "p"}, func(j *J) {
+			j.Copy(CopyProps{From: "/src/data.txt", To: "data.txt"})
+		})
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	got := mem.Vol()["/out/p/data.txt"]
+	if strings.Contains(string(got), ">>>>>>>") ||
+		strings.Contains(string(got), "<<<<<<<") {
+		t.Errorf("conflict markers written into binary data: %q", got)
+	}
+	if string(got) != string(binary) {
+		t.Errorf("binary content = % x, want % x", got, binary)
 	}
 }

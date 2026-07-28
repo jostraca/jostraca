@@ -58,6 +58,8 @@ Fixed on this branch, each with regression tests in both stacks:
 | **R1–R9** | **nine defects an automated reviewer found on the PR, all verified with reproductions and all real** (see §2.2) |
 | **R10–R14** | **a second review round on the fixes themselves: four more real defects, one refuted** (see §2.3) |
 | **S1–S4** | **a third round: four more, two of them containment/cleanup defects older than this branch** (see §2.5) |
+| S5 | a cross-stack divergence in the containment check, found by self-check rather than review (see §2.6) |
+| **U1–U5** | **a fourth round: five more — fixes that changed one code path and left its siblings on the old assumption** (see §2.7) |
 
 Also corrected: `extract-parity.js`'s default output path (stale after the module
 flatten), and a stale "deviation" note in `go/README.md` claiming the Go 2-way diff render
@@ -526,6 +528,43 @@ Worth naming the general point: **two functions written to mirror each other are
 reliable place to assume agreement**, because the mirroring is done by hand and the
 reviewer's eye slides over it. The corpora catch this where behaviour is platform-neutral;
 where it is not, only a table asserted on both sides does.
+
+---
+
+## 2.7 U1–U5 — incomplete fixes
+
+The fourth round has a different character from the second and third. Those attacked the
+most recent fix commit. These attack the *earlier* fixes, and every one is the same shape:
+**a change that correctly altered one code path and left its siblings on the old
+assumption.**
+
+| id | defect | origin |
+|---|---|---|
+| U1 | T5's content sniffing routed extension-unlisted binaries into `existing.bin`, making `preserve` reachable — but the preserve branch backs up via `copyFile`, which still chose its encoding from the extension, so the `.old` backup was UTF-8 mangled: `00 ff 02` written as `00 ef bf bd 02` | pre-existing |
+| U2 | `resolveFragmentFrom` treats `C:/templates/x.html` as relative, rewriting it under the output folder and rejecting a file that exists | this branch |
+| U3 | Go's copy sniffs binary correctly, then `save` re-derives the classification from the extension and loses it — so a `.wasm` was governed by `existing.txt`, and `txt.diff` wrote conflict markers into binary data | pre-existing |
+| U4 | `hasConflicts` hard-codes `>>>>>>> EXISTING:`, so a file conflicted under custom labels was not recognised as unresolved and got re-merged, nesting markers one level deeper per run | this branch |
+| U5 | TS matches copy `exclude` against the source-relative path, Go against the basename — `sub/a.txt` silently ineffective in Go, `a.txt` over-broad | pre-existing |
+
+**U1 is the sharpest illustration.** T5 fixed the primary output — the target is now
+byte-exact — while leaving the sidecar wrong. The branch converted *"everything corrupted,
+consistently"* into *"target correct, backup silently corrupt"*, which is arguably worse to
+diagnose. `copyFile` no longer knows or cares about file type: a copy copies bytes.
+
+**U3 is the same defect one stack over**, and shows why the Buffer-vs-string distinction in
+TS was load-bearing: it carried the classification implicitly. Go's `[]byte` cannot, so the
+bit has to be passed explicitly — `saveBinary` now does.
+
+**U2 is the third Windows-only defect on this branch**, after the mode assertions and the
+backslash containment gap. Go's CI runs Linux only and `path.Clean` is slash-only on every
+platform, so no test could have caught it. The pattern is consistent enough to state
+plainly: *this project's Go port has a Windows blind spot that no current gate closes.*
+
+**What none of the corpora could catch.** All five are either single-stack (U1, U4 nesting),
+platform-specific (U2), or a divergence the corpora do not exercise because they never set
+the relevant option (U3's `bin` modes, U5's `exclude`). The option-surface corpus added in
+§2.4 crosses folder × existing-mode × state × filename — it does not cross `Copy.exclude`
+or `existing.bin`, and extending it there is the obvious next increment.
 
 ---
 
@@ -1093,7 +1132,7 @@ deliberate no-change.
 | | before | after |
 |---|---|---|
 | TS tests | 36 | 118 |
-| Go tests | 147 | 235 |
+| Go tests | 147 | 236 |
 | TS runtime dependencies | 2 (`node-diff3`, `diff`) | 0 |
 | CI workflows that run | 0 | 2 |
 | Parity scenarios | 17 | 32 + 2 generated corpora (1 200 diff, 471 template) |
