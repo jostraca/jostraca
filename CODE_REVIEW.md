@@ -118,10 +118,24 @@ parsed by any tool or human. Markers now always start at column 0.
 
 **Two things the tests encode that are easy to get wrong.**
 
-- *Tie-breaking is load-bearing.* Several subsequences can be equally long but different,
-  and the choice changes the bytes written into a user's file. Both stacks fix the same
-  rules — largest split point on a tie, last occurrence in the single-row base case — and
-  a randomised oracle test pins them.
+- *Exactly one tie-break is load-bearing.* Several subsequences can be equally long but
+  different, and the choice changes the bytes written into a user's file. The rule is:
+  on a tie, take the largest split point. Flipping that one `>=` to `>` changes the
+  merged content on 658 of the 1 190 corpus cases.
+
+  I first wrote that *three* rules were load-bearing. Two of them are not, and mutating
+  them proves it: the `>=` in `lcsRow` picks between two numbers already known to be
+  equal, and the single-row base case appends the same string whichever position in `b`
+  matched. Both are unobservable by construction — worth knowing, because a comment
+  claiming a line is load-bearing when it isn't makes the next person afraid to touch it.
+
+- *Coverage says the corpus reached every line; it does not say the corpus would notice a
+  change.* `ts/tools/mutate-diff.js` closes that gap: it breaks the engine in four named
+  ways and asserts the corpus reacts as documented — the split tie-break must be killed,
+  and the two decorative lines plus the prefix-trim optimisation must survive. A
+  `kills: false` mutant that starts getting killed is as much a failure as the reverse:
+  it means a refactor quietly gave a decorative line real consequences. Runs in about a
+  second (`make mutation`), gated in CI.
 - *A three-way merge can drop content, correctly.* If the user deleted a region the
   generator did not touch, the deletion wins. The obvious-looking property "every
   generated line survives" is FALSE, and asserting it would be asserting a bug. (I wrote

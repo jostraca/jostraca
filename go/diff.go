@@ -24,10 +24,17 @@ import (
 //   - Split the three inputs into regions around the lines that survive in
 //     both, and reconcile each region (the classic diff3 shape).
 //
-// Tie-breaking is load-bearing. Several subsequences can be equally long
-// but different, and the choice changes the bytes written into a user's
-// file, so both stacks fix the same rules: prefer the largest split point
-// on a tie, and take the last occurrence in the single-row base case.
+// Exactly one tie-break is load-bearing: on a tie, take the LARGEST split
+// point. Several subsequences can be equally long but different, and that
+// choice decides which of a user's lines are reported as kept, so both
+// stacks fix the same rule.
+//
+// Two nearby lines look like tie-breaks and are not — the `>=` in lcsRow,
+// which picks between two numbers already known to be equal, and the
+// direction of the single-row base-case scan, which appends the same
+// string whichever position matched. ts/tools/mutate-diff.js asserts all
+// three claims against the corpus, including that the two decorative ones
+// really are decorative.
 
 // --- Public types ---------------------------------------------------------
 
@@ -209,8 +216,11 @@ func hirschberg(a, b, out []string) []string {
 	}
 
 	if len(a) == 1 {
-		// A full-table walk starts at the end of b and steps back, so it
-		// lands on the LAST occurrence. Match that.
+		// Scanning backwards mirrors how a full-table walk recovers the
+		// LCS (it starts at the end of b and steps back), which keeps this
+		// readable against the oracle in the tests. It is not a tie-break:
+		// a[0] is appended whichever position matched, so first and last
+		// occurrence produce the same string.
 		for i := len(b) - 1; i >= 0; i-- {
 			if b[i] == a[0] {
 				return append(out, a[0])
@@ -223,8 +233,9 @@ func hirschberg(a, b, out []string) []string {
 	headRow := lcsRow(a[:mid], b, false)
 	tailRow := lcsRow(a[mid:], b, true)
 
-	// `>=` so a tie takes the LARGEST split. Using `>` here silently changes
-	// merge output; see the tie-breaking note at the top of this file.
+	// `>=` so a tie takes the LARGEST split. This is THE load-bearing
+	// tie-break: changing it to `>` changes the merged content on 658 of
+	// the 1 190 corpus cases. See the note at the top of this file.
 	best, split := -1, 0
 	for k := 0; k <= len(b); k++ {
 		if sum := headRow[k] + tailRow[len(b)-k]; sum >= best {
@@ -257,6 +268,8 @@ func lcsRow(a, b []string, reverse bool) []int {
 		for j := 0; j < len(b); j++ {
 			if ai == at(b, j) {
 				cur[j+1] = prev[j] + 1
+				// max(prev[j+1], cur[j]). The `>=` is not a tie-break: on
+				// a tie both branches assign the same number.
 			} else if prev[j+1] >= cur[j] {
 				cur[j+1] = prev[j+1]
 			} else {

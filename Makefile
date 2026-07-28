@@ -1,4 +1,4 @@
-.PHONY: all build test clean build-ts build-go test-ts test-go clean-ts clean-go publish-go tags-go reset coverage coverage-ts coverage-go
+.PHONY: all build test clean build-ts build-go test-ts test-go clean-ts clean-go publish-go tags-go reset coverage coverage-ts coverage-go mutation
 
 all: build test
 
@@ -24,6 +24,12 @@ coverage-ts:
 
 coverage-go:
 	cd go && ./check_diff_coverage.sh
+
+# Coverage says the corpus reached every line. Mutation says it would
+# notice if a line changed meaning — including which lines that look like
+# decisions genuinely are not.
+mutation:
+	cd ts && npm run test-diff-mutation
 
 clean-ts:
 	cd ts && rm -rf dist dist-test

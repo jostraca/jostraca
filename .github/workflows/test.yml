@@ -36,3 +36,8 @@ jobs:
 
       - name: Diff engine coverage is 100%
         run: npm run test-diff-coverage
+
+      # Coverage proves the corpus reached every line; this proves it would
+      # notice if a line changed meaning.
+      - name: Diff engine mutation check
+        run: npm run test-diff-mutation

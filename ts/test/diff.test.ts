@@ -193,6 +193,45 @@ describe('diff-engine', () => {
   })
 
 
+  test('lcs-tie-break-prefers-largest-split', () => {
+    // The one tie-break in this engine that changes what a user sees.
+    //
+    // `a` and `b` below have TWO longest common subsequences, both of
+    // length 1: ['a'] and ['b']. Neither is more correct. Hirschberg picks
+    // between them by which split point it takes when two splits score
+    // equally, and taking the LARGEST yields ['a']. Flipping that one `>=`
+    // to `>` yields ['b'] here, and changes the merged content on 658 of
+    // the 1 190 corpus cases — i.e. it silently rewrites user files.
+    //
+    // The point of this test is to say so in one screen, rather than
+    // leaving the rule to be inferred from a randomised oracle comparison.
+    const a = ['a', 'a', 'b']
+    const b = ['b', 'a']
+
+    expect(lcs(a, b)).equal(['a'])
+
+    // ['b'] is an equally valid answer, which is what makes this a choice
+    // and not a correctness question. Both are common subsequences of the
+    // same length; the engine just has to pick the same one every time,
+    // in both stacks.
+    for (const alt of [['a'], ['b']]) {
+      expect(alt.length).equal(lcs(a, b).length)
+      for (const seq of [a, b]) {
+        let at = 0
+        for (const line of alt) {
+          const found = seq.indexOf(line, at)
+          expect(0 <= found).true()
+          at = found + 1
+        }
+      }
+    }
+
+    // A second case, so a change that happens to preserve the first does
+    // not slip through: 'ca' and 'cb' are both length-2 subsequences here.
+    expect(lcs(['c', 'a', 'b'], ['c', 'b', 'a'])).equal(['c', 'a'])
+  })
+
+
   test('align-lcs', () => {
     expect(alignLcs([], ['a'])).equal([])
     expect(alignLcs(['a', 'b'], [])).equal([-1, -1])

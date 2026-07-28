@@ -27,7 +27,8 @@
     "repo-publish": "npm run clean && npm i && npm run repo-publish-quick",
     "repo-publish-quick": "npm run build && npm run test && npm run repo-tag && npm stage publish --registry https://registry.npmjs.org --access=public",
     "test-coverage": "node --enable-source-maps --test --experimental-test-coverage dist-test/**/*.test.js",
-    "test-diff-coverage": "node tools/check-diff-coverage.js"
+    "test-diff-coverage": "node tools/check-diff-coverage.js",
+    "test-diff-mutation": "node tools/mutate-diff.js"
   },
   "license": "MIT",
   "files": [
