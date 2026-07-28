@@ -797,3 +797,79 @@ func TestSniffedBinaryUsesBinaryModes(t *testing.T) {
 		t.Errorf("binary content = % x, want % x", got, binary)
 	}
 }
+
+// Nesting must not change what a Copy `exclude` means. TS used to prefix
+// the exclude base with the enclosing Folder chain — an artifact of which
+// prop each component happens to use — so the same option needed a
+// different spelling depending on where the Copy sat. Both stacks are now
+// source-relative. Mirrors
+// ts/test/robustness.test.ts:copy-exclude-is-source-relative-at-any-nesting.
+func TestCopyExcludeIsSourceRelativeWhenNested(t *testing.T) {
+	for _, tc := range []struct {
+		exclude any
+		want    []string
+	}{
+		{[]any{"sub/a.txt"}, []string{"a.txt"}},
+		{[]any{"a.txt"}, []string{"sub/a.txt"}},
+	} {
+		mem := NewMemFS()
+		if err := mem.WriteFile("/src/a.txt", []byte("ROOT\n")); err != nil {
+			t.Fatal(err)
+		}
+		if err := mem.WriteFile("/src/sub/a.txt", []byte("NESTED\n")); err != nil {
+			t.Fatal(err)
+		}
+
+		j := New(WithFS(mem), WithFolder("/out"),
+			WithNow(func() int64 { return revWhen }))
+		if _, err := j.Generate(Options{}, func(j *J) {
+			j.Project(ProjectProps{Folder: "p"}, func(j *J) {
+				j.Folder("outer", func(j *J) {
+					j.Copy(CopyProps{From: "/src", To: "lib", Exclude: tc.exclude})
+				})
+			})
+		}); err != nil {
+			t.Fatal(err)
+		}
+
+		const base = "/out/p/outer/lib/"
+		var got []string
+		for k := range mem.Vol() {
+			if strings.HasPrefix(k, base) {
+				got = append(got, strings.TrimPrefix(k, base))
+			}
+		}
+		sort.Strings(got)
+		if strings.Join(got, ",") != strings.Join(tc.want, ",") {
+			t.Errorf("nested exclude=%v: got %v, want %v", tc.exclude, got, tc.want)
+		}
+	}
+}
+
+// A conflict written under a CUSTOM label must be recognised on the next
+// run — but the check must match the COMPLETE marker, or the label is
+// treated as a prefix and an ordinary line like ">>>>>>> Example"
+// suppresses a legitimate regeneration.
+func TestUnresolvedDetectionWithCustomLabels(t *testing.T) {
+	spec := DiffSpec{Labels: &DiffLabels{Generated: "G", Existing: "E"}}
+
+	first := Merge("NEW\n", "OLD\n", "USER\n", spec)
+	if !first.Conflict {
+		t.Fatal("expected a conflict to set up the test")
+	}
+	again := Merge("NEWER\n", "OLD\n", first.Content, spec)
+	if again.Outcome != MergeUnresolved {
+		t.Errorf("re-merge outcome = %q, want unresolved", again.Outcome)
+	}
+
+	innocent := Merge("NEW\n", "OLD\n", "a\n>>>>>>> Example\nb\n", spec)
+	if innocent.Outcome == MergeUnresolved {
+		t.Errorf("a label PREFIX match suppressed regeneration: %q", innocent.Content)
+	}
+
+	// The default sentinel still matches whatever timestamp follows.
+	dflt := Merge("NEW\n", "OLD\n", "a\n>>>>>>> EXISTING: T/merge\n", DiffSpec{})
+	if dflt.Outcome != MergeUnresolved {
+		t.Errorf("default sentinel outcome = %q, want unresolved", dflt.Outcome)
+	}
+}

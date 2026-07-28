@@ -128,7 +128,14 @@ function hasConflicts(text: string, existingLabel?: string): boolean {
   if (text.includes(UNRESOLVED_MARK)) {
     return true
   }
-  return null != existingLabel && text.includes(MARK_END + existingLabel)
+  // Match the COMPLETE emitted marker, including its newline. A bare
+  // substring check on `MARK_END + label` treats a custom label as a
+  // prefix, so label `E` matched an ordinary line `>>>>>>> Example` and
+  // merge returned `unresolved` — silently suppressing a legitimate
+  // regeneration over a marker the engine never emitted. writeConflict
+  // always appends '\n', so the newline is safe to require.
+  return null != existingLabel &&
+    text.includes(MARK_END + existingLabel + '\n')
 }
 
 

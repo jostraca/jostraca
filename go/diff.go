@@ -147,7 +147,12 @@ func HasConflictsLabel(text, existingLabel string) bool {
 	if strings.Contains(text, unresolvedMark) {
 		return true
 	}
-	return existingLabel != "" && strings.Contains(text, markEnd+existingLabel)
+	// Match the COMPLETE emitted marker, including its newline — a bare
+	// substring check treats a custom label as a prefix, so label "E"
+	// matched an ordinary line ">>>>>>> Example". writeConflict always
+	// appends "\n", so requiring it is safe.
+	return existingLabel != "" &&
+		strings.Contains(text, markEnd+existingLabel+"\n")
 }
 
 func isoOf(when int64) string {

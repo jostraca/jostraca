@@ -60,6 +60,7 @@ Fixed on this branch, each with regression tests in both stacks:
 | **S1–S4** | **a third round: four more, two of them containment/cleanup defects older than this branch** (see §2.5) |
 | S5 | a cross-stack divergence in the containment check, found by self-check rather than review (see §2.6) |
 | **U1–U5** | **a fourth round: five more — fixes that changed one code path and left its siblings on the old assumption** (see §2.7) |
+| **V1–V2** | **a fifth round: two, both introduced by the fourth round's own fixes** (see §2.8) |
 
 Also corrected: `extract-parity.js`'s default output path (stale after the module
 flatten), and a stale "deviation" note in `go/README.md` claiming the Go 2-way diff render
@@ -565,6 +566,65 @@ platform-specific (U2), or a divergence the corpora do not exercise because they
 the relevant option (U3's `bin` modes, U5's `exclude`). The option-surface corpus added in
 §2.4 crosses folder × existing-mode × state × filename — it does not cross `Copy.exclude`
 or `existing.bin`, and extending it there is the obvious next increment.
+
+---
+
+## 2.8 V1–V2 — and where this stops
+
+The fifth pass found two, both introduced by the fourth round's fixes:
+
+- **A prefix match where a whole match was needed.** The custom-label conflict check used
+  `text.includes(MARK_END + label)`, so label `E` matched an ordinary line
+  `>>>>>>> Example` and `merge` returned `unresolved` — silently suppressing a legitimate
+  regeneration over a marker the engine never emitted. `writeConflict` always appends a
+  newline, so requiring it makes the match exact.
+- **A parity fix that created a different parity gap.** Making Go's copy `exclude`
+  source-relative left TS seeding its walk with `node.path`, so a `Copy` nested one
+  `Folder` deep needed `outer/sub/a.txt` while the same `Copy` at the top needed
+  `sub/a.txt`.
+
+That second one is worth stating carefully, because the resolution went against the usual
+rule. TS's exclude base was an **artifact**: `Folder` contributes a path segment because it
+has a `name`, `Project` does not because it has a `folder`, and the Copy's own `to` does not
+because it is read as a name later, at op time. So the option's spelling depended on where
+the component sat in the *output* tree rather than on the source being copied. Nobody could
+depend on that deliberately. This is the `CLAUDE.md` exception — the port pre-empted a
+latent TS bug — so TS was corrected to match Go rather than the reverse.
+
+### The arc
+
+| round | confirmed | introduced by this branch |
+|---|---|---|
+| 1 | 9 | 8 |
+| 2 | 4 | 3 |
+| 3 | 4 | 2 |
+| 4 | 5 | 2 |
+| 5 | 2 | 2 |
+
+Twenty-four confirmed defects, plus one found by self-check. The branch-introduced count
+falls 8 → 3 → 2 → 2 → 2 and the *severity* falls with it: round one had two P1
+data-integrity bugs reachable by default configuration; round five has a marker-prefix false
+positive and an option-spelling inconsistency.
+
+**The honest reading is that fixing code introduces defects at a fairly stable rate**, and
+no amount of reviewing converges to zero — it converges to *small*. The stopping rule that
+follows is not "no findings" but "no findings that a user would notice", and this is the
+first round to meet it.
+
+**What each technique actually caught**, since the totals are now large enough to say:
+
+| technique | found | characteristic |
+|---|---|---|
+| adversarial review of the diff | 24 | defaults, degenerate values, option combinations, incomplete fixes |
+| cross-stack differential corpora | ~8 (at build time) | platform-neutral behaviour divergence |
+| self-check against a boundary table | 1 | a divergence the corpora structurally cannot see |
+| fuzzing | 1 (a wrong property) | inputs nobody would write |
+| mutation testing | 0 defects, 1 false claim | whether the tests would notice |
+
+The corpora are the cheapest ongoing insurance and caught the most *at build time*, but
+every defect found after the corpora existed was found by review or self-check — because
+the corpora test what both stacks do *identically*, and most remaining defects are
+single-stack, platform-specific, or turn on an option nothing sets.
 
 ---
 
@@ -1131,8 +1191,8 @@ deliberate no-change.
 
 | | before | after |
 |---|---|---|
-| TS tests | 36 | 118 |
-| Go tests | 147 | 236 |
+| TS tests | 36 | 120 |
+| Go tests | 147 | 238 |
 | TS runtime dependencies | 2 (`node-diff3`, `diff`) | 0 |
 | CI workflows that run | 0 | 2 |
 | Parity scenarios | 17 | 32 + 2 generated corpora (1 200 diff, 471 template) |

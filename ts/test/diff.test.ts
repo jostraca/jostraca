@@ -623,4 +623,24 @@ describe('diff-engine', () => {
     expect(ms < 30000).true()
   })
 
+  test('unresolved-detection-with-custom-labels', () => {
+    // A conflict written under a CUSTOM label must be recognised on the
+    // next run, or the markers nest one level deeper every time.
+    const first = merge('NEW\n', 'OLD\n', 'USER\n', L)
+    expect(first.conflict).true()
+    const again = merge('NEWER\n', 'OLD\n', first.content, L)
+    expect(again.outcome).equal('unresolved')
+    expect(again.content).equal(first.content)
+
+    // ...but the check must match the COMPLETE marker. A bare substring
+    // test treats the label as a prefix, so `E` matched an ordinary line
+    // `>>>>>>> Example` and suppressed a legitimate regeneration.
+    const innocent = merge('NEW\n', 'OLD\n', 'a\n>>>>>>> Example\nb\n', L)
+    expect(innocent.outcome).equal('merged')
+
+    // The default sentinel still matches whatever timestamp follows.
+    const dflt = merge('NEW\n', 'OLD\n', 'a\n>>>>>>> EXISTING: T/merge\n')
+    expect(dflt.outcome).equal('unresolved')
+  })
+
 })

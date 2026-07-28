@@ -490,5 +490,22 @@ function referenceLcs(a, b) {
         const ms = Date.now() - start;
         (0, expect_1.expect)(ms < 30000).true();
     });
+    (0, node_test_1.test)('unresolved-detection-with-custom-labels', () => {
+        // A conflict written under a CUSTOM label must be recognised on the
+        // next run, or the markers nest one level deeper every time.
+        const first = merge('NEW\n', 'OLD\n', 'USER\n', L);
+        (0, expect_1.expect)(first.conflict).true();
+        const again = merge('NEWER\n', 'OLD\n', first.content, L);
+        (0, expect_1.expect)(again.outcome).equal('unresolved');
+        (0, expect_1.expect)(again.content).equal(first.content);
+        // ...but the check must match the COMPLETE marker. A bare substring
+        // test treats the label as a prefix, so `E` matched an ordinary line
+        // `>>>>>>> Example` and suppressed a legitimate regeneration.
+        const innocent = merge('NEW\n', 'OLD\n', 'a\n>>>>>>> Example\nb\n', L);
+        (0, expect_1.expect)(innocent.outcome).equal('merged');
+        // The default sentinel still matches whatever timestamp follows.
+        const dflt = merge('NEW\n', 'OLD\n', 'a\n>>>>>>> EXISTING: T/merge\n');
+        (0, expect_1.expect)(dflt.outcome).equal('unresolved');
+    });
 });
 //# sourceMappingURL=diff.test.js.map

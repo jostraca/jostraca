@@ -77,7 +77,23 @@ const CopyOp = {
             // FileOp.after(node, ctx$, buildctx)
         }
         else if ('copy' === kind) {
-            walk(fs, state, node.path, frompath, topath);
+            // Seed the walk with an EMPTY path, so a Copy `exclude` names paths
+            // WITHIN THE COPIED TREE.
+            //
+            // This used to seed with `node.path`, which made the exclude base an
+            // artifact of which prop each enclosing component happens to use:
+            // `Folder` contributes a segment (it has `name`), `Project` does not
+            // (it has `folder`), and the Copy's own `to` does not either (it is
+            // read as `name` later, at op time). So a Copy nested one Folder deep
+            // needed `outer/sub/a.txt` while the same Copy at the top needed
+            // `sub/a.txt` — the same option, differently spelled, depending on
+            // where the component sat in the OUTPUT tree rather than on the
+            // source being copied.
+            //
+            // Nobody could rely on that deliberately, and the Go port matches
+            // this source-relative reading, so per CLAUDE.md the port pre-empted
+            // a latent bug here and TS is the side to correct.
+            walk(fs, state, [], frompath, topath);
         }
         else {
             // TODO: need Standrd JostracaError
