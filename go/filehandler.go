@@ -343,7 +343,15 @@ func (fh *fileHandler) withinFolder(p string) bool {
 		// normalize to a location outside the baseline directory entirely
 		// and silently overwrite whatever was there. Mirrors
 		// ts/src/build/FileHandler.ts.
-		c := path.Clean(p)
+		//
+		// Backslashes are folded UNCONDITIONALLY, not via filepath.ToSlash.
+		// On Windows a leading `..\\` is a real parent reference and must be
+		// rejected, and Go's path.Clean is slash-only so it would let one
+		// through. TS folds unconditionally (its `fwd` is a plain replace),
+		// so matching that keeps the stacks identical on every platform. The
+		// cost is rejecting a POSIX filename that genuinely contains a
+		// backslash, which only means it gets no merge baseline.
+		c := path.Clean(strings.ReplaceAll(p, "\\", "/"))
 		return c != ".." && !strings.HasPrefix(c, "../")
 	case "/":
 		return isAbsPath(p)

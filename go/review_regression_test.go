@@ -625,12 +625,27 @@ func TestAtomicWriteLeavesNoTempAfterWriteFailure(t *testing.T) {
 func TestParentRelativePathIsNotWithinFolder(t *testing.T) {
 	fh := &fileHandler{folder: ".", duplicateFolder: "./.jostraca/generated"}
 
-	for _, in := range []string{"..", "../x.txt", "../../victim/app.txt", "a/../../b.txt"} {
+	// This table is asserted identically in
+	// ts/test/robustness.test.ts:within-folder-boundary-table. Found by a
+	// differential probe: a backslash form used to differ, because Go's
+	// path.Clean is slash-only while TS folds backslashes unconditionally
+	// — and on Windows that is a real parent reference, so Go was the one
+	// with a live escape.
+	outside := []string{
+		"..", "../x.txt", "../../victim/app.txt", "a/../../b.txt",
+		"./..", `..\x`, `..\..\x`,
+	}
+	for _, in := range outside {
 		if fh.withinFolder(in) {
 			t.Errorf("withinFolder(%q) = true, want false", in)
 		}
 	}
-	for _, in := range []string{"a.txt", ".env", "sub/a.txt", "./a.txt", "a/../b.txt"} {
+
+	inside := []string{
+		"a.txt", ".env", "sub/a.txt", "./a.txt", "a/../b.txt",
+		"...", "..foo", "foo..", ".", "", `a\..\b`,
+	}
+	for _, in := range inside {
 		if !fh.withinFolder(in) {
 			t.Errorf("withinFolder(%q) = false, want true", in)
 		}

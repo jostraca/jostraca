@@ -497,6 +497,38 @@ fix misses.
 
 ---
 
+## 2.6 S5 — found by self-check, not by review
+
+After fixing S2 I probed the new containment check across a table of boundary inputs in
+both stacks, rather than trusting that two mirrored functions agree. One input differed:
+
+| input | TS | Go |
+|---|---|---|
+| `..\x` | rejected | **accepted** |
+
+Every other case matched. The cause: TS's `fwd` is an unconditional backslash→slash
+replace, so `..\x` normalizes to `../x` and is rejected; Go's `path.Clean` is
+slash-only and treats the backslash as an ordinary character.
+
+**On Windows that is a live containment escape in Go.** A leading `..\` there is a
+genuine parent reference, reachable the same way S2 was — `Project({folder: "..\\sibling"})`
+— and Go's check would have let the merge baseline out of its directory. The Go job runs on
+Linux only, so no test would have caught it, and neither would the option-surface corpus:
+it is generated and replayed on Linux, where `..\x` is a legitimate filename and the
+two stacks *should* differ.
+
+Both stacks now fold backslashes unconditionally. That is marginally over-strict on POSIX —
+a filename genuinely containing a backslash is treated as outside, so it gets no merge
+baseline — and correct everywhere else. The boundary table is asserted identically in both
+suites, so the next divergence fails a test instead of needing another probe.
+
+Worth naming the general point: **two functions written to mirror each other are the least
+reliable place to assume agreement**, because the mirroring is done by hand and the
+reviewer's eye slides over it. The corpora catch this where behaviour is platform-neutral;
+where it is not, only a table asserted on both sides does.
+
+---
+
 ## 1. Executive summary
 
 The architecture is sound: a declarative define phase producing a node tree, a
@@ -1060,8 +1092,8 @@ deliberate no-change.
 
 | | before | after |
 |---|---|---|
-| TS tests | 36 | 117 |
-| Go tests | 147 | 234 |
+| TS tests | 36 | 118 |
+| Go tests | 147 | 235 |
 | TS runtime dependencies | 2 (`node-diff3`, `diff`) | 0 |
 | CI workflows that run | 0 | 2 |
 | Parity scenarios | 17 | 32 + 2 generated corpora (1 200 diff, 471 template) |
