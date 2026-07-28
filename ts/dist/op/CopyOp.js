@@ -92,8 +92,15 @@ function walk(fs, state, nodepath, from, to) {
     const buildctx = state.buildctx;
     // statSync follows symlinks, so a link pointing at one of its own
     // ancestors used to recurse until the stack blew. Track the real paths
-    // already entered on this branch, and cap depth as a backstop for
+    // already entered ON THIS BRANCH, and cap depth as a backstop for
     // filesystems where realpath cannot resolve.
+    //
+    // "on this branch" is load-bearing: `visited` must be the active ancestor
+    // chain, not every path the walk has ever seen. It is unwound at the end
+    // of this function. Without that, a source tree holding a real directory
+    // AND a sibling symlink to it had its SECOND entry (whichever the sorted
+    // readdir yielded later — often the real directory) reported as a cycle
+    // and its whole subtree silently dropped from the output.
     const realfrom = realpath(fs, from);
     if (state.visited.has(realfrom)) {
         dlog('copy', 'symlink cycle, not descending: ' + from + ' -> ' + realfrom);
@@ -141,6 +148,8 @@ function walk(fs, state, nodepath, from, to) {
             state.fileCount++;
         }
     }
+    // Unwind: this path is no longer an ancestor of anything being walked.
+    state.visited.delete(realfrom);
 }
 function copyFile(frompath, topath, state, buildctx, fs) {
     const FN = 'copyFile:';

@@ -61,6 +61,18 @@ const MERGE_WHY = {
 };
 // Suffix for the sibling temp file used by the atomic write-then-rename.
 const TMP_SUFFIX = '.jostraca-tmp';
+// A unique sibling temp path for an atomic write.
+//
+// Never a fixed name: a fixed one both destroys a user file that happens to
+// sit at it, and lets two concurrent runs sharing an output folder publish
+// each other's bytes. pid + counter + random keeps it unique across
+// processes, across writes within a process, and across retries.
+let tmpseq = 0;
+function tmppathFor(path) {
+    const pid = 'undefined' === typeof process ? 0 : process.pid;
+    const rnd = Math.floor(Math.random() * 0x100000000).toString(36);
+    return path + TMP_SUFFIX + '-' + pid + '-' + (tmpseq++).toString(36) + '-' + rnd;
+}
 // TODO: if EOL != '\n', normalize to '\n' in load,save 
 // Log non-fatal wierdness.
 const dlog = (0, basic_1.getdlog)('jostraca', __filename);
@@ -115,10 +127,22 @@ class FileHandler {
         if ('string' !== typeof path) {
             throw new Error(CN + FN + wstr + ' invalid path, path=' + path);
         }
-        const rpath = this.withinFolder(path) ?
-            path.substring('.' === this.folder || '/' === this.folder ? this.folder.length :
-                this.folder.length).replace(/^[/\\]+/, '') :
-            path;
+        // Strip the folder prefix only when it is ACTUALLY there.
+        //
+        // `save` normalizes first, so with the default folder `.` a path comes
+        // in as `a.txt`, not `./a.txt` — the leading `.` this is meant to
+        // consume is already gone. Cutting `this.folder.length` regardless then
+        // ate the first real character: `a.txt` and `b.txt` both became `.txt`,
+        // so their merge baselines and meta keys collided and a later merge
+        // loaded the wrong ancestor. (The ternary this replaced had the same
+        // expression in both branches — a half-finished special case.)
+        //
+        // This mirrors Go's `strings.TrimPrefix` + `TrimLeft`, which was right.
+        const stripFolder = (s) => (s.startsWith(this.folder) ? s.substring(this.folder.length) : s)
+            .replace(/^[/\\]+/, '');
+        const rpath = '.' === this.folder || '/' === this.folder ? stripFolder(path) :
+            this.withinFolder(path) ? stripFolder(path) :
+                path;
         // Canonical paths use forward slashes, NOT Path.sep
         return rpath.replace(/\\/g, '/');
     }
@@ -320,6 +344,14 @@ class FileHandler {
             if (unchanged) {
                 why.push('unchanged-0');
                 meta.action = 'write';
+                // Identical bytes are not a complete no-op when an explicit mode
+                // was asked for. Making an already-correct script executable has
+                // to work, and it only ever runs once — after that the content
+                // always matches, so skipping here meant `mode` never applied
+                // again. Chmod without rewriting, so mtime still is not bumped.
+                if (this.chmodUnchanged(path, mode)) {
+                    why.push('chmod-0');
+                }
                 this.filelog('unchanged', path);
             }
             else {
@@ -549,6 +581,34 @@ class FileHandler {
             this.createdDirs.add(dir);
         }
     }
+    // Apply an explicit mode to a file whose content did not change.
+    //
+    // Best-effort and returns whether it did anything, so the caller can add
+    // an audit breadcrumb. A provider without chmod/stat, or a target that
+    // vanished, is not worth failing the build over.
+    chmodUnchanged(path, mode) {
+        if (null == mode || this.control.dryrun) {
+            return false;
+        }
+        const fs = this.fs();
+        if ('function' !== typeof fs.chmodSync) {
+            return false;
+        }
+        try {
+            if ('function' === typeof fs.statSync) {
+                const stat = fs.statSync(path);
+                if (stat && (stat.mode & 0o7777) === (mode & 0o7777)) {
+                    return false;
+                }
+            }
+            fs.chmodSync(path, mode);
+            return true;
+        }
+        catch (err) {
+            dlog('save', 'chmod of unchanged file failed: ' + path);
+            return false;
+        }
+    }
     // Replace `path` atomically: write a sibling temp file, then rename it
     // over the target. Rename within a directory is atomic, so a crash, a
     // SIGINT, or a full disk leaves the user's existing file intact rather
@@ -571,9 +631,35 @@ class FileHandler {
             }
             return;
         }
-        const tmppath = path + TMP_SUFFIX;
+        // A UNIQUE temp path, not a fixed one.
+        //
+        // The fixed `<target>.jostraca-tmp` had two failure modes. A user file
+        // that happened to sit at that name was overwritten and then renamed
+        // away — destroyed. Worse, two jostraca runs sharing an output folder
+        // (a watcher plus a manual run, a CI matrix, a shared mount) collided
+        // on the same temp path: one run's rename could publish the other
+        // run's bytes onto the target while both reported success. The rename
+        // is atomic, but atomicity is worthless if the source is shared.
+        //
+        // `wx` fails rather than clobbering, so a collision can never destroy
+        // an existing file; retry with a fresh name. Providers that do not
+        // support the flag simply ignore it, and the randomised name still
+        // fixes the concurrent-run case.
+        let tmppath = tmppathFor(path);
+        let tmpopts = { ...opts, flag: 'wx' };
         try {
-            fs.writeFileSync(tmppath, content, opts);
+            for (let attempt = 0;; attempt++) {
+                try {
+                    fs.writeFileSync(tmppath, content, tmpopts);
+                    break;
+                }
+                catch (err) {
+                    if ('EEXIST' !== err?.code || 8 <= attempt) {
+                        throw err;
+                    }
+                    tmppath = tmppathFor(path);
+                }
+            }
             // An explicit mode wins; otherwise preserve whatever the target
             // already had, since rename replaces the inode.
             //

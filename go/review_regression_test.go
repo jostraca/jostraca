@@ -1,0 +1,303 @@
+package jostraca
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+)
+
+// Regressions from the PR #20 review. Every one of these was invisible to a
+// green suite, which is the point of writing them down here.
+
+const revWhen = 1735689600000
+
+func revJ(t *testing.T, folder string, opts ...Option) *J {
+	t.Helper()
+	return New(append([]Option{
+		WithFolder(folder),
+		WithNow(func() int64 { return revWhen }),
+	}, opts...)...)
+}
+
+// C1. `visited` must be the ACTIVE ANCESTOR CHAIN, not every path the walk
+// has ever seen. A real directory plus a sibling symlink to it are two
+// legitimate copy targets, not a cycle. Whichever the sorted ReadDir
+// yielded second used to be dropped silently — and since sort order
+// decides, the dropped one could be the REAL directory.
+func TestCopyDuplicateRealpathSiblingsBothCopied(t *testing.T) {
+	for _, linkname := range []string{"alink", "zlink"} {
+		dir := t.TempDir()
+		src := filepath.Join(dir, "src")
+		if err := os.MkdirAll(filepath.Join(src, "real"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(src, "real", "one.txt"), []byte("ONE\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(filepath.Join(src, "real"), filepath.Join(src, linkname)); err != nil {
+			t.Fatal(err)
+		}
+
+		j := revJ(t, fwd(dir))
+		if _, err := j.Generate(Options{}, func(j *J) {
+			j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+				j.Copy(CopyProps{From: fwd(src), To: "lib"})
+			})
+		}); err != nil {
+			t.Fatal(err)
+		}
+
+		for _, want := range []string{"real", linkname} {
+			p := filepath.Join(dir, "app", "lib", want, "one.txt")
+			body, err := os.ReadFile(p)
+			if err != nil {
+				t.Fatalf("link=%s: %s missing: %v", linkname, p, err)
+			}
+			if string(body) != "ONE\n" {
+				t.Errorf("link=%s: %s content = %q", linkname, p, body)
+			}
+		}
+	}
+}
+
+// A genuine cycle must STILL be caught after the unwind fix — that is what
+// `visited` is for. Guards against "fixing" the above by deleting it.
+func TestCopyStillDetectsAncestorCycle(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src")
+	if err := os.MkdirAll(filepath.Join(src, "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(src, "sub", "a.txt"), []byte("A\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(src, filepath.Join(src, "sub", "loop")); err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		j := revJ(t, fwd(dir))
+		_, err := j.Generate(Options{}, func(j *J) {
+			j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+				j.Copy(CopyProps{From: fwd(src), To: "lib"})
+			})
+		})
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(20 * time.Second):
+		t.Fatal("copy did not terminate: cycle detection is gone")
+	}
+
+	if _, err := os.Stat(filepath.Join(dir, "app", "lib", "sub", "a.txt")); err != nil {
+		t.Errorf("real content missing: %v", err)
+	}
+	deep := filepath.Join(dir, "app", "lib", "sub", "loop", "sub", "loop", "sub")
+	if _, err := os.Stat(deep); err == nil {
+		t.Errorf("descended into the cycle: %s exists", deep)
+	}
+}
+
+// C6. A file that happens to sit at the atomic writer's temp path must not
+// be destroyed. The temp name used to be a fixed <target>.jostraca-tmp, so
+// generating <target> overwrote the sibling and then renamed it away.
+func TestAtomicWriteDoesNotClobberTempNamedSibling(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "p", "a.txt")
+	decoy := target + tmpSuffix
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(decoy, []byte("PRECIOUS USER DATA\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	j := revJ(t, fwd(dir))
+	if _, err := j.Generate(Options{}, func(j *J) {
+		j.Project(ProjectProps{Folder: "p"}, func(j *J) {
+			j.File("a.txt", func(j *J) { j.Content("GENERATED\n") })
+		})
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if body, _ := os.ReadFile(target); string(body) != "GENERATED\n" {
+		t.Errorf("target content = %q", body)
+	}
+	body, err := os.ReadFile(decoy)
+	if err != nil {
+		t.Fatalf("the sibling was destroyed: %v", err)
+	}
+	if string(body) != "PRECIOUS USER DATA\n" {
+		t.Errorf("sibling content = %q, want unchanged", body)
+	}
+}
+
+// C2. Identical bytes are not a complete no-op when an explicit Mode was
+// asked for: the content matches from the second run onward, so skipping
+// meant Mode could never be applied to an existing correct file.
+func TestFileModeAppliedWhenContentUnchanged(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "p", "run.sh")
+	body := "#!/bin/sh\necho hi\n"
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(target, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	j := revJ(t, fwd(dir))
+	if _, err := j.Generate(Options{}, func(j *J) {
+		j.Project(ProjectProps{Folder: "p"}, func(j *J) {
+			j.FileP(FileProps{Name: "run.sh", Mode: 0o755}, func(j *J) {
+				j.Content(body)
+			})
+		})
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if got, _ := os.ReadFile(target); string(got) != body {
+		t.Errorf("content = %q", got)
+	}
+	fi, err := os.Stat(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if posixModes && fi.Mode().Perm() != 0o755 {
+		t.Errorf("mode = %v, want 0755 on an unchanged file", fi.Mode().Perm())
+	}
+}
+
+// C3. Merge and diff used writeAtomic, not writeAtomicMode, so an explicit
+// FileProps.Mode was silently dropped whenever either handled the file.
+// TS forwards modeopts() on both branches, so this was a parity break too.
+func TestFileModeAppliedOnMergeAndDiff(t *testing.T) {
+	tr := true
+
+	for _, tc := range []struct {
+		name     string
+		existing Existing
+		seedDup  bool
+	}{
+		{"merge", Existing{Txt: ExistingTxt{Merge: &tr}}, true},
+		{"diff", Existing{Txt: ExistingTxt{Diff: &tr}}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			target := filepath.Join(dir, "p", "run.sh")
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			// A user edit, so the existing-file path actually engages.
+			if err := os.WriteFile(target, []byte("#!/bin/sh\nUSER\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if tc.seedDup {
+				dup := filepath.Join(dir, "p", ".jostraca", "generated", "run.sh")
+				if err := os.MkdirAll(filepath.Dir(dup), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(dup, []byte("#!/bin/sh\nORIG\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			j := revJ(t, fwd(dir))
+			if _, err := j.Generate(Options{Existing: tc.existing}, func(j *J) {
+				j.Project(ProjectProps{Folder: "p"}, func(j *J) {
+					j.FileP(FileProps{Name: "run.sh", Mode: 0o755}, func(j *J) {
+						j.Content("#!/bin/sh\nGENERATED\n")
+					})
+				})
+			}); err != nil {
+				t.Fatal(err)
+			}
+
+			fi, err := os.Stat(target)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if posixModes && fi.Mode().Perm() != 0o755 {
+				t.Errorf("%s: mode = %v, want 0755", tc.name, fi.Mode().Perm())
+			}
+		})
+	}
+}
+
+// C7. An empty inject start marker used to spin the scan loop forever,
+// hanging the generator. Nothing validates the markers, so a plain
+// InjectP call could do it. TS advances past a zero-length match.
+func TestInjectEmptyStartMarkerTerminates(t *testing.T) {
+	mem := NewMemFS()
+	if err := mem.WriteFile("/out/a.txt", []byte("a<<end>>b\n")); err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		j := New(WithFS(mem), WithFolder("/out"), WithNow(func() int64 { return revWhen }))
+		_, err := j.Generate(Options{}, func(j *J) {
+			j.InjectP(InjectProps{Name: "a.txt", Markers: [2]string{"", "<<end>>"}},
+				func(j *J) { j.Content("NEW") })
+		})
+		done <- err
+	}()
+
+	select {
+	case <-done:
+		// Terminating at all is the assertion.
+	case <-time.After(20 * time.Second):
+		t.Fatal("inject with an empty start marker did not terminate")
+	}
+}
+
+// C8. resolveFragmentFrom is NOT idempotent for a relative output folder
+// other than ".": re-resolving turned "generated/frag.txt" into
+// "generated/generated/frag.txt", so define-time validation passed and
+// then the read failed.
+func TestFragmentRelativeFromWithRelativeFolder(t *testing.T) {
+	for _, folder := range []string{".", "generated", "a/b"} {
+		mem := NewMemFS()
+		fragpath := "frag.txt"
+		if folder != "." {
+			fragpath = folder + "/frag.txt"
+		}
+		if err := mem.WriteFile(fragpath, []byte("HELLO\n")); err != nil {
+			t.Fatal(err)
+		}
+
+		j := New(WithFS(mem), WithFolder(folder), WithNow(func() int64 { return revWhen }))
+		_, err := j.Generate(Options{}, func(j *J) {
+			j.File("out.txt", func(j *J) {
+				j.Content("BEGIN\n")
+				j.FragmentP(FragmentProps{From: "frag.txt"}, nil)
+				j.Content("END\n")
+			})
+		})
+		if err != nil {
+			t.Fatalf("folder=%q: %v", folder, err)
+		}
+
+		outpath := "out.txt"
+		if folder != "." {
+			outpath = folder + "/out.txt"
+		}
+		body, err := mem.ReadFile(outpath)
+		if err != nil {
+			t.Fatalf("folder=%q: %v", folder, err)
+		}
+		if !strings.Contains(string(body), "HELLO") {
+			t.Errorf("folder=%q: fragment not included: %q", folder, body)
+		}
+	}
+}

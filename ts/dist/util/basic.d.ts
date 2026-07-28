@@ -46,6 +46,7 @@ declare function getdlog(tagin?: string, filepath?: string): ((...args: any[]) =
     tag: string;
     file: string;
     log: (fp?: string) => any[];
+    seq: () => number;
 };
 declare const BINARY_EXT: string[];
 declare function isbinext(path: string): boolean;

@@ -716,7 +716,9 @@ func TestMergeLargeRepeatedVocabularyIsFast(t *testing.T) {
 	if elapsed > 30*time.Second {
 		t.Errorf("merge took %v at %d lines", elapsed, n)
 	}
-	// Memory must stay O(min(N,M)); a full table would need ~500 MB here.
+	// Memory must stay two-row, not a full table, which would need ~500 MB
+	// here. Note the inputs are balanced, so this does not pin the
+	// asymmetric case — see TestMergeMemoryAsymmetric.
 	if allocMB > 64 {
 		t.Errorf("allocated %.1f MB at %d lines; looks like a full DP table", allocMB, n)
 	}

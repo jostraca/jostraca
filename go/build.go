@@ -5,6 +5,7 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 )
 
 // op is one entry in the dispatch table indexed by Kind. before runs on
@@ -398,12 +399,19 @@ func walkCopyDepth(b *buildCtx, st *jstate, from, to string, n *Node,
 		return fmt.Errorf("Copy: tree too deep (>%d), possible symlink cycle, path=%s",
 			maxCopyDepth, from)
 	}
+	// `visited` must be the ACTIVE ANCESTOR CHAIN, not every path the walk
+	// has ever seen, so it is unwound on the way out. Without that, a source
+	// tree holding a real directory AND a sibling symlink to it had its
+	// second entry (whichever the sorted ReadDir yielded later — often the
+	// real directory) reported as a cycle and its whole subtree silently
+	// dropped. Mirrors ts/src/op/CopyOp.ts.
 	real := realpathOf(b.fh.fs, from)
 	if _, seen := visited[real]; seen {
 		copyDlog.Log("copy", "symlink cycle, not descending: "+from+" -> "+real)
 		return nil
 	}
 	visited[real] = struct{}{}
+	defer delete(visited, real)
 
 	entries, err := b.fh.fs.ReadDir(from)
 	if err != nil {
@@ -598,8 +606,27 @@ func injectAfter(n *Node, _ *jstate, b *buildCtx) error {
 
 		out.WriteString(s[pos:after])
 		out.WriteString(body)
+		prev := pos
 		pos = ei
 		matched = true
+
+		// Guarantee forward progress.
+		//
+		// With an empty start marker, `si` and `after` both stay at `pos`,
+		// the end marker resolves at that same position, and `pos = ei` is
+		// a no-op — the loop spins forever and hangs the generator. Nothing
+		// validates the markers, so a plain InjectP call could do this.
+		// JS advances past a zero-length regex match, so TS never hung;
+		// stepping one rune here is what reproduces that behaviour rather
+		// than diverging from it.
+		if pos == prev {
+			if pos >= len(s) {
+				break
+			}
+			_, w := utf8.DecodeRuneInString(s[pos:])
+			out.WriteString(s[pos : pos+w])
+			pos += w
+		}
 	}
 	if !matched {
 		// Nothing to inject into. Not fatal — the target may not be marked
@@ -629,9 +656,13 @@ func fragmentAfter(n *Node, st *jstate, b *buildCtx) error {
 	body, _ := n.Meta["fragmentBody"].(func(*J))
 	slotNames, _ := n.Meta["slotNames"].([]string)
 
-	// Already resolved at define time (see resolveFragmentFrom), but resolve
-	// again so a Node built directly is handled too.
-	src, err := b.fh.fs.ReadFile(resolveFragmentFrom(st, n.From))
+	// Already resolved at define time by FragmentP (see resolveFragmentFrom),
+	// and resolution is NOT idempotent for a relative output folder other
+	// than ".": re-resolving turned "generated/frag.txt" into
+	// "generated/generated/frag.txt", so define-time validation passed and
+	// then the read failed. Read the stored path, as ts/src/cmp/Fragment.ts
+	// does.
+	src, err := b.fh.fs.ReadFile(n.From)
 	if err != nil {
 		return err
 	}

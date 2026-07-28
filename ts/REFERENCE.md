@@ -1123,7 +1123,7 @@ every input, including one with no trailing newline.
 ### Notes
 
 - **Complexity.** Common prefix and suffix are trimmed first, then
-  Hirschberg's algorithm runs on the remainder: O(N·M) time, O(min(N,M))
+  Hirschberg's algorithm runs on the remainder: O(N·M) time, O(M)
   space. A regenerated file with a few changed lines is dominated by the
   trim — 50 000 lines in ~10 ms.
 - **Conflict markers always start their own line**, including when the last

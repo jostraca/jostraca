@@ -2,10 +2,16 @@ package jostraca
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/binary"
+	"encoding/hex"
 	"io/fs"
+	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync/atomic"
 )
 
 // fileHandler is the only place that touches the filesystem during the
@@ -204,7 +210,7 @@ func (fh *fileHandler) saveMode(p string, content []byte, whence string, mode fs
 				write = false
 				if !contentEqual {
 					why = append(why, "content-2")
-					if err := fh.saveDiff(p, content, existing, rpath, whence, why); err != nil {
+					if err := fh.saveDiff(p, content, existing, rpath, whence, why, mode); err != nil {
 						return err
 					}
 					actions++
@@ -221,7 +227,7 @@ func (fh *fileHandler) saveMode(p string, content []byte, whence string, mode fs
 						if fh.fs.Exists(dpath) {
 							why = append(why, "dupexists-0")
 							write = false
-							if err := fh.saveMerge(p, content, existing, rpath, whence, why); err != nil {
+							if err := fh.saveMerge(p, content, existing, rpath, whence, why, mode); err != nil {
 								return err
 							}
 							actions++
@@ -261,6 +267,13 @@ func (fh *fileHandler) saveMode(p string, content []byte, whence string, mode fs
 			// Byte-identical rewrite: record the intent but do not touch the
 			// file, so mtime is not bumped for nothing.
 			why = append(why, "unchanged-0")
+
+			// Identical bytes are not a complete no-op when an explicit
+			// mode was asked for — see the TS counterpart.
+			if fh.chmodUnchanged(p, mode) {
+				why = append(why, "chmod-0")
+			}
+
 			fh.filelog(&fh.files.Unchanged, p)
 			fh.appendAudit("save:write", map[string]any{
 				"action": "write", "path": rpath, "size": len(content),
@@ -376,7 +389,7 @@ func (fh *fileHandler) savePresent(p string, content []byte, rpath, whence strin
 // "merge-unresolved" action at FileHandler.ts:429-433). The duplicate
 // baseline is still refreshed so a future user-resolution can merge
 // cleanly.
-func (fh *fileHandler) saveMerge(p string, content, existing []byte, rpath, whence string, why []string) error {
+func (fh *fileHandler) saveMerge(p string, content, existing []byte, rpath, whence string, why []string, mode fs.FileMode) error {
 	if HasConflicts(string(existing)) {
 		// Existing has unresolved markers; do not re-merge. The baseline is
 		// still refreshed by save()'s centralised duplicate write, so a
@@ -414,7 +427,10 @@ func (fh *fileHandler) saveMerge(p string, content, existing []byte, rpath, when
 		return err
 	}
 	if !fh.control.Dryrun {
-		if err := fh.writeAtomic(p, []byte(res.Content)); err != nil {
+		// Forward the requested mode, as the TS branch does via modeopts().
+		// These used to call writeAtomic, so an explicit FileProps.Mode was
+		// silently dropped whenever merge or diff handled the file.
+		if err := fh.writeAtomicMode(p, []byte(res.Content), mode); err != nil {
 			return err
 		}
 	}
@@ -437,7 +453,7 @@ func (fh *fileHandler) saveMerge(p string, content, existing []byte, rpath, when
 	return nil
 }
 
-func (fh *fileHandler) saveDiff(p string, content, existing []byte, rpath, whence string, why []string) error {
+func (fh *fileHandler) saveDiff(p string, content, existing []byte, rpath, whence string, why []string, mode fs.FileMode) error {
 	last := int64(0)
 	if fh.bmeta != nil {
 		last = fh.bmeta.last()
@@ -453,7 +469,8 @@ func (fh *fileHandler) saveDiff(p string, content, existing []byte, rpath, whenc
 	// TS overwrites the target file with the rendered diff content;
 	// no .diff.<ext> sidecar.
 	if !fh.control.Dryrun {
-		if err := fh.writeAtomic(p, rendered); err != nil {
+		// Forward the requested mode, as the TS branch does via modeopts().
+		if err := fh.writeAtomicMode(p, rendered, mode); err != nil {
 			return err
 		}
 	}
@@ -545,8 +562,33 @@ func (fh *fileHandler) ensureFolder(p string) error {
 	return nil
 }
 
-// tmpSuffix names the sibling temp file used by writeAtomic.
+// tmpSuffix prefixes the sibling temp file used by writeAtomic.
 const tmpSuffix = ".jostraca-tmp"
+
+// tmpSeq makes each temp path unique within this process.
+var tmpSeq uint64
+
+// tmppathFor builds a UNIQUE sibling temp path for an atomic write.
+//
+// Never a fixed name: a fixed one both destroys a user file that happens
+// to sit at it, and lets two concurrent runs sharing an output folder
+// publish each other's bytes onto the target while both report success.
+// The rename is atomic, but atomicity is worthless if the source is
+// shared. pid + counter + random keeps it unique across processes, across
+// writes within a process, and across retries. Mirrors `tmppathFor` in
+// ts/src/build/FileHandler.ts.
+func tmppathFor(p string) string {
+	var rnd [4]byte
+	if _, err := rand.Read(rnd[:]); err != nil {
+		// Randomness is defence in depth here; pid+seq already make the
+		// name unique within and across processes on one machine.
+		binary.LittleEndian.PutUint32(rnd[:], uint32(atomic.LoadUint64(&tmpSeq)))
+	}
+	return p + tmpSuffix +
+		"-" + strconv.Itoa(os.Getpid()) +
+		"-" + strconv.FormatUint(atomic.AddUint64(&tmpSeq, 1), 36) +
+		"-" + hex.EncodeToString(rnd[:])
+}
 
 // writeAtomic replaces p by writing a sibling temp file and renaming it
 // over the target. Rename within a directory is atomic, so a crash or a
@@ -561,10 +603,36 @@ func (fh *fileHandler) writeAtomic(p string, content []byte) error {
 	return fh.writeAtomicMode(p, content, 0)
 }
 
+// chmodUnchanged applies an explicit mode to a file whose content did not
+// change, and reports whether it did anything.
+//
+// Best-effort: a provider without Chmod, or a target that vanished, is not
+// worth failing the build over. Mirrors ts/src/build/FileHandler.ts.
+func (fh *fileHandler) chmodUnchanged(p string, mode fs.FileMode) bool {
+	if mode == 0 || fh.control.Dryrun {
+		return false
+	}
+	cf, ok := fh.fs.(chmodFS)
+	if !ok {
+		return false
+	}
+	if fi, err := fh.fs.Stat(p); err == nil && fi.Mode.Perm() == mode.Perm() {
+		return false
+	}
+	return cf.Chmod(p, mode) == nil
+}
+
 // writeAtomicMode is writeAtomic with explicit permission bits; zero means
 // preserve whatever the target already had.
 func (fh *fileHandler) writeAtomicMode(p string, content []byte, mode fs.FileMode) error {
-	tmp := p + tmpSuffix
+	// A unique name per write — see tmppathFor. The FS interface has no
+	// exclusive-create, so a pre-existing file at this exact path cannot be
+	// ruled out by the write itself; check first, and regenerate on the
+	// astronomically unlikely collision rather than clobbering.
+	tmp := tmppathFor(p)
+	for attempt := 0; fh.fs.Exists(tmp) && attempt < 8; attempt++ {
+		tmp = tmppathFor(p)
+	}
 	if err := fh.fs.WriteFile(tmp, content); err != nil {
 		return err
 	}

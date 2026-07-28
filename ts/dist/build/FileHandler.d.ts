@@ -55,6 +55,7 @@ declare class FileHandler {
     loadFile(path: string, opts?: any | string, whence?: string): string | Buffer;
     ensureFolder(path: string): void;
     private ensureDir;
+    private chmodUnchanged;
     private writeFileAtomic;
     saveFile(path: string, content: string | Buffer, opts?: any | string, whence?: string): void;
     filelog(kind: string, path: string): void;

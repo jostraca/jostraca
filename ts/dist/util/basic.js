@@ -650,6 +650,7 @@ function getdlog(tagin, filepath) {
     const file = node_path_1.default.basename(filepath || '-');
     const g = global;
     g.__dlog__ = (g.__dlog__ || []);
+    g.__dlogseq__ = (g.__dlogseq__ || 0);
     const dlog = (...args) => {
         const stack = '' + new Error().stack;
         // Bounded: this buffer is process-global and was never drained, so a
@@ -657,10 +658,27 @@ function getdlog(tagin, filepath) {
         if (DLOG_MAX <= g.__dlog__.length) {
             g.__dlog__.splice(0, g.__dlog__.length - DLOG_MAX + 1);
         }
-        g.__dlog__.push([tag, file, Date.now(), ...args, stack]);
+        // Stamp a MONOTONIC sequence number, and select on it rather than on
+        // the buffer's length.
+        //
+        // A caller marking its position with `log().length` breaks the moment
+        // the buffer reaches its cap: eviction stops the length growing, the
+        // mark equals the length forever after, and `slice(mark)` is always
+        // empty — so in a long-lived process every warning after the first
+        // thousand entries silently stopped reaching the configured logger.
+        //
+        // The sequence is a property on the entry array, not an element, so
+        // the `[tag, file, when, ...args, stack]` shape and its index-based
+        // consumers are untouched.
+        const entry = [tag, file, Date.now(), ...args, stack];
+        entry.seq = ++g.__dlogseq__;
+        g.__dlog__.push(entry);
     };
     dlog.tag = tag;
     dlog.file = file;
+    // Current position in the monotonic sequence, for callers that want the
+    // entries added after some point. Survives buffer eviction.
+    dlog.seq = () => (g.__dlogseq__ || 0);
     // Entry shape is [tag, file, when, ...args, stack] — the file is at
     // index 1. This compared index 2 (the timestamp) against a basename, so
     // filtering by file could never match.
