@@ -86,9 +86,9 @@ issue so the deferral is tracked rather than lost:
 | issue | item |
 |---|---|
 | [#21](https://github.com/jostraca/jostraca/issues/21) | **FIXED** — top-level sibling components were silently dropped. Resolved with an eager synthetic root; see §2.9 |
-| [#22](https://github.com/jostraca/jostraca/issues/22) | `go-test.yml` runs Linux only, so the Go port's Windows blind spot has no gate. Three Windows-only defects on this branch alone; `GOOS=windows go vet` compiles but never executes (see §2.7) |
+| [#22](https://github.com/jostraca/jostraca/issues/22) | **FIXED** — the Go suite now runs on macOS and Windows, and a fourth drive-absolute defect was found and fixed on the way; see §2.10 |
 | [#23](https://github.com/jostraca/jostraca/issues/23) | the option-surface corpus does not cross `Copy.exclude` or `existing.bin` — the two axes U3 and U5 hid in |
-| [#24](https://github.com/jostraca/jostraca/issues/24) | the parity corpus cannot express binary content; needs a base64 escape hatch. Blocks the `existing.bin` half of #23 |
+| [#24](https://github.com/jostraca/jostraca/issues/24) | **FIXED** — the corpus carries binary content via a `{"b64": …}` escape hatch; see §2.11 |
 | [#25](https://github.com/jostraca/jostraca/issues/25) | **T15** — `Fragment` re-runs its children once per slot marker plus once to collect slot names. Collapsing that to a single pass would change the semantics of side-effecting children in the most intricate component here, to buy CPU on a define phase that is not the bottleneck. Not worth the risk without a reported problem |
 
 T15 is the only *code* item from this review not acted on; the rest are follow-on coverage
@@ -659,6 +659,103 @@ is not purely additive:
   rather than folded in, because #21's change is provably byte-neutral and this one would
   not be. The sharper case there is two sibling `Project`s: the second currently nests
   inside the first.
+
+---
+
+## 2.10 #22 — the Windows gate, and the fourth defect of the same shape
+
+`go-test.yml` ran Linux only. It now matrixes ubuntu/macOS/Windows, and the first run was
+green on all three — `-race` included, and all three differential corpora byte-matching on
+Windows.
+
+**What the issue predicted, versus what was there.** The issue pointed at mode bits, path
+separators, chmod and tempdir shapes. Every one of those was already clean: the mode
+assertions are guarded, the suite passes under real Go-Windows `filepath` semantics, macOS's
+symlinked `TMPDIR` is a non-event, and both the JSON and fuzz corpora survive CRLF
+conversion. The previous round's three Windows defects were genuinely fixed.
+
+What actually blocked a green matrix was almost all harness, not port:
+
+| break | kind |
+|---|---|
+| `windows-latest` defaults `run:` to pwsh, which cannot parse the POSIX steps | CI |
+| `core.autocrlf=true` on the runner makes `gofmt -l` report all 52 Go files | repo |
+| a CRLF shebang makes `check_diff_coverage.sh` unexecutable (exit 127) | repo |
+| `os.Symlink` needs a privilege the runners lack, at two `t.Fatal` sites | test |
+| **`scenario-corpus.js` mis-strips `process.cwd()`, corrupting 700 of 840 cases** | tool |
+
+The last is the notable one, and it sits on the *canonical* side. It strips the machine
+prefix with `process.cwd() + '/'`, but memfs forward-slashes and drive-strips its volume
+keys, so on Windows the prefix never matches. The repo rule is "TS is canonical, Go is the
+port to fix" — here the canonical side's *tooling* is the defect, and the right answer was
+neither to change a stack nor to fix the tool, but to recognise that corpus regeneration is
+a canonical-source freshness check rather than a platform check, and pin it to Linux.
+
+**A fourth Windows-only port defect, of the shape §2.7 named.** `isAbsFromPath` was added
+last round to mirror node's platform-dispatched `Path.isAbsolute`, after slash-only
+`isAbsPath` made Go rewrite a drive-absolute Fragment source under the output folder. It was
+wired into Fragment — and left off its two siblings, `projectBefore` and `withinFolder`'s
+`.` branch. A drive-absolute `Project.folder` therefore had Go writing `out/C:/abs/a.txt`
+where TS writes `C:/abs/a.txt`.
+
+So §2.7's pattern — *a change that correctly altered one code path and left its siblings on
+the old assumption* — recurred **inside the fix for §2.7 itself**, one round later. The
+mechanism is the same one every time: the Windows branch is unreachable on Linux CI, so
+nothing can fail. And adding Windows to the matrix does not close it either, because no test
+or corpus case uses a drive-letter folder.
+
+That is the real lesson here, and it is not "run CI on more platforms". A platform-gated
+branch needs a *seam*, so the boundary can be asserted from any host:
+
+- `isAbsFromPathOn(p, windows)` takes the platform as an argument. The boundary table is
+  asserted for both platforms from Linux, and every expectation in it was taken from node
+  rather than reasoned about. `ts/test/platform.test.ts` pins the identical table against
+  node's own `posix` and `win32`, so a wrong table fails on the TS side and a wrong mirror
+  fails on the Go side.
+- A structural guard asserts `isAbsPath` has exactly one call site — the legitimate one,
+  `withinFolder`'s `/` branch, where TS really does use a literal `startsWith('/')`.
+  Verified by reverting either site: it turns red.
+
+---
+
+## 2.11 #24 — binary content in the corpus, and a worse corruption than the one filed
+
+The corpus stored content as JSON strings, so binary bodies could not be expressed and the
+one binary behaviour that matters — a file whose extension is absent from `BINARY_EXT` must
+survive `Copy` untouched — rested on hand-transcribed per-stack unit tests. That was the
+last place the parity guarantee depended on two people writing the same expectation twice.
+
+**The filed diagnosis was wrong, and the correction changed the design.** The issue said
+`0xFF 0xFE` round-trips as its UTF-8 encoding, `0xC3 0xBF 0xC3 0xBE` — lossy but reversible.
+Measured, memfs's `vol.toJSON()` decodes with *replacement*: every distinct invalid byte
+collapses to `U+FFFD`. That is irreversible, which means a serialisation-time encoder is not
+enough — by the time `toJSON()` returns, the bytes are already gone. The snapshot has to
+re-read each file through `fs`.
+
+**The rule is a round-trip, not a validity predicate.** A plain string is emitted exactly
+when `Buffer.from(buf.toString('utf8'),'utf8')` equals `buf`; otherwise `{"b64": …}`. The
+property Go relies on is "if it is a string, `[]byte(s)` reproduces the original bytes" —
+the round-trip *is* that property, checked directly, so the guarantee holds by construction.
+A validity check is a proxy that has to get overlong forms, CESU-8 surrogates and truncated
+sequences right separately. It also matters that the corpus is generated by TS and only read
+by Go: TS is the only side that ever *decides*, Go only decodes, so there is no second
+decision site to keep in sync.
+
+Scoped deliberately to the per-scenario snapshot channel. The diff and template corpora are
+left alone — `mutate-diff.js` is a second, TS-side reader of the diff corpus, and
+`template_corpus.cases[].model` is arbitrary JSON where `{"b64": …}` would be genuinely
+ambiguous with a model that has a `b64` key.
+
+**A binary scenario needs a template marker or it has no teeth.** The first attempt — wasm
+magic plus `0xFF 0xFE`, no markers — was byte-identical even with Go's content sniffing
+disabled, because Go strings are byte-transparent and its text path is a no-op on arbitrary
+bytes. The committed scenario embeds `$$v$$` inside the binary and ships a `.txt` sibling, so
+one run proves both halves: the `.wasm` keeps `$$v$$` verbatim while the `.txt` becomes
+`hello V`. Verified by disabling `IsBinContent` in the Go copy walk — the corpus then fails
+with `\x00asm\x01\x00\x00\x00V\xff\xfe\x80` against the expected `…$$v$$…`.
+
+All 35 pre-existing corpus files regenerate byte-identical; the binary scenario is the only
+addition.
 
 ### The arc
 

@@ -15,6 +15,10 @@ const {
 
 const { memfs } = require('memfs')
 
+// Binary escape hatch: content values are plain strings when the bytes
+// round-trip through UTF-8, and {"b64": "..."} when they do not.
+const { enc, encMap, volOf } = require('./corpus-bytes.js')
+
 // Default is relative to the repo root (this script is run from ts/).
 const outDir = process.argv[2] || '../go/testdata/parity'
 
@@ -33,13 +37,13 @@ async function snapshot(name, opts, root, prepopulate) {
     now: () => FROZEN_NOW,
   }, opts)
   await j.generate(fullOpts, root)
-  const result = mfs.vol.toJSON()
+  const result = volOf(mfs)
   fs.writeFileSync(
     path.join(outDir, name + '.json'),
     JSON.stringify({
       scenario: name,
       opts: opts || {},
-      prepopulate: prepopulate || {},
+      prepopulate: encMap(prepopulate),
       vol: result,
     }, null, 2) + '\n',
   )
@@ -305,13 +309,36 @@ async function main() {
     })
   })
 
-  // NOTE: binary content cannot be expressed in this corpus. Values are
-  // JSON strings, so bytes >0x7F round-trip as their UTF-8 encoding —
-  // 0xFF 0xFE arrives on the Go side as 0xC3 0xBF 0xC3 0xBE. Binary
-  // behaviour (Copy must not corrupt a file whose extension is absent from
-  // BINARY_EXT) is therefore covered by per-stack unit tests instead:
-  // ts/test/robustness.test.ts and go/robustness_test.go. Adding binary
-  // scenarios here would need a base64 escape hatch in the format.
+  // Binary content. A file whose extension is absent from BINARY_EXT is
+  // classified by sniffing its bytes, and must survive Copy untouched —
+  // never templated, never re-encoded. This used to be expressible only as
+  // hand-transcribed per-stack unit tests (ts/test/robustness.test.ts,
+  // go/robustness_test.go), because content values here are JSON strings
+  // and memfs decodes lossily: 0xFF arrives as U+FFFD, not as anything
+  // recoverable. The {"b64": "..."} escape hatch (tools/corpus-bytes.js)
+  // is what makes it a real differential scenario. The .txt sibling is
+  // here so the same run still proves text IS templated.
+  await snapshot('copy_binary_unlisted_ext',
+    { model: { v: 'V' } },
+    () => {
+      Project({ folder: 'p' }, () => {
+        Copy({ from: '/tm' })
+      })
+    },
+    {
+      // wasm magic, a NUL, bytes above 0x7F, and — deliberately — a byte
+      // sequence that looks like a template marker. If either stack stops
+      // sniffing this as binary the text path substitutes $$v$$ and the
+      // bytes change, so the scenario has teeth rather than only recording
+      // that nothing happened.
+      '/tm/mod.wasm': Buffer.concat([
+        Buffer.from([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]),
+        Buffer.from('$$v$$', 'utf8'),
+        Buffer.from([0xff, 0xfe, 0x80]),
+      ]),
+      '/tm/readme.txt': 'hello $$v$$\n',
+    },
+  )
 
   // A Fragment nested inside a Slot: content one level deeper than the
   // Slot's own children must still be emitted. The Go port collected only
@@ -603,7 +630,7 @@ async function snapshotMerge(name) {
     existing: { txt: { merge: true } },
   }, root({ body: 'BBB\n' }))
 
-  const vol = mfs.vol.toJSON()
+  const vol = volOf(mfs)
   const realFs = require('fs')
   realFs.writeFileSync(
     require('path').join(outDir, name + '.json'),
@@ -636,7 +663,7 @@ async function snapshotMergeRetain(name) {
   }
 
   const phases = []
-  const snap = (label) => phases.push({ label, foo: mfs.vol.toJSON()['/foo.txt'] })
+  const snap = (label) => phases.push({ label, foo: enc(fs.readFileSync('/foo.txt')) })
 
   await j.generate(opts, root(model)); snap('G-0')   // first write
   await j.generate(opts, root(model)); snap('G-1')   // unchanged
@@ -674,7 +701,7 @@ async function snapshotAbsPath(name) {
       })
     }),
   )
-  const vol = mfs.vol.toJSON()
+  const vol = volOf(mfs)
   require('fs').writeFileSync(
     require('path').join(outDir, name + '.json'),
     JSON.stringify({ scenario: name, vol }, null, 2) + '\n',
@@ -714,7 +741,7 @@ async function snapshotFragmentSubcmp(name) {
       })
     },
   )
-  const vol = mfs.vol.toJSON()
+  const vol = volOf(mfs)
   require('fs').writeFileSync(
     require('path').join(outDir, name + '.json'),
     JSON.stringify({ scenario: name, vol }, null, 2) + '\n',
@@ -741,7 +768,7 @@ async function snapshotMergeUpdate(name) {
     existing: { txt: { merge: true } },
   }, root({ body: 'BBB\n' }))
 
-  const vol = mfs.vol.toJSON()
+  const vol = volOf(mfs)
   require('fs').writeFileSync(
     require('path').join(outDir, name + '.json'),
     JSON.stringify({ scenario: name, vol }, null, 2) + '\n',
@@ -767,7 +794,7 @@ async function snapshotMergeNoBaseline(name) {
     existing: { txt: { merge: true } },
   }, root)
 
-  const vol = mfs.vol.toJSON()
+  const vol = volOf(mfs)
   require('fs').writeFileSync(
     require('path').join(outDir, name + '.json'),
     JSON.stringify({ scenario: name, vol }, null, 2) + '\n',
@@ -793,7 +820,7 @@ async function snapshotMergeClean(name) {
     existing: { txt: { merge: true } },
   }, root({ body: 'CCC\n' }))
 
-  const vol = mfs.vol.toJSON()
+  const vol = volOf(mfs)
   require('fs').writeFileSync(
     require('path').join(outDir, name + '.json'),
     JSON.stringify({ scenario: name, vol }, null, 2) + '\n',
