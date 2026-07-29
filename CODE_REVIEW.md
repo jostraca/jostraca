@@ -87,9 +87,12 @@ issue so the deferral is tracked rather than lost:
 |---|---|
 | [#21](https://github.com/jostraca/jostraca/issues/21) | **FIXED** — top-level sibling components were silently dropped. Resolved with an eager synthetic root; see §2.9 |
 | [#22](https://github.com/jostraca/jostraca/issues/22) | **FIXED** — the Go suite now runs on macOS and Windows, and a fourth drive-absolute defect was found and fixed on the way; see §2.10 |
-| [#23](https://github.com/jostraca/jostraca/issues/23) | the option-surface corpus does not cross `Copy.exclude` or `existing.bin` — the two axes U3 and U5 hid in |
+| [#23](https://github.com/jostraca/jostraca/issues/23) | the option-surface corpus does not cross `Copy.exclude` or `existing.bin`. Both halves prototyped and verified; **both now blocked on a semantic decision** rather than on tooling — [#28](https://github.com/jostraca/jostraca/issues/28) and [#27](https://github.com/jostraca/jostraca/issues/27). See §2.12 |
 | [#24](https://github.com/jostraca/jostraca/issues/24) | **FIXED** — the corpus carries binary content via a `{"b64": …}` escape hatch; see §2.11 |
-| [#25](https://github.com/jostraca/jostraca/issues/25) | **T15** — `Fragment` re-runs its children once per slot marker plus once to collect slot names. Collapsing that to a single pass would change the semantics of side-effecting children in the most intricate component here, to buy CPU on a define phase that is not the bottleneck. Not worth the risk without a reported problem |
+| [#25](https://github.com/jostraca/jostraca/issues/25) | **CLOSED, won't-fix** — T15. The deferral held, but the premise did not: component bodies run *once*, not N+1 times, and nested Fragments do not compound in TS. Removing the one redundant pass was unmeasurable against noise. See §2.13 |
+| [#27](https://github.com/jostraca/jostraca/issues/27) | `existing.txt` vs `existing.bin` is chosen by value type in TS and by extension in Go — exactly inverted for text in a binary-extension file, and TS disagrees with itself between the single-file and tree copy routes |
+| [#28](https://github.com/jostraca/jostraca/issues/28) | `Copy.exclude` prunes directories in Go and ignores them in TS; a bare string is a shape error in TS and works in Go (making `CopyOp.ts`'s string branch dead code) |
+| [#29](https://github.com/jostraca/jostraca/issues/29) | Go never applies the Fragment filter to non-Slot children, so their side effects run N+1 times against TS's zero — and it is the sole cause of a Go-only quadratic blowup for nested Fragments |
 
 T15 is the only *code* item from this review not acted on; the rest are follow-on coverage
 and infrastructure. Directory modes are still fixed at 0755 and there is no global
@@ -756,6 +759,73 @@ with `\x00asm\x01\x00\x00\x00V\xff\xfe\x80` against the expected `…$$v$$…`.
 
 All 35 pre-existing corpus files regenerate byte-identical; the binary scenario is the only
 addition.
+
+---
+
+## 2.12 #23 — the corpus axes, and what building them found
+
+Both axes were prototyped end to end. Neither landed, and the reason is the interesting part:
+**a differential corpus cannot record an expectation for behaviour the two stacks disagree
+about.** Writing one down anyway would freeze whichever stack happened to run the generator
+as canonical — which is exactly the failure the corpora exist to prevent.
+
+The `Copy.exclude` corpus is 65 cases and demonstrably earns its place: with the U5 fix
+reverted it fails 16 of 65, and it catches a divergence the two existing hand-written pins
+miss (those cover two `exclude` values each). But 8 of 65 fail on today's `master`, because
+Go prunes excluded *directories* during the walk while TS matches only on the file branch
+(#28). The `existing.bin` axis is no longer blocked on #24 — the escape hatch shipped — but
+turned out to be blocked on something worse: the two stacks choose between `existing.txt`
+and `existing.bin` by *different criteria entirely*, TS by the type of the value handed to
+`save` and Go by the destination extension (#27).
+
+Two design findings worth keeping regardless of when they land:
+
+- **A separate corpus beats an axis on the existing 840.** The full cross is 840 × 13 =
+  10 920 cases and ~12 MB of JSON for *zero* added discrimination, because exclusion is
+  decided in the copy walk before any `FileHandler` call — the existing-file axis cannot
+  interact with it. Standalone: 65 cases, 213 KB, +1.0% test wall time.
+- **Value variety is nearly worthless; path shape is everything.** The matcher has two
+  branches, string equality and `RegExp.test`. What discriminates is *which path is fed in*
+  and *which entries are checked*: the same basename at two depths (the U5 detector), one
+  exclude under four `Copy` placements (the V2 detector), directory versus file entries, and
+  the degenerate `true` / `[]` forms. More glob spellings and more multi-entry arrays add
+  nothing.
+
+---
+
+## 2.13 #25 — the deferral held, the reasoning did not
+
+T15 was deferred on the grounds that collapsing `Fragment`'s replay would change
+side-effecting-child semantics to buy CPU in a phase that is not the bottleneck. Measuring
+it upheld the conclusion and overturned the premise.
+
+**The count was wrong.** Children do not run N+1 times. The body *thunk* runs N+2 times
+(N = slot-marker occurrences, not declared slots), but every *component body* runs exactly
+**once**: the collect pass admits no component at all, because its filter always returns
+false and `cmp()` returns before invoking the component. Exactly one of the N+2 walks is
+redundant, and it is the cheapest one. The issue overstated the prize by roughly a factor
+of N.
+
+**Nested Fragments do not compound in TS** — the one thing that would have changed the
+verdict. Thunk executions per level at D=1..4 are flat (`[3,3,3,3]` at N=1, `[6,6,6,6]` at
+N=4), with the source read exactly D times.
+
+**And it was actually removed rather than argued about.** A patched copy with the collect
+pass deleted, benchmarked against the original over 7 interleaved child-process reps per
+configuration, moved the median by +2.2% / +2.2% / −2.8% / −0.9% / +2.1% across five
+configurations — against run-to-run spreads of 7–43%. The sign is not even consistent. The
+effect is more than an order of magnitude below the noise floor.
+
+So: closed won't-fix, with the numbers attached, rather than left open on an assertion.
+
+**What the measurement found instead** is #29 — Go never applies the Fragment filter to
+non-Slot children, so their bodies run N+1 times where TS runs them zero times. The output
+agrees, which is why no corpus case and neither suite catches it; the *side effects* do not.
+It is also the sole cause of a Go-only quadratic blowup for nested Fragments (D=8: 608 body
+executions against TS's flat 48, and `D(D+1)/2` source re-reads against TS's `D`).
+
+That is the pattern this whole exercise keeps producing: the stated problem was not the
+problem, and chasing it properly surfaced a real one next door.
 
 ### The arc
 
