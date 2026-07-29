@@ -87,7 +87,11 @@ func projectBefore(n *Node, st *jstate, b *buildCtx) error {
 	// to the global folder option). Mirrors src/op/ProjectOp.ts:9-13.
 	parent := folder
 	if n.Folder != "" {
-		if isAbsPath(n.Folder) {
+		// isAbsFromPath, not isAbsPath: ProjectOp.ts guards this join with
+		// node's Path.isAbsolute, which is platform dispatched. Slash-only
+		// meant a drive-absolute Project.Folder was treated as relative on
+		// Windows and rewritten under the output folder.
+		if isAbsFromPath(n.Folder) {
 			parent = n.Folder
 		} else {
 			parent = folder + "/" + n.Folder
@@ -123,13 +127,26 @@ func projectBefore(n *Node, st *jstate, b *buildCtx) error {
 // filepath.IsAbs is NOT the right substitute: on Windows it reports false
 // for "/foo", where node's win32.isAbsolute reports true.
 func isAbsFromPath(p string) bool {
+	return isAbsFromPathOn(p, runtime.GOOS == "windows")
+}
+
+// isAbsFromPathOn is isAbsFromPath with the platform passed in rather than
+// read from runtime.GOOS.
+//
+// The seam exists so the boundary table can be asserted for BOTH platforms
+// from any host. Gating the behaviour on runtime.GOOS made it untestable on
+// the Linux-only Go CI job, and that is exactly how this helper — added to
+// fix the Fragment case (U2) — was wired into one call site and left off
+// its two siblings for a full review round. A Windows-only branch no test
+// can reach is a Windows-only branch that rots.
+func isAbsFromPathOn(p string, windows bool) bool {
 	if p == "" {
 		return false
 	}
 	if p[0] == '/' {
 		return true
 	}
-	if runtime.GOOS != "windows" {
+	if !windows {
 		return false
 	}
 	if p[0] == '\\' {
