@@ -340,6 +340,52 @@ async function main() {
     },
   )
 
+  // Which of existing.txt / existing.bin governs, crossed with every way a
+  // file reaches save. No corpus case set a `bin` mode before this one,
+  // which is why the stacks could disagree about the whole question
+  // (CODE_REVIEW.md §2.7) with every corpus still green:
+  //
+  //   logo.png    single-file Copy, listed ext, TEXT bytes  -> bin
+  //   mod.wasm    single-file Copy, unlisted ext, BIN bytes -> bin (sniffed)
+  //   icon.png    File component, listed ext, TEXT content  -> bin
+  //   readme.txt  single-file Copy, text either way         -> txt
+  //
+  // The routes are the point: the tree walk already agreed across the
+  // stacks, and the single-file copy and the File component are the two
+  // that did not. All four already exist on disk, so the mode set actually
+  // engages — `bin.preserve` makes an `.old.` copy of the first three
+  // (leaving their bytes alone), and `txt.diff` renders conflict markers
+  // into the fourth and must reach none of the others, since that is U3
+  // exactly.
+  await snapshot('existing_bin_classification',
+    {
+      model: { v: 'V' },
+      existing: { txt: { diff: true }, bin: { preserve: true } },
+    },
+    () => {
+      Project({ folder: 'p' }, () => {
+        Copy({ from: '/tm/logo.png', to: 'logo.png' })
+        Copy({ from: '/tm/mod.wasm', to: 'mod.wasm' })
+        Copy({ from: '/tm/readme.txt', to: 'readme.txt' })
+        File({ name: 'icon.png' }, () => Content('NEW-ICON\n'))
+      })
+    },
+    {
+      '/tm/logo.png': 'hello $$v$$\n',
+      '/tm/mod.wasm': Buffer.concat([
+        Buffer.from([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]),
+        Buffer.from('$$v$$', 'utf8'),
+        Buffer.from([0xff, 0xfe, 0x80]),
+      ]),
+      '/tm/readme.txt': 'hello $$v$$\n',
+
+      '/out/p/logo.png': 'OLD-PNG\n',
+      '/out/p/mod.wasm': Buffer.from([0x00, 0x01, 0x02]),
+      '/out/p/readme.txt': 'OLD\n',
+      '/out/p/icon.png': 'OLD-ICON\n',
+    },
+  )
+
   // A Fragment nested inside a Slot: content one level deeper than the
   // Slot's own children must still be emitted. The Go port collected only
   // direct children here and silently dropped it.

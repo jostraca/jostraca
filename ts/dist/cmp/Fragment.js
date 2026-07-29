@@ -43,11 +43,23 @@ const Fragment = (0, jostraca_1.cmp)(function Fragment(props, children) {
     const frompath = node.from;
     let src = fs.readFileSync(frompath, 'utf8');
     const slotnames = {};
-    node.filter = (({ props, component }) => (('Slot' === component.name ? slotnames[props.name] = true : null), false));
+    // Non-Slot children of a Fragment are the content of the *unnamed*
+    // `<[SLOT]>` marker (see README "Fragments and Slots"). If the source
+    // has no unnamed marker there is nowhere for them to go, and every
+    // stack used to drop them without a word. Track both halves of that
+    // condition and report it instead.
+    let sawnonslot = false;
+    node.filter = (({ props, component }) => (('Slot' === component.name ? slotnames[props.name] = true : (sawnonslot = true)), false));
     (0, jostraca_1.each)(children, { call: true });
     node.filter = undefined;
+    // Set from inside the replacement itself rather than by re-testing the
+    // marker regex against the source: template() owns the matching, so
+    // asking template is the only way to be sure the check and the
+    // substitution can never disagree.
+    let defaultslot = false;
     replace['/[ \\t]*[-<!/#*]*[ \\t]*<\\[SLOT]>[ \\t]*[->/#*]*[ \\t]*/'] =
         () => {
+            defaultslot = true;
             node.filter = (({ component }) => 'Slot' !== component.name);
             (0, jostraca_1.each)(children, { call: true });
             node.filter = undefined;
@@ -66,6 +78,12 @@ const Fragment = (0, jostraca_1.cmp)(function Fragment(props, children) {
         eject: props?.eject,
         handle: (s) => null == s ? null : (0, jostraca_1.Content)(s)
     });
+    if (sawnonslot && !defaultslot) {
+        throw new Error('jostraca: Fragment has non-Slot children, but ' + frompath +
+            ' contains no unnamed <[SLOT]> marker to receive them; their output ' +
+            'would be silently discarded. Add an unnamed <[SLOT]> marker to the ' +
+            'fragment source, or wrap the children in a named Slot.');
+    }
 });
 exports.Fragment = Fragment;
 //# sourceMappingURL=Fragment.js.map

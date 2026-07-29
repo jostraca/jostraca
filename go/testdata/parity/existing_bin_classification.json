@@ -1,0 +1,51 @@
+{
+  "scenario": "existing_bin_classification",
+  "opts": {
+    "model": {
+      "v": "V"
+    },
+    "existing": {
+      "txt": {
+        "diff": true
+      },
+      "bin": {
+        "preserve": true
+      }
+    }
+  },
+  "prepopulate": {
+    "/tm/logo.png": "hello $$v$$\n",
+    "/tm/mod.wasm": {
+      "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+    },
+    "/tm/readme.txt": "hello $$v$$\n",
+    "/out/p/logo.png": "OLD-PNG\n",
+    "/out/p/mod.wasm": "\u0000\u0001\u0002",
+    "/out/p/readme.txt": "OLD\n",
+    "/out/p/icon.png": "OLD-ICON\n"
+  },
+  "vol": {
+    "/tm/logo.png": "hello $$v$$\n",
+    "/tm/mod.wasm": {
+      "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+    },
+    "/tm/readme.txt": "hello $$v$$\n",
+    "/out/p/logo.png": "hello $$v$$\n",
+    "/out/p/mod.wasm": {
+      "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+    },
+    "/out/p/readme.txt": "<<<<<<< EXISTING: 1969-12-31T23:59:59.999Z/diff\nOLD\n>>>>>>> EXISTING: 1969-12-31T23:59:59.999Z/diff\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/diff\nhello V\n>>>>>>> GENERATED: 2025-01-01T00:00:00.000Z/diff\n",
+    "/out/p/icon.png": "NEW-ICON\n",
+    "/out/p/logo.old.png": "OLD-PNG\n",
+    "/out/p/mod.old.wasm": "\u0000\u0001\u0002",
+    "/out/p/icon.old.png": "OLD-ICON\n",
+    "/out/.jostraca/generated/p/logo.png": "hello $$v$$\n",
+    "/out/.jostraca/generated/p/mod.wasm": {
+      "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+    },
+    "/out/.jostraca/generated/p/readme.txt": "hello V\n",
+    "/out/.jostraca/generated/p/icon.png": "NEW-ICON\n",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"p/logo.png\": {\n      \"action\": \"write\",\n      \"path\": \"p/logo.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"p/mod.wasm\": {\n      \"action\": \"write\",\n      \"path\": \"p/mod.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"p/readme.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"p/readme.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"p/icon.png\": {\n      \"action\": \"write\",\n      \"path\": \"p/icon.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}

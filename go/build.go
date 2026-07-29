@@ -615,6 +615,13 @@ func shouldIgnoreCopyPath(name, rel string, exclude any, ignores []*regexp.Regex
 		if v == rel {
 			return true
 		}
+	case *regexp.Regexp:
+		// A scalar RegExp is as live as one inside a list; it used to fall
+		// through and exclude nothing. Mirrors the RegExp arm of
+		// `state.excludes` in ts/src/op/CopyOp.ts.
+		if v != nil && v.MatchString(rel) {
+			return true
+		}
 	case []any:
 		for _, x := range v {
 			if s, ok := x.(string); ok && s == rel {
@@ -837,8 +844,16 @@ func fragmentAfter(n *Node, st *jstate, b *buildCtx) error {
 		})
 	}
 	// Default <[SLOT]> matches non-Slot children.
+	//
+	// defaultSlot is set from inside the replacement rather than by
+	// re-testing the marker regex against the source: Template owns the
+	// matching, so asking Template is the only way to be sure the check
+	// below and the substitution can never disagree. Mirrors
+	// ts/src/cmp/Fragment.ts.
+	defaultSlot := false
 	replace["/[ \\t]*[-<!/#*]*[ \\t]*<\\[SLOT\\]>[ \\t]*[->/#*]*[ \\t]*/"] =
 		ReplaceFunc(func(_ map[string]string, _ string) string {
+			defaultSlot = true
 			return replayWithFilter(
 				func(kind, _ string) bool { return kind != "slot" },
 				collectContent,
@@ -854,6 +869,20 @@ func fragmentAfter(n *Node, st *jstate, b *buildCtx) error {
 	if b.replayErr != nil {
 		err, b.replayErr = b.replayErr, nil
 		return err
+	}
+	// Non-Slot children of a Fragment are the content of the *unnamed*
+	// <[SLOT]> marker. If the source has no unnamed marker there is
+	// nowhere for them to go, and both stacks used to drop them without a
+	// word. n.Children holds exactly the non-Slot direct children: SlotP
+	// returns before attaching while the define-time collect filter is
+	// set, so only non-Slot children survive that walk.
+	if len(n.Children) > 0 && !defaultSlot {
+		return &NodeError{Step: "fragment", Err: fmtErrorf(
+			"Fragment has non-Slot children, but %s contains no unnamed "+
+				"<[SLOT]> marker to receive them; their output would be "+
+				"silently discarded. Add an unnamed <[SLOT]> marker to the "+
+				"fragment source, or wrap the children in a named Slot.",
+			n.From)}
 	}
 	if n.Indent != nil {
 		rendered = Indent(rendered, n.Indent)

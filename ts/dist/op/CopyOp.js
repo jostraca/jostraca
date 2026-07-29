@@ -66,8 +66,9 @@ const CopyOp = {
             // `'string' === node.exclude` compared the value against the literal
             // text "string", so a string exclude never matched.
             excludes: 'string' === typeof node.exclude ? [node.exclude] :
-                Array.isArray(node.exclude) ? node.exclude :
-                    []
+                node.exclude instanceof RegExp ? [node.exclude] :
+                    Array.isArray(node.exclude) ? node.exclude :
+                        []
         };
         // node.name carries the Copy `to` prop.
         (0, FileHandler_1.validName)(node.name, 'Copy(to)', ON + 'after:');
@@ -142,6 +143,21 @@ function walk(fs, state, nodepath, from, to) {
         if (isIgnored) {
             continue;
         }
+        // The caller's Copy `exclude` matches the SOURCE-RELATIVE path, and is
+        // tested HERE, before the directory/file split, so naming a directory
+        // PRUNES its whole subtree. The test used to live inside
+        // `excludeFile()`, which only the two FILE branches call, so
+        // `exclude: ['sub']` was a silent no-op while `exclude: ['sub/a.txt']`
+        // worked. The Go port already pruned, so per CLAUDE.md TS is the side
+        // to correct.
+        //
+        // The built-in ignore rules above (`~` backups, `-jostraca-off`) are a
+        // SEPARATE list and keep matching the bare NAME, not this path.
+        //
+        // NOT Path.sep - needs to be canonical.
+        if (excluded(nodepath.concat(name).join('/'), state.excludes)) {
+            continue;
+        }
         if (isDirectory) {
             state.folderCount++;
             walk(fs, state, nodepath.concat(name), frompath, topath);
@@ -174,9 +190,21 @@ function copyFile(frompath, topath, state, buildctx, fs) {
     // a binary as utf8 then re-encoding it replaces every invalid sequence
     // with U+FFFD — corrupting the copy. Sniff the content and pass bytes
     // through untouched when it does not look like text.
+    //
+    // The extension is checked FIRST, and the sniff can only promote what it
+    // does not cover: a listed extension is binary whatever its bytes look
+    // like. The tree walk only routes non-listed extensions here, so this
+    // clause is about the SINGLE-FILE copy, which used to reach this
+    // function with any extension at all and consult the content alone — so
+    // an `a.png` holding ASCII was templated and governed by `existing.txt`
+    // as a single-file copy, and neither as part of a tree.
+    //
+    // `saveBinary`, not `save`: save re-derives the classification from the
+    // destination extension, which would send a sniffed `.wasm` back to
+    // `existing.txt` and let `txt.diff` write conflict markers into binary.
     const raw = fs.readFileSync(frompath);
-    if ((0, basic_1.isbincontent)(raw)) {
-        buildctx.fh.save(topath, raw, ON + FN);
+    if ((0, jostraca_1.isbinext)(frompath) || (0, basic_1.isbincontent)(raw)) {
+        buildctx.fh.saveBinary(topath, raw, ON + FN);
         return;
     }
     const src = raw.toString('utf8');
@@ -185,7 +213,19 @@ function copyFile(frompath, topath, state, buildctx, fs) {
 }
 // TODO: needs an option
 function ignored(state, nodepath, name, topath) {
-    return IGNORED_RE.test(name);
+    if (IGNORED_RE.test(name)) {
+        return true;
+    }
+    // The CONFIGURED ignore regexes match the bare NAME, exactly as the
+    // built-in rules above do. They used to be tested inside `excludeFile()`,
+    // which only the two FILE branches call, so a regex naming a directory
+    // was a no-op in TS while the Go port pruned the subtree.
+    for (const ignoreRE of state.ctx$.opts.cmp.Copy.ignore) {
+        if (ignoreRE.test(name)) {
+            return true;
+        }
+    }
+    return false;
 }
 // Resolve a directory to its canonical path so a symlink and its target
 // compare equal. Providers without realpathSync (or a path that cannot be
@@ -205,19 +245,16 @@ function excludeFile(fs, state, nodepath, name, topath) {
     const { opts } = state.ctx$;
     const { log } = state.buildctx;
     let exclude = false;
-    for (let ignoreRE of opts.cmp.Copy.ignore) {
-        if (ignoreRE.test(name)) {
-            return true;
-        }
-    }
+    // NOTE: the configured Cmp.Copy.ignore regexes are NOT tested here -
+    // `ignored()` tests them, alongside the built-in rules, for directory
+    // and file entries alike.
     // NOT Path.sep - needs to be canonical
     const rpath = nodepath.concat(name).join('/');
     // TOOD: use exclude only for actual excludes, refactor logic to ignore if exists,
     // use a different prop for that
     // const fileExists = fs.existsSync(topath)
-    if (excluded(rpath, state.excludes)) {
-        return true;
-    }
+    // NOTE: the caller's `exclude` list is NOT tested here - walk() tests it
+    // for directory and file entries alike, so that it can prune subtrees.
     if (true !== opts.exclude) {
         return false;
     }

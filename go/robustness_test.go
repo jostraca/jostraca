@@ -58,6 +58,72 @@ func TestCopyPreservesBinaryWithUnlistedExtension(t *testing.T) {
 	}
 }
 
+// Which of existing.txt / existing.bin governs is decided by the
+// EXTENSION: an a.png holding ASCII is binary, so existing.bin governs it
+// and a Copy never templates it. Go has always classified this way and TS
+// classified by the type of the value handed to save, which inverted the
+// two stacks against each other; this pins the agreed rule on both sides.
+// Mirrors ts/test/robustness.test.ts:
+// binary-classification-follows-the-extension.
+func TestBinaryClassificationFollowsExtension(t *testing.T) {
+	tr := true
+
+	copied := func(ex Existing, tree bool) map[string][]byte {
+		m := NewMemFS()
+		_ = m.WriteFile("/src/a.png", []byte("hello $$v$$\n"))
+		_ = m.WriteFile("/out/p/a.png", []byte("OLD\n"))
+
+		j := robJ(m, "/out", WithModel(map[string]any{"v": "V"}))
+		if _, err := j.Generate(Options{Existing: ex}, func(j *J) {
+			j.Project(ProjectProps{Folder: "p"}, func(j *J) {
+				if tree {
+					j.Copy(CopyProps{From: "/src"})
+				} else {
+					j.Copy(CopyProps{From: "/src/a.png", To: "a.png"})
+				}
+			})
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return m.Vol()
+	}
+
+	for _, tree := range []bool{false, true} {
+		bin := copied(Existing{Bin: ExistingBin{Preserve: &tr}}, tree)
+		if _, ok := bin["/out/p/a.old.png"]; !ok {
+			t.Errorf("tree=%v: bin.preserve did not govern a.png", tree)
+		}
+		if got := string(bin["/out/p/a.png"]); got != "hello $$v$$\n" {
+			t.Errorf("tree=%v: binary-extension file was templated: %q", tree, got)
+		}
+
+		txt := copied(Existing{Txt: ExistingTxt{Preserve: &tr}}, tree)
+		if _, ok := txt["/out/p/a.old.png"]; ok {
+			t.Errorf("tree=%v: txt.preserve governed a binary-extension file", tree)
+		}
+	}
+
+	// A File component writing a plain string is classified the same way.
+	m := NewMemFS()
+	_ = m.WriteFile("/out/p/a.png", []byte("OLD\n"))
+	j := robJ(m, "/out")
+	if _, err := j.Generate(Options{Existing: Existing{
+		Bin: ExistingBin{Preserve: &tr}, Txt: ExistingTxt{Diff: &tr}}}, func(j *J) {
+		j.Project(ProjectProps{Folder: "p"}, func(j *J) {
+			j.File("a.png", func(j *J) { j.Content("NEW\n") })
+		})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := m.Vol()["/out/p/a.old.png"]; !ok {
+		t.Error("bin.preserve did not govern a File-generated a.png")
+	}
+	// txt.diff must not reach a binary file.
+	if got := string(m.Vol()["/out/p/a.png"]); got != "NEW\n" {
+		t.Errorf("txt.diff reached a binary-extension file: %q", got)
+	}
+}
+
 func TestCopyIgnoreAppliesToTextFiles(t *testing.T) {
 	m := NewMemFS()
 	_ = m.WriteFile("/tm/keep.txt", []byte("KEEP\n"))

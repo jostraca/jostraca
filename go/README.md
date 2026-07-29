@@ -259,6 +259,16 @@ with these intentional ergonomic differences:
 - `Indent` uses `strings.ReplaceAll` (no JS lookbehind needed).
 - The `Point*` orchestration utility is not ported (deferred to a
   future sub-package).
+- `J.Cmp` runs its body inline without allocating a node, where TS's
+  `cmp()` allocates one and routes it through the Fragment filter. A
+  user component used as a direct Fragment child is therefore a
+  non-Slot child in TS but invisible in Go, so the "non-Slot child
+  with no unnamed `<[SLOT]>` marker" error (see the TS `Fragment`
+  notes) fires in TS and not in Go for that one shape. A user
+  component that *wraps* a `Slot` is already broken in TS today (the
+  slot name is never collected and the marker survives verbatim);
+  Go handles it. Not reconciled: aligning it means giving `Cmp` a
+  node, which changes the shape of every Go component tree.
 - A template value that is an integer wider than 2^53 keeps its exact
   value in Go and loses precision in TS, whose numbers are all
   `float64`. Everything a `float64` can hold exactly formats

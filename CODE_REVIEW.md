@@ -90,9 +90,9 @@ issue so the deferral is tracked rather than lost:
 | [#23](https://github.com/jostraca/jostraca/issues/23) | the option-surface corpus does not cross `Copy.exclude` or `existing.bin`. Both halves prototyped and verified; **both now blocked on a semantic decision** rather than on tooling — [#28](https://github.com/jostraca/jostraca/issues/28) and [#27](https://github.com/jostraca/jostraca/issues/27). See §2.12 |
 | [#24](https://github.com/jostraca/jostraca/issues/24) | **FIXED** — the corpus carries binary content via a `{"b64": …}` escape hatch; see §2.11 |
 | [#25](https://github.com/jostraca/jostraca/issues/25) | **CLOSED, won't-fix** — T15. The deferral held, but the premise did not: component bodies run *once*, not N+1 times, and nested Fragments do not compound in TS. Removing the one redundant pass was unmeasurable against noise. See §2.13 |
-| [#27](https://github.com/jostraca/jostraca/issues/27) | `existing.txt` vs `existing.bin` is chosen by value type in TS and by extension in Go — exactly inverted for text in a binary-extension file, and TS disagrees with itself between the single-file and tree copy routes |
-| [#28](https://github.com/jostraca/jostraca/issues/28) | `Copy.exclude` prunes directories in Go and ignores them in TS; a bare string is a shape error in TS and works in Go (making `CopyOp.ts`'s string branch dead code) |
-| [#29](https://github.com/jostraca/jostraca/issues/29) | Go never applies the Fragment filter to non-Slot children, so their side effects run N+1 times against TS's zero — and it is the sole cause of a Go-only quadratic blowup for nested Fragments |
+| [#27](https://github.com/jostraca/jostraca/issues/27) | **FIXED** — extension decides, with sniffing able to promote an unlisted extension but never demote a listed one; see §2.14 |
+| [#28](https://github.com/jostraca/jostraca/issues/28) | **FIXED** — TS now prunes excluded directories, and a scalar `exclude` is legal in both stacks; see §2.14 |
+| [#29](https://github.com/jostraca/jostraca/issues/29) | **FIXED, narrowed** — the literal rule was unimplementable; a non-Slot child errors only when the source has no unnamed `<[SLOT]>` to receive it; see §2.14 |
 
 T15 is the only *code* item from this review not acted on; the rest are follow-on coverage
 and infrastructure. Directory modes are still fixed at 0755 and there is no global
@@ -826,6 +826,72 @@ executions against TS's flat 48, and `D(D+1)/2` source re-reads against TS's `D`
 
 That is the pattern this whole exercise keeps producing: the stated problem was not the
 problem, and chasing it properly surfaced a real one next door.
+
+---
+
+## 2.14 #27–#29 — three decided semantics, and one decision that could not be taken literally
+
+These three were escalated rather than chosen unilaterally: each changes canonical
+user-visible behaviour, so each got an explicit ruling. Extension decides binary/text;
+`Copy.exclude` prunes directories; a non-Slot child of a `Fragment` is an error. What
+implementing them found is that two of the three needed a qualifier the ruling did not
+contain, and one could not be implemented as stated at all.
+
+**#27 — "extension decides" had to be qualified, or it un-fixed U3.** Taken absolutely,
+extension-only sends an unlisted extension like `.wasm` back to `existing.txt`, which is
+verbatim the U3 defect from §2.7. That was not argued, it was *built*: with sniffing removed
+entirely, two robustness tests fail and the `copy_binary_unlisted_ext` corpus case rewrites
+itself — the embedded `$$v$$` templated to `V` and `ff fe 80` collapsed to three `U+FFFD`.
+A narrower counterfactual, where sniffing still decides templating but the mode set comes
+from the extension alone, produced `<<<<<<< EXISTING` conflict markers wrapped around
+binary. So the rule shipped is *extension decides, and sniffing may promote an unlisted
+extension to binary but never demote a listed one* — which resolves the inversion the
+decision was about (`a.png` holding text is binary, by its extension) without reopening a
+fixed data-integrity bug.
+
+Two supporting findings: `go/PORT_PLAN.md` already documented this rule — TS had never
+matched its own port plan, so TS was the drifted side and Go needed **no source change** at
+all. And `existing.bin.diff`/`.merge` are rejected by `ExistingShape`, so a bin-classified
+file structurally cannot reach the diff/merge branches; no extra guard was needed.
+
+**#28 — the widening was safe but not sufficient.** Hoisting the `exclude` test above the
+directory/file split makes TS prune, matching Go. Admitting a scalar `String`/`RegExp` makes
+`CopyOp`'s scalar branch reachable for the first time — it had been dead code that an
+earlier round "fixed" without noticing it could never run. But a scalar *RegExp* still
+matched nothing in either stack until one ternary arm in TS and one `case *regexp.Regexp` in
+Go were added. Widening a shape does not make the code behind it work.
+
+A residual divergence surfaced and was closed in the same change: configured
+`Cmp.Copy.ignore` regexes pruned directories in Go and not in TS, because they were tested
+inside `excludeFile()` alongside the user excludes rather than in `ignored()` beside the
+built-in rules. The built-in `~` / `-jostraca-off` rules keep matching the bare basename;
+user `exclude` matches the source-relative path. Those are two different lists with two
+different match targets, and conflating them is what produced the divergence.
+
+**#29 — the rule as stated was unimplementable, because the behaviour is documented.** A
+non-Slot child of a `Fragment` is not an accident: `README.md` states that unnamed `<[SLOT]>`
+markers *receive all non-Slot children of the Fragment*. The committed `fragment_subcmp`
+scenario exercises exactly that (`Content('S')` → `+S`), alongside `replace` callbacks that
+invoke components. Erroring on every non-Slot child would delete a documented feature and a
+parity scenario covering it.
+
+The narrowed rule is the silent-drop case and nothing else:
+
+> A non-Slot child of a Fragment is an error **only when the fragment source contains no
+> unnamed `<[SLOT]>` marker to receive it.**
+
+Every documented usage stays legal, `fragment_subcmp` is untouched and byte-identical, and
+the entire corpus regenerates with zero movement. The error text is identical in both stacks
+and names the offending source file.
+
+Note what this does *not* fix. #29 was originally about Go running non-Slot children's
+bodies N+1 times where TS runs them zero times; the narrowed rule makes the silent-drop case
+loud, but the side-effect count still differs for shapes that remain legal. And one new
+asymmetry is recorded rather than reconciled, in `go/README.md`'s deviations list: Go's
+`J.Cmp` runs its body inline without allocating a node, so a *user component* used as a
+direct Fragment child is a non-Slot child in TS and invisible in Go — the new error fires in
+TS only, for that one shape. Reconciling it means giving `Cmp` a node, which changes the
+shape of every Go component tree.
 
 ### The arc
 

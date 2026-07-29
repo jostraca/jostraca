@@ -231,6 +231,37 @@ const START_TIME = 1735689600000;
             [TOP_META]: voljson[TOP_META],
         });
     });
+    (0, node_test_1.test)('fragment-nonslot-child-without-default-slot', async () => {
+        // Non-Slot children fill the unnamed <[SLOT]> marker. With no unnamed
+        // marker in the source there is nowhere for them to go; that used to
+        // drop them silently (both stacks), so it is now an error.
+        const { fs } = (0, memfs_1.memfs)({
+            // Named marker only -- no unnamed <[SLOT]>.
+            '/tmp/named.txt': 'Q+// <[SLOT:alice]>\n',
+            '/tmp/plain.txt': 'Q\n',
+            '/tmp/both.txt': 'Q+<[SLOT]>+// <[SLOT:alice]>\n',
+        });
+        const gen = (from) => (0, __1.Jostraca)({}).generate({ fs: () => fs, folder: '/top' }, () => (0, __1.Project)({}, () => {
+            (0, __1.File)({ name: 'foo.txt' }, () => {
+                (0, __1.Fragment)({ from }, () => {
+                    (0, __1.Content)('A');
+                    (0, __1.Slot)({ name: 'alice' }, () => (0, __1.Content)('ALICE'));
+                });
+            });
+        }));
+        let err = undefined;
+        await gen('/tmp/named.txt').catch((e) => err = e);
+        (0, expect_1.expect)(null != err).equal(true);
+        (0, expect_1.expect)(/no unnamed <\[SLOT\]> marker/.test(err.message)).equal(true);
+        (0, expect_1.expect)(err.message.includes('/tmp/named.txt')).equal(true);
+        err = undefined;
+        await gen('/tmp/plain.txt').catch((e) => err = e);
+        (0, expect_1.expect)(null != err).equal(true);
+        // An unnamed marker makes the same body legal again.
+        err = undefined;
+        await gen('/tmp/both.txt').catch((e) => err = e);
+        (0, expect_1.expect)(err).equal(undefined);
+    });
     (0, node_test_1.test)('inject', async () => {
         let nowI = 0;
         const now = () => START_TIME + (++nowI * (60 * 1000));

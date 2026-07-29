@@ -241,6 +241,14 @@ var scenarioRunners = map[string]func(j *J){
 			j.Copy(CopyProps{From: "/tm"})
 		})
 	},
+	"existing_bin_classification": func(j *J) {
+		j.Project(ProjectProps{Folder: "p"}, func(j *J) {
+			j.Copy(CopyProps{From: "/tm/logo.png", To: "logo.png"})
+			j.Copy(CopyProps{From: "/tm/mod.wasm", To: "mod.wasm"})
+			j.Copy(CopyProps{From: "/tm/readme.txt", To: "readme.txt"})
+			j.File("icon.png", func(j *J) { j.Content("NEW-ICON\n") })
+		})
+	},
 	"absolute_paths": func(j *J) {
 		// Project.Folder is absolute; Folder name has a leading /.
 		// Both must compose into a clean /top/sdk/code/js path even
@@ -282,6 +290,15 @@ func scenarioOptions(scenario string) []Option {
 		return []Option{WithModel(map[string]any{"x": map[string]any{"y": "Y", "z": "Z"}})}
 	case "copy_ignore_text", "copy_binary_unlisted_ext":
 		return []Option{WithModel(map[string]any{"v": "V"})}
+	case "existing_bin_classification":
+		t := true
+		return []Option{
+			WithModel(map[string]any{"v": "V"}),
+			WithExisting(Existing{
+				Txt: ExistingTxt{Diff: &t},
+				Bin: ExistingBin{Preserve: &t},
+			}),
+		}
 	case "absolute_paths":
 		return []Option{WithFolder("/top")}
 	}
