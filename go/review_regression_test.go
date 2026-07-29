@@ -38,8 +38,14 @@ func TestCopyDuplicateRealpathSiblingsBothCopied(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(src, "real", "one.txt"), []byte("ONE\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
+		// Creating a symlink on Windows needs SeCreateSymbolicLinkPrivilege,
+		// which GitHub's windows-latest runners do not have. Skip rather than
+		// fail — this test is entirely about a symlinked sibling, so there is
+		// nothing left to assert without one. Same idiom as
+		// robustness_test.go. The cost is that Windows CI never regression-
+		// tests the R1 visited-unwind fix; that gap is deliberate.
 		if err := os.Symlink(filepath.Join(src, "real"), filepath.Join(src, linkname)); err != nil {
-			t.Fatal(err)
+			t.Skipf("symlinks unavailable: %v", err)
 		}
 
 		j := revJ(t, fwd(dir))
@@ -75,8 +81,10 @@ func TestCopyStillDetectsAncestorCycle(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(src, "sub", "a.txt"), []byte("A\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// See the note on the sibling test above: no symlink privilege on
+	// Windows runners, and a cycle test without a cycle asserts nothing.
 	if err := os.Symlink(src, filepath.Join(src, "sub", "loop")); err != nil {
-		t.Fatal(err)
+		t.Skipf("symlinks unavailable: %v", err)
 	}
 
 	done := make(chan error, 1)
