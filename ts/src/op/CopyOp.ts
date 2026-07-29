@@ -159,17 +159,19 @@ function walk(fs: any, state: any, nodepath: string[], from: string, to: string)
   for (let name of entries) {
     const frompath = from + '/' + name
     const topath = to + '/' + name
-    const stat = fs.statSync(frompath)
 
-    const isDirectory = stat.isDirectory()
-    const isTemplateFile = isTemplate(name)
-    const isIgnored = ignored(state, nodepath, name, topath)
+    // Both rejection tests run on the NAME and PATH alone, BEFORE the entry
+    // is stat'd. Statting first meant a dangling symlink threw ENOENT and
+    // aborted the whole copy even when the caller had explicitly excluded
+    // it — `exclude: ['broken-link']` could not skip the very entry that
+    // breaks the walk. Go evaluates shouldIgnoreCopyPath before its Stat,
+    // so this was a cross-stack divergence too.
 
     // The ignore rule (`~` backups, `-jostraca-off`) has to be checked
     // before the template/binary split. It used to sit only on the binary
     // branch, so it never applied to text files — i.e. to almost
     // everything, and `-jostraca-off` did nothing at all.
-    if (isIgnored) {
+    if (ignored(state, nodepath, name, topath)) {
       continue
     }
 
@@ -188,6 +190,11 @@ function walk(fs: any, state: any, nodepath: string[], from: string, to: string)
     if (excluded(nodepath.concat(name).join('/'), state.excludes)) {
       continue
     }
+
+    const stat = fs.statSync(frompath)
+
+    const isDirectory = stat.isDirectory()
+    const isTemplateFile = isTemplate(name)
 
     if (isDirectory) {
       state.folderCount++
@@ -262,6 +269,10 @@ function ignored(state: any, nodepath: string[], name: string, topath: string) {
   // which only the two FILE branches call, so a regex naming a directory
   // was a no-op in TS while the Go port pruned the subtree.
   for (const ignoreRE of state.ctx$.opts.cmp.Copy.ignore) {
+    // Reset `lastIndex` for the same reason `excluded()` does: these are
+    // caller-supplied regexes reused across every entry in the tree, and a
+    // `g` or `y` flag makes `test` resume from the previous match.
+    ignoreRE.lastIndex = 0
     if (ignoreRE.test(name)) {
       return true
     }
@@ -339,6 +350,13 @@ function excluded(path: string, excludes: (string | RegExp)[]) {
       if (exc === path) return true
     }
     else if (exc instanceof RegExp) {
+      // `lastIndex` is reset before every test. A RegExp carrying `g` or
+      // `y` is STATEFUL: `test` resumes from where the previous call
+      // stopped, so reusing one instance across a tree matched every other
+      // path — `exclude: /a/g` over a1,a2,a3 excluded a1 and a3 and copied
+      // a2. Go's regexp has no such cursor, so this was a cross-stack
+      // divergence as well as a surprise on its own terms.
+      exc.lastIndex = 0
       if (exc.test(path)) return true
     }
   }
