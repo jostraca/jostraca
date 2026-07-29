@@ -15,7 +15,8 @@ const {
 
 const { memfs } = require('memfs')
 
-const outDir = process.argv[2] || 'go/jostraca/testdata/parity'
+// Default is relative to the repo root (this script is run from ts/).
+const outDir = process.argv[2] || '../go/testdata/parity'
 
 fs.mkdirSync(outDir, { recursive: true })
 
@@ -45,7 +46,162 @@ async function snapshot(name, opts, root, prepopulate) {
   console.log('wrote', name)
 }
 
+
+// Cross-stack differential corpus for the diff/merge engine.
+//
+// Every case records TS's exact output. go/diff_corpus_test.go replays the
+// same inputs and asserts byte equality, which is what actually holds the
+// two implementations together — the scenario corpus below only exercises
+// merge through a handful of well-behaved end-to-end cases, and that is how
+// the two stacks silently diverged before.
+//
+// All content is plain ASCII lines, so it round-trips through JSON exactly.
+function diffCorpus() {
+  const { DiffUtil } = require('../dist/jostraca')
+
+  // Deterministic PRNG: the corpus is committed, and CI regenerates it and
+  // fails on any diff, so it has to be stable.
+  let seed = 20260725 >>> 0
+  const rnd = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0
+    return seed / 0x100000000
+  }
+  const mk = (n, vocab) => {
+    const out = []
+    for (let i = 0; i < n; i++) {
+      out.push('L' + Math.floor(rnd() * vocab) + '\n')
+    }
+    return out.join('')
+  }
+  const trimNL = (s) => s.endsWith('\n') ? s.slice(0, -1) : s
+
+  const labels = { generated: 'G', existing: 'E' }
+  const spec = { labels }
+  const cases = []
+
+  const push3 = (generated, baseline, existing) => {
+    const r = DiffUtil.merge(generated, baseline, existing, spec)
+    cases.push({
+      kind: 'merge', generated, baseline, existing,
+      content: r.content, conflict: r.conflict, outcome: r.outcome,
+    })
+  }
+  const push2 = (generated, existing) => {
+    const r = DiffUtil.diff(generated, existing, spec)
+    cases.push({
+      kind: 'diff', generated, existing,
+      content: r.content, conflict: r.conflict, outcome: r.outcome,
+    })
+  }
+
+  // Hand-picked edge shapes.
+  const edges = [
+    ['', '', ''],
+    ['a\n', '', ''],
+    ['', 'a\n', ''],
+    ['', '', 'a\n'],
+    ['a\n', 'a\n', 'a\n'],
+    ['NEW\n', 'OLD\n', 'OLD\n'],
+    ['a\nNEW\nc\n', 'a\nORIG\nc\n', 'a\nUSER\nc\n'],
+    ['keep\ndrop\n', 'keep\ndrop\n', 'keep\n'],
+    ['keep\n', 'keep\ndrop\n', 'keep\ndrop\n'],
+    ['X', '', 'Y'],
+    ['a\nX', 'a\n', 'a\nY'],
+    ['\n\n\n', '\n', '\n\n'],
+    ['a\r\nb\r\n', 'a\r\n', 'a\r\nc\r\n'],
+    ['x\ny\nz\n', 'y\n', 'w\ny\nv\n'],
+    ['}\n}\n}\n', '}\n}\n', '}\n}\n}\n}\n'],
+
+    // Input that already contains conflict-marker text. Found by the Go
+    // fuzzer (go/fuzz_test.go); pinned here so BOTH stacks are held to the
+    // same handling, not just the one that found it. The engine keeps such
+    // text verbatim — it cannot rewrite a marker it never emitted — so
+    // these are exactly the cases where "every marker starts its own line"
+    // stops holding, and the two implementations must stop together.
+    ['0', '0', '0<<<<<<< '],
+    ['0=======', '', '0'],
+    ['a\n<<<<<<< x\nb\n', 'a\n', 'a\nc\n'],
+    ['a\n', 'a\n', 'a\n=======\nb\n'],
+    ['>>>>>>> ', '', ''],
+  ]
+  for (const [g, b, e] of edges) {
+    push3(g, b, e)
+    push2(g, e)
+  }
+
+  // Randomised shapes, weighted towards small vocabularies where repeated
+  // lines make tie-breaking observable.
+  const shapes = [
+    { n: 1, v: 1 }, { n: 2, v: 2 }, { n: 3, v: 2 }, { n: 4, v: 2 },
+    { n: 5, v: 3 }, { n: 6, v: 2 }, { n: 8, v: 3 }, { n: 10, v: 4 },
+    { n: 12, v: 3 }, { n: 16, v: 5 }, { n: 20, v: 6 }, { n: 24, v: 8 },
+    { n: 32, v: 4 }, { n: 40, v: 12 },
+  ]
+  for (const s of shapes) {
+    for (let i = 0; i < 20; i++) {
+      const b = mk(s.n, s.v)
+      const g = mk(s.n, s.v)
+      const e = mk(s.n, s.v)
+      push3(g, b, e)
+      push2(g, e)
+      // Same shapes without trailing newlines, to stress marker placement.
+      push3(trimNL(g), trimNL(b), trimNL(e))
+      push2(trimNL(g), trimNL(e))
+    }
+  }
+
+  // Realistic shape: a mostly-unchanged file with a couple of edits.
+  for (let i = 0; i < 20; i++) {
+    const baseLines = []
+    for (let k = 0; k < 30; k++) {
+      baseLines.push('  key_' + k + ': value_' + k + '\n')
+    }
+    const genLines = baseLines.slice()
+    const exiLines = baseLines.slice()
+    genLines[Math.floor(rnd() * 30)] = '  key_gen: CHANGED\n'
+    exiLines[Math.floor(rnd() * 30)] = '  key_user: EDITED\n'
+    push3(genLines.join(''), baseLines.join(''), exiLines.join(''))
+    push2(genLines.join(''), exiLines.join(''))
+  }
+
+  fs.writeFileSync(
+    path.join(outDir, 'diff_corpus.json'),
+    JSON.stringify({ scenario: 'diff_corpus', labels, cases }, null, 2) + '\n',
+  )
+  console.log('wrote diff_corpus (' + cases.length + ' cases)')
+}
+
+// Cross-stack differential corpus for the OPTION SURFACE — folder,
+// existing-file mode, on-disk state and filename shape, crossed. See
+// tools/scenario-corpus.js for why.
+async function scenarioCorpus() {
+  const { buildCorpus } = require('./scenario-corpus.js')
+  const cases = await buildCorpus()
+  fs.writeFileSync(
+    path.join(outDir, 'scenario_corpus.json'),
+    JSON.stringify({ scenario: 'scenario_corpus', cases }, null, 2) + '\n',
+  )
+  console.log('wrote scenario_corpus (' + cases.length + ' cases)')
+}
+
+
+// Cross-stack differential corpus for the template engine. See
+// tools/template-corpus.js for why it exists.
+function templateCorpus() {
+  const { buildCases } = require('./template-corpus.js')
+  const cases = buildCases()
+  fs.writeFileSync(
+    path.join(outDir, 'template_corpus.json'),
+    JSON.stringify({ scenario: 'template_corpus', cases }, null, 2) + '\n',
+  )
+  console.log('wrote template_corpus (' + cases.length + ' cases)')
+}
+
 async function main() {
+  diffCorpus()
+  templateCorpus()
+  await scenarioCorpus()
+
   // Quickstart from the README.
   await snapshot('quickstart', {}, () => {
     Project({ folder: 'my-app' }, () => {
@@ -148,6 +304,142 @@ async function main() {
       File({ name: 'foo.txt' }, () => Content('A'))
     })
   })
+
+  // NOTE: binary content cannot be expressed in this corpus. Values are
+  // JSON strings, so bytes >0x7F round-trip as their UTF-8 encoding —
+  // 0xFF 0xFE arrives on the Go side as 0xC3 0xBF 0xC3 0xBE. Binary
+  // behaviour (Copy must not corrupt a file whose extension is absent from
+  // BINARY_EXT) is therefore covered by per-stack unit tests instead:
+  // ts/test/robustness.test.ts and go/robustness_test.go. Adding binary
+  // scenarios here would need a base64 escape hatch in the format.
+
+  // A Fragment nested inside a Slot: content one level deeper than the
+  // Slot's own children must still be emitted. The Go port collected only
+  // direct children here and silently dropped it.
+  await snapshot('fragment_nested_in_slot', {}, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'out.txt' }, () => {
+        Fragment({ from: '/f.txt' }, () => {
+          Slot({ name: 's' }, () => {
+            Fragment({ from: '/f2.txt' }, () => { })
+            Content('DIRECT')
+          })
+        })
+      })
+    })
+  }, {
+    '/f.txt': 'A<[SLOT:s]>B\n',
+    '/f2.txt': 'NESTED',
+  })
+
+  // A relative Fragment `from` resolves against the output folder. This
+  // used to throw: the shape check stat'd the raw relative string against
+  // the process CWD, so it failed regardless of where the file was.
+  await snapshot('fragment_relative_from', {}, () => {
+    Project({ folder: 'app' }, () => {
+      Folder({ name: 'sub' }, () => {
+        File({ name: 'out.txt' }, () => {
+          Fragment({ from: 'frag.txt' })
+        })
+      })
+    })
+  }, {
+    '/out/frag.txt': 'FRAG\n',
+  })
+
+  // Text-only half of the same behaviour: the ignore rules must apply to
+  // text files, not just binaries.
+  await snapshot('copy_ignore_text',
+    { model: { v: 'V' } },
+    () => {
+      Project({ folder: 'app' }, () => {
+        Copy({ from: '/tm' })
+      })
+    },
+    {
+      '/tm/readme.txt': 'hello $$v$$\n',
+      '/tm/skip.txt-jostraca-off': 'SKIP\n',
+      '/tm/backup.txt~': 'BACKUP\n',
+    },
+  )
+
+  // Mode combinations. The existing-file modes are NOT mutually
+  // exclusive: preserve runs independently of diff, so a `.old` backup and
+  // an annotated diff must both appear.
+  await snapshot('preserve_and_diff',
+    { existing: { txt: { preserve: true, diff: true } }, now: () => FROZEN_NOW },
+    () => {
+      Project({ folder: 'app' }, () => {
+        File({ name: 'a.txt' }, () => Content('NEW\n'))
+      })
+    },
+    { '/out/app/a.txt': 'OLD\n' },
+  )
+
+  // A protected file is never written, but `present` still deposits the
+  // .new sidecar so the user can see what would have been generated.
+  await snapshot('protect_and_present',
+    { existing: { txt: { write: false, present: true } } },
+    () => {
+      Project({ folder: 'app' }, () => {
+        File({ name: 'a.txt' }, () => Content('NEW\n'))
+      })
+    },
+    { '/out/app/a.txt': '# JOSTRACA_PROTECT\nkeep me\n' },
+  )
+
+  // Inject rewrites *every* marker pair in the target, and finds the end
+  // marker after the start marker (a stray end marker earlier in the file
+  // must not defeat it).
+  await snapshot('inject_two_blocks', {}, () => {
+    Project({ folder: 'app' }, () => {
+      Inject({ name: 'foo.txt' }, () => Content('NEW'))
+    })
+  }, {
+    '/out/app/foo.txt':
+      'A\n#--START--#\nold1\n#--END--#\nB\n#--START--#\nold2\n#--END--#\nC\n',
+  })
+
+  await snapshot('inject_stray_end_marker', {}, () => {
+    Project({ folder: 'app' }, () => {
+      Inject({ name: 'foo.txt' }, () => Content('NEW'))
+    })
+  }, {
+    '/out/app/foo.txt': '\n#--END--#\nA\n#--START--#\nold\n#--END--#\nZ\n',
+  })
+
+  // No marker pair: the file is left byte-identical (and a debug warning
+  // is recorded, since a silent no-op is otherwise invisible).
+  await snapshot('inject_no_markers', {}, () => {
+    Project({ folder: 'app' }, () => {
+      Inject({ name: 'foo.txt' }, () => Content('NEW'))
+    })
+  }, {
+    '/out/app/foo.txt': 'no markers here\n',
+  })
+
+  // A File with no enclosing Project must resolve under the output
+  // folder. This used to join onto an empty folder path and land at the
+  // filesystem root.
+  await snapshot('no_project_file', {}, () => {
+    File({ name: 'x.txt' }, () => Content('hi\n'))
+  })
+
+  // Every dotfile in a folder needs its own backup path: `.env` must back
+  // up to `.env.old`, not collapse onto a shared `.old`.
+  await snapshot('dotfile_preserve',
+    { existing: { txt: { preserve: true } } },
+    () => {
+      Project({ folder: 'app' }, () => {
+        File({ name: '.env' }, () => Content('NEW-ENV\n'))
+        File({ name: '.npmrc' }, () => Content('NEW-NPMRC\n'))
+      })
+    },
+    {
+      '/out/app/.env': 'OLD-ENV\n',
+      '/out/app/.npmrc': 'OLD-NPMRC\n',
+    },
+  )
 
   // basic-copy: Copy with multiple files + ~ default ignore.
   await snapshot('basic_copy',

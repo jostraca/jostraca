@@ -2,6 +2,7 @@ package jostraca
 
 import (
 	"fmt"
+	"io/fs"
 	"sort"
 )
 
@@ -60,6 +61,11 @@ func (j *J) Folder(name string, body func(*J)) {
 type FileProps struct {
 	Name    string
 	Exclude any
+
+	// Mode sets POSIX permission bits on the generated file, e.g. 0o755 to
+	// make a script executable. Zero leaves the platform default (or, when
+	// the file already exists, its current mode).
+	Mode fs.FileMode
 }
 
 // File represents an output file. Children populate its content during
@@ -76,6 +82,7 @@ func (j *J) FileP(p FileProps, body func(*J)) {
 		Kind:    KindFile,
 		Name:    p.Name,
 		Exclude: p.Exclude,
+		Mode:    p.Mode,
 		Path:    childPath(j.cur, p.Name),
 		Meta:    map[string]any{},
 	}
@@ -132,14 +139,14 @@ func (j *J) ContentP(p ContentProps) {
 
 // Line is Content with a trailing newline.
 func (j *J) Line(src string) {
-	if !endsWithNewline(src) {
+	if !strEndsWithNewline(src) {
 		src = src + "\n"
 	}
 	j.ContentP(ContentProps{Src: src})
 }
 
 func (j *J) LineP(p ContentProps) {
-	if !endsWithNewline(p.Src) {
+	if !strEndsWithNewline(p.Src) {
 		p.Src = p.Src + "\n"
 	}
 	j.ContentP(p)
@@ -205,9 +212,17 @@ func (j *J) InjectP(p InjectProps, body func(*J)) {
 	if j.st.err != nil {
 		return
 	}
+	// Mirrors markersOf in ts/src/cmp/Inject.ts: a pair with exactly one
+	// empty marker is rejected, a fully empty pair means "not supplied".
+	// An empty marker is a zero-width match, not a marker — it used to hang
+	// this stack's scan loop outright and produce regex fallout in TS.
 	markers := p.Markers
 	if markers == [2]string{} {
 		markers = defaultInjectMarkers
+	} else if markers[0] == "" || markers[1] == "" {
+		j.st.err = fmt.Errorf(
+			"Inject: both markers must be non-empty, got %q", markers)
+		return
 	}
 	n := &Node{
 		Kind:    KindInject,
@@ -247,6 +262,11 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 		j.st.err = &NodeError{Step: "fragment", Err: fmtErrorf("Fragment: From is required")}
 		return
 	}
+	// Resolve a relative From against the output folder before checking it
+	// exists, so validation and the later read agree. Mirrors
+	// ts/src/cmp/Fragment.ts, which resolves before its shape check for the
+	// same reason.
+	p.From = resolveFragmentFrom(j.st, p.From)
 	if j.st.fs != nil && !j.st.fs.Exists(p.From) {
 		j.st.err = &NodeError{Step: "fragment", Err: fmtErrorf("Fragment: From file does not exist: %s", p.From)}
 		return
@@ -378,6 +398,9 @@ func (j *J) attachAndDescend(n *Node, body func(*J)) {
 	if j.cur != nil {
 		j.cur.Children = append(j.cur.Children, n)
 	}
+	// NOTE: the first component becomes the tree root, so bare top-level
+	// siblings after it are orphaned and silently dropped. Pre-existing;
+	// tracked in jostraca/jostraca#21. Wrap in Folder/Project to group.
 	if j.st.root == nil {
 		j.st.root = n
 	}
@@ -402,6 +425,6 @@ func mergeModel(base, extra map[string]any) map[string]any {
 	return out
 }
 
-func endsWithNewline(s string) bool {
+func strEndsWithNewline(s string) bool {
 	return len(s) > 0 && s[len(s)-1] == '\n'
 }

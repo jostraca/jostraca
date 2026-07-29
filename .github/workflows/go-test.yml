@@ -1,13 +1,18 @@
 name: Go tests
 
+# ts/** is included deliberately: the parity suite exists to catch the Go
+# port drifting from canonical TS behaviour, so a TS-only change is exactly
+# the event that must run this job.
 on:
   push:
     paths:
       - 'go/**'
+      - 'ts/**'
       - '.github/workflows/go-test.yml'
   pull_request:
     paths:
       - 'go/**'
+      - 'ts/**'
       - '.github/workflows/go-test.yml'
 
 jobs:
@@ -21,11 +26,67 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.22'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      # The parity corpus is generated from canonical TS behaviour and
+      # committed. Regenerate it here and fail on any diff, so TS changes
+      # cannot silently leave the Go expectations stale.
+      - name: Regenerate parity corpus from TS
+        working-directory: ts
+        run: |
+          npm install
+          npm run build
+          node tools/extract-parity.js ../go/testdata/parity
+      - name: Parity corpus is up to date
+        working-directory: .
+        run: |
+          if ! git diff --exit-code -- go/testdata/parity; then
+            echo "::error::go/testdata/parity is stale. Run 'node tools/extract-parity.js ../go/testdata/parity' from ts/ and commit the result."
+            exit 1
+          fi
+
       - run: go vet ./...
       - run: GOOS=darwin go vet ./...
       - run: GOOS=windows go vet ./...
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "::error::gofmt needed: $unformatted"
+            exit 1
+          fi
       - run: go test ./... -race -count=1
+      # The module was flattened to the go/ root (a39979f); the package
+      # pattern is ./..., not ./jostraca.
       - name: Concurrency stress (10 iterations)
-        run: go test ./jostraca -run TestGenerateConcurrent -race -count=10
+        run: go test ./... -run TestGenerateConcurrent -race -count=10
       - name: Parity snapshots vs TS
-        run: go test ./jostraca -run TestParity -count=1 -v
+        run: go test ./... -run TestParity -count=1 -v
+      # The diff/merge engine is the one piece that must be byte-identical
+      # across the two stacks, so it gets its own gates.
+      - name: Diff engine matches TS byte-for-byte
+        run: go test ./... -run TestDiffCorpus -count=1 -v
+      # The template engine is the other place two independent
+      # implementations have to agree; same differential treatment.
+      - name: Template engine matches TS byte-for-byte
+        run: go test ./... -run TestTemplateCorpusMatchesTS -count=1 -v
+      # The option surface — folder, existing-file mode, on-disk state and
+      # filename shape, crossed. Every defect review found on this branch
+      # needed a default, a degenerate value or an option combination to
+      # reach, not unusual content; this is the axis the other two corpora
+      # hold fixed.
+      - name: Option surface matches TS byte-for-byte
+        run: go test ./... -run TestScenarioCorpusMatchesTS -count=1 -v
+      # A short soak per target. The seed corpus already runs under
+      # `go test`; this is what finds the next seed. A failure writes the
+      # input to testdata/fuzz — commit it.
+      - name: Fuzz the engines (20s per target)
+        run: |
+          for t in FuzzMerge FuzzDiff FuzzLines FuzzLCS FuzzTemplate; do
+            echo "== $t"
+            go test -run "$t" -fuzz "^$t$" -fuzztime 20s ./...
+          done
+      - name: Diff engine coverage is 100%
+        run: ./check_diff_coverage.sh

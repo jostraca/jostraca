@@ -34,7 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PointUtil = exports.List = exports.Slot = exports.Line = exports.Copy = exports.Folder = exports.Fragment = exports.Inject = exports.File = exports.Content = exports.Project = exports.omap = exports.deep = exports.ucf = exports.lcf = exports.partify = exports.isbinext = exports.indent = exports.escre = exports.template = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.each = exports.BuildContext = void 0;
+exports.DiffUtil = exports.PointUtil = exports.List = exports.Slot = exports.Line = exports.Copy = exports.Folder = exports.Fragment = exports.Inject = exports.File = exports.Content = exports.Project = exports.omap = exports.deep = exports.ucf = exports.lcf = exports.partify = exports.isbinext = exports.isbincontent = exports.indent = exports.escre = exports.template = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.each = exports.BuildContext = void 0;
 exports.Jostraca = Jostraca;
 exports.cmp = cmp;
 // TODO:
@@ -62,12 +62,15 @@ Object.defineProperty(exports, "names", { enumerable: true, get: function () { r
 Object.defineProperty(exports, "template", { enumerable: true, get: function () { return basic_1.template; } });
 Object.defineProperty(exports, "escre", { enumerable: true, get: function () { return basic_1.escre; } });
 Object.defineProperty(exports, "indent", { enumerable: true, get: function () { return basic_1.indent; } });
+Object.defineProperty(exports, "isbincontent", { enumerable: true, get: function () { return basic_1.isbincontent; } });
 Object.defineProperty(exports, "isbinext", { enumerable: true, get: function () { return basic_1.isbinext; } });
 Object.defineProperty(exports, "partify", { enumerable: true, get: function () { return basic_1.partify; } });
 Object.defineProperty(exports, "lcf", { enumerable: true, get: function () { return basic_1.lcf; } });
 Object.defineProperty(exports, "ucf", { enumerable: true, get: function () { return basic_1.ucf; } });
 const PointUtil = __importStar(require("./util/point"));
 exports.PointUtil = PointUtil;
+const DiffUtil = __importStar(require("./diff"));
+exports.DiffUtil = DiffUtil;
 // TODO: the actual signatures
 const deep = jsonic_1.util.deep;
 exports.deep = deep;
@@ -104,6 +107,13 @@ const ContentOp_1 = require("./op/ContentOp");
 const NoneOp_1 = require("./op/NoneOp");
 const GLOBAL = global;
 const KONSOLE = GLOBAL['con' + 'sole'];
+// One AsyncLocalStorage, created once and shared.
+//
+// `cmp()` resolves this at call time, so replacing it on every Jostraca()
+// construction made every component depend on whichever instance happened
+// to be built last. It stays on `global` so that two copies of the package
+// (an npm dedupe miss) still interoperate.
+GLOBAL.jostraca = GLOBAL.jostraca || new node_async_hooks_1.AsyncLocalStorage();
 const DEFAULT_LOGGER = {
     trace: (...args) => KONSOLE.log(new Date().toISOString(), 'TRACE', ...args),
     debug: (...args) => KONSOLE.log(new Date().toISOString(), 'DEBUG', ...args),
@@ -175,14 +185,18 @@ const ExistingShape = (0, shape_1.Shape)({
 }, { name: 'Jostraca Options (`existing` property)' });
 const sysFs = () => Fs;
 function Jostraca(gopts_in) {
-    GLOBAL.jostraca = new node_async_hooks_1.AsyncLocalStorage();
     // Global options are shared by calls to `generate`.
     const gOpts = OptionsShape(gopts_in || {});
     const gUseMemFs = !!gOpts.mem;
     const gVol = deep({}, gOpts.vol);
     const gMemFs = gUseMemFs ? (0, memfs_1.memfs)(gVol) : undefined;
     function get_gMemFs() { return gMemFs ? gMemFs.fs : undefined; }
-    const gGetFs = gOpts.fs || get_gMemFs || undefined;
+    // `get_gMemFs` is a function declaration, so it is always truthy. Only
+    // install it as the global provider when memfs is actually in use —
+    // otherwise it short-circuits the `sysFs` fallback in `generate` and
+    // resolves to `undefined`, leaving a plain `Jostraca()` with no
+    // filesystem at all.
+    const gGetFs = gOpts.fs || (gUseMemFs ? get_gMemFs : undefined);
     async function generate(opts_in, root) {
         const opts = OptionsShape(opts_in);
         // Parameters to `generate` override any global options.
@@ -232,9 +246,21 @@ function Jostraca(gopts_in) {
             // existing,
             model,
         };
+        // Only report warnings raised by *this* generate: the dlog buffer is
+        // process-global, so reading all of it re-emitted every warning from
+        // every earlier run.
+        // A monotonic sequence, NOT the buffer length: the buffer is capped
+        // and evicts, so a length-based mark goes permanently stale once a
+        // long-lived process fills it (see getdlog).
+        const dlogMark = dlog.seq();
         return GLOBAL.jostraca.run(ctx$, async () => {
-            // Define phase
-            root();
+            // Define phase.
+            //
+            // Awaited: an async define callback used to have its promise dropped
+            // on the floor, so the build phase ran against a partially built tree
+            // with no error. Awaiting a synchronous callback is a no-op beyond a
+            // microtask, and AsyncLocalStorage propagates across it.
+            await root();
             const ctx$ = GLOBAL.jostraca.getStore();
             // Build phase
             const buildctx = new BuildContext_1.BuildContext(folder, existing, control, ctx$.fs, ctx$.now);
@@ -250,7 +276,8 @@ function Jostraca(gopts_in) {
                 res.vol = () => memfs.vol;
                 res.fs = () => fs;
             }
-            const dlogs = dlog.log();
+            const alldlogs = dlog.log();
+            const dlogs = alldlogs.filter((entry) => (entry.seq || 0) > dlogMark);
             if (0 < dlogs.length) {
                 for (let dlogentry of dlogs) {
                     log.debug({ point: 'jostraca-warning', dlogentry, note: String(dlogentry) });
@@ -314,6 +341,14 @@ function Jostraca(gopts_in) {
 function cmp(component) {
     const cf = (props, children) => {
         const ctx$ = GLOBAL.jostraca.getStore();
+        // Components only mean anything inside the define phase. Without this
+        // the next line throws a bare "Cannot read properties of undefined",
+        // which says nothing about the actual mistake.
+        if (null == ctx$) {
+            throw new Error('jostraca: component ' + (component.name || '<anon>') +
+                ' called outside generate(); components can only be used inside the ' +
+                'callback passed to Jostraca().generate()');
+        }
         children = null == children ?
             (('function' === typeof props || Array.isArray(props)) ? props : null) : children;
         // if (undefined === props) {
@@ -335,6 +370,9 @@ function cmp(component) {
             meta: {},
             content: [],
         };
+        // NOTE: the first component becomes the tree root, so bare top-level
+        // siblings after it are orphaned and silently dropped. Pre-existing;
+        // tracked in jostraca/jostraca#21. Wrap in Folder/Project to group.
         ctx$.root = (ctx$.root || node);
         parent = ctx$.node || node;
         if (ctx$.debug) {
@@ -349,10 +387,17 @@ function cmp(component) {
         if ('string' === typeof props.name) {
             node.path.push(props.name);
         }
-        let out = component(props, children);
-        ctx$.children = siblings;
-        ctx$.node = parent;
-        return out;
+        // finally: a component that throws must not leave the ambient tree
+        // cursor pointing at its own node — the error propagates out of
+        // generate(), but a caller that catches it would otherwise be left
+        // with a corrupted context.
+        try {
+            return component(props, children);
+        }
+        finally {
+            ctx$.children = siblings;
+            ctx$.node = parent;
+        }
     };
     Object.defineProperty(cf, 'name', { value: component.name });
     return cf;

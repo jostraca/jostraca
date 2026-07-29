@@ -117,6 +117,66 @@ var scenarioRunners = map[string]func(j *J){
 			})
 		})
 	},
+	"fragment_nested_in_slot": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("out.txt", func(j *J) {
+				j.Fragment(FragmentProps{From: "/f.txt"}, func(j *J) {
+					j.Slot("s", func(j *J) {
+						j.Fragment(FragmentProps{From: "/f2.txt"}, func(j *J) {})
+						j.Content("DIRECT")
+					})
+				})
+			})
+		})
+	},
+	"fragment_relative_from": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.Folder("sub", func(j *J) {
+				j.File("out.txt", func(j *J) {
+					j.Fragment(FragmentProps{From: "frag.txt"}, func(j *J) {})
+				})
+			})
+		})
+	},
+	"copy_ignore_text": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.Copy(CopyProps{From: "/tm"})
+		})
+	},
+	"preserve_and_diff": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("a.txt", func(j *J) { j.Content("NEW\n") })
+		})
+	},
+	"protect_and_present": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("a.txt", func(j *J) { j.Content("NEW\n") })
+		})
+	},
+	"inject_two_blocks": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.Inject("foo.txt", func(j *J) { j.Content("NEW") })
+		})
+	},
+	"inject_stray_end_marker": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.Inject("foo.txt", func(j *J) { j.Content("NEW") })
+		})
+	},
+	"inject_no_markers": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.Inject("foo.txt", func(j *J) { j.Content("NEW") })
+		})
+	},
+	"no_project_file": func(j *J) {
+		j.File("x.txt", func(j *J) { j.Content("hi\n") })
+	},
+	"dotfile_preserve": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File(".env", func(j *J) { j.Content("NEW-ENV\n") })
+			j.File(".npmrc", func(j *J) { j.Content("NEW-NPMRC\n") })
+		})
+	},
 	"content_empty_folder": func(j *J) {
 		j.Folder("", func(j *J) {
 			j.File("foo.txt", func(j *J) { j.Content("A") })
@@ -153,7 +213,7 @@ func scenarioOptions(scenario string) []Option {
 		})}
 	case "copy_file":
 		return []Option{WithModel(map[string]any{"name": "World"})}
-	case "preserve_mode":
+	case "preserve_mode", "dotfile_preserve":
 		t := true
 		return []Option{WithExisting(Existing{Txt: ExistingTxt{Preserve: &t}})}
 	case "present_mode":
@@ -162,8 +222,16 @@ func scenarioOptions(scenario string) []Option {
 	case "diff_mode":
 		t := true
 		return []Option{WithExisting(Existing{Txt: ExistingTxt{Diff: &t}})}
+	case "preserve_and_diff":
+		t := true
+		return []Option{WithExisting(Existing{Txt: ExistingTxt{Preserve: &t, Diff: &t}})}
+	case "protect_and_present":
+		t, f := true, false
+		return []Option{WithExisting(Existing{Txt: ExistingTxt{Write: &f, Present: &t}})}
 	case "basic_copy":
 		return []Option{WithModel(map[string]any{"x": map[string]any{"y": "Y", "z": "Z"}})}
+	case "copy_ignore_text":
+		return []Option{WithModel(map[string]any{"v": "V"})}
 	case "absolute_paths":
 		return []Option{WithFolder("/top")}
 	}
@@ -215,7 +283,15 @@ func runParityCase(t *testing.T, path, name string) {
 
 	runner, ok := scenarioRunners[name]
 	if !ok {
-		t.Skipf("scenario %s has no Go runner; add one to scenarioRunners", name)
+		if reason, known := knownParityGaps[name]; known {
+			t.Skipf("known parity gap: %s", reason)
+			return
+		}
+		// A missing runner is a parity gap, not a non-event: the TS side has
+		// a scenario the Go port does not answer for. Fail loudly, and use
+		// knownParityGaps to carry a deliberate, documented exemption.
+		t.Fatalf("scenario %s has no Go runner; add one to scenarioRunners "+
+			"(or record a deliberate exemption in knownParityGaps)", name)
 		return
 	}
 
@@ -276,21 +352,32 @@ func assertVol(t *testing.T, mem *MemFS, want map[string]string) {
 	}
 }
 
+// knownParityGaps records scenarios deliberately not mirrored in Go, each
+// with the reason. Entries here are exemptions from the
+// missing-runner failure in runParityCase and should be rare and
+// short-lived. Empty is the healthy state.
+var knownParityGaps = map[string]string{}
+
 // phaseShapedCorpora names parity JSON files whose top-level shape is a
 // phase replay (label/foo pairs) rather than {opts, prepopulate, vol}.
 // They have dedicated test functions and are skipped from the standard
 // runner so the parity scenario list shows only single-Generate cases.
 var phaseShapedCorpora = map[string]struct{}{
-	"merge_retain": {}, // covered by TestMergeRetainSequence
+	"merge_retain":    {}, // covered by TestMergeRetainSequence
+	"diff_corpus":     {}, // covered by TestDiffCorpusMatchesTS
+	"template_corpus": {}, // covered by TestTemplateCorpusMatchesTS
+	"scenario_corpus": {}, // covered by TestScenarioCorpusMatchesTS
 }
 
 // scenarioMultiPhase holds runners that can't be expressed as a single
 // Generate call. Each runner builds the FS state (running multiple
 // generations + external edits) and returns the MemFS for assertion.
 var scenarioMultiPhase = map[string]func(*testing.T) *MemFS{
-	"merge_basic":  func(t *testing.T) *MemFS { return mergeRunner(t, "AAA\n", "AAA\nuser-line\n", "BBB\n", "$$body$$") },
-	"merge_update": func(t *testing.T) *MemFS { return mergeRunner(t, "AAA\n", "// header\nAAA\n// user-comment\n", "BBB\n", "// header\n$$body$$") },
-	"merge_clean":  func(t *testing.T) *MemFS { return mergeRunnerNoEdit(t, "AAA\n", "CCC\n", "$$body$$") },
+	"merge_basic": func(t *testing.T) *MemFS { return mergeRunner(t, "AAA\n", "AAA\nuser-line\n", "BBB\n", "$$body$$") },
+	"merge_update": func(t *testing.T) *MemFS {
+		return mergeRunner(t, "AAA\n", "// header\nAAA\n// user-comment\n", "BBB\n", "// header\n$$body$$")
+	},
+	"merge_clean": func(t *testing.T) *MemFS { return mergeRunnerNoEdit(t, "AAA\n", "CCC\n", "$$body$$") },
 	"merge_no_baseline": func(t *testing.T) *MemFS {
 		// User-authored file is in place but no duplicate baseline
 		// exists — typical "first run after adopting jostraca on

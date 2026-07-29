@@ -1,0 +1,11 @@
+{
+  "scenario": "no_project_file",
+  "opts": {},
+  "prepopulate": {},
+  "vol": {
+    "/out/x.txt": "hi\n",
+    "/out/.jostraca/generated/x.txt": "hi\n",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"x.txt\": {\n      \"action\": \"write\",\n      \"path\": \"x.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}

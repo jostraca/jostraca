@@ -103,10 +103,10 @@ func TestTemplateBasicValues(t *testing.T) {
 
 func TestTemplateReplaceVariants(t *testing.T) {
 	cases := []struct {
-		name    string
-		src     string
-		spec    *TemplateSpec
-		want    string
+		name string
+		src  string
+		spec *TemplateSpec
+		want string
 	}{
 		{
 			"literal string key",

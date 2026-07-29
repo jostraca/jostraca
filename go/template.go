@@ -1,8 +1,10 @@
 package jostraca
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
 	"regexp"
 	"sort"
 	"strconv"
@@ -329,15 +331,95 @@ func formatValue(v any, fallback string) string {
 	case func() string:
 		return v()
 	case map[string]any, []any, []string, map[string]string:
-		b, err := json.Marshal(v)
+		b, err := marshalJSLike(v)
 		if err != nil {
 			return fmt.Sprintf("%v", v)
 		}
-		return string(b)
+		return b
+
+	// Numbers must format the way JavaScript formats them, since TS is the
+	// canonical implementation and its numbers are all float64. Go's %v
+	// differs on exponent padding and on when it switches to exponential
+	// notation.
+	case float64:
+		return formatJSNumber(v)
+	case float32:
+		return formatJSNumber(float64(v))
+
 	default:
-		// Best-effort: numbers and unknown types via Go's %v.
 		return fmt.Sprintf("%v", v)
 	}
+}
+
+// marshalJSLike renders JSON the way JSON.stringify does: no HTML escaping.
+// Go's encoding/json escapes <, > and & to \u003c etc by default, which JS
+// does not.
+//
+// Key order is Go's (sorted). TS sorts too — see the note on `jsonify` in
+// ts/src/util/basic.ts for why that is the project's convention.
+func marshalJSLike(v any) (string, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return "", err
+	}
+	// Encode appends a newline.
+	return strings.TrimSuffix(buf.String(), "\n"), nil
+}
+
+// formatJSNumber renders a float the way ECMAScript's Number::toString
+// does, because TS is canonical and every number there is a float64.
+//
+// Go's %v disagrees in two ways that reach generated output:
+//
+//	1e-7   Go "1e-07"                  JS "1e-7"      (exponent zero-padding)
+//	9007199254740992
+//	       Go "9.007199254740992e+15"  JS "9007199254740992"
+//
+// JS uses positional notation while 1e-6 <= |v| < 1e21, and exponential
+// outside that, with no zero-padding in the exponent.
+func formatJSNumber(f float64) string {
+	switch {
+	case math.IsNaN(f):
+		return "NaN"
+	case math.IsInf(f, 1):
+		return "Infinity"
+	case math.IsInf(f, -1):
+		return "-Infinity"
+	case f == 0:
+		// JS String(-0) is "0".
+		return "0"
+	}
+
+	abs := math.Abs(f)
+	if abs >= 1e21 || abs < 1e-6 {
+		return trimExponentZeros(strconv.FormatFloat(f, 'e', -1, 64))
+	}
+	return strconv.FormatFloat(f, 'f', -1, 64)
+}
+
+// trimExponentZeros rewrites Go's zero-padded exponent to JS's unpadded
+// form: "1e-07" becomes "1e-7". "1.5e+300" is unchanged.
+func trimExponentZeros(s string) string {
+	at := strings.IndexAny(s, "eE")
+	if at < 0 {
+		return s
+	}
+
+	mantissa, exp := s[:at], s[at+1:]
+
+	sign := ""
+	if len(exp) > 0 && (exp[0] == '+' || exp[0] == '-') {
+		sign, exp = string(exp[0]), exp[1:]
+	}
+
+	exp = strings.TrimLeft(exp, "0")
+	if exp == "" {
+		exp = "0"
+	}
+
+	return mantissa + "e" + sign + exp
 }
 
 func formatJSStyleRegex(re *regexp.Regexp) string {
@@ -641,8 +723,12 @@ func applyEject(src string, eject any) (string, error) {
 			endIdx = loc[0]
 		}
 	}
+	// An end marker resolving before the start marker is malformed: there
+	// is no region between them. Leave the source alone, which is what
+	// already happens when neither marker is found. Mirrors
+	// ts/src/util/basic.ts.
 	if startIdx > endIdx {
-		return "", nil
+		return src, nil
 	}
 	return src[startIdx:endIdx], nil
 }

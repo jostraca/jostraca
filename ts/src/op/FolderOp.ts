@@ -3,11 +3,17 @@ import Path from 'node:path'
 
 import type { Node, BuildContext } from '../jostraca'
 
+import { validName } from '../build/FileHandler'
+
+
+const ON = 'FolderOp:'
 
 const FolderOp = {
 
   before(node: Node, _ctx$: any, buildctx: BuildContext) {
     const cfolder = buildctx.current.folder = (buildctx.current.folder || {})
+
+    validName(node.name, 'Folder', ON + 'before:')
 
     cfolder.node = node
     cfolder.path = (0 < cfolder.path.length ? cfolder.path : [buildctx.current.folder.parent])

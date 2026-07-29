@@ -70,15 +70,18 @@ func TestAuditWhyOnUnchanged(t *testing.T) {
 		t.Fatal(err)
 	}
 	audit := res.Audit()
+	// A byte-identical rewrite still records the *write* intent (TS sets
+	// meta.action = 'write' and tags the entry save:write); the fact that
+	// nothing was touched shows up as the `unchanged-0` breadcrumb.
 	var unchangedEntry *AuditEntry
 	for i := range audit {
-		if audit[i].Tag == "unchanged" {
+		if audit[i].Tag == "save:write" {
 			unchangedEntry = &audit[i]
 			break
 		}
 	}
 	if unchangedEntry == nil {
-		t.Fatalf("no unchanged audit entry; have %d entries", len(audit))
+		t.Fatalf("no save:write audit entry; have %d entries", len(audit))
 	}
 	why, ok := unchangedEntry.Data["why"].([]string)
 	if !ok {

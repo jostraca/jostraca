@@ -1,0 +1,25 @@
+{
+  "scenario": "dotfile_preserve",
+  "opts": {
+    "existing": {
+      "txt": {
+        "preserve": true
+      },
+      "bin": {}
+    }
+  },
+  "prepopulate": {
+    "/out/app/.env": "OLD-ENV\n",
+    "/out/app/.npmrc": "OLD-NPMRC\n"
+  },
+  "vol": {
+    "/out/app/.env": "NEW-ENV\n",
+    "/out/app/.npmrc": "NEW-NPMRC\n",
+    "/out/app/.env.old": "OLD-ENV\n",
+    "/out/app/.npmrc.old": "OLD-NPMRC\n",
+    "/out/.jostraca/generated/app/.env": "NEW-ENV\n",
+    "/out/.jostraca/generated/app/.npmrc": "NEW-NPMRC\n",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/.env\": {\n      \"action\": \"write\",\n      \"path\": \"app/.env\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/.npmrc\": {\n      \"action\": \"write\",\n      \"path\": \"app/.npmrc\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}

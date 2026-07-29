@@ -30,6 +30,7 @@ declare class FileHandler {
         unchanged: string[];
     };
     createdDirs: Set<string>;
+    savedPaths: Set<string>;
     constructor(bctx: BuildContext, existing: {
         txt: any;
         bin: any;
@@ -39,13 +40,14 @@ declare class FileHandler {
         version: boolean;
     });
     relative(path: string, whence?: string): string;
-    save(path: string, newContentSource: string | Buffer, write?: boolean | string, whence?: string): void;
+    withinFolder(path: string): boolean;
+    save(path: string, newContentSource: string | Buffer, write?: boolean | string, whence?: string, mode?: number): void;
     copy(frompath: string, topath: string, write?: boolean | string, whence?: string): void;
-    merge(editA: string, orig: string, editB: string, why: string[]): {
+    merge(generated: string, baseline: string, existing: string, why: string[]): {
         content: string;
         conflict: boolean;
     };
-    diff(oldcontent: string, newcontent: string): string;
+    diff(generated: string, existing: string): string;
     existsFile(path: string, whence?: string): boolean;
     copyFile(frompath: string, topath: string, whence?: string): void;
     loadJSON(path: string, opts?: any | string, whence?: string): any;
@@ -53,8 +55,12 @@ declare class FileHandler {
     loadFile(path: string, opts?: any | string, whence?: string): string | Buffer;
     ensureFolder(path: string): void;
     private ensureDir;
+    private chmodUnchanged;
+    private writeFileAtomic;
     saveFile(path: string, content: string | Buffer, opts?: any | string, whence?: string): void;
     filelog(kind: string, path: string): void;
 }
+declare function annotatedPath(target: string, kind: string): string;
+declare function validName(name: any, kind: string, errmark: string): void;
 declare function validPath(path: string, maxdepth: number, errmark: string): void;
-export { validPath, FileHandler };
+export { annotatedPath, validName, validPath, FileHandler };

@@ -1,7 +1,8 @@
 import type { Node, Component, JostracaResult } from './types';
 import { BuildContext } from './build/BuildContext';
-import { each, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, isbinext, partify, lcf, ucf } from './util/basic';
+import { each, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, isbincontent, isbinext, partify, lcf, ucf } from './util/basic';
 import * as PointUtil from './util/point';
+import * as DiffUtil from './diff';
 declare const deep: (...args: any[]) => any;
 declare const omap: (...args: any[]) => any;
 import { Content } from './cmp/Content';
@@ -91,8 +92,8 @@ declare const OptionsShape: {
             version: boolean;
         };
     };
-    match(root?: any, ctx?: import("shape").Context): boolean;
-    error(root?: any, ctx?: import("shape").Context): {
+    match: (root?: any, ctx?: import("shape").Context) => boolean;
+    error: (root?: any, ctx?: import("shape").Context) => {
         shape: boolean;
         code: string;
         gname: string;
@@ -110,6 +111,7 @@ declare const OptionsShape: {
                 node: import("shape").Node<any>;
                 value: any;
                 path: string;
+                pathArr: (string | number)[];
                 why: string;
                 check: string;
                 args: Record<string, any>;
@@ -129,8 +131,8 @@ declare const OptionsShape: {
         stack?: string;
         cause?: unknown;
     }[];
-    spec(): any;
-    node(): import("shape").Node<{
+    spec: () => any;
+    node: () => import("shape").Node<{
         folder: import("shape").Node<StringConstructor>;
         name: {
             file: {
@@ -168,9 +170,9 @@ declare const OptionsShape: {
             version: boolean;
         };
     }>;
-    stringify(...rest: any[]): string;
-    jsonify(): any;
-    toString(this: any): string;
+    stringify: (...rest: any[]) => string;
+    jsonify: () => any;
+    toString: (this: any) => string;
     shape: {
         shape$: symbol;
         v$: string;
@@ -205,8 +207,8 @@ declare const ExistingShape: {
             present: boolean;
         };
     };
-    match(root?: any, ctx?: import("shape").Context): boolean;
-    error(root?: any, ctx?: import("shape").Context): {
+    match: (root?: any, ctx?: import("shape").Context) => boolean;
+    error: (root?: any, ctx?: import("shape").Context) => {
         shape: boolean;
         code: string;
         gname: string;
@@ -224,6 +226,7 @@ declare const ExistingShape: {
                 node: import("shape").Node<any>;
                 value: any;
                 path: string;
+                pathArr: (string | number)[];
                 why: string;
                 check: string;
                 args: Record<string, any>;
@@ -243,8 +246,8 @@ declare const ExistingShape: {
         stack?: string;
         cause?: unknown;
     }[];
-    spec(): any;
-    node(): import("shape").Node<{
+    spec: () => any;
+    node: () => import("shape").Node<{
         txt: {
             write: boolean;
             preserve: boolean;
@@ -258,9 +261,9 @@ declare const ExistingShape: {
             present: boolean;
         };
     }>;
-    stringify(...rest: any[]): string;
-    jsonify(): any;
-    toString(this: any): string;
+    stringify: (...rest: any[]) => string;
+    jsonify: () => any;
+    toString: (this: any) => string;
     shape: {
         shape$: symbol;
         v$: string;
@@ -277,4 +280,4 @@ declare function Jostraca(gopts_in?: JostracaOptions | {}): {
 };
 declare function cmp(component: Function): Component;
 export type { JostracaResult, JostracaOptions, Component, Node, Existing, };
-export { Jostraca, BuildContext, cmp, each, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, isbinext, partify, lcf, ucf, deep, omap, Project, Content, File, Inject, Fragment, Folder, Copy, Line, Slot, List, PointUtil, };
+export { Jostraca, BuildContext, cmp, each, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, isbincontent, isbinext, partify, lcf, ucf, deep, omap, Project, Content, File, Inject, Fragment, Folder, Copy, Line, Slot, List, PointUtil, DiffUtil, };

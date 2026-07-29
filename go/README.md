@@ -259,10 +259,66 @@ with these intentional ergonomic differences:
 - `Indent` uses `strings.ReplaceAll` (no JS lookbehind needed).
 - The `Point*` orchestration utility is not ported (deferred to a
   future sub-package).
-- 2-way diff render uses a unified GENERATED/EXISTING block
-  instead of TS's paired-per-region markers (under review for v1.1).
+- A template value that is an integer wider than 2^53 keeps its exact
+  value in Go and loses precision in TS, whose numbers are all
+  `float64`. Everything a `float64` can hold exactly formats
+  identically on both stacks (`template_format_test.go` pins this);
+  beyond that there is nothing to reconcile.
 
-A full deviation list lives in `PORT_PLAN.md` §14.
+### File permissions
+
+`FileProps.Mode` sets POSIX permission bits on the generated file:
+
+```go
+j.FileP(jostraca.FileProps{Name: "run.sh", Mode: 0o755}, func(j *jostraca.J) {
+    j.Content("#!/bin/sh\n...")
+})
+```
+
+Zero leaves the provider default. An explicit mode wins over the existing
+file's mode on regeneration. Applies to the target only, not the
+`.old`/`.new` sidecars or the merge baseline. Preserved across the atomic
+write-then-rename via the optional `Chmod` capability on the `FS`
+interface (`OsFS` implements it; `MemFS` does not track modes).
+
+**Windows has no POSIX permission bits.** `os.Chmod` there only toggles the
+read-only attribute, so a `Mode` of `0o755` is accepted and silently has no
+effect beyond that — `Perm()` still reports `0o666`. Nothing errors; there
+is simply no execute bit to set. The tests skip their mode assertions on
+Windows (`posixModes` in `go/platform_test.go`, `POSIX_MODES` in
+`ts/test/expect.ts`) while still checking everything around them.
+
+### Diff and merge
+
+`Diff`, `Merge`, `HasConflicts`, `Lines`, `LCS`, `AlignLCS` and `Hunks` in
+`diff.go` are jostraca's own engine, mirroring `ts/src/diff.ts` function for
+function so both stacks produce byte-identical output. See the TS reference
+for the API; the Go shape is the same with `DiffSpec{When, Last, Kind,
+Labels}` in place of the options object.
+
+`testdata/parity/diff_corpus.json` records TS's exact output for 1 190
+merge and diff cases; `TestDiffCorpusMatchesTS` replays them through Go and
+asserts byte equality. Both stacks hold `diff.go` / `diff.ts` at 100%
+coverage, gated by `./check_diff_coverage.sh` and `npm run
+test-diff-coverage`.
+
+Not deviations (both stacks behave identically, and the `parity_test.go`
+corpus asserts it byte-for-byte):
+
+- 2-way diff render emits TS's paired-per-region markers. (An earlier
+  note here claimed a unified GENERATED/EXISTING block; that was stale —
+  see the `diff_mode` parity scenario.)
+- Component names are rejected if they contain a `..` path segment, in
+  both stacks. A leading `/` is still allowed, so an absolute `Folder`
+  name composes with the `Project` folder.
+- Backup/sidecar naming: `a.txt` → `a.old.txt`, and a dotfile keeps its
+  whole name as the stem (`.env` → `.env.old`).
+- Writes go through a temp file plus rename, so an interrupted run cannot
+  truncate an existing file. An existing target's mode is preserved when
+  the `FS` provider implements the optional `Chmod(path, fs.FileMode)`
+  method (`OsFS` does; `MemFS` does not need to).
+
+Background on the port's design decisions lives in `PORT_PLAN.md`.
 
 ## Status
 

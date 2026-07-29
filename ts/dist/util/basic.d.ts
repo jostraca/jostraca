@@ -46,7 +46,9 @@ declare function getdlog(tagin?: string, filepath?: string): ((...args: any[]) =
     tag: string;
     file: string;
     log: (fp?: string) => any[];
+    seq: () => number;
 };
 declare const BINARY_EXT: string[];
 declare function isbinext(path: string): boolean;
-export { camelify, cmap, each, escre, get, getx, humanify, indent, isbinext, kebabify, names, partify, snakify, template, vmap, ucf, lcf, getdlog, BINARY_EXT, };
+declare function isbincontent(content: Buffer | string): boolean;
+export { camelify, cmap, each, escre, get, getx, humanify, indent, isbincontent, isbinext, kebabify, names, partify, snakify, template, vmap, ucf, lcf, getdlog, BINARY_EXT, };

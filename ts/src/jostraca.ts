@@ -41,6 +41,7 @@ import {
   template,
   escre,
   indent,
+  isbincontent,
   isbinext,
   partify,
   lcf,
@@ -50,6 +51,7 @@ import {
 
 
 import * as PointUtil from './util/point'
+import * as DiffUtil from './diff'
 
 // TODO: the actual signatures
 const deep: (...args: any[]) => any = JsonicUtil.deep
@@ -81,6 +83,14 @@ import { NoneOp } from './op/NoneOp'
 
 const GLOBAL = (global as any)
 const KONSOLE = GLOBAL['con' + 'sole']
+
+// One AsyncLocalStorage, created once and shared.
+//
+// `cmp()` resolves this at call time, so replacing it on every Jostraca()
+// construction made every component depend on whichever instance happened
+// to be built last. It stays on `global` so that two copies of the package
+// (an npm dedupe miss) still interoperate.
+GLOBAL.jostraca = GLOBAL.jostraca || new AsyncLocalStorage()
 
 const DEFAULT_LOGGER = {
   trace: (...args: any[]) => KONSOLE.log(new Date().toISOString(), 'TRACE', ...args),
@@ -186,8 +196,6 @@ const sysFs = () => Fs
 
 
 function Jostraca(gopts_in?: JostracaOptions | {}) {
-  GLOBAL.jostraca = new AsyncLocalStorage()
-
   // Global options are shared by calls to `generate`.
   const gOpts = OptionsShape(gopts_in || {})
 
@@ -196,7 +204,13 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
   const gMemFs = gUseMemFs ? MemFs(gVol) : undefined
 
   function get_gMemFs() { return gMemFs ? gMemFs.fs : undefined }
-  const gGetFs = gOpts.fs || get_gMemFs || undefined
+
+  // `get_gMemFs` is a function declaration, so it is always truthy. Only
+  // install it as the global provider when memfs is actually in use —
+  // otherwise it short-circuits the `sysFs` fallback in `generate` and
+  // resolves to `undefined`, leaving a plain `Jostraca()` with no
+  // filesystem at all.
+  const gGetFs = gOpts.fs || (gUseMemFs ? get_gMemFs : undefined)
 
 
   async function generate(
@@ -268,9 +282,22 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
       model,
     }
 
+    // Only report warnings raised by *this* generate: the dlog buffer is
+    // process-global, so reading all of it re-emitted every warning from
+    // every earlier run.
+    // A monotonic sequence, NOT the buffer length: the buffer is capped
+    // and evicts, so a length-based mark goes permanently stale once a
+    // long-lived process fills it (see getdlog).
+    const dlogMark = dlog.seq()
+
     return GLOBAL.jostraca.run(ctx$, async () => {
-      // Define phase
-      root()
+      // Define phase.
+      //
+      // Awaited: an async define callback used to have its promise dropped
+      // on the floor, so the build phase ran against a partially built tree
+      // with no error. Awaiting a synchronous callback is a no-op beyond a
+      // microtask, and AsyncLocalStorage propagates across it.
+      await root()
 
       const ctx$ = GLOBAL.jostraca.getStore()
 
@@ -298,7 +325,8 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
         res.fs = () => fs
       }
 
-      const dlogs = dlog.log()
+      const alldlogs = dlog.log()
+      const dlogs = alldlogs.filter((entry: any) => (entry.seq || 0) > dlogMark)
       if (0 < dlogs.length) {
         for (let dlogentry of dlogs) {
           log.debug({ point: 'jostraca-warning', dlogentry, note: String(dlogentry) })
@@ -377,6 +405,15 @@ function cmp(component: Function): Component {
   const cf = (props: any, children?: any) => {
     const ctx$ = GLOBAL.jostraca.getStore()
 
+    // Components only mean anything inside the define phase. Without this
+    // the next line throws a bare "Cannot read properties of undefined",
+    // which says nothing about the actual mistake.
+    if (null == ctx$) {
+      throw new Error('jostraca: component ' + (component.name || '<anon>') +
+        ' called outside generate(); components can only be used inside the ' +
+        'callback passed to Jostraca().generate()')
+    }
+
     children = null == children ?
       (('function' === typeof props || Array.isArray(props)) ? props : null) : children
 
@@ -406,6 +443,9 @@ function cmp(component: Function): Component {
       content: [],
     }
 
+    // NOTE: the first component becomes the tree root, so bare top-level
+    // siblings after it are orphaned and silently dropped. Pre-existing;
+    // tracked in jostraca/jostraca#21. Wrap in Folder/Project to group.
     ctx$.root = (ctx$.root || node)
     parent = ctx$.node || node
 
@@ -425,12 +465,17 @@ function cmp(component: Function): Component {
       node.path.push(props.name)
     }
 
-    let out = component(props, children)
-
-    ctx$.children = siblings
-    ctx$.node = parent
-
-    return out
+    // finally: a component that throws must not leave the ambient tree
+    // cursor pointing at its own node — the error propagates out of
+    // generate(), but a caller that catches it would otherwise be left
+    // with a corrupted context.
+    try {
+      return component(props, children)
+    }
+    finally {
+      ctx$.children = siblings
+      ctx$.node = parent
+    }
   }
   Object.defineProperty(cf, 'name', { value: component.name })
   return cf
@@ -470,6 +515,7 @@ export {
   template,
   escre,
   indent,
+  isbincontent,
   isbinext,
   partify,
   lcf,
@@ -490,6 +536,7 @@ export {
   List,
 
   PointUtil,
+  DiffUtil,
 }
 
 

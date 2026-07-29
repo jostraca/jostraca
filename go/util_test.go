@@ -71,7 +71,7 @@ func TestEachNil(t *testing.T) {
 
 func TestNameConverters(t *testing.T) {
 	cases := []struct {
-		in           string
+		in                  string
 		camel, snake, kebab string
 	}{
 		{"foo-bar", "FooBar", "foo_bar", "foo-bar"},
@@ -197,8 +197,8 @@ func TestUtilityCorpus(t *testing.T) {
 	}
 
 	cases := []struct {
-		name string
-		in   any
+		name    string
+		in      any
 		c, s, k string
 	}{
 		{"foo", "foo", "Foo", "foo", "foo"},

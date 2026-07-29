@@ -50,8 +50,8 @@ func TestQuickstartViaMemFS(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string]string{
-		"/out/my-app/src/index.js":   "console.log(\"hello world\")\n",
-		"/out/my-app/package.json":   "{ \"name\": \"my-app\" }\n",
+		"/out/my-app/src/index.js": "console.log(\"hello world\")\n",
+		"/out/my-app/package.json": "{ \"name\": \"my-app\" }\n",
 	}
 	for path, body := range want {
 		got, err := mem.ReadFile(path)
@@ -102,8 +102,14 @@ func TestProtectedFile(t *testing.T) {
 	if !strings.Contains(string(got), "original") {
 		t.Errorf("protected file overwritten: %q", got)
 	}
-	if len(res.Files.Preserved) != 1 {
-		t.Errorf("Files.Preserved = %v, want 1 entry", res.Files.Preserved)
+	// A protected file is not acted on at all: TS leaves every files.* list
+	// empty and records a `skip` in the audit and meta log. (This used to
+	// add the path to Preserved, which diverged from TS.)
+	if len(res.Files.Preserved) != 0 {
+		t.Errorf("Files.Preserved = %v, want empty", res.Files.Preserved)
+	}
+	if len(res.Files.Written) != 0 {
+		t.Errorf("Files.Written = %v, want empty", res.Files.Written)
 	}
 }
 

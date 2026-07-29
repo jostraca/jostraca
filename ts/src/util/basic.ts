@@ -347,7 +347,11 @@ function partify(input: any[] | string): string[] {
         }
         return a
       }, [] as string[]) :
-    Array.isArray(input) ? input.map(n => '' + n) : ['' + input]
+    // Array inputs are filtered the same way the string branch filters its
+    // split results: without this, an empty element made camelify() throw
+    // on `p[0].toUpperCase()`.
+    Array.isArray(input) ? input.map(n => '' + n).filter(p => '' !== p) :
+      '' === '' + input ? [] : ['' + input]
 }
 
 
@@ -422,7 +426,17 @@ function template(
         endIndex = (endMatch as any).index
       }
 
-      src = src.substring(startIndex, endIndex)
+      // An end marker resolving before the start marker is malformed: there
+      // is no region between them. Leave the source alone, which is what
+      // already happens when neither marker is found.
+      //
+      // This used to fall through to `substring`, which SWAPS its arguments
+      // when start > end — so the source came back reversed-region, purely
+      // as an accident of the JS built-in. The Go port guarded the same
+      // case and returned '' instead, so the two silently disagreed.
+      if (startIndex <= endIndex) {
+        src = src.substring(startIndex, endIndex)
+      }
     }
   }
 
@@ -594,7 +608,7 @@ function template(
 
         // Insert a plain replacement value, JSONifying if necessary.
         else {
-          handle(('object' === ti ? JSON.stringify(insert) : insert))
+          handle(('object' === ti ? jsonify(insert) : insert))
         }
 
         remain = remain.substring(mi + skip + ref.length)
@@ -608,6 +622,55 @@ function template(
 
 
   return hasCustomHandle ? out : parts.join('')
+}
+
+
+// JSONify a template replacement value with object keys in sorted order.
+//
+// `JSON.stringify` emits keys in insertion order; Go's `json.Marshal`
+// emits them sorted, and a Go map has no insertion order to reproduce.
+// Values reaching a template are almost always loaded from JSON or YAML
+// config, so without this the two stacks emit the same object with
+// different key order. Sorting on the TS side is the same convention
+// `each`, `cmap` and `vmap` already follow for cross-stack determinism.
+function jsonify(val: any): string {
+  return JSON.stringify(sortKeys(val, new Set()))
+}
+
+
+// Deep copy with object keys sorted. Arrays keep their order (they have
+// a meaningful one). `toJSON` is honoured so Date and friends serialize
+// as they did before this existed, rather than collapsing to `{}`.
+// Cycles are rejected the way `JSON.stringify` rejects them, instead of
+// recursing until the stack blows; repeated non-cyclic references are
+// fine, as they are for `JSON.stringify`.
+function sortKeys(val: any, seen: Set<any>): any {
+  if (null == val || 'object' !== typeof val) {
+    return val
+  }
+
+  if ('function' === typeof val.toJSON) {
+    return val.toJSON()
+  }
+
+  if (seen.has(val)) {
+    throw new TypeError('Converting circular structure to JSON')
+  }
+  seen.add(val)
+
+  let out: any
+  if (Array.isArray(val)) {
+    out = val.map((entry: any) => sortKeys(entry, seen))
+  }
+  else {
+    out = {}
+    for (const key of Object.keys(val).sort()) {
+      out[key] = sortKeys(val[key], seen)
+    }
+  }
+
+  seen.delete(val)
+  return out
 }
 
 
@@ -721,24 +784,55 @@ function humanify(when?: number, flags: {
 }
 
 
+// Cap on the process-global debug-log buffer; oldest entries are dropped.
+const DLOG_MAX = 1000
+
+
 function getdlog(
   tagin?: string,
   filepath?: string)
   : ((...args: any[]) => void) &
-  { tag: string, file: string, log: (fp?: string) => any[] } {
+  { tag: string, file: string, log: (fp?: string) => any[], seq: () => number } {
   const tag = tagin || '-'
   const file = Path.basename(filepath || '-')
   const g = global as any
   g.__dlog__ = (g.__dlog__ || [])
+  g.__dlogseq__ = (g.__dlogseq__ || 0)
   const dlog = (...args: any[]) => {
     const stack = '' + new Error().stack
-    g.__dlog__.push([tag, file, Date.now(), ...args, stack])
+    // Bounded: this buffer is process-global and was never drained, so a
+    // long-lived process generating repeatedly grew it without limit.
+    if (DLOG_MAX <= g.__dlog__.length) {
+      g.__dlog__.splice(0, g.__dlog__.length - DLOG_MAX + 1)
+    }
+
+    // Stamp a MONOTONIC sequence number, and select on it rather than on
+    // the buffer's length.
+    //
+    // A caller marking its position with `log().length` breaks the moment
+    // the buffer reaches its cap: eviction stops the length growing, the
+    // mark equals the length forever after, and `slice(mark)` is always
+    // empty — so in a long-lived process every warning after the first
+    // thousand entries silently stopped reaching the configured logger.
+    //
+    // The sequence is a property on the entry array, not an element, so
+    // the `[tag, file, when, ...args, stack]` shape and its index-based
+    // consumers are untouched.
+    const entry: any = [tag, file, Date.now(), ...args, stack]
+    entry.seq = ++g.__dlogseq__
+    g.__dlog__.push(entry)
   }
   dlog.tag = tag
   dlog.file = file
+  // Current position in the monotonic sequence, for callers that want the
+  // entries added after some point. Survives buffer eviction.
+  dlog.seq = () => (g.__dlogseq__ || 0)
+  // Entry shape is [tag, file, when, ...args, stack] — the file is at
+  // index 1. This compared index 2 (the timestamp) against a basename, so
+  // filtering by file could never match.
   dlog.log = (filepath?: string, __f?: string | null) =>
   (__f = null == filepath ? null : Path.basename(filepath),
-    g.__dlog__.filter((n: any[]) => n[0] === tag && (null == __f || n[2] === __f)))
+    g.__dlog__.filter((n: any[]) => n[0] === tag && (null == __f || n[1] === __f)))
   return dlog
 }
 
@@ -755,8 +849,34 @@ function getdlog(
 const BINARY_EXT = '3dm;3ds;3g2;3gp;7z;a;aac;adp;afdesign;afphoto;afpub;ai;aif;aiff;alz;ape;apk;appimage;ar;arj;asf;au;avi;bak;baml;bh;bin;bk;bmp;btif;bz2;bzip2;cab;caf;cgm;class;cmx;cpio;cr2;cur;dat;dcm;deb;dex;djvu;dll;dmg;dng;doc;docm;docx;dot;dotm;dra;DS_Store;dsk;dts;dtshd;dvb;dwg;dxf;ecelp4800;ecelp7470;ecelp9600;egg;eol;eot;epub;exe;f4v;fbs;fh;fla;flac;flatpak;fli;flv;fpx;fst;fvt;g3;gh;gif;graffle;gz;gzip;h261;h263;h264;icns;ico;ief;img;ipa;iso;jar;jpeg;jpg;jpgv;jpm;jxr;key;ktx;lha;lib;lvp;lz;lzh;lzma;lzo;m3u;m4a;m4v;mar;mdi;mht;mid;midi;mj2;mka;mkv;mmr;mng;mobi;mov;movie;mp3;mp4;mp4a;mpeg;mpg;mpga;mxu;nef;npx;numbers;nupkg;o;odp;ods;odt;oga;ogg;ogv;otf;ott;pages;pbm;pcx;pdb;pdf;pea;pgm;pic;png;pnm;pot;potm;potx;ppa;ppam;ppm;pps;ppsm;ppsx;ppt;pptm;pptx;psd;pya;pyc;pyo;pyv;qt;rar;ras;raw;resources;rgb;rip;rlc;rmf;rmvb;rpm;rtf;rz;s3m;s7z;scpt;sgi;shar;snap;sil;sketch;slk;smv;snk;so;stl;suo;sub;swf;tar;tbz;tbz2;tga;tgz;thmx;tif;tiff;tlz;ttc;ttf;txz;udf;uvh;uvi;uvm;uvp;uvs;uvu;viv;vob;war;wav;wax;wbmp;wdp;weba;webm;webp;whl;wim;wm;wma;wmv;wmx;woff;woff2;wrm;wvx;xbm;xif;xla;xlam;xls;xlsb;xlsm;xlsx;xlt;xltm;xltx;xm;xmind;xpi;xpm;xwd;xz;z;zip;zipx;bin'.split(';')
 
 
+// Membership set, not a linear scan of ~250 entries on every copied file.
+const BINARY_EXT_SET = new Set(BINARY_EXT)
+
+
 function isbinext(path: string) {
-  return BINARY_EXT.includes(Path.extname(path || '').substring(1).toLowerCase())
+  return BINARY_EXT_SET.has(Path.extname(path || '').substring(1).toLowerCase())
+}
+
+
+// Whether the bytes look binary, judged by a NUL in the first 8 KB — the
+// same heuristic git and file(1) use.
+//
+// An extension list can never be exhaustive: `.wasm`, `.zst`, `.br`,
+// `.sqlite`, `.parquet` and every extensionless binary are absent from
+// BINARY_EXT. Anything it misses used to be read as UTF-8, run through
+// template substitution and written back, replacing invalid sequences with
+// U+FFFD — silent corruption of the copied file.
+function isbincontent(content: Buffer | string): boolean {
+  if ('string' === typeof content) {
+    return content.includes('\u0000')
+  }
+  const len = Math.min(content.length, 8192)
+  for (let i = 0; i < len; i++) {
+    if (0 === content[i]) {
+      return true
+    }
+  }
+  return false
 }
 
 
@@ -773,6 +893,7 @@ export {
   getx,
   humanify,
   indent,
+  isbincontent,
   isbinext,
   kebabify,
   names,

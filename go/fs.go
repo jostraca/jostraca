@@ -25,6 +25,36 @@ type FS interface {
 	Rename(oldpath, newpath string) error
 }
 
+// realpathFS is an optional capability: a provider that implements it lets
+// the copy walk resolve a directory to its canonical path, so a symlink
+// and its target compare equal and a cycle can be detected. Providers
+// without it (MemFS has no symlinks) fall back to the depth cap.
+type realpathFS interface {
+	Realpath(path string) (string, error)
+}
+
+// chmodFS is an optional capability: a provider that implements it lets
+// the atomic write-then-rename preserve an existing target's mode, which
+// rename would otherwise drop along with the replaced inode. Providers
+// that do not implement it simply keep the default mode.
+type chmodFS interface {
+	Chmod(path string, mode fs.FileMode) error
+}
+
+// exclusiveFS is an optional capability: a provider that implements it can
+// create a file ONLY if it does not already exist, the way TS passes the
+// `wx` flag to writeFileSync.
+//
+// The atomic write needs this. Checking Exists and then writing is a
+// check-then-act race — another process can create the path in between —
+// and, more simply, a check that ends up occupied must not fall through to
+// a clobbering write. Providers without the capability get the Exists
+// check plus a hard error on exhaustion, which closes the deterministic
+// hole even though it cannot close the race.
+type exclusiveFS interface {
+	WriteFileExcl(path string, data []byte) error
+}
+
 // FileInfo is a small subset of os.FileInfo we surface across the FS
 // boundary. Times are unix milliseconds for stable JSON serialisation.
 type FileInfo struct {
@@ -53,7 +83,42 @@ func (o OsFS) Exists(p string) bool {
 	return err == nil
 }
 func (o OsFS) MkdirAll(p string) error { return os.MkdirAll(o.sys(p), 0o755) }
-func (o OsFS) Remove(p string) error   { return os.Remove(o.sys(p)) }
+
+// WriteFileExcl implements exclusiveFS: O_EXCL fails with fs.ErrExist
+// rather than truncating an existing file.
+func (o OsFS) WriteFileExcl(p string, b []byte) error {
+	sp := o.sys(p)
+	f, err := os.OpenFile(sp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		return err
+	}
+
+	// O_EXCL succeeded, so this call created the file and owns it. Any
+	// later failure (ENOSPC mid-write, a close error) must not leave the
+	// partial file behind: the caller cannot clean it up, because it never
+	// learns the path of a write that failed.
+	if _, werr := f.Write(b); werr != nil {
+		f.Close()
+		_ = os.Remove(sp)
+		return werr
+	}
+	if cerr := f.Close(); cerr != nil {
+		_ = os.Remove(sp)
+		return cerr
+	}
+	return nil
+}
+func (o OsFS) Remove(p string) error { return os.Remove(o.sys(p)) }
+func (o OsFS) Chmod(p string, mode fs.FileMode) error {
+	return os.Chmod(o.sys(p), mode)
+}
+func (o OsFS) Realpath(p string) (string, error) {
+	r, err := filepath.EvalSymlinks(o.sys(p))
+	if err != nil {
+		return "", err
+	}
+	return filepath.ToSlash(r), nil
+}
 func (o OsFS) Rename(a, b string) error {
 	return os.Rename(o.sys(a), o.sys(b))
 }
@@ -144,10 +209,33 @@ func (m *MemFS) ReadFile(p string) ([]byte, error) {
 	return out, nil
 }
 
-func (m *MemFS) WriteFile(p string, data []byte) error {
+// WriteFileExcl implements exclusiveFS: it fails rather than replacing an
+// existing entry. The existence test and the store happen under one lock,
+// so unlike an Exists-then-Write pair it is genuinely atomic.
+func (m *MemFS) WriteFileExcl(p string, data []byte) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	cp := memClean(p)
+	// A directory occupies the name too — O_EXCL fails on one, and OsFS
+	// does. Checking only m.files let a file be stored under a key that
+	// m.dirs also held, which Stat then reported as a file.
+	if _, exists := m.files[cp]; exists {
+		return &os.PathError{Op: "open", Path: p, Err: fs.ErrExist}
+	}
+	if m.dirs[cp] {
+		return &os.PathError{Op: "open", Path: p, Err: fs.ErrExist}
+	}
+	return m.writeLocked(cp, data)
+}
+
+func (m *MemFS) WriteFile(p string, data []byte) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.writeLocked(memClean(p), data)
+}
+
+// writeLocked stores data at an already-cleaned path. Caller holds m.mu.
+func (m *MemFS) writeLocked(cp string, data []byte) error {
 	stored := make([]byte, len(data))
 	copy(stored, data)
 	m.files[cp] = stored

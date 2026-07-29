@@ -68,6 +68,11 @@ type Node = {
   folder?: string
   after?: any
   exclude?: boolean | string | (string | RegExp)[]
+
+  // POSIX permission bits for the generated file, e.g. 0o755 to make a
+  // script executable. Unset leaves the platform default (or, when the
+  // file already exists, its current mode).
+  mode?: number
   indent?: string
   filter?: (props: any, children: any, component: any) => boolean
   fullpath?: string

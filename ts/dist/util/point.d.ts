@@ -69,8 +69,8 @@ declare const PointDefShape: {
         a: import("shape").Node<unknown>;
         m: {};
     };
-    match(root?: any, ctx?: import("shape").Context): boolean;
-    error(root?: any, ctx?: import("shape").Context): {
+    match: (root?: any, ctx?: import("shape").Context) => boolean;
+    error: (root?: any, ctx?: import("shape").Context) => {
         shape: boolean;
         code: string;
         gname: string;
@@ -88,6 +88,7 @@ declare const PointDefShape: {
                 node: import("shape").Node<any>;
                 value: any;
                 path: string;
+                pathArr: (string | number)[];
                 why: string;
                 check: string;
                 args: Record<string, any>;
@@ -107,17 +108,17 @@ declare const PointDefShape: {
         stack?: string;
         cause?: unknown;
     }[];
-    spec(): any;
-    node(): import("shape").Node<{
+    spec: () => any;
+    node: () => import("shape").Node<{
         k: import("shape").Node<StringConstructor>;
         n: import("shape").Node<StringConstructor>;
         p: import("shape").Node<never[]>;
         a: import("shape").Node<unknown>;
         m: {};
     }>;
-    stringify(...rest: any[]): string;
-    jsonify(): any;
-    toString(this: any): string;
+    stringify: (...rest: any[]) => string;
+    jsonify: () => any;
+    toString: (this: any) => string;
     shape: {
         shape$: symbol;
         v$: string;

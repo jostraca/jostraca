@@ -7,6 +7,8 @@ const File = (0, jostraca_1.cmp)(function File(props, children) {
     node.kind = 'file';
     node.name = props.name;
     node.exclude = null == props.exclude ? node.exclude : props.exclude;
+    // e.g. File({ name: 'run.sh', mode: 0o755 })
+    node.mode = props.mode;
     (0, jostraca_1.each)(children, { call: true });
 });
 exports.File = File;

@@ -1,8 +1,7 @@
 
-const Diff = require('diff')
-const Diff3 = require('node-diff3')
-
 import Path from 'node:path'
+
+import * as DiffUtil from '../diff'
 // import Os from 'node:os'
 
 import { BuildContext } from './BuildContext'
@@ -26,6 +25,37 @@ function fwd(p: string): string {
 }
 
 const JOSTRACA_PROTECT = 'JOSTRACA_PROTECT'
+
+// Audit breadcrumb per merge outcome, so the `why` trail says which fast
+// path (if any) the merge took.
+const MERGE_WHY: Record<string, string> = {
+  same: 'merge-same-0',
+  clean: 'merge-clean-0',
+  unresolved: 'merge-unresolved-0',
+  merged: 'merge-run-0',
+}
+
+// Suffix for the sibling temp file used by the atomic write-then-rename.
+const TMP_SUFFIX = '.jostraca-tmp'
+
+// How many candidate temp paths an atomic write may try before giving up.
+//
+// MUST match tmpPathAttempts in go/filehandler.go — an identical collision
+// schedule has to succeed or fail identically in both stacks.
+const TMP_PATH_ATTEMPTS = 9
+
+// A unique sibling temp path for an atomic write.
+//
+// Never a fixed name: a fixed one both destroys a user file that happens to
+// sit at it, and lets two concurrent runs sharing an output folder publish
+// each other's bytes. pid + counter + random keeps it unique across
+// processes, across writes within a process, and across retries.
+let tmpseq = 0
+function tmppathFor(path: string): string {
+  const pid = 'undefined' === typeof process ? 0 : process.pid
+  const rnd = Math.floor(Math.random() * 0x100000000).toString(36)
+  return path + TMP_SUFFIX + '-' + pid + '-' + (tmpseq++).toString(36) + '-' + rnd
+}
 
 // TODO: if EOL != '\n', normalize to '\n' in load,save 
 
@@ -61,6 +91,7 @@ class FileHandler {
     unchanged: string[]
   }
   createdDirs: Set<string>
+  savedPaths: Set<string>
 
 
   constructor(
@@ -94,6 +125,7 @@ class FileHandler {
     }
 
     this.createdDirs = new Set()
+    this.savedPaths = new Set()
 
     // Yikes!
     this.duplicateFolder = bctx.duplicateFolder.bind(bctx)
@@ -116,20 +148,87 @@ class FileHandler {
 
     }
 
-    const withinFolder = path.startsWith(this.folder)
-    const rpath = withinFolder ? path.substring(this.folder.length).replace(/^[/\\]+/, '') : path
+    // Strip the folder prefix only when it is ACTUALLY there.
+    //
+    // `save` normalizes first, so with the default folder `.` a path comes
+    // in as `a.txt`, not `./a.txt` — the leading `.` this is meant to
+    // consume is already gone. Cutting `this.folder.length` regardless then
+    // ate the first real character: `a.txt` and `b.txt` both became `.txt`,
+    // so their merge baselines and meta keys collided and a later merge
+    // loaded the wrong ancestor. (The ternary this replaced had the same
+    // expression in both branches — a half-finished special case.)
+    //
+    // The prefix must match on a PATH BOUNDARY, not as a raw string.
+    //
+    // A bare `startsWith` looked right and was not: with folder `.`, the
+    // folder is the single character `.`, so `.env` "starts with" it and
+    // the strip produced `env` — the same relative key as a sibling file
+    // literally named `env`. Their merge baselines and meta entries then
+    // collided, and the next run merged each against the OTHER's ancestor,
+    // writing whole-file conflict markers into the user's real `.env`.
+    // That is the very collision this function was fixed to prevent, one
+    // case narrower. `.gitignore`, `.npmrc` and friends are all affected.
+    //
+    // So `.` strips only an explicit `./`, `/` strips only separators, and
+    // everything else defers to `withinFolder`, which already does
+    // boundary matching properly.
+    const stripFolder = (s: string) =>
+      (s.startsWith(this.folder) ? s.substring(this.folder.length) : s)
+        .replace(/^[/\\]+/, '')
+
+    const rpath =
+      '.' === this.folder ? path.replace(/^\.[/\\]+/, '') :
+        '/' === this.folder ? path.replace(/^[/\\]+/, '') :
+          this.withinFolder(path) ? stripFolder(path) :
+            path
 
     // Canonical paths use forward slashes, NOT Path.sep
     return rpath.replace(/\\/g, '/')
   }
 
 
+  // Whether `path` resolves inside the configured output folder.
+  //
+  // Matched on a separator boundary, not a raw string prefix: with folder
+  // `/out`, the path `/output/x.txt` is NOT inside it. The plain
+  // `startsWith` this replaced yielded the relative path `put/x.txt`, and
+  // from there a bogus duplicate-baseline location and meta key.
+  withinFolder(path: string): boolean {
+    if ('.' === this.folder) {
+      if (Path.isAbsolute(path)) {
+        return false
+      }
+      // "relative" is not the same as "inside". A `..` segment walks OUT
+      // of the output folder, and this returning true for it let the merge
+      // baseline — `.jostraca/generated` joined to the relative path — nor-
+      // malize to a location outside the baseline directory entirely, and
+      // silently overwrite whatever was there.
+      const norm = fwd(Path.normalize(path))
+      return '..' !== norm && !norm.startsWith('../')
+    }
+    if ('/' === this.folder) {
+      return path.startsWith('/')
+    }
+    return path === this.folder ||
+      path.startsWith(this.folder + '/') ||
+      path.startsWith(this.folder + '\\')
+  }
+
+
+  // `mode` sets POSIX permission bits on the generated file (e.g. 0o755
+  // for a script). It applies to the target only — the `.old`/`.new`
+  // sidecars and the merge baseline stay at the platform default, since
+  // they are jostraca's bookkeeping rather than the user's output.
   save(
     path: string,
     newContentSource: string | Buffer,
     write?: boolean | string,
-    whence?: string
+    whence?: string,
+    mode?: number
   ): void {
+    // Only ever set the key when a mode was actually given: a literal
+    // `mode: undefined` is rejected by some fs providers.
+    const modeopts = () => (null == mode ? {} : { mode })
     const wstr = null == whence ? '' : whence + ':'
     const fs = this.fs()
     const FN = 'save:'
@@ -148,13 +247,22 @@ class FileHandler {
 
     const existing = 'string' === typeof newContentSource ? this.existing.txt : this.existing.bin
     path = fwd(Path.normalize(path))
-    const folder = fwd(Path.dirname(path))
 
-    const withinFolder = path.startsWith(this.folder) || (
-      '.' === this.folder && !Path.isAbsolute(path)
-    )
+    const withinFolder = this.withinFolder(path)
 
     const rpath = this.relative(path, FN + wstr)
+
+    // Two components resolving to the same output path is almost always a
+    // mistake (the second silently wins). Detect it here rather than
+    // inferring it from adjacent entries in one of the `files` lists —
+    // that only caught the case where both saves happened to take the same
+    // branch, so it stopped firing as soon as one of them became a no-op.
+    if (this.savedPaths.has(path)) {
+      dlog('save', 'duplicate save, later content wins: ' + path)
+    }
+    else {
+      this.savedPaths.add(path)
+    }
 
     const exists = fs.existsSync(path)
     write = write || !exists
@@ -170,12 +278,19 @@ class FileHandler {
       conflict: false,
     }
 
+    // Tracks whether the generated content actually differs from what is
+    // already on disk, so the write path can skip a no-op rewrite.
+    let unchanged = false
+
     if (exists) {
       why.push('exists-0')
       let currentContent = this.loadFile(path)
 
       const protect = 0 <= currentContent.indexOf(JOSTRACA_PROTECT)
       meta.protect = protect
+
+      unchanged = currentContent.length === newContentSource.length &&
+        currentContent === newContentSource
 
       if (existing.preserve) {
         why.push('preserve-0')
@@ -188,9 +303,7 @@ class FileHandler {
           currentContent !== newContentSource) {
           why.push('content-0')
 
-          let oldpath =
-            fwd(Path.join(folder, Path.basename(path).replace(/\.[^.]+$/, '') +
-              '.old' + Path.extname(path)))
+          let oldpath = annotatedPath(path, 'old')
           this.copyFile(path, oldpath, whence + 'preserve:')
           // this.files.preserved.push(path)
           this.filelog('preserved', path)
@@ -214,9 +327,7 @@ class FileHandler {
         if (currentContent.length !== newContentSource.length || currentContent !== newContentSource) {
           why.push('content-1')
 
-          let newpath =
-            fwd(Path.join(folder, Path.basename(path).replace(/\.[^.]+$/, '') +
-              '.new' + Path.extname(path)))
+          let newpath = annotatedPath(path, 'new')
           this.saveFile(newpath, newContentSource, { flush: true }, whence + 'present:')
           this.filelog('presented', path)
 
@@ -249,7 +360,8 @@ class FileHandler {
 
             const diffContent = this.diff(newContent, currentContent.toString())
 
-            this.saveFile(path, diffContent, { encoding: 'utf8' }, whence + meta.action)
+            this.saveFile(path, diffContent,
+              { encoding: 'utf8', ...modeopts() }, whence + meta.action)
 
             // this.files.diffed.push(path)
             this.filelog('diffed', path)
@@ -268,6 +380,12 @@ class FileHandler {
             { ...meta, why, action: meta.action, path }])
           }
           else {
+            // Equal content is still not a no-op when an explicit mode was
+            // asked for — and `write` was already cleared above, so the
+            // chmod on the plain-write path below is unreachable from here.
+            if (this.chmodUnchanged(path, mode)) {
+              why.push('chmod-0')
+            }
             // this.files.unchanged.push(path)
             this.filelog('unchanged', path)
           }
@@ -298,16 +416,16 @@ class FileHandler {
                 const prevGenContent = this.loadFile(dpath, { encoding: 'utf8' }) as string
 
                 const mergeres = this.merge(
-                  newContent,
-                  prevGenContent,
-                  currentContent.toString(),
+                  newContent,                    // generated
+                  prevGenContent,                // baseline (last generate)
+                  currentContent.toString(),     // existing (on disk)
                   why
                 )
                 const diffcontent = mergeres.content
                 const conflict = mergeres.conflict
 
-                this.saveFile(path, diffcontent, { encoding: 'utf8' },
-                  whence + meta.action)
+                this.saveFile(path, diffcontent,
+                  { encoding: 'utf8', ...modeopts() }, whence + meta.action)
 
                 // this.files.merged.push(path)
                 this.filelog('merged', path)
@@ -330,6 +448,11 @@ class FileHandler {
           else {
             why.push('unchanged-0')
             write = false
+            // As in the diff branch: `write` is cleared here, so an
+            // explicit mode has to be applied on this path too.
+            if (this.chmodUnchanged(path, mode)) {
+              why.push('chmod-0')
+            }
             // this.files.unchanged.push(path)
             this.filelog('unchanged', path)
           }
@@ -338,12 +461,35 @@ class FileHandler {
     }
 
     if (write) {
-      why.push('write-1')
-      meta.action = 'write'
-      this.saveFile(path, newContentSource, whence + meta.action)
+      // A byte-identical rewrite is a no-op that still bumps mtime, which
+      // re-triggers every watcher, bundler and incremental compiler
+      // downstream — and costs a full write per file on every run. Record
+      // the intent (so meta still says `write`, and the duplicate baseline
+      // below is still refreshed) but skip touching the file. Matches the
+      // Go port, which already did this.
+      if (unchanged) {
+        why.push('unchanged-0')
+        meta.action = 'write'
 
-      // this.files.written.push(path)
-      this.filelog('written', path)
+        // Identical bytes are not a complete no-op when an explicit mode
+        // was asked for. Making an already-correct script executable has
+        // to work, and it only ever runs once — after that the content
+        // always matches, so skipping here meant `mode` never applied
+        // again. Chmod without rewriting, so mtime still is not bumped.
+        if (this.chmodUnchanged(path, mode)) {
+          why.push('chmod-0')
+        }
+
+        this.filelog('unchanged', path)
+      }
+      else {
+        why.push('write-1')
+        meta.action = 'write'
+        this.saveFile(path, newContentSource, modeopts(), whence + meta.action)
+
+        // this.files.written.push(path)
+        this.filelog('written', path)
+      }
 
       meta.actions.push(meta.action)
       whenify(meta, this.now())
@@ -369,8 +515,7 @@ class FileHandler {
 
         if (!this.control.dryrun) {
           this.ensureDir(fwd(Path.dirname(dpath)))
-          const dopts = { flush: true }
-          fs.writeFileSync(dpath, newContentSource, dopts)
+          this.writeFileAtomic(dpath, newContentSource, { flush: true })
         }
 
         if (null == meta.when) {
@@ -405,115 +550,44 @@ class FileHandler {
   }
 
 
+  // Three-way merge of the new generate against what is on disk, using
+  // the previous generate (kept under .jostraca/generated) as the common
+  // ancestor. That ancestor choice is what preserves the user's manual
+  // edits.
+  //
+  // The fast paths and the decision of which applied now live in the diff
+  // engine, which reports an `outcome`; this just records it as a
+  // breadcrumb.
   merge(
-    editA: string,
-    orig: string,
-    editB: string,
+    generated: string,
+    baseline: string,
+    existing: string,
     why: string[]
   ): {
     content: string,
     conflict: boolean
   } {
-    const out = { content: editB, conflict: false }
-    let done = false
-
-    // Fast paths — avoid the diff3 LCS entirely when its result is known.
-    // The LCS is quadratic, and on large generated files that change almost
-    // completely (regenerating a reshaped model over 500KB+ config/reference
-    // outputs) it effectively never terminates. Both cases below are
-    // semantics-identical to running the merge:
-
-    // 1. The existing file already equals the new generate — nothing to do.
-    if (!done && editA === editB) {
-      why.push('merge-same-0')
-      done = true
-    }
-
-    // 2. The existing file is untouched since the last generate (no manual
-    // edits) — a 3-way merge over an unchanged base yields editA exactly.
-    if (!done && editB === orig) {
-      why.push('merge-clean-0')
-      out.content = editA
-      done = true
-    }
-
-    // Don't stack conflicts
-
-    if (!done && editB.includes('>>>>>>> EXISTING:')) {
-      why.push('merge-unresolved-0')
-      done = true
-      // TODO: should this be a error, or collected?
-    }
-
-
-    if (!done) {
-      why.push('merge-run-0')
-      const isowhen = new Date(this.when).toISOString()
-      const isolast = new Date(this.last()).toISOString()
-
-      // Consider the previously generated pure version, stored in
-      // .jostraca/generated to be the "original". That preserves
-      // manual edits in the main generated output.
-      const diffres = Diff3.merge(
-        editA,
-        orig,
-        editB,
-        {
-          // stringSeparator: '\n',
-          stringSeparator: /\r?\n/,
-          excludeFalseConflicts: true,
-          label: {
-            a: 'GENERATED: ' + isowhen + '/merge',
-            b: 'EXISTING: ' + isolast + '/merge',
-          }
-        })
-
-      const conflict = diffres.conflict
-      const content = diffres.result.join('\n')
-
-      out.content = content
-      out.conflict = conflict
-    }
-
-    return out
-  }
-
-
-  diff(oldcontent: string, newcontent: string): string {
-
-    // Only diff if needed
-    if (oldcontent.length === newcontent.length &&
-      oldcontent === newcontent) {
-      return newcontent
-    }
-
-    const isowhen = new Date(this.when).toISOString()
-    const isolast = new Date(this.last()).toISOString()
-
-    const difflines = Diff.diffLines(newcontent, oldcontent)
-
-    const out: string[] = []
-
-    difflines.forEach((part: any) => {
-      if (part.added) {
-        out.push('<<<<<<< GENERATED: ' + isowhen + '/diff\n')
-        out.push(part.value)
-        out.push('>>>>>>> GENERATED: ' + isowhen + '/diff\n')
-      }
-      else if (part.removed) {
-        out.push('<<<<<<< EXISTING: ' + isolast + '/diff\n')
-        out.push(part.value)
-        out.push('>>>>>>> EXISTING: ' + isolast + '/diff\n')
-      }
-      else {
-        out.push(part.value)
-      }
+    const res = DiffUtil.merge(generated, baseline, existing, {
+      when: this.when,
+      last: this.last(),
+      kind: 'merge',
     })
 
-    const content = out.join('')
-    return content
+    why.push(MERGE_WHY[res.outcome])
+
+    return { content: res.content, conflict: res.conflict }
   }
 
+
+  // Annotated two-way view of the difference between the new generate and
+  // what is on disk.
+  diff(generated: string, existing: string): string {
+    return DiffUtil.diff(generated, existing, {
+      when: this.when,
+      last: this.last(),
+      kind: 'diff',
+    }).content
+  }
 
 
   existsFile(path: string, whence?: string): boolean {
@@ -554,18 +628,33 @@ class FileHandler {
     validPath(frompath, this.maxdepth, CN + FN + 'from:' + wstr)
     validPath(topath, this.maxdepth, CN + FN + 'to:' + wstr)
 
-    const isBinary = isbinext(frompath)
     // Canonical paths: use directly, do not re-join `this.folder` (see existsFile).
     const fulltopath = fwd(Path.normalize(topath))
     const fullfrompath = fwd(Path.normalize(frompath))
 
     try {
       const existed = fs.existsSync(fulltopath)
-      this.ensureDir(fwd(Path.dirname(fulltopath)))
-      const content = fs.readFileSync(fullfrompath, isBinary ? undefined : 'utf8')
 
+      // Copy BYTES, always — never decode as UTF-8 first.
+      //
+      // This used to pick the encoding from `isbinext(frompath)`, i.e. from
+      // the extension alone. Content-sniffed binaries (T5) whose extension
+      // is not on the list therefore reached the `preserve` branch, which
+      // backs up via this method, and were decoded as UTF-8 on the way to
+      // the `.old` file: bytes `00 ff 02` were written as `00 ef bf bd 02`.
+      // The preserve option silently corrupted the only backup it existed
+      // to make.
+      //
+      // A copy has no reason to know the file type — bytes round-trip for
+      // text too — so the classification is simply gone.
+      const content = fs.readFileSync(fullfrompath)
+
+      // ensureDir must stay inside the dryrun guard: a dry run must not
+      // mutate the tree, and creating the destination folder is a mutation
+      // (saveFile already gets this right).
       if (!this.control.dryrun) {
-        fs.writeFileSync(fulltopath, content, { flush: true })
+        this.ensureDir(fwd(Path.dirname(fulltopath)))
+        this.writeFileAtomic(fulltopath, content, { flush: true })
       }
 
       this.audit.push([CN + FN + wstr,
@@ -693,6 +782,154 @@ class FileHandler {
   }
 
 
+  // Apply an explicit mode to a file whose content did not change.
+  //
+  // Best-effort and returns whether it did anything, so the caller can add
+  // an audit breadcrumb. A provider without chmod/stat, or a target that
+  // vanished, is not worth failing the build over.
+  private chmodUnchanged(path: string, mode?: number): boolean {
+    if (null == mode || this.control.dryrun) {
+      return false
+    }
+
+    const fs = this.fs()
+    if ('function' !== typeof fs.chmodSync) {
+      return false
+    }
+
+    try {
+      if ('function' === typeof fs.statSync) {
+        const stat = fs.statSync(path)
+        if (stat && (stat.mode & 0o7777) === (mode & 0o7777)) {
+          return false
+        }
+      }
+      fs.chmodSync(path, mode)
+      return true
+    }
+    catch (err: any) {
+      dlog('save', 'chmod of unchanged file failed: ' + path)
+      return false
+    }
+  }
+
+
+  // Replace `path` atomically: write a sibling temp file, then rename it
+  // over the target. Rename within a directory is atomic, so a crash, a
+  // SIGINT, or a full disk leaves the user's existing file intact rather
+  // than truncated or half-written. That matters most in `merge` and
+  // `diff` mode, where the file being rewritten is the one holding the
+  // user's hand edits.
+  //
+  // Rename replaces the inode, so a hard link to the target is broken and
+  // the new file would otherwise take default permissions — hence the
+  // mode copy below. This is the same trade-off git and npm make.
+  //
+  // The `fs` provider is pluggable; fall back to a direct write when it
+  // has no rename.
+  private writeFileAtomic(
+    path: string,
+    content: string | Buffer,
+    opts: any,
+    mode?: number,
+  ) {
+    const fs = this.fs()
+
+    if ('function' !== typeof fs.renameSync) {
+      fs.writeFileSync(path, content, opts)
+      if (null != mode && 'function' === typeof fs.chmodSync) {
+        fs.chmodSync(path, mode)
+      }
+      return
+    }
+
+    // A UNIQUE temp path, not a fixed one.
+    //
+    // The fixed `<target>.jostraca-tmp` had two failure modes. A user file
+    // that happened to sit at that name was overwritten and then renamed
+    // away — destroyed. Worse, two jostraca runs sharing an output folder
+    // (a watcher plus a manual run, a CI matrix, a shared mount) collided
+    // on the same temp path: one run's rename could publish the other
+    // run's bytes onto the target while both reported success. The rename
+    // is atomic, but atomicity is worthless if the source is shared.
+    //
+    // `wx` fails rather than clobbering, so a collision can never destroy
+    // an existing file; retry with a fresh name. Providers that do not
+    // support the flag simply ignore it, and the randomised name still
+    // fixes the concurrent-run case.
+    let tmppath = tmppathFor(path)
+    let tmpopts = { ...opts, flag: 'wx' }
+
+    // Whether THIS invocation created the temp file. The cleanup below must
+    // not delete a path we only ever failed to create: on EEXIST exhaustion
+    // that path holds someone else's file, and unlinking it would undo
+    // exactly what the `wx` flag is here to guarantee.
+    let created = false
+
+    try {
+      for (let attempt = 0; ; attempt++) {
+        try {
+          fs.writeFileSync(tmppath, content, tmpopts)
+          created = true
+          break
+        }
+        catch (err: any) {
+          // EEXIST means `wx` refused and this call created NOTHING — that
+          // is the R12 case, and `created` must stay false so the cleanup
+          // does not delete somebody else's file.
+          //
+          // Any OTHER error (ENOSPC, EIO) happened AFTER the create
+          // succeeded, so a partial temp file is on disk and is ours to
+          // remove. Without this it survived the failed build.
+          if ('EEXIST' !== err?.code) {
+            created = true
+          }
+          if ('EEXIST' !== err?.code || TMP_PATH_ATTEMPTS - 1 <= attempt) {
+            throw err
+          }
+          tmppath = tmppathFor(path)
+        }
+      }
+
+      // An explicit mode wins; otherwise preserve whatever the target
+      // already had, since rename replaces the inode.
+      //
+      // Best-effort: a provider may stat but not chmod, and losing a
+      // permission bit is not worth failing the write over.
+      if ('function' === typeof fs.chmodSync) {
+        if (null != mode) {
+          fs.chmodSync(tmppath, mode)
+        }
+        else if ('function' === typeof fs.statSync) {
+          try {
+            const stat = fs.statSync(path)
+            if (stat && !stat.isDirectory()) {
+              fs.chmodSync(tmppath, stat.mode)
+            }
+          }
+          catch (err: any) {
+            // Target absent (the common case for a new file): keep the
+            // default mode.
+          }
+        }
+      }
+
+      fs.renameSync(tmppath, path)
+    }
+    catch (err: any) {
+      try {
+        if (created && 'function' === typeof fs.unlinkSync) {
+          fs.unlinkSync(tmppath)
+        }
+      }
+      catch (cleanuperr: any) {
+        dlog('writeFileAtomic', 'temp cleanup failed: ' + tmppath)
+      }
+      throw err
+    }
+  }
+
+
   saveFile(
     path: string,
     content: string | Buffer,
@@ -730,7 +967,7 @@ class FileHandler {
 
       if (!this.control.dryrun) {
         this.ensureDir(parentfolder)
-        fs.writeFileSync(fullpath, content, opts)
+        this.writeFileAtomic(fullpath, content, opts, opts.mode)
       }
 
       this.audit.push([CN + FN + wstr,
@@ -770,6 +1007,47 @@ function whenify(meta: any, now: number) {
 }
 
 
+// Rewrite `foo/bar.txt` to `foo/bar.<kind>.txt`, used for the `.old`
+// (preserve) and `.new` (present) annotations.
+//
+// Node's `Path.extname('.env')` is '', so a leading-dot name has no
+// extension to split off and the whole basename is the stem. The previous
+// implementation stripped the final `.`-suffix with a regex, which for a
+// dotfile removed the entire name: every dotfile in a folder collapsed to
+// the same `.old` path, so a second dotfile silently destroyed the first
+// one's backup.
+function annotatedPath(target: string, kind: string): string {
+  const dir = Path.dirname(target)
+  const base = Path.basename(target)
+  const ext = Path.extname(base)
+  const stem = 0 === ext.length ? base : base.substring(0, base.length - ext.length)
+  return fwd(Path.join(dir, stem + '.' + kind + ext))
+}
+
+
+// Reject path traversal in a component name. Names compose directly into
+// output paths, and models are routinely third-party data, so a name
+// containing a `..` segment is an arbitrary-file-write primitive: it
+// escapes not just the project folder but the output folder entirely.
+//
+// A leading `/` is deliberately still allowed — an absolute Folder name
+// composes with the Project folder (see the `absolute_paths` parity
+// scenario). `Project.folder` is likewise not checked here: it is
+// developer-authored top-level configuration rather than model-derived,
+// and `Project({folder: '../sibling'})` is a legitimate pattern.
+function validName(name: any, kind: string, errmark: string) {
+  if (null == name) {
+    return
+  }
+
+  const segments = ('' + name).split(/[/\\]/)
+  if (segments.includes('..')) {
+    throw new Error('ERROR:' + errmark + ' ' + kind +
+      ' name must not contain a ".." path segment, name=' + name)
+  }
+}
+
+
 function validPath(path: string, maxdepth: number, errmark: string) {
   if (null == path || '' == path || 'string' !== typeof path) {
     throw new Error('ERROR:' + errmark + ' invalid path, path=' + path)
@@ -797,6 +1075,8 @@ function validPath(path: string, maxdepth: number, errmark: string) {
 
 
 export {
+  annotatedPath,
+  validName,
   validPath,
   FileHandler
 }

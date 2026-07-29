@@ -107,6 +107,18 @@ class BuildContext {
   }
 
 
+  // Folder path segments for the current build position, as a canonical
+  // (forward-slash) prefix. When neither a Project nor a Folder has seeded
+  // the path, fall back to the base output folder — otherwise a top-level
+  // File would join onto '' and resolve to '/<name>' at the filesystem
+  // root, ignoring the configured output folder entirely. FolderOp.before
+  // applies the same fallback when seeding the path.
+  folderPath(): string {
+    const { path, parent } = this.current.folder
+    return 0 < path.length ? path.join('/') : parent
+  }
+
+
   duplicateFolder() {
     if (null == this.dfolder) {
       this.dfolder =

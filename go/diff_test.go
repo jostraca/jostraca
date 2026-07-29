@@ -5,36 +5,7 @@ import (
 	"testing"
 )
 
-// Phase 10 — 2-way diff render.
-
-func TestRenderDiffNoChange(t *testing.T) {
-	out := renderDiff([]byte("a\nb\nc\n"), []byte("a\nb\nc\n"), "T1", "T0")
-	if string(out) != "a\nb\nc\n" {
-		t.Errorf("equal inputs: got %q", out)
-	}
-}
-
-func TestRenderDiffSingleHunk(t *testing.T) {
-	gen := []byte("a\nNEW\nc\n")
-	exi := []byte("a\nOLD\nc\n")
-	out := string(renderDiff(gen, exi, "T1", "T0"))
-	// TS-compatible paired-region format:
-	if !strings.Contains(out, "<<<<<<< GENERATED: T1/diff") {
-		t.Errorf("missing GENERATED open marker in %q", out)
-	}
-	if !strings.Contains(out, ">>>>>>> GENERATED: T1/diff") {
-		t.Errorf("missing GENERATED close marker in %q", out)
-	}
-	if !strings.Contains(out, "<<<<<<< EXISTING: T0/diff") {
-		t.Errorf("missing EXISTING open marker in %q", out)
-	}
-	if !strings.Contains(out, ">>>>>>> EXISTING: T0/diff") {
-		t.Errorf("missing EXISTING close marker in %q", out)
-	}
-	if !strings.Contains(out, "NEW") || !strings.Contains(out, "OLD") {
-		t.Errorf("missing change content: %q", out)
-	}
-}
+// Integration: diff mode end-to-end through Generate.
 
 func TestSaveDiffMode(t *testing.T) {
 	mem := NewMemFS()

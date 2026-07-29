@@ -10,6 +10,11 @@ type buildCtx struct {
 	current currentRefs
 	logx    buildLog
 	fh      *fileHandler
+
+	// replayErr carries the first error raised while rendering a replayed
+	// subtree. Replay happens inside a ReplaceFunc, which returns a string
+	// and so cannot propagate one directly.
+	replayErr error
 }
 
 type currentRefs struct {

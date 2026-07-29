@@ -24,6 +24,21 @@ type FragmentProps = ReturnType<typeof FragmentShape>
 
 
 const Fragment = cmp(function Fragment(props: FragmentProps, children: any) {
+  // Resolve a relative `from` BEFORE validating.
+  //
+  // The `from` check stats the path, and it used to stat the raw relative
+  // string — so it resolved against the process CWD and a relative `from`
+  // threw a validation error no matter where the file actually was. The
+  // resolution further down (which joined `node.path`, and so looked under
+  // the *enclosing file's name* as though it were a directory) was
+  // unreachable.
+  //
+  // Relative paths now resolve against the output folder, which is
+  // predictable and matches the Go port.
+  if ('string' === typeof (props as any).from && !Path.isAbsolute((props as any).from)) {
+    props = { ...props, from: Path.join((props as any).ctx$.folder, (props as any).from) } as any
+  }
+
   props = FragmentShape(props, { fs: props.ctx$.fs })
 
   const node: Node = props.ctx$.node
@@ -35,14 +50,11 @@ const Fragment = cmp(function Fragment(props: FragmentProps, children: any) {
   const replace = props.replace || {}
 
 
-  const { folder, model } = props.ctx$
+  const { model } = props.ctx$
   const fs = props.ctx$.fs()
-  let frompath = node.from as string
 
-  // TODO: this is relative to the output - but that is just one case - provide more control?
-  if (!Path.isAbsolute(frompath)) {
-    frompath = Path.join(folder, ...node.path, frompath)
-  }
+  // Already absolute by here: resolved above, before validation.
+  const frompath = node.from as string
 
   let src = fs.readFileSync(frompath, 'utf8')
 

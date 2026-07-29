@@ -3,7 +3,11 @@ import Path from 'node:path'
 
 import { FileHandler } from './FileHandler'
 
-import { humanify } from '../util/basic'
+import { humanify, getdlog } from '../util/basic'
+
+
+// Log non-fatal weirdness.
+const dlog = getdlog('jostraca', __filename)
 
 
 type FileMetaData = {
@@ -94,10 +98,25 @@ function loadMetaData(fh: FileHandler, bmeta: BuildMetaData) {
   // directly and no longer re-join `this.folder`.
   const metapath = Path.join(fh.folder, bmeta.foldername, bmeta.filename)
   if (fh.existsFile(metapath)) {
-    const json = fh.loadJSON(metapath)
-    bmeta.last = json.last
-    bmeta.hlast = json.hlast
-    bmeta.files = json.files
+    try {
+      const json = fh.loadJSON(metapath)
+      bmeta.last = null == json?.last ? -1 : json.last
+      bmeta.hlast = null == json?.hlast ? -1 : json.hlast
+      bmeta.files = json?.files || {}
+    }
+    catch (err: any) {
+      // A truncated or hand-edited meta log used to throw straight out of
+      // the BuildMeta constructor, so a corrupt bookkeeping file blocked
+      // generation entirely — with a JSON parse error that says nothing
+      // about how to recover. The log is regenerated on every run, so
+      // starting from empty state is safe: the only cost is that merge
+      // baselines look absent for one run.
+      dlog('meta', 'unreadable meta log, continuing with empty state: ' +
+        metapath + ' err=' + err.message)
+      bmeta.last = -1
+      bmeta.hlast = -1
+      bmeta.files = {}
+    }
   }
   return bmeta
 }
