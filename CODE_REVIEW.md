@@ -87,11 +87,12 @@ issue so the deferral is tracked rather than lost:
 |---|---|
 | [#21](https://github.com/jostraca/jostraca/issues/21) | **FIXED** — top-level sibling components were silently dropped. Resolved with an eager synthetic root; see §2.9 |
 | [#22](https://github.com/jostraca/jostraca/issues/22) | **FIXED** — the Go suite now runs on macOS and Windows, and a fourth drive-absolute defect was found and fixed on the way; see §2.10 |
-| [#23](https://github.com/jostraca/jostraca/issues/23) | the option-surface corpus does not cross `Copy.exclude` or `existing.bin`. Both halves prototyped and verified; **both now blocked on a semantic decision** rather than on tooling — [#28](https://github.com/jostraca/jostraca/issues/28) and [#27](https://github.com/jostraca/jostraca/issues/27). See §2.12 |
+| [#23](https://github.com/jostraca/jostraca/issues/23) | **FIXED** — both axes landed once #27/#28 unblocked them: a 95-case `Copy.exclude` corpus and the `existing.bin` classification axis (840 → 1197 cases). See §2.12 and §2.15 |
 | [#24](https://github.com/jostraca/jostraca/issues/24) | **FIXED** — the corpus carries binary content via a `{"b64": …}` escape hatch; see §2.11 |
 | [#25](https://github.com/jostraca/jostraca/issues/25) | **CLOSED, won't-fix** — T15. The deferral held, but the premise did not: component bodies run *once*, not N+1 times, and nested Fragments do not compound in TS. Removing the one redundant pass was unmeasurable against noise. See §2.13 |
 | [#27](https://github.com/jostraca/jostraca/issues/27) | **FIXED** — extension decides, with sniffing able to promote an unlisted extension but never demote a listed one; see §2.14 |
 | [#28](https://github.com/jostraca/jostraca/issues/28) | **FIXED** — TS now prunes excluded directories, and a scalar `exclude` is legal in both stacks; see §2.14 |
+| [#30](https://github.com/jostraca/jostraca/issues/30) | TS compares a Buffer against a string in `save`, so a Copy-routed binary is always "changed" — spurious `.old`/`.new` sidecars and mtime churn on every run. 36 measured cases; the reason the `same` state is dropped for Copy-routed rows in the new axis |
 | [#29](https://github.com/jostraca/jostraca/issues/29) | **FIXED, narrowed** — the literal rule was unimplementable; a non-Slot child errors only when the source has no unnamed `<[SLOT]>` to receive it; see §2.14 |
 
 T15 is the only *code* item from this review not acted on; the rest are follow-on coverage
@@ -791,6 +792,9 @@ Two design findings worth keeping regardless of when they land:
   the degenerate `true` / `[]` forms. More glob spellings and more multi-entry arrays add
   nothing.
 
+The `existing.bin` half of this landed once #27 was decided; §2.15 records what it took, and
+the one state it still cannot record.
+
 ---
 
 ## 2.13 #25 — the deferral held, the reasoning did not
@@ -892,6 +896,56 @@ asymmetry is recorded rather than reconciled, in `go/README.md`'s deviations lis
 direct Fragment child is a non-Slot child in TS and invisible in Go — the new error fires in
 TS only, for that one shape. Reconciling it means giving `Cmp` a node, which changes the
 shape of every Go component tree.
+
+## 2.15 #23 — the `existing.bin` axis landed, and the hole it could not fill
+
+With #27 decided, the axis §2.12 deferred went in: the option-surface corpus grows from 840
+to **1 197 cases** (1.5 MB), adding `.png` (listed binary extension), `.wasm` (unlisted
+extension, binary content) and a `.txt` control, crossed with seven mode rows that pair a
+`txt` mode against a *different* `bin` mode. Real bytes on both sides — the pre-existing
+on-disk state and the generated content — ride the `{"b64": …}` escape hatch from #24.
+
+**The teeth are in the payload, not in the case count.** A binary case with no marker in it
+is worth nothing: Go strings are byte-transparent, so the text path is a no-op on arbitrary
+bytes and the case stays byte-identical even when the classification is wrong. That was
+measured when the first binary scenario was added. Each payload here therefore carries a
+`$$v$$` marker, bytes that are not valid UTF-8, and a NUL. Both halves of the #27 rule are
+then separately detectable, and by *different* cases:
+
+| reverted fix | cases that move |
+|---|---|
+| classify by value type instead of extension | 126 / 1 197 (`png-file`, `pngtxt-file`, `mix`) |
+| content sniff disabled, so `.wasm` reads as text | 126 / 1 197 (`wasm-copy`, `mix`) |
+
+The two sets overlap on only the 36 `mix` cases. Zero of the pre-existing 840 move under
+either — which is the concrete measurement behind §2.12's claim that the old corpus could
+not see this question at all.
+
+**The axis is not the full cross, and the two cuts are different in kind.** The binary block
+uses three of the six folder settings (`unset`, `rel`, `abs`) because classification is
+folder-independent and those are the three distinct branches of
+`relative()`/`withinFolder()`; it is not crossed with the seven text-only mode rows or the
+five text name shapes because a `bin` mode cannot reach a `.txt` file. That is a size cut,
+and it costs nothing.
+
+The other cut is a real hole. **A Copy-routed file gets no `same` state, because the two
+stacks disagree about it.** Content copied from a binary source reaches `FileHandler.save`
+as a `Buffer`, and `save` compares it for equality against what `loadFile` returns — a UTF-8
+*string*. The test is `string !== Buffer`, true whatever the bytes are, so TS treats a
+Copy-routed binary as **changed even when the target already holds exactly those bytes**;
+Go uses `bytes.Equal`. With `bin.preserve` TS writes a `.old` backup of a file it is about
+to rewrite identically, and with `bin.present` a `.new` sidecar identical to the target.
+Measured on the full cross: exactly 36 cases failed, all of them `same` × Copy-routed ×
+a preserve/present mode.
+
+Per §2.12, recording TS's output there would freeze a Buffer-vs-string comparison artifact
+as canonical, which is the failure the corpora exist to prevent — so the state is dropped
+for the **route**, not for the four mode rows where it happens to show; dropping only the
+latter would be shaping the corpus to pass. The copy-free `pngtxt-file` row keeps `same`
+on the side where it is representable. Fixing this changes user-visible output, so it wants
+the same explicit ruling #27–#29 got rather than being taken here.
+
+---
 
 ### The arc
 
