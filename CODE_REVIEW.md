@@ -85,7 +85,7 @@ issue so the deferral is tracked rather than lost:
 
 | issue | item |
 |---|---|
-| [#21](https://github.com/jostraca/jostraca/issues/21) | top-level sibling components are silently dropped — `ctx$.root = (ctx$.root \|\| node)` orphans everything after the first. Pre-existing, both stacks, verified repro in each. Architecturally significant enough to want a decision rather than a patch (see §2.2) |
+| [#21](https://github.com/jostraca/jostraca/issues/21) | **FIXED** — top-level sibling components were silently dropped. Resolved with an eager synthetic root; see §2.9 |
 | [#22](https://github.com/jostraca/jostraca/issues/22) | `go-test.yml` runs Linux only, so the Go port's Windows blind spot has no gate. Three Windows-only defects on this branch alone; `GOOS=windows go vet` compiles but never executes (see §2.7) |
 | [#23](https://github.com/jostraca/jostraca/issues/23) | the option-surface corpus does not cross `Copy.exclude` or `existing.bin` — the two axes U3 and U5 hid in |
 | [#24](https://github.com/jostraca/jostraca/issues/24) | the parity corpus cannot express binary content; needs a base64 escape hatch. Blocks the `existing.bin` half of #23 |
@@ -603,6 +603,62 @@ because it is read as a name later, at op time. So the option's spelling depende
 the component sat in the *output* tree rather than on the source being copied. Nobody could
 depend on that deliberately. This is the `CLAUDE.md` exception — the port pre-empted a
 latent TS bug — so TS was corrected to match Go rather than the reverse.
+
+---
+
+## 2.9 #21 — the sibling bug, and the third time the port was already right
+
+Filed rather than fixed at the end of the review (§2.2), then taken up on its own. The issue
+offered three remedies — error, implicit root, warn-and-drop — and recommended "option 1 or
+2". Investigating it moved the answer decisively to **option 2, eagerly**, and corrected two
+things the issue itself asserted:
+
+- **The line the issue blamed is inert.** `ctx$.root` is *write-only*: nothing in `ts/src`,
+  `ts/test`, `ts/tools` or `ts/gen` ever reads it. Deleting the assignment changes nothing.
+  The load-bearing line is the next one, `parent = ctx$.node || node`, which makes the first
+  top-level component *its own parent*; the `finally` then restores the cursor to it and
+  `build()` walks it, orphaning the rest.
+- **Go already had the implicit root.** `Generate` has always created a `KindNone` root node
+  and bound the define phase to it, so every top-level sibling was already a child of it
+  *with a correct path*. Go's only defect was which node `runBuild` started from — one line.
+  The issue's claim that Go mirrored the bug across "four sites in `builder.go`" was wrong;
+  those sites needed no change at all.
+
+That makes this the **third** time the port pre-empted a latent TS bug (after G10 and V2),
+and again `CLAUDE.md`'s exception applies: TS was corrected to match Go.
+
+**Why eager, not lazy.** The obvious conservative variant — synthesise the wrapper only when
+a *second* top-level component appears, leaving the one-component case untouched — does not
+work in TS, and the reason is worth recording. Because the first sibling becomes the parent,
+TS also derives the orphans' `node.path` *from it*: two top-level files `a.txt` and `b.txt`
+give `b.txt` the path `['a.txt','b.txt']` where Go gives `['b.txt']`. `node.path` never
+determines output location — only `rpath` exclude matching and log bookkeeping — so it is
+invisible today. But reparenting at the end of the define phase resurrects the siblings
+carrying that wrong path, creating a *fresh* TS/Go divergence in the act of fixing the bug.
+The eager root fixes both halves at once.
+
+The conservative variant's whole selling point was byte-identity for existing trees. The
+eager fix delivers that anyway, and it was measured rather than assumed: **all 35 parity
+corpus files regenerate byte-identical**, including the 840-case option-surface corpus and
+the 471-case template corpus. Both new regression tests were verified in the failing
+direction — reverting the source and keeping the tests gives `not ok 9 - top-level-siblings`
+in TS and `/top/b.txt missing` in Go.
+
+**What this newly exposes.** Components that were silently dropped now actually run, so this
+is not purely additive:
+
+- A second top-level `Inject` whose target does not exist used to be skipped and now throws.
+  That is the point of the fix, but it is a user-visible change for existing generators.
+- `generate({}, () => {})` with an empty define phase used to throw a bare `TypeError` in TS
+  while Go returned success. The synthetic root closes that parity gap incidentally; a
+  matching bail mirrors `runBuild`'s `st.root == nil` check.
+- `ProjectOp` has no `after` hook, so `Project({folder:'p'}, ...)` followed by a bare
+  top-level `File` writes to `p/` rather than the output root. Pre-existing and
+  byte-identical in both stacks, so not a parity break — but it was unreachable before this
+  fix and is reachable now. Filed as [#26](https://github.com/jostraca/jostraca/issues/26)
+  rather than folded in, because #21's change is provably byte-neutral and this one would
+  not be. The sharper case there is two sibling `Project`s: the second currently nests
+  inside the first.
 
 ### The arc
 

@@ -873,3 +873,36 @@ func TestUnresolvedDetectionWithCustomLabels(t *testing.T) {
 		t.Errorf("default sentinel outcome = %q, want unresolved", dflt.Outcome)
 	}
 }
+
+// Issue #21. Bare top-level components with no Project or Folder wrapper:
+// st.root used to be seeded with the FIRST node attached, so every sibling
+// after it was orphaned and silently dropped — Generate returned no error
+// and the later files simply were not there.
+func TestTopLevelSiblingsAllBuilt(t *testing.T) {
+	mfs := NewMemFS()
+	j := revJ(t, "/top", WithFS(mfs))
+	if _, err := j.Generate(Options{}, func(j *J) {
+		j.File("a.txt", func(j *J) { j.Content("AAA") })
+		j.File("b.txt", func(j *J) { j.Content("BBB") })
+		j.Folder("sub", func(j *J) {
+			j.File("c.txt", func(j *J) { j.Content("CCC") })
+		})
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	vol := mfs.Vol()
+	for path, want := range map[string]string{
+		"/top/a.txt":     "AAA",
+		"/top/b.txt":     "BBB",
+		"/top/sub/c.txt": "CCC",
+	} {
+		got, ok := vol[path]
+		if !ok {
+			t.Fatalf("%s missing", path)
+		}
+		if string(got) != want {
+			t.Errorf("%s = %q, want %q", path, got, want)
+		}
+	}
+}

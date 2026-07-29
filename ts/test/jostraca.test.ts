@@ -457,6 +457,34 @@ describe('jostraca', () => {
 
 
 
+  test('top-level-siblings', async () => {
+    // Regression (jostraca/jostraca#21): bare top-level components with no
+    // Project or Folder wrapper used to have the FIRST one become the tree
+    // root, orphaning every sibling after it. generate() returned success
+    // and the later files simply were not there.
+    const { fs, vol } = memfs({})
+
+    const jostraca = Jostraca({})
+
+    await jostraca.generate(
+      { fs: () => fs, folder: '/top' },
+      () => {
+        File({ name: 'a.txt' }, () => Content('AAA'))
+        File({ name: 'b.txt' }, () => Content('BBB'))
+        Folder({ name: 'sub' }, () => {
+          File({ name: 'c.txt' }, () => Content('CCC'))
+        })
+      }
+    )
+
+    const voljson: any = vol.toJSON()
+
+    expect(voljson['/top/a.txt']).equal('AAA')
+    expect(voljson['/top/b.txt']).equal('BBB')
+    expect(voljson['/top/sub/c.txt']).equal('CCC')
+  })
+
+
   test('line', async () => {
     let nowI = 0
     const now = () => START_TIME + (++nowI * (60 * 1000))

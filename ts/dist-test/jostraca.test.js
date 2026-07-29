@@ -320,6 +320,25 @@ const START_TIME = 1735689600000;
         (0, expect_1.expect)(fooKeys.length).equal(1);
         (0, expect_1.expect)(voljson[fooKeys[0]]).equal('HELLO\n');
     });
+    (0, node_test_1.test)('top-level-siblings', async () => {
+        // Regression (jostraca/jostraca#21): bare top-level components with no
+        // Project or Folder wrapper used to have the FIRST one become the tree
+        // root, orphaning every sibling after it. generate() returned success
+        // and the later files simply were not there.
+        const { fs, vol } = (0, memfs_1.memfs)({});
+        const jostraca = (0, __1.Jostraca)({});
+        await jostraca.generate({ fs: () => fs, folder: '/top' }, () => {
+            (0, __1.File)({ name: 'a.txt' }, () => (0, __1.Content)('AAA'));
+            (0, __1.File)({ name: 'b.txt' }, () => (0, __1.Content)('BBB'));
+            (0, __1.Folder)({ name: 'sub' }, () => {
+                (0, __1.File)({ name: 'c.txt' }, () => (0, __1.Content)('CCC'));
+            });
+        });
+        const voljson = vol.toJSON();
+        (0, expect_1.expect)(voljson['/top/a.txt']).equal('AAA');
+        (0, expect_1.expect)(voljson['/top/b.txt']).equal('BBB');
+        (0, expect_1.expect)(voljson['/top/sub/c.txt']).equal('CCC');
+    });
     (0, node_test_1.test)('line', async () => {
         let nowI = 0;
         const now = () => START_TIME + (++nowI * (60 * 1000));
