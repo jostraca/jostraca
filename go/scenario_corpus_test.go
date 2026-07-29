@@ -25,15 +25,28 @@ import (
 // regenerate the corpus to make it pass — that records the drift as
 // expected. Find which side changed.
 
+// scenarioCorpusFileSpec describes one output file: how it is produced and
+// what goes into it. Only the binary-classification block carries these —
+// the text block is fully described by Names + Seed, and keeps the exact
+// JSON shape it had before that block existed.
+type scenarioCorpusFileSpec struct {
+	Name string       `json:"name"`
+	Kind string       `json:"kind"` // "file" (File+Content) or "copy" (Copy)
+	Body corpusBytes  `json:"body"`
+	Seed *corpusBytes `json:"seed"`
+}
+
 type scenarioCorpusCase struct {
-	Name     string            `json:"name"`
-	Folder   *string           `json:"folder"`
-	Existing map[string]any    `json:"existing"`
-	Seed     *string           `json:"seed"`
-	Baseline *string           `json:"baseline"`
-	Names    []string          `json:"names"`
-	Vol      map[string]string `json:"vol"`
-	Error    bool              `json:"error"`
+	Name     string                   `json:"name"`
+	Folder   *string                  `json:"folder"`
+	Existing map[string]any           `json:"existing"`
+	Seed     *string                  `json:"seed"`
+	Baseline *string                  `json:"baseline"`
+	Names    []string                 `json:"names"`
+	Files    []scenarioCorpusFileSpec `json:"files"`
+	Sources  map[string]corpusBytes   `json:"sources"`
+	Vol      map[string]corpusBytes   `json:"vol"`
+	Error    bool                     `json:"error"`
 }
 
 type scenarioCorpusFile struct {
@@ -41,35 +54,69 @@ type scenarioCorpusFile struct {
 	Cases    []scenarioCorpusCase `json:"cases"`
 }
 
-// existingFromMap converts the corpus's JSON shape into the Go Existing
+// existingFromCorpus converts the corpus's JSON shape into the Go Existing
 // struct. Kept explicit rather than routed through OptionsFromMap so a
 // change in that decoder cannot silently alter what this test exercises.
+//
+// `bin` has no diff and no merge — the TS shape validator rejects both
+// (`the property "diff" is not allowed`) and ExistingBin has no such field
+// — so the corpus never carries them and nothing here decodes them.
 func existingFromCorpus(t *testing.T, raw map[string]any) Existing {
 	t.Helper()
 	var ex Existing
 	if raw == nil {
 		return ex
 	}
-	txt, _ := raw["txt"].(map[string]any)
-	if txt == nil {
-		return ex
-	}
-	boolp := func(k string) *bool {
-		v, ok := txt[k].(bool)
+	boolp := func(m map[string]any, k string) *bool {
+		v, ok := m[k].(bool)
 		if !ok {
 			return nil
 		}
 		return &v
 	}
-	ex.Txt = ExistingTxt{
-		Write:    boolp("write"),
-		Preserve: boolp("preserve"),
-		Present:  boolp("present"),
-		Diff:     boolp("diff"),
-		Merge:    boolp("merge"),
+	if txt, _ := raw["txt"].(map[string]any); txt != nil {
+		ex.Txt = ExistingTxt{
+			Write:    boolp(txt, "write"),
+			Preserve: boolp(txt, "preserve"),
+			Present:  boolp(txt, "present"),
+			Diff:     boolp(txt, "diff"),
+			Merge:    boolp(txt, "merge"),
+		}
+	}
+	if bin, _ := raw["bin"].(map[string]any); bin != nil {
+		ex.Bin = ExistingBin{
+			Write:    boolp(bin, "write"),
+			Preserve: boolp(bin, "preserve"),
+			Present:  boolp(bin, "present"),
+		}
 	}
 	return ex
 }
+
+// filesOf normalises a case to the per-file spec form. A case from the text
+// block carries only Names + Seed, which says the same thing shorter.
+func filesOf(c scenarioCorpusCase) []scenarioCorpusFileSpec {
+	if c.Files != nil {
+		return c.Files
+	}
+	out := make([]scenarioCorpusFileSpec, 0, len(c.Names))
+	for _, name := range c.Names {
+		spec := scenarioCorpusFileSpec{
+			Name: name,
+			Kind: "file",
+			Body: corpusBytes("GENERATED\n"),
+		}
+		if c.Seed != nil {
+			sb := corpusBytes(*c.Seed)
+			spec.Seed = &sb
+		}
+		out = append(out, spec)
+	}
+	return out
+}
+
+// scenarioSrcDir mirrors SRCDIR in ts/tools/scenario-corpus.js.
+const scenarioSrcDir = "/src"
 
 func TestScenarioCorpusMatchesTS(t *testing.T) {
 	body, err := parityFS.ReadFile("testdata/parity/scenario_corpus.json")
@@ -81,7 +128,7 @@ func TestScenarioCorpusMatchesTS(t *testing.T) {
 	if err := json.Unmarshal(body, &corpus); err != nil {
 		t.Fatalf("decode scenario_corpus.json: %v", err)
 	}
-	if len(corpus.Cases) < 400 {
+	if len(corpus.Cases) < 1100 {
 		t.Fatalf("corpus looks truncated: %d cases", len(corpus.Cases))
 	}
 
@@ -112,16 +159,32 @@ func TestScenarioCorpusMatchesTS(t *testing.T) {
 			return prefix + "/" + rest
 		}
 
-		if c.Seed != nil {
-			for _, name := range c.Names {
-				if err := mem.WriteFile(join(name), []byte(*c.Seed)); err != nil {
-					t.Fatal(err)
-				}
+		files := filesOf(c)
+
+		// Copy sources sit outside every output folder, at an absolute
+		// path, so they are identical for every folder setting.
+		srcs := make([]string, 0, len(c.Sources))
+		for p := range c.Sources {
+			srcs = append(srcs, p)
+		}
+		sort.Strings(srcs)
+		for _, p := range srcs {
+			if err := mem.WriteFile(p, c.Sources[p]); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		for _, f := range files {
+			if f.Seed == nil {
+				continue
+			}
+			if err := mem.WriteFile(join(f.Name), *f.Seed); err != nil {
+				t.Fatal(err)
 			}
 		}
 		if c.Baseline != nil {
-			for _, name := range c.Names {
-				p := join(".jostraca/generated/" + name)
+			for _, f := range files {
+				p := join(".jostraca/generated/" + f.Name)
 				if err := mem.WriteFile(p, []byte(*c.Baseline)); err != nil {
 					t.Fatal(err)
 				}
@@ -134,23 +197,39 @@ func TestScenarioCorpusMatchesTS(t *testing.T) {
 		}
 		j := New(opts...)
 
-		_, gerr := j.Generate(Options{Existing: existingFromCorpus(t, c.Existing)},
-			func(j *J) {
-				j.Folder("", func(j *J) {
-					for _, name := range c.Names {
-						at := strings.LastIndex(name, "/")
-						if at < 0 {
-							n := name
-							j.File(n, func(j *J) { j.Content("GENERATED\n") })
-							continue
-						}
-						dir, base := name[:at], name[at+1:]
-						j.Folder(dir, func(j *J) {
-							j.File(base, func(j *J) { j.Content("GENERATED\n") })
-						})
+		_, gerr := j.Generate(Options{
+			Existing: existingFromCorpus(t, c.Existing),
+			// Matches MODEL in ts/tools/scenario-corpus.js. Only the binary
+			// payloads carry a `$$v$$` marker, where substituting it is the
+			// visible symptom of the file having been treated as text.
+			Model: map[string]any{"v": "V"},
+		}, func(j *J) {
+			j.Folder("", func(j *J) {
+				for _, f := range files {
+					f := f
+					at := strings.LastIndex(f.Name, "/")
+					base := f.Name
+					if at >= 0 {
+						base = f.Name[at+1:]
 					}
-				})
+					emit := func(j *J) {
+						if f.Kind == "copy" {
+							j.Copy(CopyProps{
+								From: scenarioSrcDir + "/" + base,
+								To:   base,
+							})
+							return
+						}
+						j.File(base, func(j *J) { j.Content(string(f.Body)) })
+					}
+					if at < 0 {
+						emit(j)
+						continue
+					}
+					j.Folder(f.Name[:at], emit)
+				}
 			})
+		})
 
 		if c.Error {
 			if gerr == nil {
@@ -169,16 +248,24 @@ func TestScenarioCorpusMatchesTS(t *testing.T) {
 			continue
 		}
 
+		// Go strings are byte-transparent, so flattening both sides to
+		// map[string]string is lossless even for the binary cases — and it
+		// keeps sameTree/showTree at the signatures the other corpora in
+		// this package share.
 		got := map[string]string{}
 		for k, v := range mem.Vol() {
 			got[k] = string(v)
 		}
+		want := map[string]string{}
+		for k, v := range c.Vol {
+			want[k] = string(v)
+		}
 
-		if !sameTree(got, c.Vol) {
+		if !sameTree(got, want) {
 			mismatch++
 			if mismatch <= 12 {
 				t.Errorf("%s: output tree differs\n go=%s\n ts=%s",
-					c.Name, showTree(got), showTree(c.Vol))
+					c.Name, showTree(got), showTree(want))
 			}
 		}
 	}

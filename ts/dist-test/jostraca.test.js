@@ -231,6 +231,37 @@ const START_TIME = 1735689600000;
             [TOP_META]: voljson[TOP_META],
         });
     });
+    (0, node_test_1.test)('fragment-nonslot-child-without-default-slot', async () => {
+        // Non-Slot children fill the unnamed <[SLOT]> marker. With no unnamed
+        // marker in the source there is nowhere for them to go; that used to
+        // drop them silently (both stacks), so it is now an error.
+        const { fs } = (0, memfs_1.memfs)({
+            // Named marker only -- no unnamed <[SLOT]>.
+            '/tmp/named.txt': 'Q+// <[SLOT:alice]>\n',
+            '/tmp/plain.txt': 'Q\n',
+            '/tmp/both.txt': 'Q+<[SLOT]>+// <[SLOT:alice]>\n',
+        });
+        const gen = (from) => (0, __1.Jostraca)({}).generate({ fs: () => fs, folder: '/top' }, () => (0, __1.Project)({}, () => {
+            (0, __1.File)({ name: 'foo.txt' }, () => {
+                (0, __1.Fragment)({ from }, () => {
+                    (0, __1.Content)('A');
+                    (0, __1.Slot)({ name: 'alice' }, () => (0, __1.Content)('ALICE'));
+                });
+            });
+        }));
+        let err = undefined;
+        await gen('/tmp/named.txt').catch((e) => err = e);
+        (0, expect_1.expect)(null != err).equal(true);
+        (0, expect_1.expect)(/no unnamed <\[SLOT\]> marker/.test(err.message)).equal(true);
+        (0, expect_1.expect)(err.message.includes('/tmp/named.txt')).equal(true);
+        err = undefined;
+        await gen('/tmp/plain.txt').catch((e) => err = e);
+        (0, expect_1.expect)(null != err).equal(true);
+        // An unnamed marker makes the same body legal again.
+        err = undefined;
+        await gen('/tmp/both.txt').catch((e) => err = e);
+        (0, expect_1.expect)(err).equal(undefined);
+    });
     (0, node_test_1.test)('inject', async () => {
         let nowI = 0;
         const now = () => START_TIME + (++nowI * (60 * 1000));
@@ -319,6 +350,25 @@ const START_TIME = 1735689600000;
         const fooKeys = keys.filter((k) => k.endsWith('reltest/foo.txt'));
         (0, expect_1.expect)(fooKeys.length).equal(1);
         (0, expect_1.expect)(voljson[fooKeys[0]]).equal('HELLO\n');
+    });
+    (0, node_test_1.test)('top-level-siblings', async () => {
+        // Regression (jostraca/jostraca#21): bare top-level components with no
+        // Project or Folder wrapper used to have the FIRST one become the tree
+        // root, orphaning every sibling after it. generate() returned success
+        // and the later files simply were not there.
+        const { fs, vol } = (0, memfs_1.memfs)({});
+        const jostraca = (0, __1.Jostraca)({});
+        await jostraca.generate({ fs: () => fs, folder: '/top' }, () => {
+            (0, __1.File)({ name: 'a.txt' }, () => (0, __1.Content)('AAA'));
+            (0, __1.File)({ name: 'b.txt' }, () => (0, __1.Content)('BBB'));
+            (0, __1.Folder)({ name: 'sub' }, () => {
+                (0, __1.File)({ name: 'c.txt' }, () => (0, __1.Content)('CCC'));
+            });
+        });
+        const voljson = vol.toJSON();
+        (0, expect_1.expect)(voljson['/top/a.txt']).equal('AAA');
+        (0, expect_1.expect)(voljson['/top/b.txt']).equal('BBB');
+        (0, expect_1.expect)(voljson['/top/sub/c.txt']).equal('CCC');
     });
     (0, node_test_1.test)('line', async () => {
         let nowI = 0;

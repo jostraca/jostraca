@@ -1,0 +1,28 @@
+# Check everything out with LF endings, on every platform.
+#
+# GitHub's windows-latest image ships core.autocrlf=true in the system
+# gitconfig, and actions/checkout does not override it. Without this file
+# every .go file lands CRLF on a Windows runner, which `gofmt -l .` then
+# reports as unformatted — all of them. The build, vet and tests still pass;
+# only the formatting gate fails, and it fails 100% of the time.
+#
+# The .sh entry matters for a different reason: a CRLF `#!/bin/sh` shebang
+# is unexecutable ("cannot execute: required file not found", exit 127), so
+# go/check_diff_coverage.sh would not run at all.
+#
+# The .json entry keeps the committed parity corpora byte-stable, so the
+# regenerate-and-diff freshness gate compares like with like.
+*.go   text eol=lf
+*.sh   text eol=lf
+*.json text eol=lf
+*.yml  text eol=lf
+*.ts   text eol=lf
+*.js   text eol=lf
+*.md   text eol=lf
+
+# Fuzz corpora are byte-exact inputs reproducing a specific failure, so they
+# are excluded from normalisation entirely rather than trusted to contain no
+# bytes worth preserving. (Every tracked file is pure LF with no NUL today —
+# checked — so this file changes nothing on checkout; it exists to keep that
+# true on a platform whose git is configured to rewrite line endings.)
+go/testdata/fuzz/**  -text

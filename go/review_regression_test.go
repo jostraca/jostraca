@@ -38,8 +38,14 @@ func TestCopyDuplicateRealpathSiblingsBothCopied(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(src, "real", "one.txt"), []byte("ONE\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
+		// Creating a symlink on Windows needs SeCreateSymbolicLinkPrivilege,
+		// which GitHub's windows-latest runners do not have. Skip rather than
+		// fail — this test is entirely about a symlinked sibling, so there is
+		// nothing left to assert without one. Same idiom as
+		// robustness_test.go. The cost is that Windows CI never regression-
+		// tests the R1 visited-unwind fix; that gap is deliberate.
 		if err := os.Symlink(filepath.Join(src, "real"), filepath.Join(src, linkname)); err != nil {
-			t.Fatal(err)
+			t.Skipf("symlinks unavailable: %v", err)
 		}
 
 		j := revJ(t, fwd(dir))
@@ -75,8 +81,10 @@ func TestCopyStillDetectsAncestorCycle(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(src, "sub", "a.txt"), []byte("A\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// See the note on the sibling test above: no symlink privilege on
+	// Windows runners, and a cycle test without a cycle asserts nothing.
 	if err := os.Symlink(src, filepath.Join(src, "sub", "loop")); err != nil {
-		t.Fatal(err)
+		t.Skipf("symlinks unavailable: %v", err)
 	}
 
 	done := make(chan error, 1)
@@ -871,5 +879,38 @@ func TestUnresolvedDetectionWithCustomLabels(t *testing.T) {
 	dflt := Merge("NEW\n", "OLD\n", "a\n>>>>>>> EXISTING: T/merge\n", DiffSpec{})
 	if dflt.Outcome != MergeUnresolved {
 		t.Errorf("default sentinel outcome = %q, want unresolved", dflt.Outcome)
+	}
+}
+
+// Issue #21. Bare top-level components with no Project or Folder wrapper:
+// st.root used to be seeded with the FIRST node attached, so every sibling
+// after it was orphaned and silently dropped — Generate returned no error
+// and the later files simply were not there.
+func TestTopLevelSiblingsAllBuilt(t *testing.T) {
+	mfs := NewMemFS()
+	j := revJ(t, "/top", WithFS(mfs))
+	if _, err := j.Generate(Options{}, func(j *J) {
+		j.File("a.txt", func(j *J) { j.Content("AAA") })
+		j.File("b.txt", func(j *J) { j.Content("BBB") })
+		j.Folder("sub", func(j *J) {
+			j.File("c.txt", func(j *J) { j.Content("CCC") })
+		})
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	vol := mfs.Vol()
+	for path, want := range map[string]string{
+		"/top/a.txt":     "AAA",
+		"/top/b.txt":     "BBB",
+		"/top/sub/c.txt": "CCC",
+	} {
+		got, ok := vol[path]
+		if !ok {
+			t.Fatalf("%s missing", path)
+		}
+		if string(got) != want {
+			t.Errorf("%s = %q, want %q", path, got, want)
+		}
 	}
 }

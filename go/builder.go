@@ -398,9 +398,9 @@ func (j *J) attachAndDescend(n *Node, body func(*J)) {
 	if j.cur != nil {
 		j.cur.Children = append(j.cur.Children, n)
 	}
-	// NOTE: the first component becomes the tree root, so bare top-level
-	// siblings after it are orphaned and silently dropped. Pre-existing;
-	// tracked in jostraca/jostraca#21. Wrap in Folder/Project to group.
+	// st.root tracks the first attached node during the define phase.
+	// Generate replaces it with the synthetic root once the define phase
+	// is done, so top-level siblings are all walked.
 	if j.st.root == nil {
 		j.st.root = n
 	}

@@ -357,7 +357,11 @@ func (fh *fileHandler) saveClassified(
 func (fh *fileHandler) withinFolder(p string) bool {
 	switch fh.folder {
 	case ".":
-		if isAbsPath(p) {
+		// isAbsFromPath, not isAbsPath: the TS `.` branch guards with
+		// Path.isAbsolute, which is platform dispatched. The "/" branch
+		// below deliberately stays slash-only, because TS's matching branch
+		// is a literal startsWith('/'), not Path.isAbsolute.
+		if isAbsFromPath(p) {
 			return false
 		}
 		// "relative" is not the same as "inside". A `..` segment walks OUT

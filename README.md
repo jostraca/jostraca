@@ -110,6 +110,9 @@ File({ name: 'index.html' }, () => {
 ```
 
 Unnamed `<[SLOT]>` markers receive all non-Slot children of the Fragment.
+Giving a Fragment non-Slot children when its source has no unnamed
+`<[SLOT]>` marker is an error: there is nowhere for that content to go, and
+it would otherwise be discarded silently.
 
 
 ## Copy

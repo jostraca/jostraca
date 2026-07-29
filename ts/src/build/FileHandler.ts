@@ -10,6 +10,7 @@ import { FST, Audit } from '../types'
 
 import {
   humanify,
+  isbincontent,
   isbinext,
   getdlog,
 } from '../util/basic'
@@ -215,16 +216,40 @@ class FileHandler {
   }
 
 
+  // save for content already KNOWN to be binary, whatever its extension
+  // says.
+  //
+  // The copy paths sniff for NUL bytes so an unlisted extension (`.wasm`
+  // and friends) is still treated as binary; `save` otherwise re-derives
+  // the classification from the destination extension alone and throws
+  // that knowledge away. With `txt.diff` on, a diff render would then
+  // write textual conflict markers into binary data, and `bin.preserve`
+  // would be ignored entirely.
+  //
+  // Mirrors saveBinary in go/filehandler.go.
+  saveBinary(
+    path: string,
+    newContentSource: string | Buffer,
+    whence?: string
+  ): void {
+    this.save(path, newContentSource, false, whence, undefined, false)
+  }
+
+
   // `mode` sets POSIX permission bits on the generated file (e.g. 0o755
   // for a script). It applies to the target only — the `.old`/`.new`
   // sidecars and the merge baseline stay at the platform default, since
   // they are jostraca's bookkeeping rather than the user's output.
+  //
+  // `isText` overrides the extension-derived classification; only
+  // `saveBinary` passes it.
   save(
     path: string,
     newContentSource: string | Buffer,
     write?: boolean | string,
     whence?: string,
-    mode?: number
+    mode?: number,
+    isText?: boolean
   ): void {
     // Only ever set the key when a mode was actually given: a literal
     // `mode: undefined` is rejected by some fs providers.
@@ -245,8 +270,25 @@ class FileHandler {
 
     whence = null == whence ? '' : whence
 
-    const existing = 'string' === typeof newContentSource ? this.existing.txt : this.existing.bin
     path = fwd(Path.normalize(path))
+
+    // Which of `existing.txt` / `existing.bin` governs is decided by the
+    // DESTINATION EXTENSION, with the caller able to promote a file the
+    // list does not know about (`saveBinary`) — never to demote a listed
+    // one.
+    //
+    // This used to be decided by the TYPE OF THE VALUE passed in: a string
+    // took `existing.txt`, a Buffer `existing.bin`. That made the mode set
+    // an artifact of how the content happened to reach save rather than of
+    // what the file is, and inverted the two stacks against each other for
+    // any binary-extension file whose bytes are plain text — an `a.png`
+    // holding ASCII took `txt.preserve` here and `bin.preserve` in Go. It
+    // also split TS against itself: the same `a.png` took `existing.txt`
+    // through the single-file copy route (which sniffed content) and
+    // `existing.bin` through the tree copy route (which consulted the
+    // extension).
+    const isTextFile = null == isText ? !isbinext(path) : isText
+    const existing = isTextFile ? this.existing.txt : this.existing.bin
 
     const withinFolder = this.withinFolder(path)
 
@@ -546,7 +588,17 @@ class FileHandler {
 
     const isBinary = isbinext(frompath)
     const content = this.loadFile(frompath, { encoding: isBinary ? null : 'utf8' }, whence)
-    this.save(topath, content, whence)
+
+    // The SOURCE decides: a binary source stays governed by `existing.bin`
+    // even when copied to a destination whose extension is not on the
+    // list. Same rule as CopyOp's own copy paths and go/build.go's
+    // `IsBinExt(src) || IsBinContent(body)`.
+    if (isBinary || isbincontent(content)) {
+      this.saveBinary(topath, content, whence)
+    }
+    else {
+      this.save(topath, content, whence)
+    }
   }
 
 

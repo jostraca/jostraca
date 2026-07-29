@@ -118,6 +118,15 @@ func (j *J) Generate(opts Options, root func(*J)) (Result, error) {
 		return Result{}, st.err
 	}
 
+	// The synthetic root is the build root whenever the define phase
+	// produced anything. The builder methods seed st.root with the FIRST
+	// node they attach, which orphaned every top-level sibling after it;
+	// rootNode already holds them all. An empty define leaves st.root nil
+	// and runBuild bails, as before.
+	if len(rootNode.Children) > 0 {
+		st.root = rootNode
+	}
+
 	// Build phase: walks the tree depth-first via the op dispatch table.
 	// Phase 5 ships ops that build the in-memory tree but don't yet
 	// touch the filesystem (FileHandler arrives in Phase 6).

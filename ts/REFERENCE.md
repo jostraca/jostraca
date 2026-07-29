@@ -561,6 +561,13 @@ existing: {
 }
 ```
 
+Which set applies is decided by the file **extension** ([isbinext](#isbinext)):
+`photo.png` is binary whatever its bytes happen to be. Because that list can
+never be exhaustive, `Copy` additionally sniffs the source bytes, and content
+that looks binary (a NUL in the first 8KB) is treated as binary even when the
+extension is unknown — `.wasm`, `.zst`, extensionless files. Sniffing only ever
+promotes an unlisted extension to binary; it never demotes a listed one to text.
+
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `write` | `boolean` | `true` | Overwrite existing files |

@@ -269,6 +269,19 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
       }
     }, gOpts?.cmp, opts.cmp)
 
+    // Synthetic top-level node so the user's first component has a parent
+    // to append to, and so bare top-level SIBLINGS are children of a common
+    // root instead of orphans. Path is empty and kind 'none' is a build-phase
+    // noop, so it contributes no path segment and no output. Mirrors the
+    // rootNode the Go port already creates in Generate.
+    const rootnode: Node = {
+      kind: 'none',
+      children: [],
+      path: [],
+      meta: {},
+      content: [],
+    }
+
     const ctx$ = {
       fs: () => fs,
       now: () => now(),
@@ -280,6 +293,9 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
       debug,
       // existing,
       model,
+      node: rootnode,
+      children: rootnode.children,
+      root: rootnode,
     }
 
     // Only report warnings raised by *this* generate: the dlog buffer is
@@ -339,6 +355,12 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
 
   async function build(ctx$: any, buildctx: BuildContext) {
     const topnode = ctx$.node
+
+    // No components were defined at all: nothing to walk, and nothing to
+    // record. Mirrors runBuild's `st.root == nil` bail in the Go port.
+    if (0 === topnode.children.length) {
+      return { node: topnode, ctx$, buildctx }
+    }
 
     await step(topnode, ctx$, buildctx)
 
@@ -443,11 +465,9 @@ function cmp(component: Function): Component {
       content: [],
     }
 
-    // NOTE: the first component becomes the tree root, so bare top-level
-    // siblings after it are orphaned and silently dropped. Pre-existing;
-    // tracked in jostraca/jostraca#21. Wrap in Folder/Project to group.
-    ctx$.root = (ctx$.root || node)
-    parent = ctx$.node || node
+    // `parent` is ctx$.node, which generate() seeds with the synthetic root
+    // node, so top-level components are siblings under a common parent
+    // rather than the first one becoming the root and orphaning the rest.
 
     if (ctx$.debug) {
       node.meta.debug = (node.meta.debug || {})

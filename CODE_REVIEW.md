@@ -85,11 +85,15 @@ issue so the deferral is tracked rather than lost:
 
 | issue | item |
 |---|---|
-| [#21](https://github.com/jostraca/jostraca/issues/21) | top-level sibling components are silently dropped — `ctx$.root = (ctx$.root \|\| node)` orphans everything after the first. Pre-existing, both stacks, verified repro in each. Architecturally significant enough to want a decision rather than a patch (see §2.2) |
-| [#22](https://github.com/jostraca/jostraca/issues/22) | `go-test.yml` runs Linux only, so the Go port's Windows blind spot has no gate. Three Windows-only defects on this branch alone; `GOOS=windows go vet` compiles but never executes (see §2.7) |
-| [#23](https://github.com/jostraca/jostraca/issues/23) | the option-surface corpus does not cross `Copy.exclude` or `existing.bin` — the two axes U3 and U5 hid in |
-| [#24](https://github.com/jostraca/jostraca/issues/24) | the parity corpus cannot express binary content; needs a base64 escape hatch. Blocks the `existing.bin` half of #23 |
-| [#25](https://github.com/jostraca/jostraca/issues/25) | **T15** — `Fragment` re-runs its children once per slot marker plus once to collect slot names. Collapsing that to a single pass would change the semantics of side-effecting children in the most intricate component here, to buy CPU on a define phase that is not the bottleneck. Not worth the risk without a reported problem |
+| [#21](https://github.com/jostraca/jostraca/issues/21) | **FIXED** — top-level sibling components were silently dropped. Resolved with an eager synthetic root; see §2.9 |
+| [#22](https://github.com/jostraca/jostraca/issues/22) | **FIXED** — the Go suite now runs on macOS and Windows, and a fourth drive-absolute defect was found and fixed on the way; see §2.10 |
+| [#23](https://github.com/jostraca/jostraca/issues/23) | **FIXED** — both axes landed once #27/#28 unblocked them: a 95-case `Copy.exclude` corpus and the `existing.bin` classification axis (840 → 1197 cases). See §2.12 and §2.15 |
+| [#24](https://github.com/jostraca/jostraca/issues/24) | **FIXED** — the corpus carries binary content via a `{"b64": …}` escape hatch; see §2.11 |
+| [#25](https://github.com/jostraca/jostraca/issues/25) | **CLOSED, won't-fix** — T15. The deferral held, but the premise did not: component bodies run *once*, not N+1 times, and nested Fragments do not compound in TS. Removing the one redundant pass was unmeasurable against noise. See §2.13 |
+| [#27](https://github.com/jostraca/jostraca/issues/27) | **FIXED** — extension decides, with sniffing able to promote an unlisted extension but never demote a listed one; see §2.14 |
+| [#28](https://github.com/jostraca/jostraca/issues/28) | **FIXED** — TS now prunes excluded directories, and a scalar `exclude` is legal in both stacks; see §2.14 |
+| [#30](https://github.com/jostraca/jostraca/issues/30) | TS compares a Buffer against a string in `save`, so a Copy-routed binary is always "changed" — spurious `.old`/`.new` sidecars and mtime churn on every run. 36 measured cases; the reason the `same` state is dropped for Copy-routed rows in the new axis |
+| [#29](https://github.com/jostraca/jostraca/issues/29) | **FIXED, narrowed** — the literal rule was unimplementable; a non-Slot child errors only when the source has no unnamed `<[SLOT]>` to receive it; see §2.14 |
 
 T15 is the only *code* item from this review not acted on; the rest are follow-on coverage
 and infrastructure. Directory modes are still fixed at 0755 and there is no global
@@ -603,6 +607,345 @@ because it is read as a name later, at op time. So the option's spelling depende
 the component sat in the *output* tree rather than on the source being copied. Nobody could
 depend on that deliberately. This is the `CLAUDE.md` exception — the port pre-empted a
 latent TS bug — so TS was corrected to match Go rather than the reverse.
+
+---
+
+## 2.9 #21 — the sibling bug, and the third time the port was already right
+
+Filed rather than fixed at the end of the review (§2.2), then taken up on its own. The issue
+offered three remedies — error, implicit root, warn-and-drop — and recommended "option 1 or
+2". Investigating it moved the answer decisively to **option 2, eagerly**, and corrected two
+things the issue itself asserted:
+
+- **The line the issue blamed is inert.** `ctx$.root` is *write-only*: nothing in `ts/src`,
+  `ts/test`, `ts/tools` or `ts/gen` ever reads it. Deleting the assignment changes nothing.
+  The load-bearing line is the next one, `parent = ctx$.node || node`, which makes the first
+  top-level component *its own parent*; the `finally` then restores the cursor to it and
+  `build()` walks it, orphaning the rest.
+- **Go already had the implicit root.** `Generate` has always created a `KindNone` root node
+  and bound the define phase to it, so every top-level sibling was already a child of it
+  *with a correct path*. Go's only defect was which node `runBuild` started from — one line.
+  The issue's claim that Go mirrored the bug across "four sites in `builder.go`" was wrong;
+  those sites needed no change at all.
+
+That makes this the **third** time the port pre-empted a latent TS bug (after G10 and V2),
+and again `CLAUDE.md`'s exception applies: TS was corrected to match Go.
+
+**Why eager, not lazy.** The obvious conservative variant — synthesise the wrapper only when
+a *second* top-level component appears, leaving the one-component case untouched — does not
+work in TS, and the reason is worth recording. Because the first sibling becomes the parent,
+TS also derives the orphans' `node.path` *from it*: two top-level files `a.txt` and `b.txt`
+give `b.txt` the path `['a.txt','b.txt']` where Go gives `['b.txt']`. `node.path` never
+determines output location — only `rpath` exclude matching and log bookkeeping — so it is
+invisible today. But reparenting at the end of the define phase resurrects the siblings
+carrying that wrong path, creating a *fresh* TS/Go divergence in the act of fixing the bug.
+The eager root fixes both halves at once.
+
+The conservative variant's whole selling point was byte-identity for existing trees. The
+eager fix delivers that anyway, and it was measured rather than assumed: **all 35 parity
+corpus files regenerate byte-identical**, including the 840-case option-surface corpus and
+the 471-case template corpus. Both new regression tests were verified in the failing
+direction — reverting the source and keeping the tests gives `not ok 9 - top-level-siblings`
+in TS and `/top/b.txt missing` in Go.
+
+**What this newly exposes.** Components that were silently dropped now actually run, so this
+is not purely additive:
+
+- A second top-level `Inject` whose target does not exist used to be skipped and now throws.
+  That is the point of the fix, but it is a user-visible change for existing generators.
+- `generate({}, () => {})` with an empty define phase used to throw a bare `TypeError` in TS
+  while Go returned success. The synthetic root closes that parity gap incidentally; a
+  matching bail mirrors `runBuild`'s `st.root == nil` check.
+- `ProjectOp` has no `after` hook, so `Project({folder:'p'}, ...)` followed by a bare
+  top-level `File` writes to `p/` rather than the output root. Pre-existing and
+  byte-identical in both stacks, so not a parity break — but it was unreachable before this
+  fix and is reachable now. Filed as [#26](https://github.com/jostraca/jostraca/issues/26)
+  rather than folded in, because #21's change is provably byte-neutral and this one would
+  not be. The sharper case there is two sibling `Project`s: the second currently nests
+  inside the first.
+
+---
+
+## 2.10 #22 — the Windows gate, and the fourth defect of the same shape
+
+`go-test.yml` ran Linux only. It now matrixes ubuntu/macOS/Windows, and the first run was
+green on all three — `-race` included, and all three differential corpora byte-matching on
+Windows.
+
+**What the issue predicted, versus what was there.** The issue pointed at mode bits, path
+separators, chmod and tempdir shapes. Every one of those was already clean: the mode
+assertions are guarded, the suite passes under real Go-Windows `filepath` semantics, macOS's
+symlinked `TMPDIR` is a non-event, and both the JSON and fuzz corpora survive CRLF
+conversion. The previous round's three Windows defects were genuinely fixed.
+
+What actually blocked a green matrix was almost all harness, not port:
+
+| break | kind |
+|---|---|
+| `windows-latest` defaults `run:` to pwsh, which cannot parse the POSIX steps | CI |
+| `core.autocrlf=true` on the runner makes `gofmt -l` report all 52 Go files | repo |
+| a CRLF shebang makes `check_diff_coverage.sh` unexecutable (exit 127) | repo |
+| `os.Symlink` needs a privilege the runners lack, at two `t.Fatal` sites | test |
+| **`scenario-corpus.js` mis-strips `process.cwd()`, corrupting 700 of 840 cases** | tool |
+
+The last is the notable one, and it sits on the *canonical* side. It strips the machine
+prefix with `process.cwd() + '/'`, but memfs forward-slashes and drive-strips its volume
+keys, so on Windows the prefix never matches. The repo rule is "TS is canonical, Go is the
+port to fix" — here the canonical side's *tooling* is the defect, and the right answer was
+neither to change a stack nor to fix the tool, but to recognise that corpus regeneration is
+a canonical-source freshness check rather than a platform check, and pin it to Linux.
+
+**A fourth Windows-only port defect, of the shape §2.7 named.** `isAbsFromPath` was added
+last round to mirror node's platform-dispatched `Path.isAbsolute`, after slash-only
+`isAbsPath` made Go rewrite a drive-absolute Fragment source under the output folder. It was
+wired into Fragment — and left off its two siblings, `projectBefore` and `withinFolder`'s
+`.` branch. A drive-absolute `Project.folder` therefore had Go writing `out/C:/abs/a.txt`
+where TS writes `C:/abs/a.txt`.
+
+So §2.7's pattern — *a change that correctly altered one code path and left its siblings on
+the old assumption* — recurred **inside the fix for §2.7 itself**, one round later. The
+mechanism is the same one every time: the Windows branch is unreachable on Linux CI, so
+nothing can fail. And adding Windows to the matrix does not close it either, because no test
+or corpus case uses a drive-letter folder.
+
+That is the real lesson here, and it is not "run CI on more platforms". A platform-gated
+branch needs a *seam*, so the boundary can be asserted from any host:
+
+- `isAbsFromPathOn(p, windows)` takes the platform as an argument. The boundary table is
+  asserted for both platforms from Linux, and every expectation in it was taken from node
+  rather than reasoned about. `ts/test/platform.test.ts` pins the identical table against
+  node's own `posix` and `win32`, so a wrong table fails on the TS side and a wrong mirror
+  fails on the Go side.
+- A structural guard asserts `isAbsPath` has exactly one call site — the legitimate one,
+  `withinFolder`'s `/` branch, where TS really does use a literal `startsWith('/')`.
+  Verified by reverting either site: it turns red.
+
+---
+
+## 2.11 #24 — binary content in the corpus, and a worse corruption than the one filed
+
+The corpus stored content as JSON strings, so binary bodies could not be expressed and the
+one binary behaviour that matters — a file whose extension is absent from `BINARY_EXT` must
+survive `Copy` untouched — rested on hand-transcribed per-stack unit tests. That was the
+last place the parity guarantee depended on two people writing the same expectation twice.
+
+**The filed diagnosis was wrong, and the correction changed the design.** The issue said
+`0xFF 0xFE` round-trips as its UTF-8 encoding, `0xC3 0xBF 0xC3 0xBE` — lossy but reversible.
+Measured, memfs's `vol.toJSON()` decodes with *replacement*: every distinct invalid byte
+collapses to `U+FFFD`. That is irreversible, which means a serialisation-time encoder is not
+enough — by the time `toJSON()` returns, the bytes are already gone. The snapshot has to
+re-read each file through `fs`.
+
+**The rule is a round-trip, not a validity predicate.** A plain string is emitted exactly
+when `Buffer.from(buf.toString('utf8'),'utf8')` equals `buf`; otherwise `{"b64": …}`. The
+property Go relies on is "if it is a string, `[]byte(s)` reproduces the original bytes" —
+the round-trip *is* that property, checked directly, so the guarantee holds by construction.
+A validity check is a proxy that has to get overlong forms, CESU-8 surrogates and truncated
+sequences right separately. It also matters that the corpus is generated by TS and only read
+by Go: TS is the only side that ever *decides*, Go only decodes, so there is no second
+decision site to keep in sync.
+
+Scoped deliberately to the per-scenario snapshot channel. The diff and template corpora are
+left alone — `mutate-diff.js` is a second, TS-side reader of the diff corpus, and
+`template_corpus.cases[].model` is arbitrary JSON where `{"b64": …}` would be genuinely
+ambiguous with a model that has a `b64` key.
+
+**A binary scenario needs a template marker or it has no teeth.** The first attempt — wasm
+magic plus `0xFF 0xFE`, no markers — was byte-identical even with Go's content sniffing
+disabled, because Go strings are byte-transparent and its text path is a no-op on arbitrary
+bytes. The committed scenario embeds `$$v$$` inside the binary and ships a `.txt` sibling, so
+one run proves both halves: the `.wasm` keeps `$$v$$` verbatim while the `.txt` becomes
+`hello V`. Verified by disabling `IsBinContent` in the Go copy walk — the corpus then fails
+with `\x00asm\x01\x00\x00\x00V\xff\xfe\x80` against the expected `…$$v$$…`.
+
+All 35 pre-existing corpus files regenerate byte-identical; the binary scenario is the only
+addition.
+
+---
+
+## 2.12 #23 — the corpus axes, and what building them found
+
+Both axes were prototyped end to end. Neither landed, and the reason is the interesting part:
+**a differential corpus cannot record an expectation for behaviour the two stacks disagree
+about.** Writing one down anyway would freeze whichever stack happened to run the generator
+as canonical — which is exactly the failure the corpora exist to prevent.
+
+The `Copy.exclude` corpus is 65 cases and demonstrably earns its place: with the U5 fix
+reverted it fails 16 of 65, and it catches a divergence the two existing hand-written pins
+miss (those cover two `exclude` values each). But 8 of 65 fail on today's `master`, because
+Go prunes excluded *directories* during the walk while TS matches only on the file branch
+(#28). The `existing.bin` axis is no longer blocked on #24 — the escape hatch shipped — but
+turned out to be blocked on something worse: the two stacks choose between `existing.txt`
+and `existing.bin` by *different criteria entirely*, TS by the type of the value handed to
+`save` and Go by the destination extension (#27).
+
+Two design findings worth keeping regardless of when they land:
+
+- **A separate corpus beats an axis on the existing 840.** The full cross is 840 × 13 =
+  10 920 cases and ~12 MB of JSON for *zero* added discrimination, because exclusion is
+  decided in the copy walk before any `FileHandler` call — the existing-file axis cannot
+  interact with it. Standalone: 65 cases, 213 KB, +1.0% test wall time.
+- **Value variety is nearly worthless; path shape is everything.** The matcher has two
+  branches, string equality and `RegExp.test`. What discriminates is *which path is fed in*
+  and *which entries are checked*: the same basename at two depths (the U5 detector), one
+  exclude under four `Copy` placements (the V2 detector), directory versus file entries, and
+  the degenerate `true` / `[]` forms. More glob spellings and more multi-entry arrays add
+  nothing.
+
+The `existing.bin` half of this landed once #27 was decided; §2.15 records what it took, and
+the one state it still cannot record.
+
+---
+
+## 2.13 #25 — the deferral held, the reasoning did not
+
+T15 was deferred on the grounds that collapsing `Fragment`'s replay would change
+side-effecting-child semantics to buy CPU in a phase that is not the bottleneck. Measuring
+it upheld the conclusion and overturned the premise.
+
+**The count was wrong.** Children do not run N+1 times. The body *thunk* runs N+2 times
+(N = slot-marker occurrences, not declared slots), but every *component body* runs exactly
+**once**: the collect pass admits no component at all, because its filter always returns
+false and `cmp()` returns before invoking the component. Exactly one of the N+2 walks is
+redundant, and it is the cheapest one. The issue overstated the prize by roughly a factor
+of N.
+
+**Nested Fragments do not compound in TS** — the one thing that would have changed the
+verdict. Thunk executions per level at D=1..4 are flat (`[3,3,3,3]` at N=1, `[6,6,6,6]` at
+N=4), with the source read exactly D times.
+
+**And it was actually removed rather than argued about.** A patched copy with the collect
+pass deleted, benchmarked against the original over 7 interleaved child-process reps per
+configuration, moved the median by +2.2% / +2.2% / −2.8% / −0.9% / +2.1% across five
+configurations — against run-to-run spreads of 7–43%. The sign is not even consistent. The
+effect is more than an order of magnitude below the noise floor.
+
+So: closed won't-fix, with the numbers attached, rather than left open on an assertion.
+
+**What the measurement found instead** is #29 — Go never applies the Fragment filter to
+non-Slot children, so their bodies run N+1 times where TS runs them zero times. The output
+agrees, which is why no corpus case and neither suite catches it; the *side effects* do not.
+It is also the sole cause of a Go-only quadratic blowup for nested Fragments (D=8: 608 body
+executions against TS's flat 48, and `D(D+1)/2` source re-reads against TS's `D`).
+
+That is the pattern this whole exercise keeps producing: the stated problem was not the
+problem, and chasing it properly surfaced a real one next door.
+
+---
+
+## 2.14 #27–#29 — three decided semantics, and one decision that could not be taken literally
+
+These three were escalated rather than chosen unilaterally: each changes canonical
+user-visible behaviour, so each got an explicit ruling. Extension decides binary/text;
+`Copy.exclude` prunes directories; a non-Slot child of a `Fragment` is an error. What
+implementing them found is that two of the three needed a qualifier the ruling did not
+contain, and one could not be implemented as stated at all.
+
+**#27 — "extension decides" had to be qualified, or it un-fixed U3.** Taken absolutely,
+extension-only sends an unlisted extension like `.wasm` back to `existing.txt`, which is
+verbatim the U3 defect from §2.7. That was not argued, it was *built*: with sniffing removed
+entirely, two robustness tests fail and the `copy_binary_unlisted_ext` corpus case rewrites
+itself — the embedded `$$v$$` templated to `V` and `ff fe 80` collapsed to three `U+FFFD`.
+A narrower counterfactual, where sniffing still decides templating but the mode set comes
+from the extension alone, produced `<<<<<<< EXISTING` conflict markers wrapped around
+binary. So the rule shipped is *extension decides, and sniffing may promote an unlisted
+extension to binary but never demote a listed one* — which resolves the inversion the
+decision was about (`a.png` holding text is binary, by its extension) without reopening a
+fixed data-integrity bug.
+
+Two supporting findings: `go/PORT_PLAN.md` already documented this rule — TS had never
+matched its own port plan, so TS was the drifted side and Go needed **no source change** at
+all. And `existing.bin.diff`/`.merge` are rejected by `ExistingShape`, so a bin-classified
+file structurally cannot reach the diff/merge branches; no extra guard was needed.
+
+**#28 — the widening was safe but not sufficient.** Hoisting the `exclude` test above the
+directory/file split makes TS prune, matching Go. Admitting a scalar `String`/`RegExp` makes
+`CopyOp`'s scalar branch reachable for the first time — it had been dead code that an
+earlier round "fixed" without noticing it could never run. But a scalar *RegExp* still
+matched nothing in either stack until one ternary arm in TS and one `case *regexp.Regexp` in
+Go were added. Widening a shape does not make the code behind it work.
+
+A residual divergence surfaced and was closed in the same change: configured
+`Cmp.Copy.ignore` regexes pruned directories in Go and not in TS, because they were tested
+inside `excludeFile()` alongside the user excludes rather than in `ignored()` beside the
+built-in rules. The built-in `~` / `-jostraca-off` rules keep matching the bare basename;
+user `exclude` matches the source-relative path. Those are two different lists with two
+different match targets, and conflating them is what produced the divergence.
+
+**#29 — the rule as stated was unimplementable, because the behaviour is documented.** A
+non-Slot child of a `Fragment` is not an accident: `README.md` states that unnamed `<[SLOT]>`
+markers *receive all non-Slot children of the Fragment*. The committed `fragment_subcmp`
+scenario exercises exactly that (`Content('S')` → `+S`), alongside `replace` callbacks that
+invoke components. Erroring on every non-Slot child would delete a documented feature and a
+parity scenario covering it.
+
+The narrowed rule is the silent-drop case and nothing else:
+
+> A non-Slot child of a Fragment is an error **only when the fragment source contains no
+> unnamed `<[SLOT]>` marker to receive it.**
+
+Every documented usage stays legal, `fragment_subcmp` is untouched and byte-identical, and
+the entire corpus regenerates with zero movement. The error text is identical in both stacks
+and names the offending source file.
+
+Note what this does *not* fix. #29 was originally about Go running non-Slot children's
+bodies N+1 times where TS runs them zero times; the narrowed rule makes the silent-drop case
+loud, but the side-effect count still differs for shapes that remain legal. And one new
+asymmetry is recorded rather than reconciled, in `go/README.md`'s deviations list: Go's
+`J.Cmp` runs its body inline without allocating a node, so a *user component* used as a
+direct Fragment child is a non-Slot child in TS and invisible in Go — the new error fires in
+TS only, for that one shape. Reconciling it means giving `Cmp` a node, which changes the
+shape of every Go component tree.
+
+## 2.15 #23 — the `existing.bin` axis landed, and the hole it could not fill
+
+With #27 decided, the axis §2.12 deferred went in: the option-surface corpus grows from 840
+to **1 197 cases** (1.5 MB), adding `.png` (listed binary extension), `.wasm` (unlisted
+extension, binary content) and a `.txt` control, crossed with seven mode rows that pair a
+`txt` mode against a *different* `bin` mode. Real bytes on both sides — the pre-existing
+on-disk state and the generated content — ride the `{"b64": …}` escape hatch from #24.
+
+**The teeth are in the payload, not in the case count.** A binary case with no marker in it
+is worth nothing: Go strings are byte-transparent, so the text path is a no-op on arbitrary
+bytes and the case stays byte-identical even when the classification is wrong. That was
+measured when the first binary scenario was added. Each payload here therefore carries a
+`$$v$$` marker, bytes that are not valid UTF-8, and a NUL. Both halves of the #27 rule are
+then separately detectable, and by *different* cases:
+
+| reverted fix | cases that move |
+|---|---|
+| classify by value type instead of extension | 126 / 1 197 (`png-file`, `pngtxt-file`, `mix`) |
+| content sniff disabled, so `.wasm` reads as text | 126 / 1 197 (`wasm-copy`, `mix`) |
+
+The two sets overlap on only the 36 `mix` cases. Zero of the pre-existing 840 move under
+either — which is the concrete measurement behind §2.12's claim that the old corpus could
+not see this question at all.
+
+**The axis is not the full cross, and the two cuts are different in kind.** The binary block
+uses three of the six folder settings (`unset`, `rel`, `abs`) because classification is
+folder-independent and those are the three distinct branches of
+`relative()`/`withinFolder()`; it is not crossed with the seven text-only mode rows or the
+five text name shapes because a `bin` mode cannot reach a `.txt` file. That is a size cut,
+and it costs nothing.
+
+The other cut is a real hole. **A Copy-routed file gets no `same` state, because the two
+stacks disagree about it.** Content copied from a binary source reaches `FileHandler.save`
+as a `Buffer`, and `save` compares it for equality against what `loadFile` returns — a UTF-8
+*string*. The test is `string !== Buffer`, true whatever the bytes are, so TS treats a
+Copy-routed binary as **changed even when the target already holds exactly those bytes**;
+Go uses `bytes.Equal`. With `bin.preserve` TS writes a `.old` backup of a file it is about
+to rewrite identically, and with `bin.present` a `.new` sidecar identical to the target.
+Measured on the full cross: exactly 36 cases failed, all of them `same` × Copy-routed ×
+a preserve/present mode.
+
+Per §2.12, recording TS's output there would freeze a Buffer-vs-string comparison artifact
+as canonical, which is the failure the corpora exist to prevent — so the state is dropped
+for the **route**, not for the four mode rows where it happens to show; dropping only the
+latter would be shaping the corpus to pass. The copy-free `pngtxt-file` row keeps `same`
+on the side where it is representable. Fixing this changes user-visible output, so it wants
+the same explicit ruling #27–#29 got rather than being taken here.
+
+---
 
 ### The arc
 

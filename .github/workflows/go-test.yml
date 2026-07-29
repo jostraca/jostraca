@@ -16,7 +16,89 @@ on:
       - '.github/workflows/go-test.yml'
 
 jobs:
+  # The freshness gate: regenerate the committed parity corpora from
+  # canonical TS and fail on any diff, so TS changes cannot silently leave
+  # the Go expectations stale.
+  #
+  # Deliberately NOT part of the OS matrix. This is a canonical-source
+  # check, not a platform check, and running it on Windows would fail for
+  # reasons that say nothing about the port: ts/tools/scenario-corpus.js
+  # strips the machine prefix with `process.cwd() + '/'`, but memfs
+  # forward-slashes and drive-strips its volume keys, so on Windows the
+  # prefix never matches and the paths come out machine-specific.
+  corpus:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Regenerate parity corpus from TS
+        working-directory: ts
+        run: |
+          npm install
+          npm run build
+          node tools/extract-parity.js ../go/testdata/parity
+      - name: Parity corpus is up to date
+        run: |
+          if ! git diff --exit-code -- go/testdata/parity; then
+            echo "::error::go/testdata/parity is stale. Run 'node tools/extract-parity.js ../go/testdata/parity' from ts/ and commit the result."
+            exit 1
+          fi
+
+  # The port's behaviour, on every platform it claims to support.
+  #
+  # This is the gate issue #22 was about: `GOOS=windows go vet` compiles the
+  # Windows build but never executes it, so three Windows-only defects in a
+  # single review round were all found by reading rather than by CI.
+  #
+  # Consumes the committed corpora rather than regenerating them, which is
+  # what makes it deterministic across platforms.
   test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        working-directory: go
+        # windows-latest defaults `run:` to pwsh, which cannot parse the
+        # POSIX syntax these steps use.
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - run: go build ./...
+      - run: go vet ./...
+
+      # -race needs cgo and a C toolchain. Linux and macOS runners have one;
+      # if the Windows leg ever fails at link time, drop -race there rather
+      # than dropping the step.
+      - run: go test ./... -race -count=1
+
+      - name: Concurrency stress (10 iterations)
+        run: go test ./... -run TestGenerateConcurrent -race -count=10
+
+      # The three differential corpora. Byte-equality with canonical TS has
+      # to hold on every platform, not just the one that generated them —
+      # separator handling is exactly what would break it.
+      - name: Parity snapshots vs TS
+        run: go test ./... -run TestParity -count=1 -v
+      - name: Diff engine matches TS byte-for-byte
+        run: go test ./... -run TestDiffCorpus -count=1 -v
+      - name: Template engine matches TS byte-for-byte
+        run: go test ./... -run TestTemplateCorpusMatchesTS -count=1 -v
+      - name: Option surface matches TS byte-for-byte
+        run: go test ./... -run TestScenarioCorpusMatchesTS -count=1 -v
+
+  # Everything that is about the source rather than the platform. Linux
+  # only, because running it three times would tell us the same thing three
+  # times.
+  lint:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -26,28 +108,10 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.22'
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
 
-      # The parity corpus is generated from canonical TS behaviour and
-      # committed. Regenerate it here and fail on any diff, so TS changes
-      # cannot silently leave the Go expectations stale.
-      - name: Regenerate parity corpus from TS
-        working-directory: ts
-        run: |
-          npm install
-          npm run build
-          node tools/extract-parity.js ../go/testdata/parity
-      - name: Parity corpus is up to date
-        working-directory: .
-        run: |
-          if ! git diff --exit-code -- go/testdata/parity; then
-            echo "::error::go/testdata/parity is stale. Run 'node tools/extract-parity.js ../go/testdata/parity' from ts/ and commit the result."
-            exit 1
-          fi
-
-      - run: go vet ./...
+      # Cross-compilation still earns its place next to the matrix above:
+      # it catches build breakage on platforms without a runner, and it is
+      # cheap. It just cannot catch behaviour — hence the matrix.
       - run: GOOS=darwin go vet ./...
       - run: GOOS=windows go vet ./...
       - name: gofmt
@@ -57,28 +121,7 @@ jobs:
             echo "::error::gofmt needed: $unformatted"
             exit 1
           fi
-      - run: go test ./... -race -count=1
-      # The module was flattened to the go/ root (a39979f); the package
-      # pattern is ./..., not ./jostraca.
-      - name: Concurrency stress (10 iterations)
-        run: go test ./... -run TestGenerateConcurrent -race -count=10
-      - name: Parity snapshots vs TS
-        run: go test ./... -run TestParity -count=1 -v
-      # The diff/merge engine is the one piece that must be byte-identical
-      # across the two stacks, so it gets its own gates.
-      - name: Diff engine matches TS byte-for-byte
-        run: go test ./... -run TestDiffCorpus -count=1 -v
-      # The template engine is the other place two independent
-      # implementations have to agree; same differential treatment.
-      - name: Template engine matches TS byte-for-byte
-        run: go test ./... -run TestTemplateCorpusMatchesTS -count=1 -v
-      # The option surface — folder, existing-file mode, on-disk state and
-      # filename shape, crossed. Every defect review found on this branch
-      # needed a default, a degenerate value or an option combination to
-      # reach, not unusual content; this is the axis the other two corpora
-      # hold fixed.
-      - name: Option surface matches TS byte-for-byte
-        run: go test ./... -run TestScenarioCorpusMatchesTS -count=1 -v
+
       # A short soak per target. The seed corpus already runs under
       # `go test`; this is what finds the next seed. A failure writes the
       # input to testdata/fuzz — commit it.

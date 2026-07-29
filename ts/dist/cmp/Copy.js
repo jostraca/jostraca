@@ -13,7 +13,11 @@ const CopyShape = (0, shape_1.Shape)({
     // or if copying a file, the output filename, if different.
     to: (0, shape_1.Optional)(String),
     replace: {},
-    exclude: (0, shape_1.Optional)((0, shape_1.One)(Boolean, [(0, shape_1.One)(String, RegExp)]))
+    // A SCALAR String or RegExp is as legal as a list of them, matching
+    // File (which shape-validates nothing) and the Go port. The
+    // Boolean-or-Array-only spelling made the scalar arm of `state.excludes`
+    // in CopyOp unreachable.
+    exclude: (0, shape_1.Optional)((0, shape_1.One)(Boolean, String, RegExp, [(0, shape_1.One)(String, RegExp)]))
 }, { name: 'Copy' });
 const Copy = (0, jostraca_1.cmp)(function Copy(props, _children) {
     const ctx = props.ctx$;
