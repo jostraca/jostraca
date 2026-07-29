@@ -189,6 +189,20 @@ async function scenarioCorpus() {
 }
 
 
+// Cross-stack differential corpus for the COPY EXCLUDE surface — Copy
+// placement, exclude value and on-disk state, crossed. See
+// tools/copy-exclude-corpus.js for why.
+async function copyExcludeCorpus() {
+  const { buildCorpus } = require('./copy-exclude-corpus.js')
+  const cases = await buildCorpus()
+  fs.writeFileSync(
+    path.join(outDir, 'copy_exclude_corpus.json'),
+    JSON.stringify({ scenario: 'copy_exclude_corpus', cases }, null, 2) + '\n',
+  )
+  console.log('wrote copy_exclude_corpus (' + cases.length + ' cases)')
+}
+
+
 // Cross-stack differential corpus for the template engine. See
 // tools/template-corpus.js for why it exists.
 function templateCorpus() {
@@ -205,6 +219,7 @@ async function main() {
   diffCorpus()
   templateCorpus()
   await scenarioCorpus()
+  await copyExcludeCorpus()
 
   // Quickstart from the README.
   await snapshot('quickstart', {}, () => {

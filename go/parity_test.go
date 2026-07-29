@@ -426,10 +426,11 @@ var knownParityGaps = map[string]string{}
 // They have dedicated test functions and are skipped from the standard
 // runner so the parity scenario list shows only single-Generate cases.
 var phaseShapedCorpora = map[string]struct{}{
-	"merge_retain":    {}, // covered by TestMergeRetainSequence
-	"diff_corpus":     {}, // covered by TestDiffCorpusMatchesTS
-	"template_corpus": {}, // covered by TestTemplateCorpusMatchesTS
-	"scenario_corpus": {}, // covered by TestScenarioCorpusMatchesTS
+	"merge_retain":        {}, // covered by TestMergeRetainSequence
+	"diff_corpus":         {}, // covered by TestDiffCorpusMatchesTS
+	"template_corpus":     {}, // covered by TestTemplateCorpusMatchesTS
+	"scenario_corpus":     {}, // covered by TestScenarioCorpusMatchesTS
+	"copy_exclude_corpus": {}, // covered by TestCopyExcludeCorpusMatchesTS
 }
 
 // scenarioMultiPhase holds runners that can't be expressed as a single
