@@ -370,6 +370,9 @@ function cmp(component) {
             meta: {},
             content: [],
         };
+        // NOTE: the first component becomes the tree root, so bare top-level
+        // siblings after it are orphaned and silently dropped. Pre-existing;
+        // tracked in jostraca/jostraca#21. Wrap in Folder/Project to group.
         ctx$.root = (ctx$.root || node);
         parent = ctx$.node || node;
         if (ctx$.debug) {

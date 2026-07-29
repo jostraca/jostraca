@@ -80,16 +80,27 @@ therefore covered by per-stack unit tests (`ts/test/robustness.test.ts`,
 `go/robustness_test.go`), and the corpus carries only the text half. Adding binary
 scenarios needs a base64 escape hatch in the format.
 
-**Still open**, each deliberately left alone rather than patched:
+**Still open**, each deliberately left alone rather than patched, and each filed as an
+issue so the deferral is tracked rather than lost:
 
-- **T15** — `Fragment` re-runs its children once per slot marker plus once to collect slot
-  names. Collapsing that to a single pass is possible but would change the semantics of
-  side-effecting children in the most intricate component here, to buy CPU on a define
-  phase that is not the bottleneck. Not worth the risk without a reported problem.
+| issue | item |
+|---|---|
+| [#21](https://github.com/jostraca/jostraca/issues/21) | top-level sibling components are silently dropped — `ctx$.root = (ctx$.root \|\| node)` orphans everything after the first. Pre-existing, both stacks, verified repro in each. Architecturally significant enough to want a decision rather than a patch (see §2.2) |
+| [#22](https://github.com/jostraca/jostraca/issues/22) | `go-test.yml` runs Linux only, so the Go port's Windows blind spot has no gate. Three Windows-only defects on this branch alone; `GOOS=windows go vet` compiles but never executes (see §2.7) |
+| [#23](https://github.com/jostraca/jostraca/issues/23) | the option-surface corpus does not cross `Copy.exclude` or `existing.bin` — the two axes U3 and U5 hid in |
+| [#24](https://github.com/jostraca/jostraca/issues/24) | the parity corpus cannot express binary content; needs a base64 escape hatch. Blocks the `existing.bin` half of #23 |
+| [#25](https://github.com/jostraca/jostraca/issues/25) | **T15** — `Fragment` re-runs its children once per slot marker plus once to collect slot names. Collapsing that to a single pass would change the semantics of side-effecting children in the most intricate component here, to buy CPU on a define phase that is not the bottleneck. Not worth the risk without a reported problem |
 
-That leaves T15 as the only item from this review not acted on. Directory modes are still
-fixed at 0755 and there is no global default-mode option; both are straightforward
-additions if a need appears, and neither blocks anything today.
+T15 is the only *code* item from this review not acted on; the rest are follow-on coverage
+and infrastructure. Directory modes are still fixed at 0755 and there is no global
+default-mode option; both are straightforward additions if a need appears, and neither
+blocks anything today.
+
+**Why these were filed rather than folded in.** From the fourth review round onward the
+rounds were mostly surfacing defects older than this branch. A change already spanning 137
+files should not keep absorbing unrelated repairs — and the arc below puts a number on the
+cost of doing so: each round of fixes introduced roughly two new defects of its own. The
+stopping rule is stated in §2.8.
 
 ### G17 / T24 — RESOLVED: one shared diff/merge engine
 
@@ -367,7 +378,9 @@ components with no `Project` or `Folder` wrapper silently drop everything after 
 — `ctx$.root = (ctx$.root || node)` makes the first component the tree root and orphans its
 siblings. This is pre-existing (byte-identical at the branch base), architecturally
 significant, and outside this PR's scope. The test uses the documented `Folder({}, ...)`
-grouping form instead, with a comment pointing at the issue.
+grouping form instead, with a comment pointing at the issue. Filed as
+[#21](https://github.com/jostraca/jostraca/issues/21), with a verified reproduction in both
+stacks — `generate()` returns success and the second file simply is not there.
 
 ---
 
