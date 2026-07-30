@@ -475,16 +475,38 @@ class FileHandler {
         }
         whence = wstr + FN;
         const isBinary = (0, basic_1.isbinext)(frompath);
-        const content = this.loadFile(frompath, { encoding: isBinary ? null : 'utf8' }, whence);
+        // Read bytes and classify BEFORE decoding, never the other way round.
+        //
+        // This used to load with `encoding: isBinary ? null : 'utf8'` — decode
+        // first, sniff second. That order is a trap: for an unlisted extension
+        // holding binary (`.wasm`, `.zst`, anything extensionless) the utf8
+        // decode replaces every invalid sequence with U+FFFD before the sniff
+        // ever runs, and `saveBinary` would then write the damaged text. The
+        // sniff still says "binary", because NUL survives a utf8 round-trip;
+        // the content does not.
+        //
+        // It was never reached. The only caller is CopyOp's tree walk, which
+        // routes on `isTemplate(name)` — defined as `!isbinext(name)` — so a
+        // file arrives here only when its extension IS listed, making
+        // `isBinary` true and the utf8 branch dead. Removing the branch rather
+        // than trusting that invariant to hold: `copy` reads as a general
+        // method, and the next caller has no reason to know it must pre-filter
+        // by extension.
+        //
+        // CopyOp's own copyFile reads a Buffer and go/build.go reads bytes;
+        // this is now the same shape as both, with no order to get wrong.
+        const raw = this.loadFile(frompath, { encoding: null }, whence);
         // The SOURCE decides: a binary source stays governed by `existing.bin`
         // even when copied to a destination whose extension is not on the
         // list. Same rule as CopyOp's own copy paths and go/build.go's
         // `IsBinExt(src) || IsBinContent(body)`.
-        if (isBinary || (0, basic_1.isbincontent)(content)) {
-            this.saveBinary(topath, content, whence);
+        if (isBinary || (0, basic_1.isbincontent)(raw)) {
+            this.saveBinary(topath, raw, whence);
         }
         else {
-            this.save(topath, content, whence);
+            // Decode only once the bytes are known to be text. Identical to what
+            // `readFileSync(..., 'utf8')` produced on this path before.
+            this.save(topath, raw.toString('utf8'), whence);
         }
     }
     // Three-way merge of the new generate against what is on disk, using
