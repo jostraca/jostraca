@@ -1,4 +1,4 @@
-.PHONY: all build test clean build-ts build-go test-ts test-go clean-ts clean-go publish-go tags-go reset coverage coverage-ts coverage-go mutation fuzz perf perf-baseline perf-run
+.PHONY: all build test clean build-ts build-go test-ts test-go clean-ts clean-go publish publish-ts publish-go tags-go reset coverage coverage-ts coverage-go mutation fuzz perf perf-baseline perf-run
 
 all: build test
 
@@ -83,15 +83,43 @@ test-go:
 clean-go:
 	cd go && go clean
 
-# Publish Go module: make publish-go V=0.1.7
+# Release BOTH stacks with one command (Linux + macOS).
+#   make publish                 # patch-bump and publish TS then Go
+#   make publish BUMP=minor      # TS bump level (patch|minor|major); default patch
+#   make publish V=0.2.0         # explicit Go version (else Go patch-bumps)
+#
+# TS is published to the npm STAGING area first (not live until you approve
+# it with 2FA), so if the Go release fails you can reject the stage and
+# nothing has shipped. Go, by contrast, goes live the moment its tag pushes
+# -- which is why TS (staged, reversible) runs first.
+publish: publish-ts publish-go
+	@echo ""
+	@echo "Done. Go is LIVE. TS is STAGED -- approve it to publish:"
+	@echo "  cd ts && npm run repo-stage-list                    # find the stage-id"
+	@echo "  cd ts && npm run repo-stage-approve -- <stage-id>   # 2FA / proof-of-presence"
+
+# TS (npm): clean, install, build, test, patch-bump, tag, stage-publish with
+# the vault token. BUMP overrides the version level (default: patch).
+publish-ts:
+	cd ts && npm_config_bump="$(BUMP)" npm run repo-publish
+
+# Publish Go module. Default: patch-bump the Version const in go/jostraca.go.
+# Override with an explicit version: make publish-go V=0.2.0
+# Portable in-place edit (temp file + mv) works on both GNU and BSD sed.
 publish-go: test-go
-	@test -n "$(V)" || (echo "Usage: make publish-go V=x.y.z" && exit 1)
-	sed -i '' 's/^const Version = ".*"/const Version = "$(V)"/' go/jostraca.go
-	git add go/jostraca.go
-	git commit -m "go: v$(V)"
-	git tag go/v$(V)
-	git push origin master go/v$(V)
-	if command -v gh >/dev/null 2>&1; then gh release create go/v$(V) --title "go/v$(V)" --notes "Go module release v$(V)"; fi
+	@set -e; \
+	V="$(V)"; \
+	CUR=`sed -n 's/^const Version = "\(.*\)"/\1/p' go/jostraca.go`; \
+	if [ -z "$$V" ]; then \
+	  V=`echo "$$CUR" | awk -F. '{printf "%d.%d.%d", $$1, $$2, $$3+1}'`; \
+	fi; \
+	echo "go: releasing v$$V (was $$CUR)"; \
+	sed "s/^const Version = \".*\"/const Version = \"$$V\"/" go/jostraca.go > go/jostraca.go.tmp && mv go/jostraca.go.tmp go/jostraca.go; \
+	git add go/jostraca.go; \
+	git commit -m "go: v$$V"; \
+	git tag "go/v$$V"; \
+	git push origin master "go/v$$V"; \
+	if command -v gh >/dev/null 2>&1; then gh release create "go/v$$V" --title "go/v$$V" --notes "Go module release v$$V"; fi
 
 tags-go:
 	git tag -l 'go/v*' --sort=-version:refname
