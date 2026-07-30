@@ -58,6 +58,22 @@ Error messages are worded differently by the two implementations, so
 `error` holds a short portable fragment both must contain, not a full
 message.
 
+## Known limit: `isbincontent` cases must stay under 8 KB
+
+TS `isbincontent` takes a string *or* a Buffer and those two paths differ:
+the Buffer path stops after the first 8 KB, the string path scans the whole
+value. Go's `IsBinContent` takes bytes and always stops at 8 KB.
+
+The corpus hands TS a string and Go bytes, so a case whose first NUL sits
+past 8 KB would compare TS's uncapped string path against Go's capped one
+and report a divergence that is really an artefact of the corpus choosing
+different paths. Verified: a NUL at offset 9000 is `true` for a TS string,
+`false` for a TS Buffer, `false` for Go.
+
+Keep such cases short and the two agree. The underlying inconsistency --
+one TS function with a cap on one path and not the other -- is a separate
+question from parity and is not settled here.
+
 ## Adding cases
 
 Append a row. Both runners pick it up with no code change, provided `fn`
