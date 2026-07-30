@@ -1,4 +1,4 @@
-# jostraca
+# Jostraca
 
 A code and project generator that uses React-style components to define
 files, folders, and content declaratively.
@@ -6,301 +6,76 @@ files, folders, and content declaratively.
 [![npm version](https://badge.fury.io/js/jostraca.svg)](https://www.npmjs.com/package/jostraca)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/jostraca/jostraca/blob/master/LICENSE)
 
-
-## Overview
-
-Jostraca lets you compose a file tree using components — `Project`,
-`Folder`, `File`, `Content`, `Fragment`, `Copy`, and more. You describe
-the output structure in a define phase, then Jostraca builds the actual
-files in a build phase. Templates, slots, injections, 3-way merges, and
-custom components give you fine-grained control over generated output.
-
-
-## Install
-
-```bash
-npm install jostraca
-```
-
-Peer dependencies:
-
-```bash
-npm install jsonic memfs
-```
-
-
-## Quick Start
-
-```typescript
-import { Jostraca, Project, Folder, File, Content } from 'jostraca'
-
-const jostraca = Jostraca()
-
-await jostraca.generate({ folder: './out' }, () => {
-  Project({ folder: 'my-app' }, () => {
-
-    Folder({ name: 'src' }, () => {
-      File({ name: 'index.js' }, () => {
-        Content('console.log("hello world")\n')
-      })
-    })
-
-    File({ name: 'package.json' }, () => {
-      Content('{ "name": "my-app" }\n')
-    })
-  })
-})
-```
-
-This generates:
+You describe an output file tree with components — `Project`, `Folder`,
+`File`, `Content`, `Fragment`, `Slot`, `Inject`, `Copy`, and more — in a
+*define* phase, and Jostraca walks that tree to write the real files in a
+*build* phase. Templates, slots, injections, protected regions, and
+three-way merges let you regenerate over hand-edited code without
+clobbering it.
 
 ```
-out/
-  my-app/
-    src/
-      index.js       -> console.log("hello world")
-    package.json     -> { "name": "my-app" }
+Project → Folder → File → Content        the tree you declare
+                    │
+                    ▼
+              out/my-app/src/index.js     the files Jostraca writes
 ```
 
+## Two implementations
 
-## Template Substitution
+Jostraca ships as two implementations that produce **byte-identical output**
+for the same logical input. The TypeScript package is canonical; the Go
+module is a maintained port kept in feature parity.
 
-Use `$$path$$` syntax to insert values from the model:
+| | Package | Docs | Getting started |
+|---|---|---|---|
+| **TypeScript** (canonical) | [`jostraca`](https://www.npmjs.com/package/jostraca) on npm | [`ts/README.md`](./ts/README.md) | `npm install jostraca` |
+| **Go** (port) | [`github.com/jostraca/jostraca/go`](https://pkg.go.dev/github.com/jostraca/jostraca/go) | [`go/README.md`](./go/README.md) | `go get github.com/jostraca/jostraca/go` |
 
-```typescript
-const jostraca = Jostraca({
-  model: { app: { name: 'Acme', version: '1.0.0' } }
-})
+Behaviour parity is pinned by a shared, language-neutral corpus in
+[`test/spec/`](./test/spec) that both stacks assert against, so a
+documented behaviour means the same thing in either language.
 
-await jostraca.generate({ folder: './out' }, () => {
-  Project({}, () => {
-    File({ name: 'config.txt' }, () => {
-      Content('App: $$app.name$$ v$$app.version$$\n')
-    })
-  })
-})
-// config.txt -> App: Acme v1.0.0
+## Documentation
+
+This project's documentation follows the [Diátaxis](https://diataxis.fr)
+framework — four distinct kinds of material, each answering a different
+need. Start with the one that matches what you're trying to do:
+
+- **Tutorial** — *learning-oriented.* A first-generator walkthrough for
+  newcomers. See the "Tutorial" section of the
+  [TypeScript](./ts/README.md) or [Go](./go/README.md) README.
+- **How-to guides** — *task-oriented.* Recipes for specific goals
+  (templates, slots, copying, injecting, regenerating over existing
+  files). See the "How-to guides" sections in the same READMEs.
+- **Reference** — *information-oriented.* The exhaustive, dry description
+  of every component, option, and utility:
+  [`ts/REFERENCE.md`](./ts/REFERENCE.md) and
+  [`go/REFERENCE.md`](./go/REFERENCE.md).
+- **Explanation** — *understanding-oriented.* The two-phase model, the
+  component design, and (for Go) the port's design decisions:
+  the "Explanation" sections, plus [`go/PORT_PLAN.md`](./go/PORT_PLAN.md).
+
+## Repository layout
+
+```
+jostraca/
+  ts/     canonical TypeScript package (published to npm as `jostraca`)
+  go/     Go port, kept in feature parity
+  test/   shared cross-stack spec corpus and performance workloads
+  Makefile
 ```
 
+- `ts/` — source in `ts/src/`, tests in `ts/test/`. Build and test with
+  `cd ts && npm install && npm run build && npm test`.
+- `go/` — package `jostraca` at the module root. Build and test with
+  `cd go && go build ./... && go test ./...`.
+- From the repo root, `make all` builds and tests both stacks, and
+  `make publish` releases both (see the Makefile).
 
-## Fragments and Slots
-
-Read external template files with `Fragment`, and replace marked regions
-with `Slot`:
-
-```typescript
-// template.html contains:
-// <html>
-// <!-- <[SLOT:head]> -->
-// <body>
-// <!-- <[SLOT:body]> -->
-// </body>
-// </html>
-
-File({ name: 'index.html' }, () => {
-  Fragment({ from: '/templates/template.html' }, () => {
-    Slot({ name: 'head' }, () => {
-      Content('<title>My Page</title>')
-    })
-    Slot({ name: 'body' }, () => {
-      Content('<h1>Hello</h1>')
-    })
-  })
-})
-```
-
-Unnamed `<[SLOT]>` markers receive all non-Slot children of the Fragment.
-Giving a Fragment non-Slot children when its source has no unnamed
-`<[SLOT]>` marker is an error: there is nowhere for that content to go, and
-it would otherwise be discarded silently.
-
-
-## Copy
-
-Copy files and directories, applying template substitution to text files:
-
-```typescript
-const jostraca = Jostraca({
-  model: { title: 'My App' }
-})
-
-await jostraca.generate({ folder: './out' }, () => {
-  Project({ folder: 'app' }, () => {
-    Folder({ name: 'static' }, () => {
-      Copy({ from: '/templates/assets' })
-      Copy({ from: '/templates/readme.txt', to: 'README.txt' })
-    })
-  })
-})
-```
-
-
-## Inject
-
-Update existing files by replacing content between markers:
-
-```typescript
-// existing foo.txt contains:
-// HEADER
-// #--START--#
-// old content
-// #--END--#
-// FOOTER
-
-Project({}, () => {
-  Inject({ name: 'foo.txt' }, () => {
-    Content('new content')
-  })
-})
-// Result: HEADER\n#--START--#\nnew content\n#--END--#\nFOOTER
-```
-
-
-## Custom Components
-
-Use `cmp()` to create reusable components:
-
-```typescript
-import { cmp, Content, each } from 'jostraca'
-
-const FunctionDef = cmp(function FunctionDef(props: any) {
-  Content(`function ${props.name}(`)
-  Content(props.params.join(', '))
-  Content(') {\n')
-  each(props.ctx$.model.body, (line) => Content(`  ${line}\n`))
-  Content('}\n')
-})
-
-// Usage inside a File:
-File({ name: 'utils.js' }, () => {
-  FunctionDef({ name: 'greet', params: ['name'] })
-})
-```
-
-
-## Existing File Handling
-
-Control how generated files interact with files that already exist:
-
-```typescript
-await jostraca.generate({
-  folder: './out',
-  existing: {
-    txt: {
-      write: true,      // Overwrite existing files (default)
-      preserve: true,    // Keep .old. backup of overwritten files
-      present: false,    // Write to .new. instead of overwriting
-      diff: false,       // Annotated 2-way diff
-      merge: false,      // 3-way merge with conflict markers
-    },
-    bin: {
-      write: true,
-      preserve: false,
-      present: false,
-    }
-  }
-}, root)
-```
-
-
-## Protected Files
-
-Add `# JOSTRACA_PROTECT` to any generated file to prevent it from being
-overwritten on subsequent generations. This lets users safely edit
-generated files.
-
-
-## In-Memory Generation
-
-Use `mem` and `vol` for testing or virtual file systems:
-
-```typescript
-const jostraca = Jostraca({
-  mem: true,
-  vol: {
-    '/templates/header.txt': 'HEADER\n'
-  }
-})
-
-const result = await jostraca.generate({ folder: '/' }, root)
-
-const files = result.vol().toJSON()
-// { '/output.txt': '...' }
-```
-
-
-## Result Object
-
-`generate()` returns a `JostracaResult`:
-
-```typescript
-{
-  when: number,          // Timestamp of generation
-  files: {
-    written: string[],     // Files written to disk
-    preserved: string[],   // Backup copies created
-    presented: string[],   // .new. files created
-    diffed: string[],      // Diff files created
-    merged: string[],      // Merged files created
-    conflicted: string[],  // Files with merge conflicts
-    unchanged: string[],   // Files unchanged
-  },
-  audit: () => Audit[],   // Audit trail of operations
-  vol?: () => any,         // Virtual volume (mem mode)
-  fs?: () => FST,          // File system (mem mode)
-}
-```
-
-
-## Utility Functions
-
-Jostraca exports several utility functions for working with names,
-templates, and data:
-
-```typescript
-import {
-  each,           // Iterate arrays/objects with marking and sorting
-  get,            // Simple dot-path property access
-  getx,           // Advanced path access with operators
-  camelify,       // 'foo_bar' -> 'FooBar'
-  snakify,        // 'FooBar' -> 'foo_bar'
-  kebabify,       // 'FooBar' -> 'foo-bar'
-  names,          // Generate all case variants of a name
-  template,       // Process template strings with model data
-  indent,         // Indent text content
-  cmp,            // Create custom components
-  deep,           // Deep merge objects
-  omap,           // Map over object entries (sorted key order)
-} from 'jostraca'
-```
-
-See [REFERENCE.md](ts/REFERENCE.md) for full details on every component,
-option, and utility function.
-
-
-## Repository Layout
-
-The repository hosts two implementations side by side:
-
-- [`ts/`](./ts) — the canonical TypeScript package (published to npm as
-  `jostraca`). Source in `ts/src/`, tests in `ts/test/`. Build and test
-  with `cd ts && npm install && npm run build && npm test`.
-- [`go/`](./go) — the Go port, kept in feature parity with the TypeScript
-  original.
-
-`make all` from the repo root builds and tests both.
-
+When changing behaviour, change TypeScript first, then bring Go into
+parity — TS is the source of truth. See [`CLAUDE.md`](./CLAUDE.md) for the
+full contributor guide.
 
 ## License
 
 MIT. Copyright (c) Richard Rodger.
-
-## Go Port
-
-A Go port with full feature parity is available under [`go/`](./go),
-including all components (Project/Folder/File/Content/Fragment/Slot/
-Inject/Copy/Line/List), the full template engine, all five
-existing-file modes (write/preserve/present/diff/merge with a
-hand-ported diff3), MemFS, and a concurrent-Generate isolation
-guarantee. See [`go/README.md`](./go/README.md) for usage and
-[`go/PORT_PLAN.md`](./go/PORT_PLAN.md) for design notes.

@@ -43,6 +43,7 @@
     "src",
     "dist",
     "gen",
+    "README.md",
     "LICENSE"
   ],
   "devDependencies": {
