@@ -1,10 +1,8 @@
 import type { Node, Component, JostracaResult } from './types';
 import { BuildContext } from './build/BuildContext';
-import { each, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, isbincontent, isbinext, partify, lcf, ucf } from './util/basic';
+import { each, get, getx, camelify, snakify, kebabify, cmap, vmap, deep, omap, names, template, escre, indent, isbincontent, isbinext, partify, lcf, ucf } from './util/basic';
 import * as PointUtil from './util/point';
 import * as DiffUtil from './diff';
-declare const deep: (...args: any[]) => any;
-declare const omap: (...args: any[]) => any;
 import { Content } from './cmp/Content';
 import { Line } from './cmp/Line';
 import { Slot } from './cmp/Slot';

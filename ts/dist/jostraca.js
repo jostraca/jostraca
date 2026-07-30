@@ -42,7 +42,6 @@ exports.cmp = cmp;
 // Options for each cmp; for copy, option to exclude ~ backups
 const Fs = __importStar(require("node:fs"));
 const node_async_hooks_1 = require("node:async_hooks");
-const jsonic_1 = require("jsonic");
 const shape_1 = require("shape");
 const memfs_1 = require("memfs");
 const BuildContext_1 = require("./build/BuildContext");
@@ -58,6 +57,8 @@ Object.defineProperty(exports, "snakify", { enumerable: true, get: function () {
 Object.defineProperty(exports, "kebabify", { enumerable: true, get: function () { return basic_1.kebabify; } });
 Object.defineProperty(exports, "cmap", { enumerable: true, get: function () { return basic_1.cmap; } });
 Object.defineProperty(exports, "vmap", { enumerable: true, get: function () { return basic_1.vmap; } });
+Object.defineProperty(exports, "deep", { enumerable: true, get: function () { return basic_1.deep; } });
+Object.defineProperty(exports, "omap", { enumerable: true, get: function () { return basic_1.omap; } });
 Object.defineProperty(exports, "names", { enumerable: true, get: function () { return basic_1.names; } });
 Object.defineProperty(exports, "template", { enumerable: true, get: function () { return basic_1.template; } });
 Object.defineProperty(exports, "escre", { enumerable: true, get: function () { return basic_1.escre; } });
@@ -71,11 +72,6 @@ const PointUtil = __importStar(require("./util/point"));
 exports.PointUtil = PointUtil;
 const DiffUtil = __importStar(require("./diff"));
 exports.DiffUtil = DiffUtil;
-// TODO: the actual signatures
-const deep = jsonic_1.util.deep;
-exports.deep = deep;
-const omap = jsonic_1.util.omap;
-exports.omap = omap;
 const Content_1 = require("./cmp/Content");
 Object.defineProperty(exports, "Content", { enumerable: true, get: function () { return Content_1.Content; } });
 const Line_1 = require("./cmp/Line");
@@ -188,7 +184,7 @@ function Jostraca(gopts_in) {
     // Global options are shared by calls to `generate`.
     const gOpts = OptionsShape(gopts_in || {});
     const gUseMemFs = !!gOpts.mem;
-    const gVol = deep({}, gOpts.vol);
+    const gVol = (0, basic_1.deep)({}, gOpts.vol);
     const gMemFs = gUseMemFs ? (0, memfs_1.memfs)(gVol) : undefined;
     function get_gMemFs() { return gMemFs ? gMemFs.fs : undefined; }
     // `get_gMemFs` is a function declaration, so it is always truthy. Only
@@ -201,7 +197,7 @@ function Jostraca(gopts_in) {
         const opts = OptionsShape(opts_in);
         // Parameters to `generate` override any global options.
         const useMemFS = null == opts.mem ? gUseMemFs : !!opts.mem;
-        const vol = null == opts.vol ? gVol : deep({}, gVol, opts.vol);
+        const vol = null == opts.vol ? gVol : (0, basic_1.deep)({}, gVol, opts.vol);
         const memfs = useMemFS ?
             (null == opts.vol && null != gMemFs ? gMemFs : (0, memfs_1.memfs)(vol)) :
             undefined;
@@ -223,13 +219,13 @@ function Jostraca(gopts_in) {
         const model = null == opts.model ? null == gOpts.model ? {} : gOpts.model : opts.model;
         const existing = ExistingShape({
             // FIX: this does not work as generate opts get defaults from OptionsShape
-            txt: deep({}, gOpts.existing.txt, opts.existing.txt),
-            bin: deep({}, gOpts.existing.bin, opts.existing.bin),
+            txt: (0, basic_1.deep)({}, gOpts.existing.txt, opts.existing.txt),
+            bin: (0, basic_1.deep)({}, gOpts.existing.bin, opts.existing.bin),
         });
         // console.log('EXISTING', existing)
-        const control = deep({}, gOpts.control, opts.control);
+        const control = (0, basic_1.deep)({}, gOpts.control, opts.control);
         // Component defaults.
-        opts.cmp = deep({
+        opts.cmp = (0, basic_1.deep)({
             Copy: {
                 ignore: [/~$/]
             }

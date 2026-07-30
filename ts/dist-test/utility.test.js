@@ -269,5 +269,85 @@ const __1 = require("../");
             NAME: 'FOOBAR'
         });
     });
+    // `deep` and `omap` used to be re-exports of `jsonic.util`. They are now
+    // inlined in src/util/basic.ts; these lock the behaviour that was
+    // inherited, so a future edit cannot quietly drift from it.
+    (0, node_test_1.test)('deep', () => {
+        (0, expect_1.expect)((0, __1.deep)({}, { a: 1 })).equal({ a: 1 });
+        (0, expect_1.expect)((0, __1.deep)({ a: 1 }, { b: 2 })).equal({ a: 1, b: 2 });
+        (0, expect_1.expect)((0, __1.deep)({ a: 1 }, { a: 2 })).equal({ a: 2 });
+        // Right-most wins, across more than two sources.
+        (0, expect_1.expect)((0, __1.deep)({}, { a: 1 }, { b: 2 }, { a: 3 })).equal({ a: 3, b: 2 });
+        // Nested plain objects merge key-by-key rather than replacing.
+        (0, expect_1.expect)((0, __1.deep)({ a: { x: 1, y: 2 } }, { a: { y: 9, z: 8 } }))
+            .equal({ a: { x: 1, y: 9, z: 8 } });
+        // Arrays merge by index, and do not replace wholesale.
+        (0, expect_1.expect)((0, __1.deep)({ a: [1, 2, 3] }, { a: [9] })).equal({ a: [9, 2, 3] });
+        // `undefined` never overwrites; `null` does. go/util.go reproduces
+        // this split by position -- a nil argument is absent, a nil map value
+        // or slice element wins -- because Go has no `undefined`.
+        (0, expect_1.expect)((0, __1.deep)({ a: 1 }, { a: undefined })).equal({ a: 1 });
+        (0, expect_1.expect)((0, __1.deep)({ a: 1 }, { a: null })).equal({ a: null });
+        (0, expect_1.expect)((0, __1.deep)({ a: 1 }, undefined)).equal({ a: 1 });
+        (0, expect_1.expect)((0, __1.deep)({ a: 1 }, undefined, { b: 2 })).equal({ a: 1, b: 2 });
+        (0, expect_1.expect)((0, __1.deep)({ a: { x: 1 } }, { a: null })).equal({ a: null });
+        (0, expect_1.expect)((0, __1.deep)({ a: null }, { a: 1 })).equal({ a: 1 });
+        (0, expect_1.expect)((0, __1.deep)({ a: [1, 2] }, { a: null })).equal({ a: null });
+        (0, expect_1.expect)((0, __1.deep)({ a: [1, 2] }, { a: [9, null] })).equal({ a: [9, null] });
+        (0, expect_1.expect)((0, __1.deep)([1, 2, 3], [9], [null, 8])).equal([null, 8, 3]);
+        // The SKIP sentinel leaves the base value untouched. Resolved from the
+        // global registry, so it is the same symbol jsonic publishes.
+        const SKIP = Symbol.for('tabnas.SKIP');
+        (0, expect_1.expect)((0, __1.deep)({ a: 1 }, { a: SKIP })).equal({ a: 1 });
+        // Values with a custom constructor are taken by reference, not walked.
+        const when = new Date(0);
+        (0, expect_1.expect)((0, __1.deep)({ a: 1 }, { a: when }).a).equal(when);
+        // Mutates the first argument, as it always has.
+        const base = { a: 1 };
+        (0, expect_1.expect)((0, __1.deep)(base, { b: 2 })).equal(base);
+        (0, expect_1.expect)(base).equal({ a: 1, b: 2 });
+    });
+    // Key order is the cross-stack contract. Go maps have no insertion order
+    // to reproduce, so go/util.go `OMap` sorts and this must sort too --
+    // the same convention `each`, `cmap`, `vmap` and `jsonify` follow.
+    (0, node_test_1.test)('deep-key-order', () => {
+        // Existing base keys hold their position; new keys append in the
+        // order `over` enumerates them.
+        (0, expect_1.expect)(Object.keys((0, __1.deep)({ b: 1, a: 1 }, { a: 2, c: 3 })))
+            .equal(['b', 'a', 'c']);
+        (0, expect_1.expect)(Object.keys((0, __1.deep)({ z: 1, m: 2, a: 3 }, { a: 9, zz: 10, b: 11 })))
+            .equal(['z', 'm', 'a', 'zz', 'b']);
+    });
+    (0, node_test_1.test)('omap', () => {
+        (0, expect_1.expect)((0, __1.omap)({ a: 1, b: 2 })).equal({ a: 1, b: 2 });
+        (0, expect_1.expect)((0, __1.omap)(null)).equal({});
+        (0, expect_1.expect)((0, __1.omap)(undefined)).equal({});
+        (0, expect_1.expect)((0, __1.omap)({})).equal({});
+        // The transform receives, and returns, a [key, value] pair.
+        (0, expect_1.expect)((0, __1.omap)({ a: 1, b: 2 }, ([k, v]) => [k, v * 2]))
+            .equal({ a: 2, b: 4 });
+        (0, expect_1.expect)((0, __1.omap)({ a: 1, b: 2 }, ([k, v]) => [k.toUpperCase(), v]))
+            .equal({ A: 1, B: 2 });
+        // An undefined replacement key drops the entry.
+        (0, expect_1.expect)((0, __1.omap)({ a: 1, b: 2 }, ([k, v]) => 'a' === k ? [undefined] : [k, v]))
+            .equal({ b: 2 });
+        // Additional pairs set additional keys.
+        (0, expect_1.expect)((0, __1.omap)({ a: 1 }, ([k, v]) => [k, v, k + '2', v * 10]))
+            .equal({ a: 1, a2: 10 });
+    });
+    (0, node_test_1.test)('omap-key-order', () => {
+        // Sorted, not insertion order -- this is the deliberate divergence
+        // from the jsonic original, and what makes go/util.go `OMap` agree.
+        (0, expect_1.expect)(Object.keys((0, __1.omap)({ z: 1, m: 2, a: 3 }))).equal(['a', 'm', 'z']);
+        (0, expect_1.expect)(Object.keys((0, __1.omap)({ b: 1, a: 2 }, ([k, v]) => [k, v])))
+            .equal(['a', 'b']);
+        // Renaming keys does not re-sort: entries are visited in sorted
+        // *source* key order, and written in that visit order.
+        (0, expect_1.expect)(Object.keys((0, __1.omap)({ b: 1, a: 2 }, ([k, v]) => [k + 'x', v])))
+            .equal(['ax', 'bx']);
+        // Numeric-looking keys follow JS integer-key ordering once written to
+        // the result object, regardless of visit order.
+        (0, expect_1.expect)(Object.keys((0, __1.omap)({ 10: 'a', 2: 'b', 1: 'c' }))).equal(['1', '2', '10']);
+    });
 });
 //# sourceMappingURL=utility.test.js.map

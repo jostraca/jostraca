@@ -38,6 +38,8 @@ declare namespace vmap {
     var FILTER: (x: any) => any;
     var KEY: (_: any, p: any) => any;
 }
+declare function deep(base?: any, ...rest: any[]): any;
+declare function omap(o?: any, fn?: (entry: any[]) => any[]): any;
 declare function humanify(when?: number, flags?: {
     parts?: boolean;
     terse?: boolean;
@@ -51,4 +53,4 @@ declare function getdlog(tagin?: string, filepath?: string): ((...args: any[]) =
 declare const BINARY_EXT: string[];
 declare function isbinext(path: string): boolean;
 declare function isbincontent(content: Buffer | string): boolean;
-export { camelify, cmap, each, escre, get, getx, humanify, indent, isbincontent, isbinext, kebabify, names, partify, snakify, template, vmap, ucf, lcf, getdlog, BINARY_EXT, };
+export { camelify, cmap, deep, each, escre, get, getx, humanify, indent, isbincontent, isbinext, kebabify, names, omap, partify, snakify, template, vmap, ucf, lcf, getdlog, BINARY_EXT, };

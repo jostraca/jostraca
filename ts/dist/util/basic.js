@@ -7,6 +7,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.BINARY_EXT = void 0;
 exports.camelify = camelify;
 exports.cmap = cmap;
+exports.deep = deep;
 exports.each = each;
 exports.escre = escre;
 exports.get = get;
@@ -17,6 +18,7 @@ exports.isbincontent = isbincontent;
 exports.isbinext = isbinext;
 exports.kebabify = kebabify;
 exports.names = names;
+exports.omap = omap;
 exports.partify = partify;
 exports.snakify = snakify;
 exports.template = template;
@@ -570,12 +572,15 @@ function indent(src, indent) {
     // (_, p1) => p1 + indent)
     return src;
 }
+// Compare `[key, value]` entries by key. Sorted iteration is what keeps
+// the TS output byte-equal with the Go port: a Go map has no insertion
+// order to reproduce, so both sides sort instead.
+const sortByKey = (a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0;
 // Map child objects to new child objects. Iterates source and spec
 // keys in alphabetical order for cross-stack determinism (Go map
 // iteration is randomised; sorting on both sides keeps output
 // byte-equal).
 function cmap(o, p) {
-    const sortByKey = (a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0;
     return Object
         .entries(o)
         .sort(sortByKey)
@@ -595,7 +600,6 @@ cmap.FILTER = (x) => 'function' === typeof x ? ((y, p, _) => (_ = x(y, p), Array
 cmap.KEY = (_, p) => p.key;
 // Map child objects to a list of child objects. Sorted iteration as cmap.
 function vmap(o, p) {
-    const sortByKey = (a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0;
     return Object
         .entries(o)
         .sort(sortByKey)
@@ -613,6 +617,91 @@ function vmap(o, p) {
 vmap.COPY = (x) => x;
 vmap.FILTER = (x) => 'function' === typeof x ? ((y, p, _) => (_ = x(y, p), Array.isArray(_) ? !_[0] ? _[1] : vmap.FILTER : _)) : (x ? x : vmap.FILTER);
 vmap.KEY = (_, p) => p.key;
+// Skip sentinel honoured by `deep`: an `over` value of SKIP leaves the
+// `base` value untouched. Resolved from the global symbol registry, which
+// is where `jsonic` registers it, so a caller holding `jsonic.SKIP` gets
+// the identical symbol and the identical behaviour it had when `deep` was
+// imported from there.
+const SKIP = Symbol.for('tabnas.SKIP');
+// Deep merge objects and arrays, right-most wins (opinionated mutation of
+// the first argument!). `undefined` and SKIP values are ignored, plain
+// objects and arrays merge key-by-key, and anything with a custom
+// constructor (Date, RegExp, class instances) is taken by reference
+// rather than walked.
+//
+// Ported verbatim from `jsonic`'s `util.deep`, which is where this used to
+// come from. Two object helpers do not justify a parser dependency, and
+// the Go port already carries its own copy at go/util.go `Deep`.
+//
+// Key order matches the original: keys already in `base` keep their
+// position and new keys from `over` append in `over`'s enumeration order.
+// `for...in` rather than `Object.keys` is deliberate — inherited
+// enumerable properties merge too, as they did under jsonic.
+function deep(base, ...rest) {
+    let base_isf = 'function' === typeof base;
+    let base_iso = null != base && ('object' === typeof base || base_isf);
+    for (const over of rest) {
+        const over_isf = 'function' === typeof over;
+        const over_iso = null != over && ('object' === typeof over || over_isf);
+        let over_ctor;
+        if (base_iso &&
+            over_iso &&
+            !over_isf &&
+            Array.isArray(base) === Array.isArray(over)) {
+            for (const k in over) {
+                base[k] = deep(base[k], over[k]);
+            }
+        }
+        else {
+            base =
+                undefined === over || SKIP === over
+                    ? base
+                    : over_isf
+                        ? over
+                        : over_iso
+                            ? 'function' === typeof (over_ctor = over.constructor) &&
+                                'Object' !== over_ctor.name &&
+                                'Array' !== over_ctor.name
+                                ? over
+                                : deep(Array.isArray(over) ? [] : {}, over)
+                            : over;
+            base_isf = 'function' === typeof base;
+            base_iso = null != base && ('object' === typeof base || base_isf);
+        }
+    }
+    return base;
+}
+// Map over object entries, building a new object. `fn` receives each
+// `[key, value]` pair and returns the replacement pair; an `undefined`
+// replacement key drops the entry, and any additional pairs in the
+// returned array set additional keys.
+//
+// Entries are visited in sorted key order — the same cross-stack
+// determinism convention `each`, `cmap`, `vmap` and `jsonify` follow.
+// jsonic's original walked `Object.entries` in insertion order, which the
+// Go port could not reproduce (go/util.go `OMap` sorts, because Go map
+// iteration is randomised). Sorting here is what makes the two agree.
+function omap(o, fn) {
+    return Object
+        .entries(o || {})
+        .sort(sortByKey)
+        .reduce((out, entry) => {
+        const mapped = fn ? fn(entry) : entry;
+        if (undefined === mapped[0]) {
+            delete out[entry[0]];
+        }
+        else {
+            out[mapped[0]] = mapped[1];
+        }
+        // Additional pairs set additional keys.
+        let i = 2;
+        while (undefined !== mapped[i]) {
+            out[mapped[i]] = mapped[i + 1];
+            i += 2;
+        }
+        return out;
+    }, {});
+}
 function humanify(when, flags = {}) {
     const d = when ? new Date(when) : new Date();
     const iso = d.toISOString();
