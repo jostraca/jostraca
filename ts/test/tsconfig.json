@@ -11,5 +11,21 @@
     "target": "ES2022",
     "lib": ["esnext"],
     "types": ["node"]
-  }
+  },
+
+  // The suites import the package by path (`'../'`, `'../dist/util/basic'`),
+  // which node-resolves through package.json into `dist/` -- i.e. into src's
+  // build output. Without this reference tsc has no idea test depends on
+  // src: `tsc --build src test` resolves both projects' module graphs before
+  // emitting either, so with no `dist/` on disk every one of those imports
+  // fails with TS2307 and the build dies.
+  //
+  // That is why `make reset` used to fail while everything else passed: it
+  // is the one path that deletes `dist/`, and `dist/` is committed, so a
+  // fresh clone and CI both start with a populated one that hides the
+  // problem. Declaring the reference orders the build and lets tsc redirect
+  // a `dist/` hit back to the source file, so a cold tree works.
+  "references": [
+    { "path": "../src" }
+  ]
 }

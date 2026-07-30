@@ -966,19 +966,35 @@ object.
 ### deep
 
 ```typescript
-deep(...args: any[]): any
+deep(base?: any, ...rest: any[]): any
 ```
 
-Deep merge objects (from `jsonic` util).
+Deep merge objects and arrays, right-most wins. Mutates and returns the
+first argument. Plain objects and arrays merge key-by-key; `undefined` and
+the `Symbol.for('tabnas.SKIP')` sentinel leave the base value untouched;
+anything with a custom constructor (`Date`, `RegExp`, class instances) is
+taken by reference rather than walked.
+
+Keys already in `base` hold their position, and new keys append in the
+order the merged-in object enumerates them.
 
 
 ### omap
 
 ```typescript
-omap(obj: object, fn: Function): object
+omap(obj?: object, fn?: (entry: any[]) => any[]): object
 ```
 
-Map over object entries (from `jsonic` util).
+Map over object entries, building a new object. `fn` receives each
+`[key, value]` pair and returns the replacement pair. An `undefined`
+replacement key drops the entry; additional pairs in the returned array
+set additional keys.
+
+Entries are visited in **sorted key order**, the same cross-stack
+determinism convention `each`, `cmap` and `vmap` follow — a Go map has no
+insertion order to reproduce, so `go/util.go` `OMap` sorts and this does
+too. Note that this differs from the pre-0.32 behaviour, when `omap` was
+a re-export of `jsonic.util.omap` and walked entries in insertion order.
 
 
 ---

@@ -3,13 +3,21 @@ name: Go tests
 # ts/** is included deliberately: the parity suite exists to catch the Go
 # port drifting from canonical TS behaviour, so a TS-only change is exactly
 # the event that must run this job.
+#
+# `push` is scoped to master, matching test.yml. Without that scope a branch
+# push and its pull_request both trigger, so every job here -- corpus, the
+# whole OS matrix, lint -- ran twice on every PR commit. Branch coverage is
+# not lost: the pull_request event covers a branch from the moment a PR is
+# open, which is when the result is worth reading.
 on:
   push:
+    branches: [master]
     paths:
       - 'go/**'
       - 'ts/**'
       - '.github/workflows/go-test.yml'
   pull_request:
+    branches: [master]
     paths:
       - 'go/**'
       - 'ts/**'

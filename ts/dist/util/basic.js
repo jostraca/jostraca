@@ -7,6 +7,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.BINARY_EXT = void 0;
 exports.camelify = camelify;
 exports.cmap = cmap;
+exports.deep = deep;
 exports.each = each;
 exports.escre = escre;
 exports.get = get;
@@ -17,6 +18,7 @@ exports.isbincontent = isbincontent;
 exports.isbinext = isbinext;
 exports.kebabify = kebabify;
 exports.names = names;
+exports.omap = omap;
 exports.partify = partify;
 exports.snakify = snakify;
 exports.template = template;
@@ -570,12 +572,15 @@ function indent(src, indent) {
     // (_, p1) => p1 + indent)
     return src;
 }
+// Compare `[key, value]` entries by key. Sorted iteration is what keeps
+// the TS output byte-equal with the Go port: a Go map has no insertion
+// order to reproduce, so both sides sort instead.
+const sortByKey = (a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0;
 // Map child objects to new child objects. Iterates source and spec
 // keys in alphabetical order for cross-stack determinism (Go map
 // iteration is randomised; sorting on both sides keeps output
 // byte-equal).
 function cmap(o, p) {
-    const sortByKey = (a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0;
     return Object
         .entries(o)
         .sort(sortByKey)
@@ -595,7 +600,6 @@ cmap.FILTER = (x) => 'function' === typeof x ? ((y, p, _) => (_ = x(y, p), Array
 cmap.KEY = (_, p) => p.key;
 // Map child objects to a list of child objects. Sorted iteration as cmap.
 function vmap(o, p) {
-    const sortByKey = (a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0;
     return Object
         .entries(o)
         .sort(sortByKey)
@@ -613,6 +617,91 @@ function vmap(o, p) {
 vmap.COPY = (x) => x;
 vmap.FILTER = (x) => 'function' === typeof x ? ((y, p, _) => (_ = x(y, p), Array.isArray(_) ? !_[0] ? _[1] : vmap.FILTER : _)) : (x ? x : vmap.FILTER);
 vmap.KEY = (_, p) => p.key;
+// Skip sentinel honoured by `deep`: an `over` value of SKIP leaves the
+// `base` value untouched. Resolved from the global symbol registry, which
+// is where `jsonic` registers it, so a caller holding `jsonic.SKIP` gets
+// the identical symbol and the identical behaviour it had when `deep` was
+// imported from there.
+const SKIP = Symbol.for('tabnas.SKIP');
+// Deep merge objects and arrays, right-most wins (opinionated mutation of
+// the first argument!). `undefined` and SKIP values are ignored, plain
+// objects and arrays merge key-by-key, and anything with a custom
+// constructor (Date, RegExp, class instances) is taken by reference
+// rather than walked.
+//
+// Ported verbatim from `jsonic`'s `util.deep`, which is where this used to
+// come from. Two object helpers do not justify a parser dependency, and
+// the Go port already carries its own copy at go/util.go `Deep`.
+//
+// Key order matches the original: keys already in `base` keep their
+// position and new keys from `over` append in `over`'s enumeration order.
+// `for...in` rather than `Object.keys` is deliberate — inherited
+// enumerable properties merge too, as they did under jsonic.
+function deep(base, ...rest) {
+    let base_isf = 'function' === typeof base;
+    let base_iso = null != base && ('object' === typeof base || base_isf);
+    for (const over of rest) {
+        const over_isf = 'function' === typeof over;
+        const over_iso = null != over && ('object' === typeof over || over_isf);
+        let over_ctor;
+        if (base_iso &&
+            over_iso &&
+            !over_isf &&
+            Array.isArray(base) === Array.isArray(over)) {
+            for (const k in over) {
+                base[k] = deep(base[k], over[k]);
+            }
+        }
+        else {
+            base =
+                undefined === over || SKIP === over
+                    ? base
+                    : over_isf
+                        ? over
+                        : over_iso
+                            ? 'function' === typeof (over_ctor = over.constructor) &&
+                                'Object' !== over_ctor.name &&
+                                'Array' !== over_ctor.name
+                                ? over
+                                : deep(Array.isArray(over) ? [] : {}, over)
+                            : over;
+            base_isf = 'function' === typeof base;
+            base_iso = null != base && ('object' === typeof base || base_isf);
+        }
+    }
+    return base;
+}
+// Map over object entries, building a new object. `fn` receives each
+// `[key, value]` pair and returns the replacement pair; an `undefined`
+// replacement key drops the entry, and any additional pairs in the
+// returned array set additional keys.
+//
+// Entries are visited in sorted key order — the same cross-stack
+// determinism convention `each`, `cmap`, `vmap` and `jsonify` follow.
+// jsonic's original walked `Object.entries` in insertion order, which the
+// Go port could not reproduce (go/util.go `OMap` sorts, because Go map
+// iteration is randomised). Sorting here is what makes the two agree.
+function omap(o, fn) {
+    return Object
+        .entries(o || {})
+        .sort(sortByKey)
+        .reduce((out, entry) => {
+        const mapped = fn ? fn(entry) : entry;
+        if (undefined === mapped[0]) {
+            delete out[entry[0]];
+        }
+        else {
+            out[mapped[0]] = mapped[1];
+        }
+        // Additional pairs set additional keys.
+        let i = 2;
+        while (undefined !== mapped[i]) {
+            out[mapped[i]] = mapped[i + 1];
+            i += 2;
+        }
+        return out;
+    }, {});
+}
 function humanify(when, flags = {}) {
     const d = when ? new Date(when) : new Date();
     const iso = d.toISOString();
@@ -694,7 +783,7 @@ function getdlog(tagin, filepath) {
  
   Thank You!
 */
-const BINARY_EXT = '3dm;3ds;3g2;3gp;7z;a;aac;adp;afdesign;afphoto;afpub;ai;aif;aiff;alz;ape;apk;appimage;ar;arj;asf;au;avi;bak;baml;bh;bin;bk;bmp;btif;bz2;bzip2;cab;caf;cgm;class;cmx;cpio;cr2;cur;dat;dcm;deb;dex;djvu;dll;dmg;dng;doc;docm;docx;dot;dotm;dra;DS_Store;dsk;dts;dtshd;dvb;dwg;dxf;ecelp4800;ecelp7470;ecelp9600;egg;eol;eot;epub;exe;f4v;fbs;fh;fla;flac;flatpak;fli;flv;fpx;fst;fvt;g3;gh;gif;graffle;gz;gzip;h261;h263;h264;icns;ico;ief;img;ipa;iso;jar;jpeg;jpg;jpgv;jpm;jxr;key;ktx;lha;lib;lvp;lz;lzh;lzma;lzo;m3u;m4a;m4v;mar;mdi;mht;mid;midi;mj2;mka;mkv;mmr;mng;mobi;mov;movie;mp3;mp4;mp4a;mpeg;mpg;mpga;mxu;nef;npx;numbers;nupkg;o;odp;ods;odt;oga;ogg;ogv;otf;ott;pages;pbm;pcx;pdb;pdf;pea;pgm;pic;png;pnm;pot;potm;potx;ppa;ppam;ppm;pps;ppsm;ppsx;ppt;pptm;pptx;psd;pya;pyc;pyo;pyv;qt;rar;ras;raw;resources;rgb;rip;rlc;rmf;rmvb;rpm;rtf;rz;s3m;s7z;scpt;sgi;shar;snap;sil;sketch;slk;smv;snk;so;stl;suo;sub;swf;tar;tbz;tbz2;tga;tgz;thmx;tif;tiff;tlz;ttc;ttf;txz;udf;uvh;uvi;uvm;uvp;uvs;uvu;viv;vob;war;wav;wax;wbmp;wdp;weba;webm;webp;whl;wim;wm;wma;wmv;wmx;woff;woff2;wrm;wvx;xbm;xif;xla;xlam;xls;xlsb;xlsm;xlsx;xlt;xltm;xltx;xm;xmind;xpi;xpm;xwd;xz;z;zip;zipx;bin'.split(';');
+const BINARY_EXT = '3dm;3ds;3g2;3gp;7z;a;aac;adp;afdesign;afphoto;afpub;ai;aif;aiff;alz;ape;apk;appimage;ar;arj;asf;au;avi;bak;baml;bh;bin;bk;bmp;btif;bz2;bzip2;cab;caf;cgm;class;cmx;cpio;cr2;cur;dat;dcm;deb;dex;djvu;dll;dmg;dng;doc;docm;docx;dot;dotm;dra;ds_store;dsk;dts;dtshd;dvb;dwg;dxf;ecelp4800;ecelp7470;ecelp9600;egg;eol;eot;epub;exe;f4v;fbs;fh;fla;flac;flatpak;fli;flv;fpx;fst;fvt;g3;gh;gif;graffle;gz;gzip;h261;h263;h264;icns;ico;ief;img;ipa;iso;jar;jpeg;jpg;jpgv;jpm;jxr;key;ktx;lha;lib;lvp;lz;lzh;lzma;lzo;m3u;m4a;m4v;mar;mdi;mht;mid;midi;mj2;mka;mkv;mmr;mng;mobi;mov;movie;mp3;mp4;mp4a;mpeg;mpg;mpga;mxu;nef;npx;numbers;nupkg;o;odp;ods;odt;oga;ogg;ogv;otf;ott;pages;pbm;pcx;pdb;pdf;pea;pgm;pic;png;pnm;pot;potm;potx;ppa;ppam;ppm;pps;ppsm;ppsx;ppt;pptm;pptx;psd;pya;pyc;pyo;pyv;qt;rar;ras;raw;resources;rgb;rip;rlc;rmf;rmvb;rpm;rtf;rz;s3m;s7z;scpt;sgi;shar;snap;sil;sketch;slk;smv;snk;so;stl;suo;sub;swf;tar;tbz;tbz2;tga;tgz;thmx;tif;tiff;tlz;ttc;ttf;txz;udf;uvh;uvi;uvm;uvp;uvs;uvu;viv;vob;war;wav;wax;wbmp;wdp;weba;webm;webp;whl;wim;wm;wma;wmv;wmx;woff;woff2;wrm;wvx;xbm;xif;xla;xlam;xls;xlsb;xlsm;xlsx;xlt;xltm;xltx;xm;xmind;xpi;xpm;xwd;xz;z;zip;zipx;bin'.split(';');
 exports.BINARY_EXT = BINARY_EXT;
 // Membership set, not a linear scan of ~250 entries on every copied file.
 const BINARY_EXT_SET = new Set(BINARY_EXT);

@@ -36,6 +36,10 @@ build output `dist/`/`dist-test/`, and the `gen/`/`tools/` helper scripts).
 - `ts/test/` — Node test-runner suites; compiled to `ts/dist-test/` before running.
 - `go/` — the Go port and its tests (package `jostraca` at the module root,
   mirroring the layout of `voxgig/util`'s `go/`).
+- `test/spec/` — the **shared corpus**: language-neutral TSV cases that both
+  stacks assert against (`ts/test/spec.test.ts`, `go/spec_test.go`). This is
+  where parity for the pure helpers is pinned; see `test/spec/README.md`.
+  `test/spec/perf/` holds the performance workloads and baselines.
 
 ## Build & test
 
@@ -43,7 +47,7 @@ TypeScript — run from `ts/` (build emits JS to `ts/dist/`, tests to `ts/dist-t
 
 ```bash
 cd ts
-npm install          # also pulls peer deps: jsonic, memfs, shape
+npm install          # also pulls peer deps: memfs, shape
 npm run build        # tsc --build src test
 npm test             # node --test dist-test/**/*.test.js
 ```
@@ -58,7 +62,14 @@ Both implementations together, from the repo root:
 
 ```bash
 make all             # build + test, TS and Go
+make perf            # performance baselines, both stacks (not part of test)
 ```
+
+When changing any pure helper (the name-case family, `template`, `deep`,
+`omap`, `getx`, `indent`, the diff primitives), add the case to
+`test/spec/` rather than to one stack's suite. Both runners pick up a new
+row with no code change, and an unknown `fn` is a hard failure in both —
+so a case can never be silently ignored by one side.
 
 ## Gotchas
 
@@ -68,6 +79,23 @@ make all             # build + test, TS and Go
   and must NOT re-join `this.folder` — doing so double-prefixes relative,
   non-`.` output folders (e.g. `out/out/foo.txt`). `BuildMeta` therefore builds
   full, folder-prefixed meta/`.gitignore` paths itself.
+- **`test/` needs a project reference to `src/`.** The suites import the
+  package by path (`'../'`, `'../dist/util/basic'`), which node-resolves
+  through `package.json` into `dist/`. `tsc --build src test` resolves both
+  projects' module graphs *before* emitting either, so with no `dist/` on
+  disk every such import fails `TS2307`. `ts/test/tsconfig.json` therefore
+  declares `references: [{ path: "../src" }]` and `ts/src/tsconfig.json` sets
+  `composite: true`. Do not remove either: without them `make reset` fails
+  outright, and only `make reset` shows it, because `dist/` is committed and
+  every other path starts from a populated one.
 - **`shape` engine warning.** `shape` may emit `EBADENGINE` on Node < 24; the
   build and tests still pass on Node 22. Peer deps are intentionally loose
-  ranges (`jsonic >=2`, `memfs >=4`, `shape >=10`).
+  ranges (`memfs >=4`, `shape >=10`).
+- **`deep` and `omap` are inlined, not imported.** They used to be re-exports
+  of `jsonic.util`; a parser dependency for two object helpers was not worth
+  it, so `src/util/basic.ts` carries them. `deep` is a verbatim port and must
+  stay one, `SKIP` sentinel included (resolved via `Symbol.for('tabnas.SKIP')`,
+  so a caller holding jsonic's own `SKIP` still works). `omap` deliberately
+  differs from the original: it visits entries in **sorted** key order, because
+  a Go map has no insertion order for `go/util.go` `OMap` to reproduce. Sorting
+  is the same convention `each`, `cmap`, `vmap` and `jsonify` already follow.

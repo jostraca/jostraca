@@ -269,6 +269,13 @@ with these intentional ergonomic differences:
   slot name is never collected and the marker survives verbatim);
   Go handles it. Not reconciled: aligning it means giving `Cmp` a
   node, which changes the shape of every Go component tree.
+- `Deep` builds a new map or slice instead of mutating and returning its
+  first argument the way TS `deep` does. Callers that use the return
+  value see no difference; callers relying on the aliasing would.
+  Merge semantics themselves match, nil/null included: a nil *argument*
+  is skipped (TS `undefined`), while a nil map value or slice element
+  overwrites (TS `null`). Only `[]any` merges index-by-index — a typed
+  slice such as `[]string` takes the right-wins path.
 - A template value that is an integer wider than 2^53 keeps its exact
   value in Go and loses precision in TS, whose numbers are all
   `float64`. Everything a `float64` can hold exactly formats

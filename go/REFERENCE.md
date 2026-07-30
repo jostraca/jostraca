@@ -220,8 +220,8 @@ type AuditEntry struct {
 | `HumanifyDigits(when) int64` | Typed default-mode variant |
 | `HumanifyParts(when) HumanifiedParts` | Typed parts variant — returns a struct, not `map[string]any` |
 | `HumanifyTerse(when) HumanifiedTerse` | Typed terse-named-parts variant |
-| `Deep(dst, srcs...)` | Recursive map merge with right-precedence |
-| `CMap`, `VMap`, `OMap` | Object → object/slice projections (sentinel: `CMapCopy`/`CMapKey`/`CMapFilter`) |
+| `Deep(dst, srcs...)` | Recursive map merge with right-precedence. Mirrors TS `deep`, now inlined at `ts/src/util/basic.ts` rather than taken from `jsonic` |
+| `CMap`, `VMap`, `OMap` | Object → object/slice projections (sentinel: `CMapCopy`/`CMapKey`/`CMapFilter`). All three iterate keys alphabetically; TS `cmap`/`vmap`/`omap` sort to match |
 | `NewDLog(tag, file)` | Tagged debug logger backed by a package-level locked buffer |
 
 ## Logging
