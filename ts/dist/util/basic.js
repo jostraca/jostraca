@@ -798,11 +798,25 @@ function isbinext(path) {
 // BINARY_EXT. Anything it misses used to be read as UTF-8, run through
 // template substitution and written back, replacing invalid sequences with
 // U+FFFD — silent corruption of the copied file.
+// BOTH branches stop after 8 KB. The string branch used to scan the whole
+// value, so identical content classified differently depending on whether
+// the caller had decoded it yet: a NUL at offset 9000 was binary as a
+// string, text as a Buffer, and text to go/util.go `IsBinContent`. The
+// bound is the documented heuristic, so the unbounded branch was the odd
+// one out, not the bound.
+//
+// The string bound counts UTF-16 units where the Buffer bound counts bytes.
+// They coincide for ASCII, and diverge only for content that already
+// decoded as valid UTF-8 -- which is text by then anyway.
+const BIN_SNIFF_LIMIT = 8192;
 function isbincontent(content) {
     if ('string' === typeof content) {
-        return content.includes('\u0000');
+        // indexOf, not slice().includes(): it stops at the first NUL and
+        // allocates nothing.
+        const at = content.indexOf('\u0000');
+        return 0 <= at && at < BIN_SNIFF_LIMIT;
     }
-    const len = Math.min(content.length, 8192);
+    const len = Math.min(content.length, BIN_SNIFF_LIMIT);
     for (let i = 0; i < len; i++) {
         if (0 === content[i]) {
             return true;

@@ -124,16 +124,34 @@ function measure(run) {
 }
 
 
+function anchor(when) {
+  const ns = measure(calibrate)
+  if (0 >= ns) {
+    throw new Error(`calibration (${when}) measured ${ns} ns/op`)
+  }
+  console.log(`calibration ${when}: ${ns.toFixed(0)} ns/op`)
+  return ns
+}
+
+
 function main() {
   const workloads = loadWorkloads()
 
-  const anchorNs = measure(calibrate)
-  if (0 >= anchorNs) {
-    throw new Error(`calibration measured ${anchorNs} ns/op`)
-  }
-  console.log(`calibration: ${anchorNs.toFixed(0)} ns/op`)
+  // The anchor is measured twice, before and after the workloads, and the
+  // lower reading wins.
+  //
+  // A single up-front measurement was wrong here in particular: `make perf`
+  // runs `npm run build` and then this script, so the first thing measured
+  // runs on a machine that has just finished a TypeScript compile. The
+  // anchor came in ~25% high (227k vs a 183-191k steady state) while the
+  // workloads, running later as the machine settled, did not -- so every
+  // ratio was pushed down together. The anchor was adding variance rather
+  // than dividing it out. Taking the minimum of a reading at each end stops
+  // one contaminated moment from setting the scale.
+  let anchorNs = anchor('before')
 
   const rows = ['id\tstack\tns_per_op\tratio']
+  const measured = []
 
   for (const w of workloads) {
     const fn = FN[w.fn]
@@ -144,7 +162,14 @@ function main() {
     // Fail rather than time a broken call.
     fn(w.args)
 
-    const ns = measure(() => fn(w.args))
+    measured.push(measure(() => fn(w.args)))
+  }
+
+  anchorNs = Math.min(anchorNs, anchor('after'))
+  console.log(`calibration: ${anchorNs.toFixed(0)} ns/op (lower of two)`)
+
+  for (const [i, w] of workloads.entries()) {
+    const ns = measured[i]
     const ratio = ns / anchorNs
 
     rows.push(`${w.id}\tts\t${ns.toFixed(1)}\t${ratio.toFixed(6)}`)

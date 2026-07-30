@@ -4,33 +4,33 @@
 # the same process, which is what makes them portable between machines.
 # Regenerate with `make perf-baseline`; check with `make perf`.
 #
-# recorded: 2026-07-29
+# recorded: 2026-07-30
 # platform: darwin/arm64 Apple M4
 # node:     v24.16.0
 # go:       go version go1.26.3 darwin/arm64
 
 id	stack	ratio
-camelify-long	go	0.009426
-camelify-long	ts	0.002793
-deep-nested	go	0.015560
-deep-nested	ts	0.004472
-escre-long	go	0.005057
-escre-long	ts	0.013348
-getx-deep	go	0.019520
-getx-deep	ts	0.002180
-indent-block	go	0.028386
-indent-block	ts	0.007607
-isbincontent-8k	go	0.039922
-isbincontent-8k	ts	0.000827
-lcs-40	go	0.111544
-lcs-40	ts	0.065584
-lines-40	go	0.009598
-lines-40	ts	0.003573
-omap-50	go	0.054599
-omap-50	ts	0.042506
-partify-long	go	0.010179
-partify-long	ts	0.002704
-template-model	go	0.033099
-template-model	ts	0.011789
-template-replace	go	0.065381
-template-replace	ts	0.017386
+camelify-long	go	0.009895
+camelify-long	ts	0.002922
+deep-nested	go	0.016077
+deep-nested	ts	0.004187
+escre-long	go	0.005216
+escre-long	ts	0.014131
+getx-deep	go	0.020091
+getx-deep	ts	0.002233
+indent-block	go	0.029707
+indent-block	ts	0.008138
+isbincontent-8k	go	0.012514
+isbincontent-8k	ts	0.000874
+lcs-40	go	0.117496
+lcs-40	ts	0.065574
+lines-40	go	0.009917
+lines-40	ts	0.003536
+omap-50	go	0.056215
+omap-50	ts	0.042380
+partify-long	go	0.011076
+partify-long	ts	0.002797
+template-model	go	0.034321
+template-model	ts	0.012061
+template-replace	go	0.068149
+template-replace	ts	0.018139

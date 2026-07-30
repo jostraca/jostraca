@@ -58,6 +58,25 @@ Error messages are worded differently by the two implementations, so
 `error` holds a short portable fragment both must contain, not a full
 message.
 
+## The `isbincontent` 8 KB bound
+
+The corpus hands TS a string where it hands Go bytes, so `isbincontent`
+cases only mean anything if both bound the scan the same way. They now do:
+TS's string branch, TS's Buffer branch and Go's `IsBinContent` all stop
+after 8 KB, and all three agree on the exact boundary --  a NUL at index
+8191 is binary, at 8192 it is not.
+
+That was not always true. TS's string branch used to scan the whole value,
+so identical content classified differently depending on whether the caller
+had decoded it yet. Three cases pin the boundary now
+(`isbincontent-nul-at-limit-1`, `-at-limit`, `-past-limit`), which is what
+stops it drifting apart again.
+
+One asymmetry remains by nature: the string bound counts UTF-16 units and
+the Buffer/Go bound counts bytes. They coincide for ASCII, so keep boundary
+cases ASCII — anything non-ASCII near 8 KB is measuring the difference
+between the two units, not the behaviour.
+
 ## Adding cases
 
 Append a row. Both runners pick it up with no code change, provided `fn`
