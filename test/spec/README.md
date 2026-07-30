@@ -58,21 +58,24 @@ Error messages are worded differently by the two implementations, so
 `error` holds a short portable fragment both must contain, not a full
 message.
 
-## Known limit: `isbincontent` cases must stay under 8 KB
+## The `isbincontent` 8 KB bound
 
-TS `isbincontent` takes a string *or* a Buffer and those two paths differ:
-the Buffer path stops after the first 8 KB, the string path scans the whole
-value. Go's `IsBinContent` takes bytes and always stops at 8 KB.
+The corpus hands TS a string where it hands Go bytes, so `isbincontent`
+cases only mean anything if both bound the scan the same way. They now do:
+TS's string branch, TS's Buffer branch and Go's `IsBinContent` all stop
+after 8 KB, and all three agree on the exact boundary --  a NUL at index
+8191 is binary, at 8192 it is not.
 
-The corpus hands TS a string and Go bytes, so a case whose first NUL sits
-past 8 KB would compare TS's uncapped string path against Go's capped one
-and report a divergence that is really an artefact of the corpus choosing
-different paths. Verified: a NUL at offset 9000 is `true` for a TS string,
-`false` for a TS Buffer, `false` for Go.
+That was not always true. TS's string branch used to scan the whole value,
+so identical content classified differently depending on whether the caller
+had decoded it yet. Three cases pin the boundary now
+(`isbincontent-nul-at-limit-1`, `-at-limit`, `-past-limit`), which is what
+stops it drifting apart again.
 
-Keep such cases short and the two agree. The underlying inconsistency --
-one TS function with a cap on one path and not the other -- is a separate
-question from parity and is not settled here.
+One asymmetry remains by nature: the string bound counts UTF-16 units and
+the Buffer/Go bound counts bytes. They coincide for ASCII, so keep boundary
+cases ASCII — anything non-ASCII near 8 KB is measuring the difference
+between the two units, not the behaviour.
 
 ## Adding cases
 

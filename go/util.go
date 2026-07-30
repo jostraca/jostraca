@@ -723,6 +723,10 @@ func Humanify(when int64, flags HumanifyFlags) any {
 // Anything it misses would otherwise be decoded as UTF-8, run through
 // template substitution and written back, silently corrupting the copy.
 // Mirrors isbincontent in ts/src/util/basic.ts.
+//
+// The 8 KB bound is shared: both of the TS branches (string and Buffer)
+// stop there too, and all three agree that a NUL at index 8191 is binary
+// and at 8192 is not. test/spec/binary.tsv pins the boundary.
 func IsBinContent(content []byte) bool {
 	n := len(content)
 	if n > 8192 {
