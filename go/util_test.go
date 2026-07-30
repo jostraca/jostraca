@@ -514,3 +514,177 @@ func TestDeep(t *testing.T) {
 		t.Errorf("Deep got %v, want %v", got, want)
 	}
 }
+
+// Slices merge index-by-index rather than replacing wholesale, matching
+// the `deep` cases in ts/test/utility.test.ts. This used to be the one
+// real divergence between the two implementations: Go replaced the slice.
+func TestDeepSlice(t *testing.T) {
+	cases := []struct {
+		name string
+		dst  any
+		src  any
+		want any
+	}{
+		{
+			"shorter source keeps the tail",
+			map[string]any{"a": []any{1, 2, 3}},
+			map[string]any{"a": []any{9}},
+			map[string]any{"a": []any{9, 2, 3}},
+		},
+		{
+			"longer source sets the length",
+			map[string]any{"a": []any{1}},
+			map[string]any{"a": []any{9, 8, 7}},
+			map[string]any{"a": []any{9, 8, 7}},
+		},
+		{
+			"empty source leaves the slice alone",
+			map[string]any{"a": []any{1, 2}},
+			map[string]any{"a": []any{}},
+			map[string]any{"a": []any{1, 2}},
+		},
+		{
+			"elements merge recursively",
+			map[string]any{"a": []any{map[string]any{"x": 1, "y": 2}}},
+			map[string]any{"a": []any{map[string]any{"y": 9}}},
+			map[string]any{"a": []any{map[string]any{"x": 1, "y": 9}}},
+		},
+		{
+			"nested slices merge at depth",
+			map[string]any{"a": []any{[]any{1, 2}}},
+			map[string]any{"a": []any{[]any{9}}},
+			map[string]any{"a": []any{[]any{9, 2}}},
+		},
+		{
+			// A nil element is a present index holding nil, so it wins --
+			// TS `deep({a:[1,2]},{a:[null,9]})` is `{a:[null,9]}`. Only a
+			// nil *argument* to Deep is treated as absent.
+			"a nil element overwrites",
+			map[string]any{"a": []any{1, 2}},
+			map[string]any{"a": []any{nil, 9}},
+			map[string]any{"a": []any{nil, 9}},
+		},
+		{
+			// Mismatched kinds take the right-wins path, as in TS, where
+			// Array.isArray(base) != Array.isArray(over) falls through.
+			"map over slice replaces",
+			map[string]any{"a": []any{1, 2}},
+			map[string]any{"a": map[string]any{"0": 9}},
+			map[string]any{"a": map[string]any{"0": 9}},
+		},
+		{
+			"slice over map replaces",
+			map[string]any{"a": map[string]any{"x": 1}},
+			map[string]any{"a": []any{9}},
+			map[string]any{"a": []any{9}},
+		},
+		{
+			"scalar over slice replaces",
+			map[string]any{"a": []any{1, 2}},
+			map[string]any{"a": 7},
+			map[string]any{"a": 7},
+		},
+		{
+			"nil over slice replaces",
+			map[string]any{"a": []any{1, 2}},
+			map[string]any{"a": nil},
+			map[string]any{"a": nil},
+		},
+		{
+			"a nil tail element wins",
+			map[string]any{"a": []any{1, 2}},
+			map[string]any{"a": []any{9, nil}},
+			map[string]any{"a": []any{9, nil}},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := Deep(tc.dst, tc.src)
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("Deep got %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// Top-level slices merge too, not just slices reached through a map.
+func TestDeepSliceTopLevel(t *testing.T) {
+	got := Deep([]any{1, 2}, []any{3})
+	want := []any{3, 2}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Deep got %v, want %v", got, want)
+	}
+
+	// Right-most wins across more than two sources, nil elements included.
+	got = Deep([]any{1, 2, 3}, []any{9}, []any{nil, 8})
+	want = []any{nil, 8, 3}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Deep got %v, want %v", got, want)
+	}
+}
+
+// The nil-as-member vs nil-as-argument split, which is how a language
+// with no `undefined` reproduces TS's null/undefined distinction.
+func TestDeepNilSemantics(t *testing.T) {
+	// A nil argument is absent and is skipped.
+	got := Deep(map[string]any{"a": 1}, nil)
+	if !reflect.DeepEqual(got, map[string]any{"a": 1}) {
+		t.Errorf("nil arg: got %v, want map[a:1]", got)
+	}
+	got = Deep(map[string]any{"a": 1}, nil, map[string]any{"b": 2})
+	if !reflect.DeepEqual(got, map[string]any{"a": 1, "b": 2}) {
+		t.Errorf("nil arg between sources: got %v", got)
+	}
+
+	// A nil map value is present and overwrites, as TS `null` does.
+	got = Deep(map[string]any{"a": 1}, map[string]any{"a": nil})
+	if !reflect.DeepEqual(got, map[string]any{"a": nil}) {
+		t.Errorf("nil member: got %v, want map[a:<nil>]", got)
+	}
+
+	// It overwrites a nested map wholesale, not just a scalar.
+	got = Deep(
+		map[string]any{"a": map[string]any{"x": 1}},
+		map[string]any{"a": nil},
+	)
+	if !reflect.DeepEqual(got, map[string]any{"a": nil}) {
+		t.Errorf("nil over map: got %v, want map[a:<nil>]", got)
+	}
+
+	// A nil dst member takes the source value.
+	got = Deep(map[string]any{"a": nil}, map[string]any{"a": 1})
+	if !reflect.DeepEqual(got, map[string]any{"a": 1}) {
+		t.Errorf("nil dst member: got %v, want map[a:1]", got)
+	}
+}
+
+// Deep must not alias its inputs: the merged slice is new, so mutating
+// the result cannot reach back into either argument.
+func TestDeepSliceNoAliasing(t *testing.T) {
+	dst := []any{1, 2, 3}
+	src := []any{9}
+
+	got := Deep(dst, src).([]any)
+	got[1] = "changed"
+
+	if !reflect.DeepEqual(dst, []any{1, 2, 3}) {
+		t.Errorf("Deep mutated dst: %v", dst)
+	}
+	if !reflect.DeepEqual(src, []any{9}) {
+		t.Errorf("Deep mutated src: %v", src)
+	}
+}
+
+// A typed slice is not []any, so it takes the right-wins path rather
+// than merging. Documented behaviour, pinned so it stays deliberate.
+func TestDeepTypedSliceReplaces(t *testing.T) {
+	got := Deep(
+		map[string]any{"a": []string{"x", "y"}},
+		map[string]any{"a": []string{"z"}},
+	)
+	want := map[string]any{"a": []string{"z"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Deep got %v, want %v", got, want)
+	}
+}

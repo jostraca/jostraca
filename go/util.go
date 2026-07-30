@@ -2,7 +2,6 @@ package jostraca
 
 import (
 	"fmt"
-	"path/filepath"
 	"reflect"
 	"regexp"
 	"sort"
@@ -247,77 +246,174 @@ func Kebabify(input any) string {
 	return strings.Join(parts, "-")
 }
 
-// Partify splits an input string on -, _, whitespace, and camelCase
-// boundaries. A []string input passes through. nil/undefined and
-// non-string scalars stringify per TS coercion ('null', 'undefined',
-// 'true', etc.).
+// Partify splits an input string into words on `-`, `_`, a literal space,
+// and ASCII camelCase boundaries, first collapsing acronym runs so
+// `XMLParser` becomes `Xml`+`Parser`. A slice input passes through with
+// only empty elements dropped -- it is NOT re-split. nil and non-string
+// scalars stringify per TS coercion ('null', 'true', etc.).
+//
+// A faithful port of `partify` in src/util/basic.ts; see the helpers
+// below for the pieces that stand in for its regexes.
 func Partify(input any) []string {
 	switch v := input.(type) {
 	case nil:
 		return []string{"null"}
+
 	case string:
 		if v == "" {
 			return []string{}
 		}
-		raw := []string{}
-		cur := strings.Builder{}
-		for _, r := range v {
-			switch {
-			case r == '-' || r == '_' || unicode.IsSpace(r):
-				if cur.Len() > 0 {
-					raw = append(raw, cur.String())
-					cur.Reset()
-				}
-			default:
-				cur.WriteRune(r)
-			}
-		}
-		if cur.Len() > 0 {
-			raw = append(raw, cur.String())
-		}
-		out := []string{}
-		for _, p := range raw {
-			out = append(out, splitCamel(p)...)
-		}
-		return out
+		return glueInitials(splitOnUpperAndSeps(collapseAcronyms(v)))
+
+	// Array input is passed through, only stringified and emptied-filtered.
+	// TS does NOT split array elements on case or separators
+	// (src/util/basic.ts: `input.map(n => '' + n).filter(...)`), so neither
+	// does this.
 	case []string:
 		out := make([]string, 0, len(v))
 		for _, s := range v {
-			out = append(out, splitCamel(s)...)
+			if s != "" {
+				out = append(out, s)
+			}
 		}
 		return out
+
 	case []any:
 		out := make([]string, 0, len(v))
 		for _, x := range v {
-			out = append(out, splitCamel(fmt.Sprint(x))...)
+			if s := specSprint(x); s != "" {
+				out = append(out, s)
+			}
 		}
 		return out
 	}
-	// Scalars: stringify and run through Partify recursively.
-	return Partify(fmt.Sprint(input))
+
+	// Scalars stringify to a single part, unsplit, as in TS's
+	// `'' === '' + input ? [] : ['' + input]`.
+	s := specSprint(input)
+	if s == "" {
+		return []string{}
+	}
+	return []string{s}
 }
 
-// splitCamel divides a string at uppercase-after-lowercase transitions:
-// "FooBar" → ["Foo", "Bar"]; "fooBar" → ["foo", "Bar"].
-func splitCamel(s string) []string {
-	if s == "" {
-		return nil
+// collapseAcronyms mirrors the TS pass
+// `.replace(/([A-Z])([A-Z]+)(?![a-z])/g, (_, f, r) => f + r.toLowerCase())`,
+// which turns `XMLParser` into `XmlParser` while leaving `AService` alone.
+// RE2 has no lookahead, so the scan is spelled out: within a maximal run
+// of ASCII uppercase, a following lowercase letter means the run's last
+// uppercase letter begins the next word and is excluded from the collapse
+// (which is what the regex achieves by backtracking). Runs shorter than
+// two collapse to nothing, since `[A-Z][A-Z]+` needs two.
+//
+// ASCII-only, deliberately: the TS character classes are ASCII, so a
+// unicode-aware version here would diverge.
+func collapseAcronyms(s string) string {
+	b := []byte(s)
+	out := make([]byte, 0, len(b))
+
+	for i := 0; i < len(b); {
+		if !isAsciiUpper(b[i]) {
+			out = append(out, b[i])
+			i++
+			continue
+		}
+
+		j := i
+		for j < len(b) && isAsciiUpper(b[j]) {
+			j++
+		}
+
+		end := j
+		if j < len(b) && isAsciiLower(b[j]) {
+			end = j - 1
+		}
+
+		if end-i < 2 {
+			out = append(out, b[i])
+			i++
+			continue
+		}
+
+		out = append(out, b[i])
+		for k := i + 1; k < end; k++ {
+			out = append(out, b[k]+('a'-'A'))
+		}
+		i = end
 	}
+
+	return string(out)
+}
+
+// splitOnUpperAndSeps mirrors TS `.split(/[-_ ]|([A-Z])/)` followed by the
+// empty-part filter. Separators are dropped; a captured ASCII uppercase
+// letter survives as its own part, which is what lets the glue step below
+// rebuild words.
+//
+// Note the separator set is exactly `-`, `_` and a literal space -- a tab
+// or newline is not a separator in TS, so it is not one here.
+func splitOnUpperAndSeps(s string) []string {
 	out := []string{}
 	cur := strings.Builder{}
-	prevLower := false
-	for _, r := range s {
-		if unicode.IsUpper(r) && prevLower && cur.Len() > 0 {
+
+	flush := func() {
+		if cur.Len() > 0 {
 			out = append(out, cur.String())
 			cur.Reset()
 		}
-		cur.WriteRune(r)
-		prevLower = unicode.IsLower(r)
 	}
-	if cur.Len() > 0 {
-		out = append(out, cur.String())
+
+	for _, r := range s {
+		switch {
+		case '-' == r || '_' == r || ' ' == r:
+			flush()
+		case 'A' <= r && r <= 'Z':
+			flush()
+			out = append(out, string(r))
+		default:
+			cur.WriteRune(r)
+		}
 	}
+	flush()
+
 	return out
+}
+
+// glueInitials re-attaches a single uppercase letter to the lowercase tail
+// that follows it, mirroring the TS reduce. The uppercase guard is what
+// stops a lone lowercase part between separators (the `a` in
+// `yes-as-a-service`) being glued to its neighbour.
+func glueInitials(parts []string) []string {
+	out := make([]string, 0, len(parts))
+
+	for _, p := range parts {
+		if 0 < len(out) {
+			prev := out[len(out)-1]
+			if 1 == len(prev) && isAsciiUpper(prev[0]) &&
+				0 < len(p) && !isAsciiUpper(p[0]) {
+				out[len(out)-1] = prev + p
+				continue
+			}
+		}
+		out = append(out, p)
+	}
+
+	return out
+}
+
+func isAsciiUpper(c byte) bool { return 'A' <= c && c <= 'Z' }
+func isAsciiLower(c byte) bool { return 'a' <= c && c <= 'z' }
+
+// specSprint stringifies a scalar the way TS `” + value` does, which
+// differs from fmt.Sprint for nil ('null', not '<nil>').
+func specSprint(v any) string {
+	if v == nil {
+		return "null"
+	}
+	if s, ok := v.(string); ok {
+		return s
+	}
+	return fmt.Sprint(v)
 }
 
 // LCF lowercases the first rune. Stringifies non-string inputs to match
@@ -362,14 +458,20 @@ func NamesP(base map[string]any, name, prop string) map[string]any {
 
 // Names mutates base, attaching name variants keyed off prop:
 //
-//	<prop>__orig — original input
-//	<UCF(prop)>  — Camelify form
-//	<prop>_      — snake_case form
-//	<prop>-      — kebab-case form
-//	<prop>       — lowercased no-separator concatenation
-//	<UPPER(prop)>— uppercased no-separator concatenation
+//	<prop>__orig          — original input
+//	<Camelify(prop)>      — Camelify form
+//	<Snakify(prop)>_      — snake_case form
+//	<Kebabify(prop)>-     — kebab-case form
+//	<lower(prop)>         — the input, lowercased verbatim
+//	<upper(prop)>         — the input, uppercased verbatim
 //
-// Mirrors src/util/basic.ts:329-342. Defaults prop to "name".
+// Mirrors `names` in src/util/basic.ts. Note the last two are the raw
+// input recased, NOT a separator-stripped concatenation: TS uses
+// `name.toLowerCase()` / `name.toUpperCase()`, so `foo_bar` keeps its
+// underscore. The key names are themselves case-converted the same way,
+// so a multi-word prop like `fooBar` yields `foo_bar_`, not `fooBar_`.
+//
+// Defaults prop to "name".
 func Names(base map[string]any, name string, prop ...string) map[string]any {
 	if base == nil {
 		base = map[string]any{}
@@ -378,19 +480,14 @@ func Names(base map[string]any, name string, prop ...string) map[string]any {
 	if len(prop) > 0 && prop[0] != "" {
 		p = prop[0]
 	}
-	parts := Partify(name)
-	concat := strings.Builder{}
-	for _, x := range parts {
-		concat.WriteString(strings.ToLower(x))
-	}
-	concatStr := concat.String()
 
 	base[p+"__orig"] = name
-	base[UCF(p)] = Camelify(name)
-	base[p+"_"] = Snakify(name)
-	base[p+"-"] = Kebabify(name)
-	base[p] = concatStr
-	base[strings.ToUpper(p)] = strings.ToUpper(concatStr)
+	base[Camelify(p)] = Camelify(name)
+	base[Snakify(p)+"_"] = Snakify(name)
+	base[Kebabify(p)+"-"] = Kebabify(name)
+	base[strings.ToLower(p)] = strings.ToLower(name)
+	base[strings.ToUpper(p)] = strings.ToUpper(name)
+
 	return base
 }
 
@@ -410,12 +507,23 @@ func Indent(src string, ind any) string {
 	var pad string
 	switch v := ind.(type) {
 	case nil:
-		return src
+		// TS tests `null == indent`, so both null and undefined fall
+		// through to the default of two spaces rather than meaning
+		// "no indent".
+		pad = "  "
 	case int:
 		if v <= 0 {
 			return src
 		}
 		pad = strings.Repeat(" ", v)
+	case float64:
+		// JSON and other dynamic sources hand over numbers as float64.
+		// TS switches on `'number' === typeof`, which covers both, so a
+		// float count must be a count here too and not stringify to pad.
+		if v <= 0 {
+			return src
+		}
+		pad = strings.Repeat(" ", int(v))
 	case string:
 		pad = v
 	default:
@@ -427,10 +535,12 @@ func Indent(src string, ind any) string {
 	var b strings.Builder
 	b.Grow(len(src) + len(pad))
 	n := len(src)
-	// TS regex `(\n|^)(?!$)` tries \n before ^ via alternation order.
-	// So at pos 0: if src starts with \n, the \n branch matches (no
-	// initial prepend); otherwise ^ matches and we prepend pad.
-	if src[0] != '\n' {
+	// TS regex `(\n|^)(?!$)` tries `\n` before `^` via alternation order,
+	// so a leading newline normally consumes the match and the pad lands
+	// after it. But when that newline is the whole string, `(?!$)` fails
+	// on the `\n` branch and the engine backtracks to `^`, putting the pad
+	// before it -- hence the n == 1 case.
+	if src[0] != '\n' || n == 1 {
 		b.WriteString(pad)
 	}
 	for i := 0; i < n; i++ {
@@ -626,7 +736,7 @@ func IsBinContent(content []byte) bool {
 }
 
 func IsBinExt(path string) bool {
-	ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(path)), ".")
+	ext := strings.TrimPrefix(strings.ToLower(nodeExt(path)), ".")
 	if ext == "" {
 		return false
 	}
@@ -634,12 +744,47 @@ func IsBinExt(path string) bool {
 	return ok
 }
 
+// nodeExt is Node's path.extname, which is not filepath.Ext: Node treats a
+// dot that begins the basename as a hidden-file marker rather than an
+// extension separator, so `.DS_Store` and `.gitignore` have NO extension
+// there, where filepath.Ext returns the whole name. TS is canonical, so
+// IsBinExt has to follow Node.
+func nodeExt(path string) string {
+	base := path
+	if i := strings.LastIndexAny(base, `/\`); 0 <= i {
+		base = base[i+1:]
+	}
+
+	dot := strings.LastIndex(base, ".")
+
+	// No dot, or the only dot starts the name: no extension.
+	if dot <= 0 {
+		return ""
+	}
+
+	return base[dot:]
+}
+
 // Deep returns a deep-merge of the given maps and slices, with right
-// precedence. Mirrors jsonic.util.deep used at src/jostraca.ts:208-256.
-// Non-map/slice values right-wins.
+// precedence. Non-map/slice values right-wins.
+//
+// Mirrors `deep` in src/util/basic.ts, which used to be a re-export of
+// jsonic's `util.deep` and is now inlined there. One deviation remains:
+// TS mutates and returns its first argument, whereas this builds a new
+// map or slice. Callers that rely on the aliasing will see a difference;
+// callers that use the return value will not.
 func Deep(dst any, srcs ...any) any {
 	out := dst
 	for _, src := range srcs {
+		// A nil *source* is an absent argument and is skipped, matching
+		// TS's `undefined === over` check. A nil map value or slice
+		// element is different: that is a present key holding nil, and it
+		// overwrites the way TS's `null` does. Go has no separate
+		// `undefined`, so the two cases are told apart by position --
+		// here for arguments, in mergeOne for members.
+		if src == nil {
+			continue
+		}
 		out = mergeOne(out, src)
 	}
 	return out
@@ -735,20 +880,83 @@ func cmapApply(spec, self any, key, sk string, parent any) any {
 	return spec
 }
 
-// OMap returns m's keys paired with their values, sorted by key for
-// cross-stack determinism. Mirrors jsonic.util.omap surface.
+// OMap returns m's keys paired with their values, in the order TS `omap`
+// yields them. Mirrors the `omap` surface in src/util/basic.ts.
+//
+// See jsKeyOrder for why that is not simply sorted.
 func OMap(m map[string]any) [][2]any {
 	out := make([][2]any, 0, len(m))
-	for _, k := range sortedKeys(m) {
+	for _, k := range jsKeyOrder(m) {
 		out = append(out, [2]any{k, m[k]})
 	}
 	return out
 }
 
-func mergeOne(dst, src any) any {
-	if src == nil {
-		return dst
+// jsKeyOrder returns m's keys in the order a JavaScript object would
+// enumerate them after TS `omap` has rebuilt it: array-index-like keys
+// first in ascending numeric order, then the remaining keys sorted.
+//
+// TS `omap` sorts its entries before assigning them, so the string keys
+// come out sorted -- but assignment is to a plain object, and the JS
+// property order for integer-index keys is numeric and cannot be
+// overridden. So `{10:_, 2:_, 1:_}` enumerates 1, 2, 10 in TS, where a
+// plain lexicographic sort would give 1, 10, 2. Matching TS means
+// reproducing that split here.
+//
+// CMap does not need this (Go returns an unordered map, so no order is
+// observable), and VMap must not have it: TS `vmap` pushes to an array,
+// where the sort is the final word and integer keys get no special
+// treatment.
+func jsKeyOrder(m map[string]any) []string {
+	idx := []string{}
+	rest := []string{}
+
+	for k := range m {
+		if isArrayIndexKey(k) {
+			idx = append(idx, k)
+		} else {
+			rest = append(rest, k)
+		}
 	}
+
+	sort.Slice(idx, func(a, b int) bool {
+		x, _ := strconv.ParseUint(idx[a], 10, 64)
+		y, _ := strconv.ParseUint(idx[b], 10, 64)
+		return x < y
+	})
+	sort.Strings(rest)
+
+	return append(idx, rest...)
+}
+
+// isArrayIndexKey reports whether k is a canonical array index in the
+// JS sense: the decimal form of an integer in [0, 2^32-1), with no
+// leading zeros, no sign and no padding. "0" qualifies, "01" and "1.0"
+// and "-1" do not, which is exactly where JS stops applying numeric
+// property order.
+func isArrayIndexKey(k string) bool {
+	if "" == k || len(k) > 10 {
+		return false
+	}
+	if "0" == k {
+		return true
+	}
+	if '0' == k[0] {
+		return false
+	}
+	for i := 0; i < len(k); i++ {
+		if k[i] < '0' || '9' < k[i] {
+			return false
+		}
+	}
+	n, err := strconv.ParseUint(k, 10, 64)
+	return err == nil && n < (1<<32)-1
+}
+
+func mergeOne(dst, src any) any {
+	// No `src == nil` short-circuit: reaching here means src is a member
+	// of a map or slice, so nil is a real value and wins, as TS `null`
+	// does. Absent arguments are filtered by Deep before this is called.
 	if dst == nil {
 		return src
 	}
@@ -768,6 +976,32 @@ func mergeOne(dst, src any) any {
 		}
 		return out
 	}
+
+	// Slices merge index-by-index, they do not replace wholesale. TS
+	// `deep` reaches arrays through the same `for k in over` branch it
+	// uses for objects, so `[1,2,3] <- [9]` is `[9,2,3]` and the longer
+	// side sets the length. Only `[]any` is handled, which is the shape
+	// Deep is documented for; a typed slice takes the right-wins path
+	// below, as any other non-map value does.
+	ds, dsok := dst.([]any)
+	ss, ssok := src.([]any)
+	if dsok && ssok {
+		n := len(ds)
+		if len(ss) > n {
+			n = len(ss)
+		}
+		out := make([]any, n)
+		copy(out, ds)
+		for i, v := range ss {
+			if i < len(ds) {
+				out[i] = mergeOne(ds[i], v)
+			} else {
+				out[i] = v
+			}
+		}
+		return out
+	}
+
 	return src
 }
 
