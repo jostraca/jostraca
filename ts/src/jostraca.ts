@@ -8,8 +8,6 @@ import * as Fs from 'node:fs'
 
 import { AsyncLocalStorage } from 'node:async_hooks'
 
-import { util as JsonicUtil } from 'jsonic'
-
 import { Shape, Skip, One } from 'shape'
 
 import { memfs as MemFs } from 'memfs'
@@ -37,6 +35,8 @@ import {
   kebabify,
   cmap,
   vmap,
+  deep,
+  omap,
   names,
   template,
   escre,
@@ -52,10 +52,6 @@ import {
 
 import * as PointUtil from './util/point'
 import * as DiffUtil from './diff'
-
-// TODO: the actual signatures
-const deep: (...args: any[]) => any = JsonicUtil.deep
-const omap: (...args: any[]) => any = JsonicUtil.omap
 
 
 import { Content } from './cmp/Content'

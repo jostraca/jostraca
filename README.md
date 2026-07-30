@@ -270,6 +270,7 @@ import {
   indent,         // Indent text content
   cmp,            // Create custom components
   deep,           // Deep merge objects
+  omap,           // Map over object entries (sorted key order)
 } from 'jostraca'
 ```
 
