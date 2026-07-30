@@ -1,4 +1,4 @@
-.PHONY: all build test clean build-ts build-go test-ts test-go clean-ts clean-go publish-go tags-go reset coverage coverage-ts coverage-go mutation fuzz
+.PHONY: all build test clean build-ts build-go test-ts test-go clean-ts clean-go publish-go tags-go reset coverage coverage-ts coverage-go mutation fuzz perf perf-baseline perf-run
 
 all: build test
 
@@ -30,6 +30,35 @@ coverage-go:
 # decisions genuinely are not.
 mutation:
 	cd ts && npm run test-diff-mutation
+
+# Performance baselines over the shared workloads in
+# test/spec/perf/workloads.tsv. Both stacks run the same list; results are
+# compared as a ratio against an in-process calibration loop, so a
+# baseline recorded on one machine still means something on another.
+#
+# Deliberately not part of `make test`: it takes ~40s and wall-clock
+# numbers do not belong in a correctness gate.
+perf: perf-run
+	node tools/perf-check.js
+
+# Re-record the baseline. Do this on purpose, in its own commit, with the
+# reason in the message -- a baseline quietly rewritten alongside a change
+# cannot show whether that change cost anything.
+perf-baseline: perf-run
+	node tools/perf-check.js --write
+
+# Stale results are deleted first, not overwritten: if a harness fails to
+# run, perf-check must error on the missing file rather than silently
+# compare last time's numbers.
+#
+# -count=1 defeats Go's test cache. Without it a repeat run is reported as
+# cached, the test body never executes, and latest-go.tsv keeps whatever
+# it had.
+perf-run:
+	rm -f test/spec/perf/latest-ts.tsv test/spec/perf/latest-go.tsv
+	cd ts && npm run build
+	cd ts && node tools/bench.js
+	cd go && JOSTRACA_PERF=1 go test -count=1 -run TestPerfBaseline -v ./...
 
 # Fuzz the engines that take arbitrary user text. Seeds live in
 # go/testdata/fuzz and run as ordinary tests; this is the real thing.
