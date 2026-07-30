@@ -18,3 +18,7 @@ isbincontent-nul-middle	isbincontent	["ab\u0000cd"]	true
 isbincontent-nul-last	isbincontent	["abc\u0000"]	true	
 isbincontent-high-bytes-no-nul	isbincontent	["héllo"]	false	
 isbincontent-newlines	isbincontent	["a\nb\n"]	false	
+isbinext-ds-store-suffixed	isbinext	["foo.DS_Store"]	true	
+isbinext-ds-store-lower	isbinext	["foo.ds_store"]	true	
+isbinext-ds-store-in-path	isbinext	["a/b/foo.DS_Store"]	true	
+isbinext-dotfile-lower	isbinext	[".ds_store"]	false	

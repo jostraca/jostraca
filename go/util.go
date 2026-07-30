@@ -1006,7 +1006,14 @@ func mergeOne(dst, src any) any {
 }
 
 // binaryExts is the set of file extensions treated as binary by IsBinExt.
-// The list mirrors BINARY_EXT in src/util/basic.ts:716.
+// The list mirrors BINARY_EXT in src/util/basic.ts.
+//
+// Entries must be lowercase. Both implementations lowercase the extension
+// before looking it up, but only this one lowercases the list, so a
+// capitalised entry is silently unreachable on the TS side -- which is
+// exactly what happened to `DS_Store` until it was corrected in both. The
+// ToLower below keeps that from being a latent divergence again, but the
+// literals are the two lists' contract: keep them identical text.
 var binaryExts = func() map[string]struct{} {
 	raw := []string{
 		"3dm", "3ds", "3g2", "3gp", "7z", "a", "aac", "adp", "afdesign",
@@ -1015,7 +1022,7 @@ var binaryExts = func() map[string]struct{} {
 		"bin", "bk", "bmp", "btif", "bz2", "bzip2", "cab", "caf", "cgm",
 		"class", "cmx", "cpio", "cr2", "cur", "dat", "dcm", "deb", "dex",
 		"djvu", "dll", "dmg", "dng", "doc", "docm", "docx", "dot", "dotm",
-		"dra", "DS_Store", "dsk", "dts", "dtshd", "dvb", "dwg", "dxf",
+		"dra", "ds_store", "dsk", "dts", "dtshd", "dvb", "dwg", "dxf",
 		"ecelp4800", "ecelp7470", "ecelp9600", "egg", "eol", "eot", "epub",
 		"exe", "f4v", "fbs", "fh", "fla", "flac", "flatpak", "fli", "flv",
 		"fpx", "fst", "fvt", "g3", "gh", "gif", "graffle", "gz", "gzip",
