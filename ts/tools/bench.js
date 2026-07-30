@@ -60,7 +60,8 @@ function calibrate() {
 
 
 function loadWorkloads() {
-  const text = Fs.readFileSync(WORKLOADS, 'utf8')
+  // CRLF-normalised for the same reason as ts/test/spec.test.ts.
+  const text = Fs.readFileSync(WORKLOADS, 'utf8').replace(/\r\n/g, '\n')
   const out = []
   let header = false
 

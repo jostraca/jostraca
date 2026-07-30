@@ -12,9 +12,14 @@
 #
 # The .json entry keeps the committed parity corpora byte-stable, so the
 # regenerate-and-diff freshness gate compares like with like.
+# The .tsv entry is the shared spec corpus in test/spec. Both stacks parse
+# those files as tab-separated data, and a CRLF checkout puts a stray \r on
+# the last cell of every row — so the header reads "error\r" and all 273
+# cases fail before the first assertion runs.
 *.go   text eol=lf
 *.sh   text eol=lf
 *.json text eol=lf
+*.tsv  text eol=lf
 *.yml  text eol=lf
 *.ts   text eol=lf
 *.js   text eol=lf

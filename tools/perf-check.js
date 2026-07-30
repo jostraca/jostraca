@@ -35,7 +35,8 @@ function parse(path) {
     return null
   }
 
-  const rows = Fs.readFileSync(path, 'utf8').split('\n')
+  // CRLF-normalised for the same reason as ts/test/spec.test.ts.
+  const rows = Fs.readFileSync(path, 'utf8').replace(/\r\n/g, '\n').split('\n')
   const out = new Map()
 
   // Column positions come from the header, because the two file shapes

@@ -82,7 +82,13 @@ function loadCases() {
         throw new Error('no .tsv files found in ' + SPEC_DIR);
     }
     for (const file of files) {
-        const text = node_fs_1.default.readFileSync(node_path_1.default.join(SPEC_DIR, file), 'utf8');
+        // Corpus files are committed LF and .gitattributes keeps them that way,
+        // but normalise anyway: a clone made before that entry existed, or a
+        // zip download, still lands CRLF, and a stray \r on the last cell is a
+        // baffling failure to debug (`want "error", got "error\r"`). The Go
+        // runner does the same.
+        const text = node_fs_1.default.readFileSync(node_path_1.default.join(SPEC_DIR, file), 'utf8')
+            .replace(/\r\n/g, '\n');
         const rows = text.split('\n');
         let header = null;
         for (const [i, row] of rows.entries()) {

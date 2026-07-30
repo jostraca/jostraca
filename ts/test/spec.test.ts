@@ -65,7 +65,13 @@ function loadCases(): Case[] {
   }
 
   for (const file of files) {
+    // Corpus files are committed LF and .gitattributes keeps them that way,
+    // but normalise anyway: a clone made before that entry existed, or a
+    // zip download, still lands CRLF, and a stray \r on the last cell is a
+    // baffling failure to debug (`want "error", got "error\r"`). The Go
+    // runner does the same.
     const text = Fs.readFileSync(Path.join(SPEC_DIR, file), 'utf8')
+      .replace(/\r\n/g, '\n')
     const rows = text.split('\n')
     let header: string[] | null = null
 
