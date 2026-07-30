@@ -85,6 +85,25 @@ func perfCalibrate() uint32 {
 	return h
 }
 
+// perfAnchor measures the calibration loop once and returns ns/op.
+func perfAnchor(t *testing.T, when string) float64 {
+	t.Helper()
+
+	res := testing.Benchmark(func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			perfCalibrate()
+		}
+	})
+
+	ns := float64(res.NsPerOp())
+	if 0 >= ns {
+		t.Fatalf("calibration (%s) measured %v ns/op", when, ns)
+	}
+	t.Logf("calibration %s: %.0f ns/op", when, ns)
+
+	return ns
+}
+
 func TestPerfBaseline(t *testing.T) {
 	if "" == os.Getenv("JOSTRACA_PERF") {
 		t.Skip("set JOSTRACA_PERF=1 to run performance baselines (make perf)")
@@ -92,18 +111,20 @@ func TestPerfBaseline(t *testing.T) {
 
 	workloads := loadPerfWorkloads(t)
 
-	anchor := testing.Benchmark(func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			perfCalibrate()
-		}
-	})
-	anchorNs := float64(anchor.NsPerOp())
-	if 0 >= anchorNs {
-		t.Fatalf("calibration measured %v ns/op", anchorNs)
-	}
-	t.Logf("calibration: %.0f ns/op", anchorNs)
+	// The anchor is measured twice, before and after the workloads, and the
+	// lower reading wins.
+	//
+	// A single up-front measurement was wrong: `make perf` builds the TS
+	// package immediately before benchmarking, so the first thing measured
+	// runs on the busiest machine. That inflated the denominator relative to
+	// the workloads and pushed every ratio down together -- the anchor was
+	// adding variance instead of dividing it out. Taking the minimum of a
+	// reading at each end keeps one contaminated moment from setting the
+	// scale.
+	anchorNs := perfAnchor(t, "before")
 
 	rows := []string{"id\tstack\tns_per_op\tratio"}
+	measured := make([]float64, 0, len(workloads))
 
 	for _, w := range workloads {
 		fn, ok := specFns[w.fn]
@@ -123,7 +144,16 @@ func TestPerfBaseline(t *testing.T) {
 			}
 		})
 
-		ns := float64(res.NsPerOp())
+		measured = append(measured, float64(res.NsPerOp()))
+	}
+
+	if after := perfAnchor(t, "after"); after < anchorNs {
+		anchorNs = after
+	}
+	t.Logf("calibration: %.0f ns/op (lower of two)", anchorNs)
+
+	for i, w := range workloads {
+		ns := measured[i]
 		ratio := ns / anchorNs
 
 		rows = append(rows,
