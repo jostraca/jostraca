@@ -79,6 +79,11 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: '1.22'
+          # The module is in go/, not at the repo root, and an action does
+          # not inherit the job's working-directory — so setup-go looked for
+          # go.mod beside the checkout, found none, and warned "Restore cache
+          # failed" on every leg of the matrix. Point it at the real module.
+          cache-dependency-path: go/go.sum
 
       - run: go build ./...
       - run: go vet ./...
@@ -116,6 +121,11 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: '1.22'
+          # The module is in go/, not at the repo root, and an action does
+          # not inherit the job's working-directory — so setup-go looked for
+          # go.mod beside the checkout, found none, and warned "Restore cache
+          # failed" on every leg of the matrix. Point it at the real module.
+          cache-dependency-path: go/go.sum
 
       # Cross-compilation still earns its place next to the matrix above:
       # it catches build breakage on platforms without a runner, and it is
