@@ -93,9 +93,21 @@ so a case can never be silently ignored by one side.
   ranges (`memfs >=4`, `shape >=10`).
 - **`deep` and `omap` are inlined, not imported.** They used to be re-exports
   of `jsonic.util`; a parser dependency for two object helpers was not worth
-  it, so `src/util/basic.ts` carries them. `deep` is a verbatim port and must
-  stay one, `SKIP` sentinel included (resolved via `Symbol.for('tabnas.SKIP')`,
-  so a caller holding jsonic's own `SKIP` still works). `omap` deliberately
+  it, so `src/util/basic.ts` carries them. `deep` stays a faithful port —
+  `SKIP` sentinel included (resolved via `Symbol.for('tabnas.SKIP')`, so a
+  caller holding jsonic's own `SKIP` still works) — with ONE deliberate
+  correction: a value with a custom constructor (Date, RegExp, class
+  instance) replaces the value under the same key instead of being walked
+  into it. The rule was already documented and already applied when the base
+  value was a scalar; two objects took the walk branch, which copied the
+  enumerable properties of one custom instance into the other and so
+  discarded `over` entirely (a RegExp has none). That silently dropped index
+  0 of every caller-supplied `cmp.Copy.ignore` list, which is merged over a
+  default of `[/~$/]`. `go/util.go` `mergeOne` never had it, so this closed
+  a real TS↔Go divergence; both sides now pin it (`deep` in
+  `ts/test/utility.test.ts`, `TestDeepCustomTypeReplaces` in
+  `go/util_test.go`, and `copy-ignore` in `ts/test/jostraca.test.ts` for the
+  option that surfaced it). `omap` deliberately
   differs from the original: it visits entries in **sorted** key order, because
   a Go map has no insertion order for `go/util.go` `OMap` to reproduce. Sorting
   is the same convention `each`, `cmap`, `vmap` and `jsonify` already follow.

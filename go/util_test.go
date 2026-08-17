@@ -2,7 +2,9 @@ package jostraca
 
 import (
 	"reflect"
+	"regexp"
 	"testing"
+	"time"
 )
 
 // Phase 4 — Utilities. Cases ported from test/utility.test.ts where the
@@ -673,6 +675,63 @@ func TestDeepSliceNoAliasing(t *testing.T) {
 	}
 	if !reflect.DeepEqual(src, []any{9}) {
 		t.Errorf("Deep mutated src: %v", src)
+	}
+}
+
+// A value with a type of its own -- TS's "custom constructor": a Date, a
+// RegExp, a class instance -- REPLACES the one already there, whatever
+// sits under the same key in dst. mergeOne merges map[string]any and
+// []any and returns src for everything else, so this has always held here.
+//
+// It did not hold in TS, which is why it is now pinned on both sides.
+// `deep` applied the rule in its replace branch alone: two objects under
+// one key went down the WALK branch instead, which copies the enumerable
+// properties of one into the other, and a RegExp has none -- so src was
+// silently discarded and dst survived. That cost `cmp.Copy.ignore` the
+// first pattern of every caller-supplied list, which is merged over a
+// default of [/~$/]. TS is corrected; this is the parity anchor.
+func TestDeepCustomTypeReplaces(t *testing.T) {
+	dstRE := regexp.MustCompile(`a`)
+	srcRE := regexp.MustCompile(`b`)
+
+	got := Deep(
+		map[string]any{"a": dstRE},
+		map[string]any{"a": srcRE},
+	).(map[string]any)
+	if got["a"] != srcRE {
+		t.Errorf("Deep kept dst regexp: got %v, want %v", got["a"], srcRE)
+	}
+
+	// Element-wise, which is the shape an ignore list is merged in -- and
+	// element 0 is the one TS used to lose.
+	gotList := Deep(
+		map[string]any{"ignore": []any{dstRE, dstRE}},
+		map[string]any{"ignore": []any{srcRE}},
+	).(map[string]any)["ignore"].([]any)
+	if gotList[0] != srcRE || gotList[1] != dstRE {
+		t.Errorf("Deep merged ignore list wrong: got %v", gotList)
+	}
+
+	// A struct, the nearest thing to a class instance: replaced whole
+	// rather than field by field, so never a hybrid of the two.
+	type holder struct{ X, Y int }
+	gotStruct := Deep(
+		map[string]any{"a": holder{X: 1, Y: 2}},
+		map[string]any{"a": holder{X: 9}},
+	)
+	if !reflect.DeepEqual(gotStruct, map[string]any{"a": holder{X: 9}}) {
+		t.Errorf("Deep merged struct fields: got %v", gotStruct)
+	}
+
+	// A time.Time, the direct analogue of TS's Date.
+	early := time.Unix(0, 0)
+	late := time.Unix(1, 0)
+	gotTime := Deep(
+		map[string]any{"a": early},
+		map[string]any{"a": late},
+	)
+	if !reflect.DeepEqual(gotTime, map[string]any{"a": late}) {
+		t.Errorf("Deep kept dst time: got %v", gotTime)
 	}
 }
 

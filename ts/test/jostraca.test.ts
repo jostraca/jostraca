@@ -239,6 +239,62 @@ describe('jostraca', () => {
   })
 
 
+  // `cmp.Copy.ignore` — the caller's own ignore list, matched against the
+  // bare NAME of every entry, directories included.
+  //
+  // EVERY PATTERN IN THE LIST APPLIES, which is what this is really pinning.
+  // The list is merged over jostraca's own default of `[/~$/]` by `deep`,
+  // which used to walk INTO index 0 (two RegExps are both objects) and copy
+  // the enumerable properties of one into the other — of which a RegExp has
+  // none. So index 0 was discarded and the default silently reinstated: the
+  // first pattern a caller passed never matched anything. sdkgen lost
+  // `.DS_Store` that way, and worked around it by leading its list with a
+  // duplicate `/~$/`.
+  test('copy-ignore', async () => {
+    let nowI = 0
+    const now = () => START_TIME + (++nowI * (60 * 1000))
+
+    const { fs, vol } = memfs({
+      '/tm/keep.txt': 'KEEP\n',
+      '/tm/.DS_Store': 'FINDER\n',
+      '/tm/backup.txt~': 'BACKUP\n',
+      '/tm/__pycache__/mod.pyc': 'COMPILED\n',
+      '/tm/sub/keep.txt': 'SUB-KEEP\n',
+      '/tm/sub/.DS_Store': 'FINDER\n',
+    })
+
+    const jostraca = Jostraca({ now })
+
+    const info = await jostraca.generate(
+      {
+        fs: () => fs, folder: '/top',
+        // `.DS_Store` FIRST, deliberately: that is the position the merge
+        // used to eat.
+        cmp: { Copy: { ignore: [/^\.DS_Store$/, /^__pycache__$/] } },
+      },
+      cmp(() => {
+        Project({ folder: 'sdk' }, () => {
+          Copy({ from: '/tm' })
+        })
+      })
+    )
+
+    expect(info.files.written).equal([
+      '/top/sdk/keep.txt',
+      '/top/sdk/sub/keep.txt',
+    ])
+
+    const voljson: any = vol.toJSON()
+    const copied = Object.keys(voljson)
+      .filter((p: string) => p.startsWith('/top/sdk/'))
+      .sort()
+
+    // Naming a directory prunes its whole subtree, and the built-in `~`
+    // rule still applies alongside the caller's list.
+    expect(copied).equal(['/top/sdk/keep.txt', '/top/sdk/sub/keep.txt'])
+  })
+
+
   test('fragment-basic', async () => {
     let nowI = 0
     const now = () => START_TIME + (++nowI * (60 * 1000))

@@ -623,15 +623,50 @@ vmap.KEY = (_, p) => p.key;
 // the identical symbol and the identical behaviour it had when `deep` was
 // imported from there.
 const SKIP = Symbol.for('tabnas.SKIP');
+// Does this object carry a CUSTOM constructor — Date, RegExp, Map, a class
+// instance — as opposed to being a plain object or array?
+//
+// `deep` asks this in both of its branches, and they have to agree. It used
+// to be spelled out in the replace branch only, which is exactly how the two
+// came to disagree (see below). An object with no constructor at all
+// (`Object.create(null)`) is PLAIN: it is a bag of keys and nothing else,
+// which is what the merge is for.
+function iscustom(over) {
+    const over_ctor = over.constructor;
+    return 'function' === typeof over_ctor &&
+        'Object' !== over_ctor.name &&
+        'Array' !== over_ctor.name;
+}
 // Deep merge objects and arrays, right-most wins (opinionated mutation of
 // the first argument!). `undefined` and SKIP values are ignored, plain
 // objects and arrays merge key-by-key, and anything with a custom
 // constructor (Date, RegExp, class instances) is taken by reference
 // rather than walked.
 //
-// Ported verbatim from `jsonic`'s `util.deep`, which is where this used to
-// come from. Two object helpers do not justify a parser dependency, and
-// the Go port already carries its own copy at go/util.go `Deep`.
+// Ported from `jsonic`'s `util.deep`, which is where this used to come from.
+// Two object helpers do not justify a parser dependency, and the Go port
+// carries its own copy at go/util.go `Deep`.
+//
+// IT IS NO LONGER VERBATIM. The by-reference rule above was applied by the
+// replace branch alone, so whether a Date or a RegExp replaced or was
+// silently DISCARDED depended on what sat under the same key in `base`:
+//
+//   deep({a: 1},    {a: /x/})  ->  {a: /x/}    replace branch, correct
+//   deep({a: /y/},  {a: /x/})  ->  {a: /y/}    merge branch, over lost
+//
+// The second recursed into two RegExps — both are objects, neither is an
+// array — and merged the enumerable properties of one into the other. A
+// RegExp has none, so nothing was copied and `base` survived untouched. A
+// Date behaves the same way, and a class instance has whatever its fields
+// happen to be, which is worse: a half-merged hybrid of two instances.
+//
+// Found from `Copy`'s `cmp.Copy.ignore` option, which is merged over a
+// default of `[/~$/]`: index 0 of every caller-supplied ignore list was
+// dropped and replaced by the default, so the first pattern anyone passed
+// simply did not apply. `go/util.go` `mergeOne` merges `map[string]any` and
+// `[]any` and returns `src` for everything else, so the Go port never had
+// this — the port pre-empted it, and per CLAUDE.md TS is still the side to
+// correct.
 //
 // Key order matches the original: keys already in `base` keep their
 // position and new keys from `over` append in `over`'s enumeration order.
@@ -643,10 +678,10 @@ function deep(base, ...rest) {
     for (const over of rest) {
         const over_isf = 'function' === typeof over;
         const over_iso = null != over && ('object' === typeof over || over_isf);
-        let over_ctor;
         if (base_iso &&
             over_iso &&
             !over_isf &&
+            !iscustom(over) &&
             Array.isArray(base) === Array.isArray(over)) {
             for (const k in over) {
                 base[k] = deep(base[k], over[k]);
@@ -659,9 +694,7 @@ function deep(base, ...rest) {
                     : over_isf
                         ? over
                         : over_iso
-                            ? 'function' === typeof (over_ctor = over.constructor) &&
-                                'Object' !== over_ctor.name &&
-                                'Array' !== over_ctor.name
+                            ? iscustom(over)
                                 ? over
                                 : deep(Array.isArray(over) ? [] : {}, over)
                             : over;

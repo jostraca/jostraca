@@ -275,7 +275,12 @@ with these intentional ergonomic differences:
   Merge semantics themselves match, nil/null included: a nil *argument*
   is skipped (TS `undefined`), while a nil map value or slice element
   overwrites (TS `null`). Only `[]any` merges index-by-index — a typed
-  slice such as `[]string` takes the right-wins path.
+  slice such as `[]string` takes the right-wins path, as does any other
+  value carrying a type of its own (`*regexp.Regexp`, `time.Time`, a
+  struct), which is TS's "custom constructor" rule. TS applied that rule
+  in only one of its two branches until it was corrected — see the note
+  on `deep` in `ts/src/util/basic.ts`; `TestDeepCustomTypeReplaces` is
+  the anchor on this side.
 - A template value that is an integer wider than 2^53 keeps its exact
   value in Go and loses precision in TS, whose numbers are all
   `float64`. Everything a `float64` can hold exactly formats

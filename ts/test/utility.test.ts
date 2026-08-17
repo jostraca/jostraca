@@ -398,6 +398,38 @@ describe('util', () => {
     const when = new Date(0)
     expect(deep({ a: 1 }, { a: when }).a).equal(when)
 
+    // AND THAT HOLDS WHATEVER SITS UNDER THE SAME KEY IN `base`. It used to
+    // hold only where the base value was a scalar: two objects sent the
+    // merge down its WALK branch instead, which copies the enumerable
+    // properties of one custom instance into the other. A Date and a RegExp
+    // have none, so nothing was copied and `over` was silently discarded.
+    //
+    // `Copy`'s `cmp.Copy.ignore` is merged over a default of `[/~$/]`, so
+    // this cost every caller the FIRST pattern of their ignore list.
+    const later = new Date(1)
+    expect(deep({ a: when }, { a: later }).a).equal(later)
+
+    const re = /b/
+    expect(deep({ a: /a/ }, { a: re }).a).equal(re)
+
+    // Element-wise, which is the shape the ignore lists are merged in.
+    expect(deep({ a: [/a/, /b/] }, { a: [/x/] }).a).equal([/x/, /b/])
+
+    // A class instance replaces whole rather than merging field by field
+    // into the instance already there, which produced a hybrid of the two
+    // belonging to neither.
+    class Holder {
+      constructor(public x: number, public y?: number) { }
+    }
+    expect(deep({ a: new Holder(1, 2) }, { a: new Holder(9) }).a)
+      .equal(new Holder(9))
+
+    // Plain by any other name: a null-prototype object has no constructor
+    // at all, and is a bag of keys like any other.
+    const bare = Object.create(null)
+    bare.y = 2
+    expect(deep({ a: { x: 1 } }, { a: bare }).a).equal({ x: 1, y: 2 })
+
     // Mutates the first argument, as it always has.
     const base: any = { a: 1 }
     expect(deep(base, { b: 2 })).equal(base)

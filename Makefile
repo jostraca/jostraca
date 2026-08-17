@@ -1,4 +1,4 @@
-.PHONY: all build test clean build-ts build-go test-ts test-go clean-ts clean-go publish-go tags-go reset coverage coverage-ts coverage-go mutation fuzz perf perf-baseline perf-run
+.PHONY: all build test clean build-ts build-go test-ts test-go clean-ts clean-go publish publish-ts publish-go tags tags-ts tags-go reset coverage coverage-ts coverage-go mutation fuzz perf perf-baseline perf-run
 
 all: build test
 
@@ -83,15 +83,82 @@ test-go:
 clean-go:
 	cd go && go clean
 
-# Publish Go module: make publish-go V=0.1.7
-publish-go: test-go
-	@test -n "$(V)" || (echo "Usage: make publish-go V=x.y.z" && exit 1)
+# Release
+#
+# The two stacks tag in separate namespaces -- `v$(V)` is the npm/TS release,
+# `go/v$(V)` is what the Go module proxy serves -- so one version number can
+# carry both without the tags colliding.
+#
+#   make publish    V=0.32.0   both stacks, from one commit
+#   make publish-ts V=0.32.0   npm only
+#   make publish-go V=0.1.7    Go module only
+#
+# publish-ts/publish-go exist for when the streams have to move apart (a
+# port-only fix, an npm-only republish). Reach for plain `publish` otherwise:
+# TS is canonical and Go is kept at parity, so a shared version number is the
+# honest description of a release that changed both.
+#
+# Order matters. Everything local -- build, test, bump, commit, tag -- happens
+# before the first irreversible step, and `npm publish` (which can never be
+# taken back) runs before the push, so a registry failure leaves nothing on
+# the remote to unwind. Publishing the Go module IS the push, so it lands last.
+
+# dist/ and dist-test/ are committed, so the release commit carries the build
+# that was just tested rather than leaving the tag pointing at stale output.
+TS_RELEASE_FILES = ts/package.json ts/dist ts/dist-test
+
+# sed against a hand-written const is fragile by nature: if the declaration in
+# jostraca.go is ever reformatted the substitution silently does nothing and
+# the tag ships the previous version. Check the result rather than trust it.
+define bump-go
 	sed -i '' 's/^const Version = ".*"/const Version = "$(V)"/' go/jostraca.go
+	@grep -q '^const Version = "$(V)"$$' go/jostraca.go \
+	  || (echo "go/jostraca.go: version bump to $(V) failed" && exit 1)
+endef
+
+# --no-git-tag-version: npm must not commit or tag, the Makefile owns that.
+define bump-ts
+	cd ts && npm version $(V) --no-git-tag-version --allow-same-version
+endef
+
+publish: check-version build test
+	$(bump-ts)
+	$(bump-go)
+	git add $(TS_RELEASE_FILES) go/jostraca.go
+	git commit -m "release v$(V)"
+	git tag v$(V)
+	git tag go/v$(V)
+	cd ts && npm publish --registry https://registry.npmjs.org --access=public
+	git push origin master v$(V) go/v$(V)
+	if command -v gh >/dev/null 2>&1; then gh release create go/v$(V) --title "go/v$(V)" --notes "Go module release v$(V)"; fi
+
+publish-ts: check-version build-ts test-ts
+	$(bump-ts)
+	git add $(TS_RELEASE_FILES)
+	git commit -m "ts: v$(V)"
+	git tag v$(V)
+	cd ts && npm publish --registry https://registry.npmjs.org --access=public
+	git push origin master v$(V)
+
+publish-go: check-version test-go
+	$(bump-go)
 	git add go/jostraca.go
 	git commit -m "go: v$(V)"
 	git tag go/v$(V)
 	git push origin master go/v$(V)
 	if command -v gh >/dev/null 2>&1; then gh release create go/v$(V) --title "go/v$(V)" --notes "Go module release v$(V)"; fi
+
+# A malformed V would otherwise reach the registry and the tag namespace
+# before anything complained.
+check-version:
+	@test -n "$(V)" || (echo "Usage: make $(MAKECMDGOALS) V=x.y.z" && exit 1)
+	@echo "$(V)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)*$$' \
+	  || (echo "V=$(V) is not a x.y.z version" && exit 1)
+
+tags: tags-ts tags-go
+
+tags-ts:
+	git tag -l 'v*' --sort=-version:refname
 
 tags-go:
 	git tag -l 'go/v*' --sort=-version:refname
