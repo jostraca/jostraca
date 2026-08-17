@@ -89,9 +89,10 @@ clean-go:
 # `go/v$(V)` is what the Go module proxy serves -- so one version number can
 # carry both without the tags colliding.
 #
-#   make publish    V=0.32.0   both stacks, from one commit
-#   make publish-ts V=0.32.0   npm only
-#   make publish-go V=0.1.7    Go module only
+#   make publish               both stacks, patch bump from the current version
+#   make publish    V=0.33.0   both stacks, explicit version
+#   make publish-ts            npm only, patch bump
+#   make publish-go            Go module only, patch bump
 #
 # publish-ts/publish-go exist for when the streams have to move apart (a
 # port-only fix, an npm-only republish). Reach for plain `publish` otherwise:
@@ -111,6 +112,31 @@ clean-go:
 # commit, tag -- still runs before the push, and a failed npm workflow has
 # published nothing, so the recovery is to fix the tree, delete the tag on both
 # ends, and cut it again.
+
+# A release is a patch bump unless told otherwise, so the ordinary case is a
+# bare `make publish`. An explicit V=x.y.z still wins: a command-line variable
+# overrides everything, which is also why the default is guarded on `origin`
+# rather than `?=` -- `make publish V=` must stay an error for check-version to
+# catch, not silently become a patch bump.
+#
+# A joint release numbers itself from package.json because TS is canonical.
+# publish-go on its own reads go/jostraca.go instead: the single-stack targets
+# exist precisely so the two streams can drift apart, and each should bump from
+# where it actually is rather than from where the other one got to.
+#
+# Both are computed only for the targets that need them. Otherwise every
+# `make test` would pay a node startup to answer a question it never asks.
+next-patch = $(shell echo $(1) | awk -F. '{printf "%d.%d.%d", $$1, $$2, $$3+1}')
+ts-version = $(shell node -p "require('./ts/package.json').version")
+go-version = $(shell sed -n 's/^const Version = "\(.*\)"/\1/p' go/jostraca.go)
+
+ifeq ($(origin V),undefined)
+ifneq (,$(filter publish publish-ts,$(MAKECMDGOALS)))
+V := $(call next-patch,$(ts-version))
+else ifneq (,$(filter publish-go,$(MAKECMDGOALS)))
+V := $(call next-patch,$(go-version))
+endif
+endif
 
 # dist/ and dist-test/ are committed, so the release commit carries the build
 # that was just tested rather than leaving the tag pointing at stale output.
