@@ -1,0 +1,69 @@
+name: Publish npm
+
+# Trusted publishing (OIDC). npm exchanges a GitHub-issued OIDC token for a
+# short-lived publish credential, so there is no npm token in this repo's
+# secrets and none on a developer's machine.
+#
+# The trust is pinned on npmjs.com to the triple
+# (org `jostraca`, repo `jostraca`, workflow `publish-npm.yml`). npm matches on
+# the workflow *filename*, so renaming this file silently breaks publishing
+# until the npm-side setting is changed to match.
+#
+# `v*` is the npm/TS tag namespace. The Go module tags as `go/v*` and is served
+# straight from the tag by the module proxy, so it must never reach this
+# workflow -- a `*` glob does not cross `/`, so `go/v0.1.7` cannot match here.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  id-token: write # mint the OIDC token npm exchanges; without it npm falls back to token auth and fails
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    # The npm package root is ts/, not the repo root.
+    defaults:
+      run:
+        working-directory: ts
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+
+      # Trusted publishing needs npm >= 11.5.1. Node 24 bundles a new enough npm
+      # today, but the bundled version travels with the runner image; pinning the
+      # floor here means a runner refresh cannot quietly drop OIDC support.
+      - name: Ensure npm is new enough for trusted publishing
+        run: npm install -g npm@latest
+
+      # `make publish` bumps package.json and cuts the tag in the same commit, so
+      # these agree unless a tag was made by hand. Catching a mismatch here costs
+      # a second; catching it after the publish costs a version number, since npm
+      # will not let one be reused.
+      - name: Tag matches package.json version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(node -p "require('./package.json').version")
+          test "$TAG" = "$PKG" || { echo "tag v$TAG != package.json $PKG"; exit 1; }
+
+      # No package-lock.json is committed (.gitignore drops it), so `npm ci` has
+      # nothing to read and `npm install` is the only option.
+      - run: npm install
+
+      - run: npm run build
+
+      - run: npm test
+
+      # No NODE_AUTH_TOKEN: the npm CLI finds the OIDC token itself. Provenance
+      # attestations are generated automatically on a trusted-publisher publish,
+      # so `--provenance` is not needed either.
+      - run: npm publish

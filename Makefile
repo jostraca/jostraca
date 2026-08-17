@@ -98,10 +98,19 @@ clean-go:
 # TS is canonical and Go is kept at parity, so a shared version number is the
 # honest description of a release that changed both.
 #
-# Order matters. Everything local -- build, test, bump, commit, tag -- happens
-# before the first irreversible step, and `npm publish` (which can never be
-# taken back) runs before the push, so a registry failure leaves nothing on
-# the remote to unwind. Publishing the Go module IS the push, so it lands last.
+# Neither stack is published from here any more. npm is published by the
+# `.github/workflows/publish-npm.yml` workflow, which fires on the `v$(V)` tag
+# and authenticates to the registry over OIDC (npm trusted publishing) -- there
+# is no npm token on this machine to leak. The Go module has always published
+# by tag alone, via the module proxy.
+#
+# So the push IS the release, for both stacks, and it has to land last. That
+# inverts the old ordering guarantee: an irreversible step can no longer be
+# held back until everything local has succeeded. What is left is that
+# everything which can fail cheaply -- version check, build, test, bump,
+# commit, tag -- still runs before the push, and a failed npm workflow has
+# published nothing, so the recovery is to fix the tree, delete the tag on both
+# ends, and cut it again.
 
 # dist/ and dist-test/ are committed, so the release commit carries the build
 # that was just tested rather than leaving the tag pointing at stale output.
@@ -128,7 +137,6 @@ publish: check-version build test
 	git commit -m "release v$(V)"
 	git tag v$(V)
 	git tag go/v$(V)
-	cd ts && npm publish --registry https://registry.npmjs.org --access=public
 	git push origin master v$(V) go/v$(V)
 	if command -v gh >/dev/null 2>&1; then gh release create go/v$(V) --title "go/v$(V)" --notes "Go module release v$(V)"; fi
 
@@ -137,7 +145,6 @@ publish-ts: check-version build-ts test-ts
 	git add $(TS_RELEASE_FILES)
 	git commit -m "ts: v$(V)"
 	git tag v$(V)
-	cd ts && npm publish --registry https://registry.npmjs.org --access=public
 	git push origin master v$(V)
 
 publish-go: check-version test-go
