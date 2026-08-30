@@ -158,6 +158,12 @@ scenario directive or the end of the page. Every run, input and
 assertion below it shares that directory, which is how "now regenerate
 over the edited file" recipes are modelled.
 
+Add `posix` after the name — `scenario first-tree posix` — for a
+scenario Windows cannot produce, and the whole scenario is skipped
+there. Use it only where the platform is the reason: a POSIX file mode
+is one, because fs.chmod on Windows toggles the read-only attribute and
+nothing else. It is not a way to avoid fixing an example.
+
 <!-- test: input tpl/header.txt -->
 The next fence is written to <scenario-dir>/tpl/header.txt before the
 next run. Re-declaring a path overwrites it — that is how a page

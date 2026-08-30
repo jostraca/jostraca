@@ -9,7 +9,7 @@ order: 30
 A generated shell script that is not executable is a bug report waiting
 to happen. Pass `mode` to `File`:
 
-<!-- test: scenario files-mode -->
+<!-- test: scenario files-mode posix -->
 
 <!-- test: run -->
 ```js

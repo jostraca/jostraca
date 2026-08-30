@@ -83,6 +83,11 @@ const DIST = (0, node_url_1.pathToFileURL)(Path.join(REPO, 'ts', 'dist', 'jostra
 // Windows runner never trips it and tight enough that a hung example is
 // reported rather than waited on.
 const RUN_TIMEOUT_MS = 60_000;
+// DOCS_PLATFORM overrides the platform check, so the Windows branch of the
+// `posix` scenario modifier can be exercised on any runner. Without it the
+// only proof that branch works is a red Windows job, which is how it was
+// found in the first place.
+const WINDOWS = 'win32' === (process.env.DOCS_PLATFORM || process.platform);
 // The how-to group taxonomy. A guide declaring a group not listed here
 // fails; the site repository renders the same slugs, so an addition is
 // two edits and both are visible.
@@ -176,7 +181,17 @@ function extract(file, md) {
             if ('scenario' === verb) {
                 Assert.ok('' !== arg, `${file}:${i + 1} scenario needs a name`);
                 Assert.ok(null == pending, `${file}:${i + 1} directive \`${pending?.verb}\` has no fence`);
-                items.push({ kind: 'scenario', name: arg, line: i + 1 });
+                // `scenario <name> posix` — the whole scenario is skipped on
+                // Windows. For the cases where the platform genuinely cannot
+                // produce the output the page shows: a POSIX mode is the one
+                // that matters here, since fs.chmod on Windows toggles the
+                // read-only attribute and nothing else. The repository's own
+                // suites gate the same tests the same way.
+                const parts = arg.split(/\s+/);
+                const posix = parts.includes('posix');
+                const name = parts.filter((p) => 'posix' !== p).join(' ');
+                Assert.ok('' !== name, `${file}:${i + 1} scenario needs a name`);
+                items.push({ kind: 'scenario', name, posix, line: i + 1 });
                 continue;
             }
             Assert.ok(VERBS.includes(verb), `${file}:${i + 1} unknown directive verb \`${verb}\` ` +
@@ -364,12 +379,14 @@ function rewriteSpecifier(source, url) {
         let scenarios = 0;
         let runs = 0;
         let assertions = 0;
+        let skipped = 0;
         for (const page of pages()) {
             let dir = null;
             let name = '';
             let runIndex = 0;
             let stdout = '';
             let ran = false;
+            let skipping = false;
             const open = (label) => {
                 if (null != dir) {
                     Fs.rmSync(dir, { recursive: true, force: true });
@@ -391,7 +408,15 @@ function rewriteSpecifier(source, url) {
             try {
                 for (const item of page.items) {
                     if ('scenario' === item.kind) {
+                        skipping = item.posix && WINDOWS;
+                        if (skipping) {
+                            skipped++;
+                            continue;
+                        }
                         open(item.name);
+                        continue;
+                    }
+                    if (skipping) {
                         continue;
                     }
                     const b = item.block;
@@ -480,9 +505,9 @@ function rewriteSpecifier(source, url) {
         // Vacuity guards. A refactor that silently stopped extracting
         // blocks would otherwise pass with flying colours.
         if (undefined === narrowed()) {
-            Assert.ok(12 <= scenarios, `too few scenarios extracted: ${scenarios}`);
-            Assert.ok(20 <= runs, `too few runs executed: ${runs}`);
-            Assert.ok(20 <= assertions, `too few output assertions: ${assertions}`);
+            Assert.ok(12 <= scenarios + skipped, `too few scenarios extracted: ${scenarios} (+${skipped} skipped)`);
+            Assert.ok(20 <= runs + skipped, `too few runs executed: ${runs}`);
+            Assert.ok(20 <= assertions + skipped, `too few output assertions: ${assertions}`);
         }
     });
     // Layer 3: every tagged fence is covered or owns its skip.
