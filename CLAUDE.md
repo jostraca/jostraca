@@ -10,7 +10,7 @@ When changing behaviour:
 
 1. **Make the change in TypeScript first** — `ts/src/`, with tests in `ts/test/`.
 2. **Then bring the Go port into parity** — `go/`, with matching tests.
-3. Keep the Go parity notes (`go/REFERENCE.md`, `go/PORT_PLAN.md`,
+3. Keep the Go parity notes (`docs/reference-go.md`, `go/PORT_PLAN.md`,
    `go/README.md` "Deviations from the TypeScript original") accurate when
    behaviour shifts.
 

@@ -55,6 +55,12 @@ Three differences to expect coming from TypeScript:
   TypeScript default: `EachSpec.Raw`, `ListProps.NoLine` and
   `Control.NoDuplicate`.
 
+Two options do not do what their names promise. `WithMem()` and
+`WithVol()` are inert, so a generator configured with them writes real
+files; the in-memory route is `WithFS(NewMemFS())`. And a per-call
+`Cmp` is dropped by the option merge, so `cmp.Copy.ignore` has to be
+set on `New`. Both are in the [Go reference](../reference-go.md#options).
+
 Concurrent `Generate` calls are isolated — the builder state hangs off
 the `*J` the callback receives rather than off a process-global — so
 two generates can run at once without seeing each other's trees. That

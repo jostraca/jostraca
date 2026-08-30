@@ -83,6 +83,14 @@ Three rules about the pairing, because they are not symmetrical:
 
 `memfs` is a peer dependency, and npm installs it for you.
 
+**This page is TypeScript only.** The Go port's `WithMem()` and
+`WithVol()` are inert: a generator configured with them runs against the
+real filesystem and returns a result whose `Vol` and `FS` are `nil`,
+with no error. Use `WithFS(NewMemFS())` instead, and seed it by writing
+into the provider before generating. The [Go
+reference](../reference-go.md#withmem-and-withvol-do-nothing) shows
+both.
+
 ## See also
 
 - [Test a generator](test-a-generator.md) for the pattern this enables.
