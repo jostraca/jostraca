@@ -2,7 +2,7 @@
 
 How the Jostraca documentation is written. This guide is normative for
 `docs/*.md`, `docs/how-to/*.md`, the package READMEs, and the prose on
-[jostraca.dev](https://jostraca.dev) (whose authored pages cite this file
+[jostraca.org](https://jostraca.org) (whose authored pages cite this file
 from `jostraca/web`'s AGENTS.md). It exists so that a page written next
 year sounds like a page written this year, and so that a reviewer can
 point at a rule instead of arguing taste.

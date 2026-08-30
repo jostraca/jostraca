@@ -53,7 +53,7 @@ Run it and `out/acme/` holds `package.json` and `src/index.js`, with
 
 The documentation set lives in
 [`docs/`](https://github.com/jostraca/jostraca/tree/master/docs) at the
-repository root, and is rendered at [jostraca.dev](https://jostraca.dev). It
+repository root, and is rendered at [jostraca.org](https://jostraca.org). It
 follows [Diátaxis](https://diataxis.fr):
 
 - **[Tutorial](https://github.com/jostraca/jostraca/blob/master/docs/tutorial.md)**

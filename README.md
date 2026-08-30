@@ -60,7 +60,7 @@ temp directory and compares the tree it wrote, so a page cannot drift from
 the code without failing the build. How the pages are written is in
 [`docs/STYLE-GUIDE.md`](./docs/STYLE-GUIDE.md).
 
-The same set is rendered at [jostraca.dev](https://jostraca.dev), which
+The same set is rendered at [jostraca.org](https://jostraca.org), which
 holds no second copy: the site syncs these files.
 
 ## Repository layout

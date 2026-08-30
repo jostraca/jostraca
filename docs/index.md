@@ -83,5 +83,5 @@ See [generate in memory](how-to/generate-in-memory.md).
   built and what it decided.
 
 If a page here is wrong, it is wrong in this repository. Fix it here;
-[jostraca.dev](https://jostraca.dev) renders these files rather than
+[jostraca.org](https://jostraca.org) renders these files rather than
 holding a second copy of them.
