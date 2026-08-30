@@ -133,7 +133,8 @@ j.Folder("static", func(j *jostraca.J) {
 ```
 
 Binary files (extension-detected via `IsBinExt`) pass through untouched.
-The default ignore pattern is `~$` (editor backup files); add more via
+The default ignore pattern is `(~|-jostraca-off)$` (editor backup files,
+and anything switched off by suffix); add more via
 `Options.Cmp.Copy.Ignore`.
 
 ### Regenerate without clobbering hand edits
@@ -206,8 +207,11 @@ j.File("models.go", func(j *jostraca.J) {
 
 *Information-oriented. Look things up here.*
 
-The complete API reference is **[REFERENCE.md](./REFERENCE.md)**; the Go
-shapes mirror the TypeScript reference function-for-function.
+The complete API reference is
+**[`docs/reference-go.md`](../docs/reference-go.md)**, alongside the
+component, options and utilities references it links. The Go shapes mirror
+the TypeScript ones function for function, and the deviations below are
+stated there in full.
 
 ### `Generate` result
 
@@ -315,9 +319,24 @@ same logical input:
   semantics; the TS default (duplicate baselines on) is Go's zero value.
 - RE2 (Go's `regexp`) has no lookbehind; user-supplied regex keys
   containing `(?<=...)` etc. are rejected at compile time.
-- `Indent` uses `strings.ReplaceAll` (no JS lookbehind needed).
+- `Indent` walks the string with a `strings.Builder` rather than using a
+  lookbehind, which RE2 does not have. (This bullet used to say
+  `strings.ReplaceAll`; the function's own godoc has said "a manual walk"
+  for longer than that claim was true.)
 - The `Point*` orchestration utility is not ported (deferred to a future
   sub-package).
+- **`Options.Mem` and `Options.Vol` are inert.** Nothing constructs a
+  `MemFS` from them, so `WithMem()` runs against the real filesystem and
+  returns a `Result` whose `Vol` and `FS` are `nil`, with no error. The
+  in-memory route is `WithFS(NewMemFS())`, seeded by writing into the
+  provider before `Generate`. In TypeScript `{mem: true}` is the documented
+  harness and `vol` seeds it, so a test translated across by keeping those
+  two options passes while writing to the working directory.
+- **`mergeOptions` drops per-call `Cmp` and `Name`.** It copies `Folder`,
+  `Meta`, `FS`, `Now`, `Log`, `Debug`, `Model`, `Build`, `Mem`, `Vol`,
+  `Existing`, `Control` and `Exclude`, and there is no `WithCmp`, so the
+  only route to `Options.Cmp.Copy.Ignore` is a hand-written option closure
+  passed to `New`. TypeScript has no equivalent hole.
 - `J.Cmp` runs its body inline without allocating a node, where TS's
   `cmp()` allocates one and routes it through the Fragment filter. A user
   component used as a direct Fragment child is therefore a non-`Slot` child

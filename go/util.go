@@ -712,9 +712,6 @@ func Humanify(when int64, flags HumanifyFlags) any {
 	return n
 }
 
-// IsBinExt reports whether the path's extension is in the curated list
-// of binary file extensions. Case-insensitive. Mirrors
-// src/util/basic.ts:716-721.
 // IsBinContent reports whether the bytes look binary, judged by a NUL in
 // the first 8 KB — the same heuristic git and file(1) use.
 //
@@ -739,6 +736,9 @@ func IsBinContent(content []byte) bool {
 	return bytes.IndexByte(content[:n], 0) >= 0
 }
 
+// IsBinExt reports whether the path's extension is in the curated list
+// of binary file extensions. Case-insensitive. Mirrors
+// src/util/basic.ts:716-721.
 func IsBinExt(path string) bool {
 	ext := strings.TrimPrefix(strings.ToLower(nodeExt(path)), ".")
 	if ext == "" {

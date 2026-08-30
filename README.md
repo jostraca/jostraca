@@ -37,23 +37,31 @@ documented behaviour means the same thing in either language.
 
 ## Documentation
 
-This project's documentation follows the [Diátaxis](https://diataxis.fr)
-framework — four distinct kinds of material, each answering a different
-need. Start with the one that matches what you're trying to do:
+The documentation set lives in [`docs/`](./docs/) and follows the
+[Diátaxis](https://diataxis.fr) framework — four kinds of material, each
+answering a different need. Start with the one that matches what you are
+doing:
 
-- **Tutorial** — *learning-oriented.* A first-generator walkthrough for
-  newcomers. See the "Tutorial" section of the
-  [TypeScript](./ts/README.md) or [Go](./go/README.md) README.
-- **How-to guides** — *task-oriented.* Recipes for specific goals
-  (templates, slots, copying, injecting, regenerating over existing
-  files). See the "How-to guides" sections in the same READMEs.
-- **Reference** — *information-oriented.* The exhaustive, dry description
-  of every component, option, and utility:
-  [`ts/REFERENCE.md`](./ts/REFERENCE.md) and
-  [`go/REFERENCE.md`](./go/REFERENCE.md).
-- **Explanation** — *understanding-oriented.* The two-phase model, the
-  component design, and (for Go) the port's design decisions:
-  the "Explanation" sections, plus [`go/PORT_PLAN.md`](./go/PORT_PLAN.md).
+- **[Tutorial](./docs/tutorial.md)** — build a generator from nothing, then
+  run it a second time over hand-edited output.
+- **[How-to guides](./docs/how-to/README.md)** — one page per task:
+  copying trees, filling template slots, injecting into files that exist,
+  regenerating safely, generating in memory.
+- **Reference** — [components](./docs/reference-components.md),
+  [options](./docs/reference-options.md),
+  [utilities](./docs/reference-utilities.md), and the
+  [Go surface](./docs/reference-go.md).
+- **[Explanation](./docs/explanation.md)** — the two-phase model, why
+  components instead of a template dialect, and what the design costs.
+
+[`docs/index.md`](./docs/index.md) is the doorway. Every example in those
+pages is executed by `ts/test/docs.test.ts`, which runs each snippet in a
+temp directory and compares the tree it wrote, so a page cannot drift from
+the code without failing the build. How the pages are written is in
+[`docs/STYLE-GUIDE.md`](./docs/STYLE-GUIDE.md).
+
+The same set is rendered at [jostraca.org](https://jostraca.org), which
+holds no second copy: the site syncs these files.
 
 ## Repository layout
 

@@ -48,9 +48,7 @@ const BuildContext_1 = require("./build/BuildContext");
 Object.defineProperty(exports, "BuildContext", { enumerable: true, get: function () { return BuildContext_1.BuildContext; } });
 const basic_1 = require("./util/basic");
 Object.defineProperty(exports, "each", { enumerable: true, get: function () { return basic_1.each; } });
-Object.defineProperty(exports, "get", { enumerable: true, get: function () { return 
-    // select,
-    basic_1.get; } });
+Object.defineProperty(exports, "get", { enumerable: true, get: function () { return basic_1.get; } });
 Object.defineProperty(exports, "getx", { enumerable: true, get: function () { return basic_1.getx; } });
 Object.defineProperty(exports, "camelify", { enumerable: true, get: function () { return basic_1.camelify; } });
 Object.defineProperty(exports, "snakify", { enumerable: true, get: function () { return basic_1.snakify; } });

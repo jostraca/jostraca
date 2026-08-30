@@ -1,7 +1,42 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 const node_test_1 = require("node:test");
+const Assert = __importStar(require("node:assert"));
 const expect_1 = require("./expect");
+const Package = __importStar(require("../"));
 const __1 = require("../");
 (0, node_test_1.describe)('util', () => {
     (0, node_test_1.test)('each', () => {
@@ -380,6 +415,38 @@ const __1 = require("../");
         // Numeric-looking keys follow JS integer-key ordering once written to
         // the result object, regardless of visit order.
         (0, expect_1.expect)(Object.keys((0, __1.omap)({ 10: 'a', 2: 'b', 1: 'c' }))).equal(['1', '2', '10']);
+    });
+    // THE PUBLIC SURFACE, CHECKED FROM OUTSIDE. Every suite here imports the
+    // helpers it needs by name, and spec.test.ts reaches past the entry point
+    // into '../dist/util/basic' -- so nothing asserted that the package's own
+    // exports resolve. They did not: `get` was `undefined` on the built
+    // package for as long as a commented-out `// select,` sat between `each,`
+    // and `get,` in the export list. tsc emits each re-export as a one-line
+    // getter body, the comment pushed `basic_1.get` onto its own line, and
+    // automatic semicolon insertion terminated the bare `return`. Typechecking
+    // could not see it -- the declaration file was correct -- and neither
+    // could any test that imported the function directly.
+    //
+    // Hence a census rather than a spot check: name the surface, and require
+    // every entry to resolve to the kind of thing it claims to be.
+    (0, node_test_1.test)('package-exports-resolve', () => {
+        const FUNCTIONS = [
+            'Jostraca', 'BuildContext', 'cmp',
+            'each', 'get', 'getx',
+            'camelify', 'snakify', 'kebabify', 'partify', 'ucf', 'lcf', 'names',
+            'cmap', 'vmap', 'deep', 'omap',
+            'template', 'escre', 'indent', 'isbincontent', 'isbinext',
+            'Project', 'Content', 'File', 'Inject', 'Fragment', 'Folder',
+            'Copy', 'Line', 'Slot', 'List',
+        ];
+        const NAMESPACES = ['PointUtil', 'DiffUtil'];
+        const pkg = Package;
+        const missing = FUNCTIONS.filter((n) => 'function' !== typeof pkg[n]);
+        Assert.deepEqual(missing, [], 'package exports that are not functions: ' + missing.join(', '));
+        const badns = NAMESPACES.filter((n) => null == pkg[n] || 'object' !== typeof pkg[n]);
+        Assert.deepEqual(badns, [], 'package namespace exports missing: ' + badns.join(', '));
+        // And the one that regressed, exercised rather than merely typed.
+        (0, expect_1.expect)(pkg.get({ a: { b: { c: 1 } } }, 'a.b.c')).equal(1);
     });
 });
 //# sourceMappingURL=utility.test.js.map

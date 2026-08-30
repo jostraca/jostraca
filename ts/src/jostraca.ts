@@ -27,7 +27,6 @@ import {
 
 import {
   each,
-  // select,
   get,
   getx,
   camelify,
@@ -519,7 +518,6 @@ export {
   cmp,
 
   each,
-  // select,
   get,
   getx,
   camelify,
