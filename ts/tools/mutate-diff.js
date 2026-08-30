@@ -3,7 +3,7 @@
 // Mutation check for the diff/merge engine — "test the tests".
 //
 // The engine is the one piece that has to be byte-identical across the two
-// stacks, and it is held there by a 1 190-case corpus. A corpus is only
+// stacks, and it is held there by a 1200-case corpus. A corpus is only
 // worth what it catches, so this deliberately breaks the engine in small
 // ways and asserts the corpus notices.
 //

@@ -133,7 +133,8 @@ j.Folder("static", func(j *jostraca.J) {
 ```
 
 Binary files (extension-detected via `IsBinExt`) pass through untouched.
-The default ignore pattern is `~$` (editor backup files); add more via
+The default ignore pattern is `(~|-jostraca-off)$` (editor backup files,
+and anything switched off by suffix); add more via
 `Options.Cmp.Copy.Ignore`.
 
 ### Regenerate without clobbering hand edits

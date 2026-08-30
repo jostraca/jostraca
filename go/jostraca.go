@@ -1,8 +1,3 @@
-// Package jostraca is a code- and project-generator framework. It mirrors
-// the TypeScript package at https://github.com/jostraca/jostraca and is
-// being grown to full feature parity (see go/PORT_PLAN.md).
-//
-// Phase 1 ships only the foundational types and a no-op build phase.
 package jostraca
 
 import (

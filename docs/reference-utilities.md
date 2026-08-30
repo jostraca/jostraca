@@ -559,8 +559,16 @@ internally and has no stable published contract yet; read
 ## `DiffUtil`
 
 The line-diff and three-way-merge engine behind the `diff` and `merge`
-existing-file modes. `go/diff.go` mirrors it function for function, so
-both stacks produce identical output.
+existing-file modes. `go/diff.go` mirrors it closely, and the 1200-case
+corpus in `go/testdata/parity/diff_corpus.json` holds the two stacks to
+the same output. Two differences survive that corpus, because no case
+in it goes near them:
+
+- `hasConflicts` is one function in TypeScript and two in Go,
+  `HasConflicts` and `HasConflictsLabel`.
+- An empty-string `kind` or label is a value in TypeScript and an
+  absence in Go, which falls back to the default. Passing `''` is the
+  only way to reach it.
 
 ### `DiffUtil.merge(generated, baseline, existing, spec?)`
 
@@ -588,17 +596,29 @@ the full merge and each skipping the quadratic core.
 
 Two-way annotated diff. Unchanged text passes through; each changed
 region becomes a pair of marked blocks, existing side first. Returns
-`{content, outcome}` with `outcome` of `same` or `changed`.
+`{content, conflict, outcome}` with `outcome` of `same` or `changed`.
+
+`conflict` is not a finding here. It is `true` on every `changed`
+result and `false` on every `same` one, so it repeats the outcome
+rather than reporting that anything genuinely clashes. Only `merge`
+sets it from real conflicting edits.
 
 The two marker layouts differ, and the difference is not cosmetic — see
 [the options reference](reference-options.md#each-mode) for both,
 generated from real runs.
 
-### `DiffUtil.hasConflicts(text)`
+### `DiffUtil.hasConflicts(text, existingLabel?)`
 
 Whether the text still holds an unresolved conflict. Keyed on the
-closing `EXISTING` marker alone, so a half-resolved file — opening
-marker removed, closing one left — still counts.
+closing `EXISTING` marker alone, so a half-resolved file (opening
+marker removed, closing one left) still counts.
+
+The second argument is easy to miss, and missing it costs you the
+check. Without it the check matches only the default
+`>>>>>>> EXISTING:` sentinel, so a
+conflict written under a custom `labels.existing` is not recognised,
+and the next merge nests a fresh set of markers inside the old ones.
+Pass the same `existingLabel` you passed to `merge`.
 
 ### Primitives
 
@@ -607,12 +627,27 @@ marker removed, closing one left — still counts.
 newline on each line, so `lines(s).join('') === s` for every input,
 including one with no trailing newline.
 
+**Only `lines` takes a string.** The other three take arrays of lines,
+which is what `lines` returns, so the pairing is
+`hunks(lines(a), lines(b))`. Their result types are nameable through
+the namespace, as `DiffUtil.DiffResult` and the rest, with one
+exception: `Hunk`, the element type `hunks` returns, is not exported.
+
 ### Notes
 
 - Common prefix and suffix are trimmed first, then Hirschberg's
   algorithm runs on the remainder: linear space, quadratic time on what
-  is left. A regenerated file with a few changed lines is dominated by
-  the trim.
+  is left. The trim only reaches the ends. Changes in one contiguous
+  span leave almost nothing for the quadratic core, and the cost hardly
+  moves as the file grows; changes at both ends leave the whole middle
+  in it, and the cost then grows with the square of the file. Measured
+  on this engine, the gap between the two reaches three orders of
+  magnitude before 10 000 lines.
+- **A `diff` render blocks a later `merge`.** The closing marker of a
+  deletion block is `>>>>>>> EXISTING: <timestamp>/diff`, which carries
+  the same sentinel an unresolved merge does. Point `merge` at that
+  file and it reports `unresolved` and declines to touch it. Clear the
+  diff markers by hand before switching a file between the two modes.
 - Conflict markers always start their own line, including when the last
   line of a region has no trailing newline.
 - **A three-way merge can drop content, correctly.** If the user deleted

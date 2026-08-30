@@ -332,8 +332,11 @@ completion time. With no previous run that is `-1`, which renders as
 `1969-12-31T23:59:59.999Z`.
 
 A file that still carries an unresolved `>>>>>>> EXISTING:` marker from
-an earlier merge is left completely alone, reported as merged with no
-conflict.
+an earlier merge keeps its contents: the engine will not nest a second
+merge inside the first. The two stacks report that differently.
+TypeScript rewrites the identical bytes and lists the file under
+`merged`, with no conflict; Go does not write at all and records the
+file as skipped.
 
 ### Merge needs a baseline, and degrades quietly without one
 
