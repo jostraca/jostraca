@@ -382,11 +382,56 @@ sides touch the same lines it writes conflict markers instead of
 guessing, and reports the file in `result.files.conflicted`.
 
 `merge` is one of five modes. `preserve` overwrites but leaves the old
-bytes in `config.old.sh`. `present` refuses to touch the file and
-writes `config.new.sh` beside it. `diff` writes an annotated two-way
-diff. And any file containing the string `JOSTRACA_PROTECT` is skipped
-under all of them, which is how a user takes a file away from your
-generator without asking you first.
+bytes in `config.old.sh`. `diff` writes an annotated two-way diff.
+`present` leaves the file alone and writes `config.new.sh` beside it —
+and it is the one mode with a trap in it, because `write` is checked
+first and defaults to `true`. Turning `present` on without turning
+`write` off overwrites the file you meant to protect:
+
+<!-- test: scenario present -->
+
+<!-- test: run -->
+```js
+import { appendFileSync } from 'node:fs'
+import { Jostraca, Project, File, Content } from 'jostraca'
+
+const jostraca = Jostraca({
+  existing: { txt: { write: false, present: true } },
+})
+
+const run = (body) => jostraca.generate({ folder: './out' }, () => {
+  Project({}, () => {
+    File({ name: 'config.sh' }, () => Content(body))
+  })
+})
+
+await run('PORT=8080\n')
+appendFileSync('./out/config.sh', 'DEBUG=1\n')
+await run('PORT=9090\n')
+```
+
+<!-- test: out -->
+```text
+config.new.sh
+config.sh
+```
+
+`config.sh` is untouched, edit and all:
+
+<!-- test: file out/config.sh -->
+```sh
+PORT=8080
+DEBUG=1
+```
+
+Finally, a file containing the string `JOSTRACA_PROTECT` is never
+overwritten, under any mode — that is how a user takes a file away from
+your generator without asking you first. Protection stops the
+overwrite, not the run: under `present` the new version still appears
+in the `.new.` sidecar and the file is reported in
+`result.files.presented`, so the user can see what they are declining.
+Under every other mode a protected file is skipped outright and appears
+in none of the result lists.
 
 ## Where to go next
 

@@ -112,11 +112,13 @@ exploring · worth considering.
 
 **Punctuation rulings**:
 
-- Em dashes are allowed — the house voice uses them — but sparingly:
-  never more than one per sentence, and prefer a comma or parentheses
-  when the aside is mild. (A source that banned them outright also
-  banned the voice this guide adopts; the phrases above are the part of
-  that list this project takes.)
+- Em dashes are allowed — the house voice uses them — but rationed to
+  **one aside per sentence**: either a single dash before a trailing
+  clause, or one matched pair around a parenthetical, never both and
+  never two asides. Prefer a comma or parentheses when the aside is
+  mild. (A source that banned them outright also banned the voice this
+  guide adopts; the phrases above are the part of that list this
+  project takes.)
 - No emoji in documentation.
 - Sentence-style capitalisation in headings (Google style).
 
@@ -177,7 +179,10 @@ lines.
 
 <!-- test: file out/app/index.js -->
 The next fence is the exact content of that generated file. Name it in
-the prose above, in a code span, like an input.
+the prose above, in a code span, like an input. A fence cannot express
+"and no newline at the end", so where the generated file has none, end
+the fence with git's own marker line:
+\ No newline at end of file
 
 <!-- test: skip <reason> -->
 Deliberately unexecuted, with a non-empty reason a reviewer can weigh.

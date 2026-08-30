@@ -78,6 +78,11 @@ const node_child_process_1 = require("node:child_process");
 const REPO = Path.join(__dirname, '..', '..');
 const DOCS_DIR = Path.join(REPO, 'docs');
 const DIST = (0, node_url_1.pathToFileURL)(Path.join(REPO, 'ts', 'dist', 'jostraca.js')).href;
+// A doc example is a moment: one generator, a handful of files. Well
+// under a second in practice; the ceiling is generous enough that a slow
+// Windows runner never trips it and tight enough that a hung example is
+// reported rather than waited on.
+const RUN_TIMEOUT_MS = 60_000;
 // The how-to group taxonomy. A guide declaring a group not listed here
 // fails; the site repository renders the same slugs, so an addition is
 // two edits and both are visible.
@@ -92,14 +97,27 @@ const GROUPS = [
 // DOCS_PAGES=<comma-list> narrows a run to named pages — the tight loop
 // for writing one page — and suspends the corpus-wide floors, which
 // only mean anything over the whole set.
+//
+// A name that does not exist is a hard failure, not a silent drop. With
+// the floors suspended, a typo would otherwise select nothing and report
+// a fully green run over an empty corpus, which is the one result this
+// suite must never give.
 function narrowed() {
     const v = process.env.DOCS_PAGES;
-    return null == v || '' === v ? undefined : v.split(',');
+    if (null == v || '' === v) {
+        return undefined;
+    }
+    const names = v.split(',').map((s) => s.trim()).filter((s) => '' !== s);
+    const missing = names.filter((f) => !Fs.existsSync(Path.join(DOCS_DIR, f)));
+    Assert.deepEqual(missing, [], `DOCS_PAGES names pages that do not exist under docs/: ` +
+        missing.join(', '));
+    Assert.ok(0 < names.length, 'DOCS_PAGES is set but names no pages');
+    return names;
 }
 function docPages() {
     const only = narrowed();
     if (only) {
-        return only.filter((f) => Fs.existsSync(Path.join(DOCS_DIR, f)));
+        return only;
     }
     const fixed = [
         'index.md',
@@ -125,7 +143,7 @@ function docPages() {
 function stylePages() {
     const only = narrowed();
     if (only) {
-        return only.filter((f) => Fs.existsSync(Path.join(DOCS_DIR, f)));
+        return only;
     }
     const extra = ['how-to/README.md'];
     return [...docPages(), ...extra]
@@ -167,15 +185,22 @@ function extract(file, md) {
             pending = { verb: verb, arg, line: i + 1 };
             continue;
         }
-        const fm = line.match(/^```([a-zA-Z0-9_-]*)\s*$/);
+        // CommonMark fences, not just three backticks. A block opened with
+        // ~~~ or with four backticks is a perfectly ordinary fence, and an
+        // extractor that could not see one would let a tagged snippet slip
+        // past the accounting layer without executing or owning a skip —
+        // which is the guarantee this whole file exists to make.
+        const fm = line.match(/^(\s{0,3})(`{3,}|~{3,})[ \t]*([^`\s]*)[^`]*$/);
         if (!fm) {
             continue;
         }
-        const lang = fm[1] || '';
+        const fence = fm[2];
+        const closer = new RegExp('^\\s{0,3}' + fence[0] + '{' + fence.length + ',}[ \\t]*$');
+        const lang = fm[3] || '';
         const body = [];
         let j = i + 1;
         for (; j < lines.length; j++) {
-            if (/^```\s*$/.test(lines[j])) {
+            if (closer.test(lines[j])) {
                 break;
             }
             body.push(lines[j]);
@@ -263,6 +288,73 @@ function matchLines(expect, actual) {
 function nonEmpty(s) {
     return s.split('\n').map((l) => l.trim()).filter((l) => '' !== l);
 }
+// A markdown fence cannot express "and there is no newline at the end",
+// because closing the fence needs a line of its own. Some generated
+// files genuinely have none — Jostraca's own meta log is one — so a page
+// says so with git's marker, which a reader already knows how to read.
+// Without this the comparison would be exact-but-unsatisfiable, and the
+// alternative (tolerating a trailing newline either way) would stop the
+// suite noticing a generator that lost one.
+const NO_EOL = '\\ No newline at end of file';
+function expected(body) {
+    const lines = body.split('\n');
+    if (2 <= lines.length && '' === lines[lines.length - 1]
+        && NO_EOL === lines[lines.length - 2]) {
+        return lines.slice(0, -2).join('\n');
+    }
+    return lf(body);
+}
+// The one rewrite performed on a snippet: the module specifier a reader
+// would write becomes the build under test.
+//
+// It has to be a scan rather than a replace. This is a code generator's
+// documentation, so a snippet's own CONTENT legitimately contains lines
+// like `Content("import { X } from 'jostraca'\n")` — a blind replace
+// would rewrite the generated file's text and then assert against
+// something no reader could reproduce. So: find string literals, and
+// rewrite one only when its content is exactly the specifier AND the
+// code before it is an import or export. A specifier nested inside
+// another literal is part of that literal's span and is never seen.
+function rewriteSpecifier(source, url) {
+    const out = [];
+    let i = 0;
+    let start = 0;
+    while (i < source.length) {
+        const ch = source[i];
+        if ('\'' !== ch && '"' !== ch && '`' !== ch) {
+            i++;
+            continue;
+        }
+        // Walk the literal to its close, honouring backslash escapes.
+        const quote = ch;
+        const from = i;
+        i++;
+        while (i < source.length) {
+            if ('\\' === source[i]) {
+                i += 2;
+                continue;
+            }
+            if (source[i] === quote) {
+                break;
+            }
+            i++;
+        }
+        if (i >= source.length) {
+            break; // unterminated; leave the rest alone
+        }
+        const body = source.slice(from + 1, i);
+        i++;
+        if ('jostraca' === body) {
+            const before = source.slice(start, from);
+            if (/(?:^|[\s(;])(?:from|import)\s*\(?\s*$/.test(before)) {
+                out.push(before, quote, url, quote);
+                start = i;
+            }
+        }
+    }
+    out.push(source.slice(start));
+    return out.join('');
+}
 (0, node_test_1.describe)('docs', () => {
     // The scenario runner: layers 1 and 2. Each page is walked in
     // document order; a `scenario` directive opens a fresh temp
@@ -319,20 +411,27 @@ function nonEmpty(s) {
                         Assert.equal(b.lang, 'js', `${at} a run fence is tagged js (docs/STYLE-GUIDE.md)`);
                         const cwd = need(at);
                         const script = Path.join(cwd, `.docs-run-${runIndex++}.mjs`);
-                        // The one rewrite: the specifier a reader would write
-                        // becomes the build under test.
-                        const source = b.body
-                            .replaceAll("from 'jostraca'", `from '${DIST}'`)
-                            .replaceAll('from "jostraca"', `from "${DIST}"`);
-                        Fs.writeFileSync(script, source);
+                        Fs.writeFileSync(script, rewriteSpecifier(b.body, DIST));
                         try {
+                            // A snippet that leaves a timer open, starts a server, or
+                            // loops forever would otherwise hang the whole job with no
+                            // indication of which page did it. One malformed example
+                            // should cost one scenario, not the run.
                             stdout = (0, node_child_process_1.execFileSync)(process.execPath, [script], {
                                 cwd,
                                 encoding: 'utf8',
                                 stdio: ['ignore', 'pipe', 'pipe'],
+                                timeout: RUN_TIMEOUT_MS,
+                                killSignal: 'SIGKILL',
                             });
                         }
                         catch (err) {
+                            if ('ETIMEDOUT' === err.code || null != err.signal) {
+                                Assert.fail(`${at} run did not finish within ` +
+                                    `${RUN_TIMEOUT_MS}ms (killed). A doc example should be ` +
+                                    `a moment, not a process that stays up.\n` +
+                                    `${err.stdout || ''}${err.stderr || ''}`);
+                            }
                             Assert.fail(`${at} run failed:\n` +
                                 `${err.stderr || err.message}`);
                         }
@@ -358,7 +457,7 @@ function nonEmpty(s) {
                         const target = Path.join(need(at), d.arg);
                         Assert.ok(Fs.existsSync(target), `${at} ${d.arg} was not generated. Tree:\n  ` +
                             listing(need(at), true).join('\n  '));
-                        Assert.equal(lf(Fs.readFileSync(target, 'utf8')), lf(b.body), `${at} content of ${d.arg} does not match`);
+                        Assert.equal(lf(Fs.readFileSync(target, 'utf8')), expected(b.body), `${at} content of ${d.arg} does not match`);
                         assertions++;
                         continue;
                     }
@@ -431,6 +530,36 @@ function nonEmpty(s) {
             }
         }
     });
+    // The rewriter is the one thing this harness does to a snippet, and a
+    // generator's documentation is exactly the corpus where a naive
+    // replace goes wrong — the text a page generates can itself be an
+    // import of this package. Pin both directions.
+    (0, node_test_1.test)('specifier-rewrite-touches-only-real-imports', () => {
+        const U = 'file:///x/dist/jostraca.js';
+        const cases = [
+            [`import { Jostraca } from 'jostraca'\n`,
+                `import { Jostraca } from '${U}'\n`],
+            [`import { Jostraca } from "jostraca"\n`,
+                `import { Jostraca } from "${U}"\n`],
+            [`import {\n  Jostraca,\n} from 'jostraca'\n`,
+                `import {\n  Jostraca,\n} from '${U}'\n`],
+            [`export { cmp } from 'jostraca'\n`,
+                `export { cmp } from '${U}'\n`],
+            [`const j = await import('jostraca')\n`,
+                `const j = await import('${U}')\n`],
+            // The page's own generated content must survive untouched.
+            [`Content("import { X } from 'jostraca'\\n")\n`,
+                `Content("import { X } from 'jostraca'\\n")\n`],
+            [`Content('a from "jostraca" b')\n`,
+                `Content('a from "jostraca" b')\n`],
+            [`Line(\`from 'jostraca'\`)\n`, `Line(\`from 'jostraca'\`)\n`],
+            // A bare mention is not a specifier.
+            [`// jostraca writes the tree\n`, `// jostraca writes the tree\n`],
+        ];
+        for (const [src, want] of cases) {
+            Assert.equal(rewriteSpecifier(src, U), want, `rewriteSpecifier mishandled: ${JSON.stringify(src)}`);
+        }
+    });
     // Layer 4b: how-to frontmatter is complete and its group is real.
     (0, node_test_1.test)('how-to-frontmatter', () => {
         const dir = Path.join(DOCS_DIR, 'how-to');
@@ -456,8 +585,11 @@ function nonEmpty(s) {
             Assert.ok(GROUPS.includes(group[1]), `how-to/${guide} declares group ` +
                 `\`${group[1]}\`, which is not one of ` +
                 GROUPS.join(', '));
-            // One H1, and it is the title.
-            const h1 = text.split('\n').filter((l) => /^# /.test(l));
+            // One H1, and it is the title. Counted over prose only: a
+            // generated shell file whose first line is `# JOSTRACA_PROTECT`
+            // is a perfectly ordinary thing for a page to show, and it is not
+            // a heading.
+            const h1 = prose(text).split('\n').filter((l) => /^# /.test(l));
             Assert.equal(h1.length, 1, `how-to/${guide} should have exactly one H1, found ${h1.length}`);
         }
     });
@@ -558,8 +690,10 @@ function prose(md) {
         }
         Assert.deepEqual(hits, [], `banned phrases (docs/STYLE-GUIDE.md):\n${hits.join('\n')}`);
     });
-    // At most one em dash per sentence — the guide allows the dash and
-    // rations it, which is the half a reviewer forgets.
+    // One em-dash ASIDE per line: a single trailing dash, or one matched
+    // pair around a parenthetical. The guide allows the dash and rations
+    // it, which is the half a reviewer forgets; three on a line is the
+    // stacking the ration exists to stop.
     (0, node_test_1.test)('em-dashes-are-rationed', () => {
         const hits = [];
         for (const file of stylePages()) {
@@ -567,12 +701,12 @@ function prose(md) {
                 .split('\n')
                 .forEach((line, i) => {
                 const n = (line.match(/—/g) || []).length;
-                if (1 < n) {
+                if (2 < n) {
                     hits.push(`${file}:${i + 1} ${n} em dashes: ${line.trim()}`);
                 }
             });
         }
-        Assert.deepEqual(hits, [], `more than one em dash on a line (docs/STYLE-GUIDE.md):\n` +
+        Assert.deepEqual(hits, [], `more than one em-dash aside on a line (docs/STYLE-GUIDE.md):\n` +
             hits.join('\n'));
     });
     (0, node_test_1.test)('no-emoji', () => {

@@ -1,6 +1,9 @@
 
 import { test, describe } from 'node:test'
+import * as Assert from 'node:assert'
 import { expect } from './expect'
+
+import * as Package from '../'
 
 
 import {
@@ -487,6 +490,46 @@ describe('util', () => {
     // Numeric-looking keys follow JS integer-key ordering once written to
     // the result object, regardless of visit order.
     expect(Object.keys(omap({ 10: 'a', 2: 'b', 1: 'c' }))).equal(['1', '2', '10'])
+  })
+
+
+  // THE PUBLIC SURFACE, CHECKED FROM OUTSIDE. Every suite here imports the
+  // helpers it needs by name, and spec.test.ts reaches past the entry point
+  // into '../dist/util/basic' -- so nothing asserted that the package's own
+  // exports resolve. They did not: `get` was `undefined` on the built
+  // package for as long as a commented-out `// select,` sat between `each,`
+  // and `get,` in the export list. tsc emits each re-export as a one-line
+  // getter body, the comment pushed `basic_1.get` onto its own line, and
+  // automatic semicolon insertion terminated the bare `return`. Typechecking
+  // could not see it -- the declaration file was correct -- and neither
+  // could any test that imported the function directly.
+  //
+  // Hence a census rather than a spot check: name the surface, and require
+  // every entry to resolve to the kind of thing it claims to be.
+  test('package-exports-resolve', () => {
+    const FUNCTIONS = [
+      'Jostraca', 'BuildContext', 'cmp',
+      'each', 'get', 'getx',
+      'camelify', 'snakify', 'kebabify', 'partify', 'ucf', 'lcf', 'names',
+      'cmap', 'vmap', 'deep', 'omap',
+      'template', 'escre', 'indent', 'isbincontent', 'isbinext',
+      'Project', 'Content', 'File', 'Inject', 'Fragment', 'Folder',
+      'Copy', 'Line', 'Slot', 'List',
+    ]
+    const NAMESPACES = ['PointUtil', 'DiffUtil']
+
+    const pkg = Package as any
+
+    const missing = FUNCTIONS.filter((n) => 'function' !== typeof pkg[n])
+    Assert.deepEqual(missing, [],
+      'package exports that are not functions: ' + missing.join(', '))
+
+    const badns = NAMESPACES.filter((n) => null == pkg[n] || 'object' !== typeof pkg[n])
+    Assert.deepEqual(badns, [],
+      'package namespace exports missing: ' + badns.join(', '))
+
+    // And the one that regressed, exercised rather than merely typed.
+    expect(pkg.get({ a: { b: { c: 1 } } }, 'a.b.c')).equal(1)
   })
 
 })

@@ -58,9 +58,10 @@ and the `replace` map for the cases the plain form cannot reach.
 
 **The existing-file modes.** `write` overwrites, `preserve` keeps the
 old bytes in a sibling file, `present` writes the new version beside an
-untouched original, `diff` writes an annotated two-way diff, and
-`merge` performs a three-way merge against the previous generate. A
-file containing `JOSTRACA_PROTECT` is skipped under every mode. The
+untouched original (it needs `write: false`, which is checked first),
+`diff` writes an annotated two-way diff, and `merge` performs a
+three-way merge against the previous generate. A file containing
+`JOSTRACA_PROTECT` is never overwritten under any of them. The
 [options reference](reference-options.md) specifies each; the
 [regenerating guides](how-to/README.md) show them in use.
 
