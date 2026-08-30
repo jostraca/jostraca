@@ -300,6 +300,31 @@ function matchLines(expect, actual) {
     return 0 < actual.length && head === actual[0]
         && matchLines(rest, actual.slice(1));
 }
+// The heading ids a markdown page will have once rendered, by the same
+// slug rule rehype-slug applies: lowercase, drop everything that is not a
+// word character, space or hyphen, spaces to hyphens, repeats suffixed.
+// A code span contributes its text, which is the case that bites.
+function headingIds(md) {
+    const ids = new Set();
+    const seen = new Map();
+    for (const line of lf(md).split('\n')) {
+        const m = /^(#{1,6})\s+(.+?)\s*$/.exec(line);
+        if (!m) {
+            continue;
+        }
+        const base = m[2]
+            .replace(/`/g, '')
+            .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+            .toLowerCase()
+            .replace(/[^\w\s-]/g, '')
+            .trim()
+            .replace(/\s+/g, '-');
+        const n = seen.get(base) || 0;
+        seen.set(base, n + 1);
+        ids.add(0 === n ? base : `${base}-${n}`);
+    }
+    return ids;
+}
 function nonEmpty(s) {
     return s.split('\n').map((l) => l.trim()).filter((l) => '' !== l);
 }
@@ -618,9 +643,15 @@ function rewriteSpecifier(source, url) {
             Assert.equal(h1.length, 1, `how-to/${guide} should have exactly one H1, found ${h1.length}`);
         }
     });
-    // Layer 4c: every relative link resolves to a file that exists. The
-    // site sync is a link checker too, but a broken link should fail here
-    // first — in the repository that owns the page.
+    // Layer 4c: every relative link resolves to a file that exists, AND
+    // every fragment names a heading in it. The site sync is a link checker
+    // too, but a broken link should fail here first — in the repository that
+    // owns the page.
+    //
+    // The fragment half is not decoration. `reference-utilities.md#isbinext`
+    // looked right and pointed at nothing, because the heading is
+    // "`isbinext` and `isbincontent`" and its id is the whole phrase. A path
+    // check alone approves that link forever.
     (0, node_test_1.test)('relative-links-resolve', () => {
         const broken = [];
         const files = [...stylePages(), 'STYLE-GUIDE.md']
@@ -643,6 +674,14 @@ function rewriteSpecifier(source, url) {
                 const abs = Path.resolve(from, target);
                 if (!Fs.existsSync(abs)) {
                     broken.push(`${file}: ${href}`);
+                    continue;
+                }
+                const frag = href.includes('#') ? href.slice(href.indexOf('#') + 1) : '';
+                if ('' !== frag && abs.endsWith('.md')) {
+                    const ids = headingIds(Fs.readFileSync(abs, 'utf8'));
+                    if (!ids.has(frag)) {
+                        broken.push(`${file}: ${href} (no such heading)`);
+                    }
                 }
             }
         }

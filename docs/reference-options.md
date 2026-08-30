@@ -146,7 +146,7 @@ existing: {
 `bin` has no `diff` and no `merge`; passing either throws.
 
 The extension decides first, by membership of the
-[`isbinext`](reference-utilities.md#isbinext) list, and content
+[`isbinext`](reference-utilities.md#isbinext-and-isbincontent) list, and content
 sniffing can then promote an unlisted extension to binary (a NUL byte
 in the first 8192). Sniffing never demotes a listed extension to text.
 

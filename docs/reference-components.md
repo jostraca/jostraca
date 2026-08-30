@@ -577,7 +577,7 @@ called.
 Text files pass through the template system; binaries are copied byte
 for byte. The extension decides first, by membership of a fixed list
 (`png`, `jpg`, `zip`, `pdf`, `woff2` and around 250 more — see
-[`isbinext`](reference-utilities.md#isbinext)); a listed extension is
+[`isbinext`](reference-utilities.md#isbinext-and-isbincontent)); a listed extension is
 binary whatever the bytes look like. Because no such list is complete,
 the content is then sniffed: a NUL byte in the first 8192 promotes an
 unlisted file to binary, which is what keeps `.wasm`, `.zst` and
