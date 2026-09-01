@@ -6,7 +6,7 @@ order: 10
 
 # Fill a template file's slots
 
-When the shape of a file is easier to read as a file than as a tree of
+When a file is easier to read as a file than as a tree of
 component calls, keep it as one. `Fragment` reads it in; `Slot` fills
 the regions you marked.
 

@@ -6,7 +6,7 @@ order: 10
 
 # Make a reusable component
 
-When the same shape appears more than once, give it a name. `cmp()`
+When the same component structure appears more than once, give it a name. `cmp()`
 turns an ordinary function into a component: it can be called from
 inside the tree, and the components it calls attach in the right place.
 
@@ -50,7 +50,7 @@ reusable, and it is the discipline to keep: a component that calls
 `File` is a section of a generator, not a building block.
 
 Name the function you pass to `cmp()`. The wrapper keeps the name, and
-`Fragment` uses it to recognise `Slot` children — an anonymous
+`Fragment` uses it to recognise `Slot` children - an anonymous
 component is harder to debug and, inside a `Fragment`, behaves
 differently.
 

@@ -730,6 +730,10 @@ const BANNED = [
     [/\bworth (?:exploring|considering|a look)\b/i, 'the "worth X-ing" frame'],
     [/\bthe whole game\b/i, 'the whole game'],
     [/\bthat'?s the tell\b/i, 'that is the tell'],
+    [/\bthe point is\b/i, 'the point is'],
+    [/\bthis matters\b/i, 'this matters'],
+    [/\bhere'?s the thing\b/i, 'here is the thing'],
+    [/\bhands? (?:you|back)\b/i, 'hands you/back'],
 ];
 // Strip frontmatter, fenced blocks and inline code spans; what remains
 // is prose.
@@ -754,23 +758,18 @@ function prose(md) {
         }
         Assert.deepEqual(hits, [], `banned phrases (docs/STYLE-GUIDE.md):\n${hits.join('\n')}`);
     });
-    // One em-dash ASIDE per line: a single trailing dash, or one matched
-    // pair around a parenthetical. The guide allows the dash and rations
-    // it, which is the half a reviewer forgets; three on a line is the
-    // stacking the ration exists to stop.
-    (0, node_test_1.test)('em-dashes-are-rationed', () => {
+    (0, node_test_1.test)('no-em-dashes', () => {
         const hits = [];
         for (const file of stylePages()) {
             prose(Fs.readFileSync(Path.join(DOCS_DIR, file), 'utf8'))
                 .split('\n')
                 .forEach((line, i) => {
-                const n = (line.match(/—/g) || []).length;
-                if (2 < n) {
-                    hits.push(`${file}:${i + 1} ${n} em dashes: ${line.trim()}`);
+                if (line.includes('—')) {
+                    hits.push(`${file}:${i + 1}: ${line.trim()}`);
                 }
             });
         }
-        Assert.deepEqual(hits, [], `more than one em-dash aside on a line (docs/STYLE-GUIDE.md):\n` +
+        Assert.deepEqual(hits, [], `em dashes (docs/STYLE-GUIDE.md):\n` +
             hits.join('\n'));
     });
     (0, node_test_1.test)('no-emoji', () => {

@@ -15,8 +15,11 @@ Three sources feed it, in priority order:
    does not cover: second person, present tense, active voice,
    sentence-style capitalisation in headings, serial commas, one idea
    per sentence.
-3. The register table below decides the fights between the two voices
-   the docs blend: Google's plainness and the house voice.
+3. Richard Rodger's published technical writing supplies the rhythm: concrete
+   problems, code early, dry asides, and direct commentary on engineering
+   trade-offs.
+4. The [Claudisms banlist](https://claudisms.ai/) is a final editing check.
+   Prefer the plain verb whenever a sentence starts to sound performed.
 
 ## The structure: Diátaxis, enforced by placement
 
@@ -30,9 +33,9 @@ page may do:
 | Reference | `reference-components.md`, `reference-options.md`, `reference-utilities.md`, `reference-go.md` | state facts exhaustively and dryly, pin claims to tests | narrate, persuade, teach |
 | Explanation | `explanation.md` | argue, compare, admit trade-offs, tell the design's story | be the only place a fact lives |
 
-One fact appears in all four kinds at different altitudes — met in the
+One fact appears in all four kinds at different altitudes - met in the
 tutorial, used in a how-to, specified in the reference, argued in the
-explanation — but the normative statement lives in the reference and
+explanation - but the normative statement lives in the reference and
 everything else links to it.
 
 `index.md` is the doorway and belongs to no kind: it routes, and states
@@ -47,7 +50,7 @@ phrases. Ten habits, with the register they apply in:
 1. **Open with a concrete fact or a plainly stated problem, then a
    short dry beat.** Tutorials and how-tos. Reference pages open by
    stating what the thing is.
-2. **Introduce code with a short colon-terminated sentence** — "Write
+2. **Introduce code with a short colon-terminated sentence** - "Write
    this as `gen.mjs`:", "Now run it:". Never "The following code
    snippet demonstrates". Everywhere.
 3. **After a code block, point at the one interesting thing.** Do not
@@ -55,8 +58,8 @@ phrases. Ten habits, with the register they apply in:
 4. **Parentheses carry definitions, caveats, and at most one dry aside
    per page.** Tutorials and how-tos. In reference pages, parentheses
    carry facts only.
-5. **A trade-off gets bolted on with a dash, and the dash earns its
-   place.** One per paragraph at most, never two in a sentence.
+5. **State a trade-off in a separate clause or sentence.** Do not use an em
+   dash to manufacture a dramatic turn.
 6. **Alternate one long explanatory sentence with one short verdict
    sentence.** The short sentence is the payoff. Everywhere.
 7. **Talk to the reader as "you", and route them** ("If you only want
@@ -93,12 +96,17 @@ underscore (verb) · shed light on · pave the way · unpack · surface
 lifting · the right way/answer/tool/question · at the end of the day ·
 paradigm shift · north star · key takeaways · best practices (name the
 practice instead) · the whole game · that's the tell · sit with · worth
-exploring · worth considering.
+exploring · worth considering · the point is · this matters · here's the
+thing · lives (for abstract location) · shape (as a vague metaphor) · carry
+(for ideas or arguments) · hold (for thoughts or tensions) · hands you/back ·
+the engine (as a value metaphor) · double-click on · throughline · real (as
+an empty intensifier) · useful (when announcing value rather than describing
+an object).
 
 **Patterns**:
 
 - The contrast frame "not just X, it's Y" / "It's not about X, it's
-  about Y", and its cousin "not X — it is Y". One per page at most;
+  about Y", and its cousin "not X - it is Y". One per page at most;
   zero is better. Say what the thing is.
 - Announcing structure before delivering it ("There are three things to
   understand").
@@ -112,13 +120,8 @@ exploring · worth considering.
 
 **Punctuation rulings**:
 
-- Em dashes are allowed — the house voice uses them — but rationed to
-  **one aside per sentence**: either a single dash before a trailing
-  clause, or one matched pair around a parenthetical, never both and
-  never two asides. Prefer a comma or parentheses when the aside is
-  mild. (A source that banned them outright also banned the voice this
-  guide adopts; the phrases above are the part of that list this
-  project takes.)
+- Do not use em dashes. Use a comma, parentheses, a colon, or another
+  sentence. The prose should supply the turn without typographical theatre.
 - No emoji in documentation.
 - Sentence-style capitalisation in headings (Google style).
 
@@ -126,21 +129,21 @@ exploring · worth considering.
 
 - The project is **Jostraca** (capital J) in prose; the package is
   `jostraca`.
-- **component** — one of `Project`, `Folder`, `File`, `Content`,
+- **component** - one of `Project`, `Folder`, `File`, `Content`,
   `Line`, `Fragment`, `Slot`, `Inject`, `Copy`, `List`, `None`, or a
   function wrapped by `cmp()`. Not "tag", not "element".
-- **define phase** and **build phase** — the two halves of a
+- **define phase** and **build phase** - the two halves of a
   `generate()` call. Never "render"; nothing is rendered.
-- **model** — the data object substituted into templates. Not
+- **model** - the data object substituted into templates. Not
   "context", which is `ctx$`, a different thing.
-- **fragment** — an external file read into the output. **slot** — a
+- **fragment** - an external file read into the output. **slot** - a
   marked region inside a fragment.
-- **existing-file mode** — one of `write`, `preserve`, `present`,
+- **existing-file mode** - one of `write`, `preserve`, `present`,
   `diff`, `merge`. Say "mode", not "strategy".
-- **baseline** — the previous generate, kept under `.jostraca/`, used
+- **baseline** - the previous generate, kept under `.jostraca/`, used
   as the merge base. Not "ancestor", except when describing three-way
   merge in general.
-- **protected file** — one carrying `JOSTRACA_PROTECT`. Jostraca
+- **protected file** - one carrying `JOSTRACA_PROTECT`. Jostraca
   *skips* it; it does not "ignore" it.
 - Say **overwrite** for what `write: true` does. It is the honest word.
 
@@ -148,7 +151,7 @@ exploring · worth considering.
 
 A fenced snippet in a Diátaxis page is either executed by
 `ts/test/docs.test.ts` or carries a visible, reasoned skip. The
-directive vocabulary — an HTML comment on its own line immediately
+directive vocabulary - an HTML comment on its own line immediately
 before the fence:
 
 ```markdown
@@ -158,7 +161,7 @@ scenario directive or the end of the page. Every run, input and
 assertion below it shares that directory, which is how "now regenerate
 over the edited file" recipes are modelled.
 
-Add `posix` after the name — `scenario first-tree posix` — for a
+Add `posix` after the name - `scenario first-tree posix` - for a
 scenario Windows cannot produce, and the whole scenario is skipped
 there. Use it only where the platform is the reason: a POSIX file mode
 is one, because fs.chmod on Windows toggles the read-only attribute and
@@ -166,7 +169,7 @@ nothing else. It is not a way to avoid fixing an example.
 
 <!-- test: input tpl/header.txt -->
 The next fence is written to <scenario-dir>/tpl/header.txt before the
-next run. Re-declaring a path overwrites it — that is how a page
+next run. Re-declaring a path overwrites it - that is how a page
 simulates a hand edit between two generates. Name the path in the prose
 above the fence too; the harness checks that a trailing part of it
 appears in a code span within three lines.
@@ -197,7 +200,7 @@ Deliberately unexecuted, with a non-empty reason a reviewer can weigh.
 Untagged fences (diagrams, directory trees drawn for illustration,
 quoted error text) make no claim and are exempt. A fence tagged with a
 language and carrying no directive is a page defect and fails the
-suite — give it a directive or delete the tag.
+suite - give it a directive or delete the tag.
 
 Two rules of taste:
 

@@ -2,8 +2,8 @@
 
 A Go port of [Jostraca](https://github.com/jostraca/jostraca), the
 React-style code- and project-generator framework. Compose file trees with
-components — `Project`, `Folder`, `File`, `Content`, `Fragment`, `Slot`,
-`Inject`, `Copy`, `List` — and Jostraca walks the tree to write your
+components - `Project`, `Folder`, `File`, `Content`, `Fragment`, `Slot`,
+`Inject`, `Copy`, `List` - and Jostraca walks the tree to write your
 output.
 
 This module is a maintained **port** of the canonical TypeScript package
@@ -21,10 +21,10 @@ go get github.com/jostraca/jostraca/go
 This README is organised along the four [Diátaxis](https://diataxis.fr)
 documentation modes:
 
-- **[Tutorial](#tutorial)** — learning-oriented. Your first generator.
-- **[How-to guides](#how-to-guides)** — task-oriented. Specific recipes.
-- **[Reference](#reference)** — information-oriented. Types and API.
-- **[Explanation](#explanation)** — understanding-oriented. The port's
+- **[Tutorial](#tutorial)** - learning-oriented. Your first generator.
+- **[How-to guides](#how-to-guides)** - task-oriented. Specific recipes.
+- **[Reference](#reference)** - information-oriented. Types and API.
+- **[Explanation](#explanation)** - understanding-oriented. The port's
   design, concurrency model, and deviations from TypeScript.
 
 ---
@@ -34,7 +34,7 @@ documentation modes:
 *A short lesson. Follow it top to bottom.*
 
 Construct a generator with `New`, then describe a component tree. Each
-callback receives a `*J` that shadows the outer one — nest the calls to
+callback receives a `*J` that shadows the outer one - nest the calls to
 mirror the folders and files you want.
 
 ```go
@@ -164,7 +164,7 @@ j.FileP(jostraca.FileProps{Name: "run.sh", Mode: 0o755}, func(j *jostraca.J) {
 
 `Mode` sets POSIX permission bits on the generated file; zero leaves the
 provider default. An explicit mode wins over the existing file's mode on
-regeneration, and applies to the target only — not the `.old`/`.new`
+regeneration, and applies to the target only - not the `.old`/`.new`
 sidecars or the merge baseline. It is preserved across the atomic
 write-then-rename via the optional `Chmod` capability on the `FS` interface
 (`OsFS` implements it; `MemFS` does not track modes). **Windows** has no
@@ -183,7 +183,7 @@ vol := res.Vol() // map[string][]byte snapshot
 
 ### Make a reusable component
 
-Define a plain function taking `*J` and call it directly — that is the
+Define a plain function taking `*J` and call it directly - that is the
 idiomatic component. The `Cmp` wrapper exists mainly for debug call-site
 attribution when `Options.Debug` is set:
 
@@ -237,7 +237,7 @@ Use `$$path$$` for model substitution. The full surface (custom
 delimiters, regex replace keys, function-valued model refs, `#Tag` comment
 markers, eject regions, the streaming `Handle` callback, the
 `__JOSTRACA_REPLACE__` debug sentinel) matches the TS engine. RE2 caveats
-apply: no lookbehind/lookahead — violations are rejected at compile time
+apply: no lookbehind/lookahead - violations are rejected at compile time
 with `ErrLookbehind`.
 
 ### Diff and merge
@@ -259,7 +259,7 @@ test-diff-coverage`.
 ### Receiver-shadowing closures (instead of AsyncLocalStorage)
 
 The TypeScript original uses Node's `AsyncLocalStorage` to keep component
-nesting noise-free — child components discover their parent implicitly:
+nesting noise-free - child components discover their parent implicitly:
 
 ```typescript
 generate({...}, () => {
@@ -288,7 +288,7 @@ j.Generate(opts, func(j *jostraca.J) {                 // outer j shadowed
 Because each `j` shadows the one above, you can never accidentally use the
 wrong frame. The cost, compared to TS, is one identifier per call site.
 
-### Concurrency — a parity *gain*
+### Concurrency - a parity *gain*
 
 Each `Generate` call has its own `*J`; the package exports zero mutable
 globals. Two goroutines calling `Generate` simultaneously cannot collide
@@ -351,11 +351,11 @@ same logical input:
   see no difference; callers relying on the aliasing would. Merge semantics
   themselves match, nil/null included: a nil *argument* is skipped (TS
   `undefined`), while a nil map value or slice element overwrites (TS
-  `null`). Only `[]any` merges index-by-index — a typed slice such as
+  `null`). Only `[]any` merges index-by-index - a typed slice such as
   `[]string` takes the right-wins path, as does any other value carrying a
   type of its own (`*regexp.Regexp`, `time.Time`, a struct), which is TS's
   "custom constructor" rule. TS applied that rule in only one of its two
-  branches until it was corrected — see the note on `deep` in
+  branches until it was corrected - see the note on `deep` in
   `ts/src/util/basic.ts`; `TestDeepCustomTypeReplaces` is the anchor on
   this side.
 - A template value that is an integer wider than 2^53 keeps its exact value
@@ -364,7 +364,7 @@ same logical input:
   stacks (`template_format_test.go` pins this); beyond that there is
   nothing to reconcile.
 
-Design background lives in [`PORT_PLAN.md`](./PORT_PLAN.md);
+Design background is in [`PORT_PLAN.md`](./PORT_PLAN.md);
 per-phase implementation notes in [`BUILD_LOG.md`](./BUILD_LOG.md).
 
 ### Status

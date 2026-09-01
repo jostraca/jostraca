@@ -1,7 +1,7 @@
 # Explanation: why Jostraca is shaped this way
 
 This page argues the design. It is not the place to look up a prop or
-follow a recipe — the [component reference](reference-components.md) and
+follow a recipe - the [component reference](reference-components.md) and
 the [how-to guides](how-to/README.md) do those jobs. Read this to build
 a model of why the pieces sit where they do, and what the arrangement
 costs.
@@ -39,7 +39,7 @@ questions a streaming generator cannot answer:
 - Does this file already exist, and does its content differ from what I
   am about to write?
 - Is it the same as what I wrote last time, so there is nothing to do?
-- Does it carry a marker saying it has been taken out of my hands?
+- Does it contain a marker saying the generator must skip it?
 - If it has changed since my last run, which of the changes are mine and
   which are the user's?
 
@@ -84,7 +84,7 @@ and it is why a component author writes `Content(...)` rather than
 
 Two consequences are worth stating plainly.
 
-The storage lives on `global` rather than on the `Jostraca` instance. It
+The storage is on `global` rather than on the `Jostraca` instance. It
 has to: a component imported from `jostraca` must find the context of
 whichever `generate()` is running, and an npm dedupe miss that loads two
 copies of the package would otherwise give the two copies separate
@@ -103,7 +103,7 @@ interpolation markers, driven by a data model. It starts smaller than
 this one and it grows in a predictable direction. First an
 interpolation. Then a conditional, because one project needs a section
 the others do not. Then a loop. Then partials, because the templates
-repeat. Then an escape hatch to call real code, because the dialect
+repeat. Then an escape hatch to call JavaScript, because the dialect
 cannot express the thing you actually need. Every step is locally
 reasonable and the destination is a second programming language with
 worse tooling than the one you started in.
@@ -115,15 +115,15 @@ which a dialect can offer without building them.
 
 The template syntax that remains is deliberately unable to grow:
 `$$path$$` substitutes a value from the model, and does nothing else. No
-conditionals, no loops, no expressions. Anything harder lives in the
+conditionals, no loops, no expressions. Anything harder belongs in the
 surrounding code, where it can be tested.
 
 **What this costs.** A template file can be opened and read; a component
 tree cannot. Somebody reviewing a generator has to run it to see its
-output, and the shape of a generated file is spread across function
+output, and the structure of a generated file is spread across function
 calls rather than sitting in one readable artifact. `Fragment` and
-`Slot` give some of that back — an external template file with named
-regions the generator fills — and that is exactly why they exist. They
+`Slot` give some of that back - an external template file with named
+regions the generator fills - and that is exactly why they exist. They
 do not give all of it back.
 
 ## Existing files, and the merge base
@@ -194,12 +194,11 @@ one would have to overrule the user to do it.
 A file containing the string `JOSTRACA_PROTECT` sits outside all of
 this. It is never overwritten, whatever the modes say. Under `write`,
 `preserve`, `diff` and `merge` it is skipped outright and appears in
-none of the result lists — not written, not preserved, not even
+none of the result lists - not written, not preserved, not even
 reported as unchanged. Under `present` the protection stops the
 overwrite but not the run: the new version still lands in the `.new.`
-sidecar and the file is reported as presented, which is the useful
-behaviour, since a user who has taken a file over may still want to see
-what they are declining.
+sidecar and the file is reported as presented. A user who has taken a file
+over can still inspect the proposed replacement.
 
 It is the blunt instrument, and it is blunt on purpose: a user should be
 able to take a file away from your generator without negotiating with
@@ -230,7 +229,7 @@ with no code change, and an unknown case is a hard failure on both sides
 rather than a silent skip on one.
 
 The rule for disagreements is that TypeScript wins and Go is the one
-that changes — including on the occasions when the Go code is the more
+that changes - including on the occasions when the Go code is the more
 correct of the two. That sounds perverse and it is the only rule that
 converges. A parity project with two sources of truth has none, and
 "whichever looks better today" is not a rule anybody can apply twice the
@@ -244,7 +243,7 @@ One more parity constraint shows up in a place nobody expects. `omap`,
 `each`, `cmap` and `vmap` visit object entries in **sorted key order**,
 not insertion order. A Go map has no insertion order to reproduce, so
 matching it in TypeScript is the only way both stacks can agree on the
-order of anything derived from an object. It is a real behavioural
+order of anything derived from an object. It is a behavioural
 difference from the JavaScript norm, and it is the price of the
 byte-identical claim.
 

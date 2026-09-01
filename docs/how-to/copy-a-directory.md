@@ -58,7 +58,7 @@ app/static/logo.svg
 app/static/style/site.css
 ```
 
-The tree keeps its shape, and `$$title$$` was substituted in
+The tree keeps its structure, and `$$title$$` was substituted in
 `logo.svg`:
 
 <!-- test: file out/app/static/logo.svg -->

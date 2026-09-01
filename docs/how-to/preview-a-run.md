@@ -8,7 +8,7 @@ order: 60
 
 `control.dryrun` guards every write while letting everything else
 happen. The decision tree runs, the result arrays fill in, the audit is
-recorded — and the filesystem is not touched, not even to create the
+recorded - and the filesystem is not touched, not even to create the
 `.jostraca` folder.
 
 Set it on the `generate()` call. A global `control` is ignored, which
@@ -43,7 +43,7 @@ console.log('out exists:', existsSync('./out'))
 out exists: false
 ```
 
-The report is the point: `files.written` names what a real run would
+Read the report: `files.written` names what a normal run would
 write, so a wrapper command can print a plan and ask before doing it.
 The other arrays are filled in the same way, so a dry run over an
 existing tree tells you which files would be merged and which would
