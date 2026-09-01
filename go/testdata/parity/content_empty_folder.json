@@ -2,6 +2,7 @@
   "scenario": "content_empty_folder",
   "opts": {},
   "prepopulate": {},
+  "error": false,
   "vol": {
     "/out/foo.txt": "A",
     "/out/.jostraca/generated/foo.txt": "A",

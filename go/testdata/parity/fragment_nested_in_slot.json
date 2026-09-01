@@ -5,6 +5,7 @@
     "/f.txt": "A<[SLOT:s]>B\n",
     "/f2.txt": "NESTED"
   },
+  "error": false,
   "vol": {
     "/f.txt": "A<[SLOT:s]>B\n",
     "/f2.txt": "NESTED",

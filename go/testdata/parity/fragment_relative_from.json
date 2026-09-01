@@ -4,6 +4,7 @@
   "prepopulate": {
     "/out/frag.txt": "FRAG\n"
   },
+  "error": false,
   "vol": {
     "/out/frag.txt": "FRAG\n",
     "/out/app/sub/out.txt": "FRAG\n",

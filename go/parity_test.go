@@ -64,13 +64,27 @@ type parityCase struct {
 	Scenario    string                 `json:"scenario"`
 	Opts        map[string]any         `json:"opts"`
 	Prepopulate map[string]corpusBytes `json:"prepopulate"`
-	Vol         map[string]corpusBytes `json:"vol"`
+	// Error records whether the TS run threw. Asserted bidirectionally below,
+	// so a scenario that fails in one stack and completes in the other is a
+	// parity failure like any output difference. See PARITY_PLAN.md 2.1.
+	Error bool                   `json:"error"`
+	Vol   map[string]corpusBytes `json:"vol"`
 }
 
 // scenarioRunner builds the component tree for a named scenario. The
 // runners here mirror the tree shapes in tools/extract-parity.js so a
 // byte-equal parity assertion is meaningful.
 var scenarioRunners = map[string]func(j *J){
+	// Fails in BOTH stacks, which is the point: it exercises the `error` field
+	// end to end. TS rejects `from` through the shape Check, Go at
+	// builder.go. See PARITY_PLAN.md 2.1.
+	"fragment_missing_from_errors": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("index.html", func(j *J) {
+				j.Fragment(FragmentProps{From: "/templates/does-not-exist.html"}, nil)
+			})
+		})
+	},
 	"quickstart": func(j *J) {
 		j.Project(ProjectProps{Folder: "my-app"}, func(j *J) {
 			j.Folder("src", func(j *J) {
@@ -371,8 +385,14 @@ func runParityCase(t *testing.T, path, name string) {
 	opts = append(opts, scenarioOptions(name)...)
 	j := New(opts...)
 
-	if _, err := j.Generate(Options{}, runner); err != nil {
-		t.Fatalf("Generate: %v", err)
+	_, gerr := j.Generate(Options{}, runner)
+
+	if c.Error {
+		if gerr == nil {
+			t.Fatalf("TS failed but Go succeeded")
+		}
+	} else if gerr != nil {
+		t.Fatalf("TS succeeded but Go failed: %v", gerr)
 	}
 
 	assertVol(t, mem, c.Vol)

@@ -4,6 +4,7 @@
   "prepopulate": {
     "/out/app/cfg.txt": "# JOSTRACA_PROTECT\nuser-edit\n"
   },
+  "error": false,
   "vol": {
     "/out/app/cfg.txt": "# JOSTRACA_PROTECT\nuser-edit\n",
     "/out/.jostraca/generated/app/cfg.txt": "regenerated\n",

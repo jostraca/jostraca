@@ -11,6 +11,7 @@
   "prepopulate": {
     "/out/app/a.txt": "OLD"
   },
+  "error": false,
   "vol": {
     "/out/app/a.txt": "NEW",
     "/out/app/a.old.txt": "OLD",

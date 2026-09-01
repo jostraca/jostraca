@@ -2,6 +2,7 @@
   "scenario": "happy_multifile",
   "opts": {},
   "prepopulate": {},
+  "error": false,
   "vol": {
     "/out/sdk/js/foo.js": "// custom-foo\n",
     "/out/sdk/js/bar.js": "// custom-bar\n",

@@ -806,6 +806,16 @@ func fragmentAfter(n *Node, st *jstate, b *buildCtx) error {
 	// throwaway parent node carrying filter. Slot's check at SlotP looks
 	// at j.cur.Filter, so the filter must live on the throwaway, not on n.
 	replayWithFilter := func(filter FilterFunc, collect func(*Node) string) string {
+		// A Fragment may legitimately have no body: FragmentP returns before
+		// stashing one when body == nil (builder.go). Calling it anyway was a
+		// nil func call, so a two-line program -- a bodyless Fragment over a
+		// source containing an unnamed <[SLOT]> marker -- panicked and killed
+		// the caller's goroutine. TS renders the marker as empty in that case
+		// (each over null children is a no-op, ts/src/cmp/Fragment.ts), so an
+		// empty replay is the matching answer. See PARITY_PLAN.md 3.
+		if body == nil {
+			return ""
+		}
 		throwaway := &Node{Kind: KindFragment, Meta: map[string]any{}, Filter: filter}
 		body(&J{st: st, cur: throwaway})
 		return collect(throwaway)

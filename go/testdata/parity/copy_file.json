@@ -8,6 +8,7 @@
   "prepopulate": {
     "/tpl/hello.txt": "Hello $$name$$"
   },
+  "error": false,
   "vol": {
     "/tpl/hello.txt": "Hello $$name$$",
     "/out/app/hello.txt": "Hello World",

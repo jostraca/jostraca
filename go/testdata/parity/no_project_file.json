@@ -2,6 +2,7 @@
   "scenario": "no_project_file",
   "opts": {},
   "prepopulate": {},
+  "error": false,
   "vol": {
     "/out/x.txt": "hi\n",
     "/out/.jostraca/generated/x.txt": "hi\n",
