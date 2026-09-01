@@ -2,9 +2,6 @@
 import { test, describe } from 'node:test'
 import { expect } from './expect'
 
-import { memfs } from 'memfs'
-
-
 import {
   Jostraca,
   Project,

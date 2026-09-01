@@ -47,7 +47,7 @@ TypeScript — run from `ts/` (build emits JS to `ts/dist/`, tests to `ts/dist-t
 
 ```bash
 cd ts
-npm install          # also pulls peer deps: memfs, shape
+npm install          # also pulls the peer dep: shape
 npm run build        # tsc --build src test
 npm test             # node --test dist-test/**/*.test.js
 ```
@@ -89,8 +89,16 @@ so a case can never be silently ignored by one side.
   outright, and only `make reset` shows it, because `dist/` is committed and
   every other path starts from a populated one.
 - **`shape` engine warning.** `shape` may emit `EBADENGINE` on Node < 24; the
-  build and tests still pass on Node 22. Peer deps are intentionally loose
-  ranges (`memfs >=4`, `shape >=10`).
+  build and tests still pass on Node 22. The peer range is intentionally
+  loose (`shape >=10`).
+- **`memfs` is in-repo, not imported.** `src/util/memfs.ts` is a port of
+  `go/fs.go`'s MemFS wearing `node:fs` sync signatures. It replaced the
+  `memfs` package, which cost 20 transitive packages for six required
+  methods and `vol.toJSON()`. Two behaviours are contract, not detail, and
+  both are pinned in `tools/memfs-differential.js`: `readdirSync` sorts,
+  while `toJSON` walks the tree depth-first taking each directory's
+  children in creation order. Getting the second wrong reorders 1583 lines
+  of `go/testdata/parity` while every unit test still passes.
 - **`deep` and `omap` are inlined, not imported.** They used to be re-exports
   of `jsonic.util`; a parser dependency for two object helpers was not worth
   it, so `src/util/basic.ts` carries them. `deep` stays a faithful port —

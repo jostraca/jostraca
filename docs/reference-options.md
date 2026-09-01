@@ -105,8 +105,8 @@ Set `build`, `control` and `exclude` on the `generate()` call.
     unchanged,   // byte-identical, so not rewritten
   },
   audit,      // () => [tag, data][]
-  vol,        // () => memfs Volume   -- only when a memfs was built
-  fs,         // () => FS             -- only when a memfs was built
+  vol,        // () => Volume  -- only when an in-memory fs was built
+  fs,         // () => FS      -- only when an in-memory fs was built
 }
 ```
 
@@ -121,13 +121,13 @@ byte-identical rewrite would bump the mtime and re-trigger every
 watcher downstream, so Jostraca skips it and records the path here
 instead of in `written`. An explicit `File` `mode` is still applied.
 
-`vol()` and `fs()` are present only when a memfs was constructed, and
-in two configurations one of them can mislead:
+`vol()` and `fs()` are present only when an in-memory filesystem was
+constructed, and in two configurations one of them can mislead:
 
 - Global `mem: true` with a per-call `fs`: `fs()` is right, `vol()`
   returns the untouched global volume.
 - Global `mem: true` with per-call `mem: false`: output still goes to
-  the global memfs, and both accessors are absent.
+  the global in-memory filesystem, and both accessors are absent.
 
 Neither is a configuration worth having. Pick one provider per
 instance.

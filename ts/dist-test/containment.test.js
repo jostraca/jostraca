@@ -7,7 +7,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const node_test_1 = require("node:test");
 const expect_1 = require("./expect");
-const memfs_1 = require("memfs");
+const memfs_1 = require("../dist/util/memfs");
 const __1 = require("../");
 // 2025-01-01T00:00:00.000Z
 const START_TIME = 1735689600000;

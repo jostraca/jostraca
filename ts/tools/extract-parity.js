@@ -13,7 +13,7 @@ const {
   Jostraca, Project, Folder, File, Content, Inject, Fragment, Slot, Copy, Line, List,
 } = require('../dist/jostraca')
 
-const { memfs } = require('memfs')
+const { memfs } = require('../dist/util/memfs')
 
 // Binary escape hatch: content values are plain strings when the bytes
 // round-trip through UTF-8, and {"b64": "..."} when they do not.

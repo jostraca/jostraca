@@ -10,7 +10,7 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 
 import { Shape, Skip, One } from 'shape'
 
-import { memfs as MemFs } from 'memfs'
+import { memfs as MemFs } from './util/memfs'
 
 
 import type {

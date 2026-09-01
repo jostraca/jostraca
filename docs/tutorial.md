@@ -17,17 +17,18 @@ below it is what the generator actually wrote.
 
 ## 1. Set up
 
-Install the package. `memfs` and `shape` are peer dependencies and npm
-pulls them in for you:
+Install the package. `shape` is a peer dependency and npm pulls it in
+for you:
 
 <!-- test: skip environment setup; npm is outside the scenario vocabulary -->
 ```sh
 npm install jostraca
 ```
 
-`shape` validates the options you pass; `memfs` backs the in-memory
-mode we reach in step 7. Jostraca has no command of its own. A
-generator is a program you write and run:
+`shape` validates the options you pass. The in-memory mode we reach in
+step 7 needs nothing extra: jostraca carries its own in-memory
+filesystem. Jostraca has no command of its own. A generator is a
+program you write and run:
 
 <!-- test: skip environment setup; node is outside the scenario vocabulary -->
 ```sh

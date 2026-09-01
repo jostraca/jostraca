@@ -8,7 +8,7 @@
 import { test, describe } from 'node:test'
 import { expect } from './expect'
 
-import { memfs } from 'memfs'
+import { memfs } from '../dist/util/memfs'
 
 import {
   Jostraca,

@@ -81,7 +81,8 @@ Three rules about the pairing, because they are not symmetrical:
   seed merged with yours, and that call's writes never reach the shared
   one.
 
-`memfs` is a peer dependency, and npm installs it for you.
+The in-memory filesystem is part of jostraca. Nothing is installed for
+it, and it is not a filesystem you can pass around outside a run.
 
 **This page is TypeScript only.** The Go port's `WithMem()` and
 `WithVol()` are inert: a generator configured with them runs against the

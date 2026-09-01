@@ -43,7 +43,7 @@ exports.cmp = cmp;
 const Fs = __importStar(require("node:fs"));
 const node_async_hooks_1 = require("node:async_hooks");
 const shape_1 = require("shape");
-const memfs_1 = require("memfs");
+const memfs_1 = require("./util/memfs");
 const BuildContext_1 = require("./build/BuildContext");
 Object.defineProperty(exports, "BuildContext", { enumerable: true, get: function () { return BuildContext_1.BuildContext; } });
 const basic_1 = require("./util/basic");
