@@ -77,3 +77,8 @@ test/spec/perf/latest-*.tsv
 # an untracked stray next to a tracked file is exactly what a later `git add
 # -A` sweeps up by accident.
 go/jostraca.go.tmp
+
+# Local agent settings. Nothing under .claude/ is repository content -- it is
+# one machine's tool permissions, tracked by accident, and it carried local
+# filesystem paths into a public repo.
+.claude/
