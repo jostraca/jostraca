@@ -18,6 +18,12 @@
 # of breakage that goes unnoticed.
 
 title: Jostraca documentation
+
+# Two lengths, because the theme uses them for different jobs: `tagline`
+# finishes the home page's <title>, while `description` is the meta
+# description a search result shows. Without a tagline the theme reaches for
+# the description and the home page ends up with a 150-character title.
+tagline: A code generator you can run twice
 description: >-
   A code generator you can run twice: components in, a file tree out, and a
   second run that can preserve, present, diff or merge over code a human
