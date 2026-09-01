@@ -15,6 +15,7 @@
     "/tm/sub/b.txt": "// SUB-B $$x.y$$ TXT\n",
     "/tm/sub/c/d.txt": "// SUB-C-D $$x.y$$ $$x.z$$ TXT\n"
   },
+  "error": false,
   "vol": {
     "/tm/bar.txt": "// BAR $$x.z$$ TXT\n",
     "/tm/bar.txt~": "// BAR TXT\n",

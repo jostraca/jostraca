@@ -10,7 +10,7 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 
 import { Shape, Skip, One } from 'shape'
 
-import { memfs as MemFs } from 'memfs'
+import { memfs as MemFs } from './util/memfs'
 
 
 import type {
@@ -144,15 +144,21 @@ const OptionsShape = Shape({
     }
   },
 
+  // Each key is Skip so that shape does NOT inject a default here. A literal
+  // default would be injected into EVERY per-call options object, including an
+  // empty one, and the merge below would then let that injected default beat a
+  // global setting -- which silently disabled a global `dryrun: true` and wrote
+  // the user's files. Defaults are applied once, after the merge, from
+  // CONTROL_DEFAULTS. See PARITY_PLAN.md 1.1.
   control: {
     // Do not modify any files or folders.
-    dryrun: false,
+    dryrun: Skip(Boolean),
 
     // Create duplicate of generated output (for 3diff).
-    duplicate: true,
+    duplicate: Skip(Boolean),
 
     // Allow .jostraca files to be added to git.
-    version: false,
+    version: Skip(Boolean),
   },
 
 }, { name: 'Jostraca Options' })
@@ -188,6 +194,18 @@ type Existing = {
 
 
 const sysFs = () => Fs
+
+
+// Applied once, beneath both the global and the per-call `control`, so that
+// precedence runs defaults < global < per-call. These are NOT declared as
+// literals in OptionsShape: shape would inject them into every validated
+// options object, and an injected default is indistinguishable from a caller's
+// choice at merge time.
+const CONTROL_DEFAULTS = {
+  dryrun: false,
+  duplicate: true,
+  version: false,
+}
 
 
 function Jostraca(gopts_in?: JostracaOptions | {}) {
@@ -255,7 +273,7 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
 
     // console.log('EXISTING', existing)
 
-    const control = deep({}, gOpts.control, opts.control)
+    const control = deep({}, CONTROL_DEFAULTS, gOpts.control, opts.control)
 
     // Component defaults.
     opts.cmp = deep({

@@ -4,6 +4,7 @@
   "prepopulate": {
     "/out/app/foo.txt": "A\n#--START--#\nold1\n#--END--#\nB\n#--START--#\nold2\n#--END--#\nC\n"
   },
+  "error": false,
   "vol": {
     "/out/app/foo.txt": "A\n#--START--#\nNEW\n#--END--#\nB\n#--START--#\nNEW\n#--END--#\nC\n",
     "/out/.jostraca/generated/app/foo.txt": "A\n#--START--#\nNEW\n#--END--#\nB\n#--START--#\nNEW\n#--END--#\nC\n",

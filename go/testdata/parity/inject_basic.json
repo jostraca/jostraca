@@ -4,6 +4,7 @@
   "prepopulate": {
     "/out/app/foo.txt": "HEADER\n#--START--#\nold\n#--END--#\nFOOTER\n"
   },
+  "error": false,
   "vol": {
     "/out/app/foo.txt": "HEADER\n#--START--#\nnew content\n#--END--#\nFOOTER\n",
     "/out/.jostraca/generated/app/foo.txt": "HEADER\n#--START--#\nnew content\n#--END--#\nFOOTER\n",

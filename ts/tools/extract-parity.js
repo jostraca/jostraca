@@ -13,7 +13,7 @@ const {
   Jostraca, Project, Folder, File, Content, Inject, Fragment, Slot, Copy, Line, List,
 } = require('../dist/jostraca')
 
-const { memfs } = require('memfs')
+const { memfs } = require('../dist/util/memfs')
 
 // Binary escape hatch: content values are plain strings when the bytes
 // round-trip through UTF-8, and {"b64": "..."} when they do not.
@@ -36,7 +36,19 @@ async function snapshot(name, opts, root, prepopulate) {
     folder: '/out',
     now: () => FROZEN_NOW,
   }, opts)
-  await j.generate(fullOpts, root)
+  // Guarded so a scenario where TS THROWS is recorded rather than crashing the
+  // generator. Without this the whole class "one stack fails where the other
+  // completes" was unrepresentable: the scenario corpus carries an `error`
+  // field and Go asserts it bidirectionally, but nothing could ever produce a
+  // true. See PARITY_PLAN.md 2.1. The volume is still captured, so a partial
+  // write before the throw is compared too.
+  let error = false
+  try {
+    await j.generate(fullOpts, root)
+  }
+  catch (err) {
+    error = true
+  }
   const result = volOf(mfs)
   fs.writeFileSync(
     path.join(outDir, name + '.json'),
@@ -44,6 +56,7 @@ async function snapshot(name, opts, root, prepopulate) {
       scenario: name,
       opts: opts || {},
       prepopulate: encMap(prepopulate),
+      error,
       vol: result,
     }, null, 2) + '\n',
   )
@@ -260,6 +273,33 @@ async function main() {
   }, {
     '/templates/page.html':
       '<html>\n<!-- <[SLOT:head]> -->\n<body>\n<!-- <[SLOT:body]> -->\n</body>\n</html>\n',
+  })
+
+  // Fragment `eject` trims the source to the region between the markers. Go
+  // declared FragmentProps.Eject and read it nowhere, so it emitted the whole
+  // file. See PARITY_PLAN.md 3.
+  await snapshot('fragment_eject', {}, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'part.txt' }, () => {
+        Fragment({ from: '/templates/whole.txt', eject: ['START\n', 'END\n'] })
+      })
+    })
+  }, {
+    '/templates/whole.txt': 'PRE\nSTART\nKEEP\nEND\nPOST\n',
+  })
+
+  // A scenario that FAILS in both stacks, so the `error` field is exercised
+  // rather than merely present. A Fragment whose source does not exist is
+  // rejected at define time by both: TS through the shape Check on `from`, Go
+  // at builder.go ("Fragment: From file does not exist"). Before the guard in
+  // snapshot() above, adding this would have crashed the corpus generator
+  // instead of recording anything. See PARITY_PLAN.md 2.1.
+  await snapshot('fragment_missing_from_errors', {}, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'index.html' }, () => {
+        Fragment({ from: '/templates/does-not-exist.html' })
+      })
+    })
   })
 
   // Inject between markers.

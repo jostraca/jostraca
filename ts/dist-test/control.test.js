@@ -74,5 +74,50 @@ const START_TIME = 1735689600000;
         });
         (0, expect_1.expect)({ ...res0.vol().toJSON() }).equal(res1.vol().toJSON());
     });
+    // A GLOBAL `control` setting used to be discarded. OptionsShape declared
+    // dryrun/duplicate/version as literal defaults, so shape injected them into
+    // every per-call options object -- including an empty one -- and the merge
+    // `deep({}, gOpts.control, opts.control)` then let the injected default beat
+    // the global. A global `dryrun: true` therefore wrote the user's files, byte
+    // for byte identical to no dry run at all. See PARITY_PLAN.md 1.1.
+    (0, node_test_1.describe)('global-control-precedence', () => {
+        const root = () => (0, __1.Project)({}, () => {
+            (0, __1.File)({ name: 'a.txt' }, () => (0, __1.Content)('SECRET'));
+        });
+        const gen = async (gopts, opts) => {
+            const j = (0, __1.Jostraca)({ mem: true, now: () => START_TIME, ...gopts });
+            const res = await j.generate({ folder: '/out', ...opts }, root);
+            return Object.keys(res.vol().toJSON()).sort();
+        };
+        const ALL = [
+            '/out/.jostraca/.gitignore',
+            '/out/.jostraca/generated/a.txt',
+            '/out/.jostraca/jostraca.meta.log',
+            '/out/a.txt',
+        ];
+        (0, node_test_1.test)('global-dryrun-writes-nothing', async () => {
+            (0, expect_1.expect)(await gen({ control: { dryrun: true } }, {})).equal([]);
+        });
+        (0, node_test_1.test)('per-call-dryrun-writes-nothing', async () => {
+            (0, expect_1.expect)(await gen({}, { control: { dryrun: true } })).equal([]);
+        });
+        (0, node_test_1.test)('per-call-overrides-global', async () => {
+            // Precedence is defaults < global < per-call, so an explicit per-call
+            // `false` still wins over a global `true`.
+            (0, expect_1.expect)(await gen({ control: { dryrun: true } }, { control: { dryrun: false } }))
+                .equal(ALL);
+        });
+        (0, node_test_1.test)('no-control-writes-everything', async () => {
+            (0, expect_1.expect)(await gen({}, {})).equal(ALL);
+        });
+        (0, node_test_1.test)('global-duplicate-false-skips-baseline', async () => {
+            (0, expect_1.expect)(await gen({ control: { duplicate: false } }, {}))
+                .equal(ALL.filter((p) => !p.includes('/generated/')));
+        });
+        (0, node_test_1.test)('global-version-true-skips-gitignore', async () => {
+            (0, expect_1.expect)(await gen({ control: { version: true } }, {}))
+                .equal(ALL.filter((p) => !p.endsWith('.gitignore')));
+        });
+    });
 });
 //# sourceMappingURL=control.test.js.map

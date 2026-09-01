@@ -21,3 +21,4 @@ template-replace-two-keys	template	["aQbWc",{},{"replace":{"Q":"Z","W":"Y"}}]	"a
 template-replace-empty-match	template	["aQQQb",{},{"replace":{"/Q*/":"Z"}}]	-	empty
 template-replace-no-match	template	["abc",{},{"replace":{"Q":"Z"}}]	"abc"	
 template-replace-and-ref	template	["Q$$a$$",{"a":"V"},{"replace":{"Q":"Z"}}]	"ZV"	
+template-replace-equal-length-keys	template	["xAAx",{},{"replace":{"/A+/":"PLUS","/AA/":"PAIR"}}]	"xPLUSx"	

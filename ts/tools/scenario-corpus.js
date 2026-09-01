@@ -24,7 +24,7 @@
 // go/scenario_corpus_test.go replays it and asserts byte equality. If it
 // fails, the stacks have drifted; do not regenerate to make it pass.
 
-const { memfs } = require('memfs')
+const { memfs } = require('../dist/util/memfs')
 
 const {
   Jostraca,

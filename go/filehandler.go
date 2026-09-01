@@ -682,6 +682,11 @@ func (fh *fileHandler) writeAtomic(p string, content []byte) error {
 }
 
 // chmodUnchanged applies an explicit mode to a file whose content did not
+// chmodBits are the bits os.Chmod honours: the 9 permission bits plus the
+// three special bits. Anything outside this mask cannot be applied by a chmod
+// and must not take part in the "has the mode changed?" comparison.
+const chmodBits = fs.ModePerm | fs.ModeSetuid | fs.ModeSetgid | fs.ModeSticky
+
 // change, and reports whether it did anything.
 //
 // Best-effort: a provider without Chmod, or a target that vanished, is not
@@ -694,7 +699,12 @@ func (fh *fileHandler) chmodUnchanged(p string, mode fs.FileMode) bool {
 	if !ok {
 		return false
 	}
-	if fi, err := fh.fs.Stat(p); err == nil && fi.Mode.Perm() == mode.Perm() {
+	// Compare every bit Chmod can actually set, not just Perm(). Perm() is 9
+	// bits, while os.Chmod also honours setuid, setgid and sticky, so a file
+	// whose content is unchanged and whose mode went from 0755 to
+	// 0755|ModeSetuid compared equal and never got the bit. See
+	// PARITY_PLAN.md 3.
+	if fi, err := fh.fs.Stat(p); err == nil && fi.Mode&chmodBits == mode&chmodBits {
 		return false
 	}
 	return cf.Chmod(p, mode) == nil

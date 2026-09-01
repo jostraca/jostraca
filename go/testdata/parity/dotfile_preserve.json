@@ -12,6 +12,7 @@
     "/out/app/.env": "OLD-ENV\n",
     "/out/app/.npmrc": "OLD-NPMRC\n"
   },
+  "error": false,
   "vol": {
     "/out/app/.env": "NEW-ENV\n",
     "/out/app/.npmrc": "NEW-NPMRC\n",

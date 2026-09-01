@@ -2,6 +2,7 @@
   "scenario": "list_basic",
   "opts": {},
   "prepopulate": {},
+  "error": false,
   "vol": {
     "/out/app/out.txt": "a\nb\nc\n\n",
     "/out/.jostraca/generated/app/out.txt": "a\nb\nc\n\n",

@@ -8,7 +8,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const node_test_1 = require("node:test");
 const expect_1 = require("./expect");
-const memfs_1 = require("memfs");
+const memfs_1 = require("../dist/util/memfs");
 const __1 = require("../");
 (0, node_test_1.describe)('parity-fidelity', () => {
     // each.mark — defaults true; when oval=false Mark adds index$/key$

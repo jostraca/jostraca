@@ -19,9 +19,10 @@ lives at
 npm install jostraca
 ```
 
-`memfs` and `shape` are peer dependencies, and npm installs them for you.
-`shape` validates options; `memfs` backs in-memory generation. Both are loose
-ranges (`memfs >=4`, `shape >=10`).
+`shape` is the only peer dependency, and npm installs it for you. It
+validates options, on a loose range (`shape >=10`). In-memory generation is
+served by an in-repo filesystem (`src/util/memfs.ts`), so nothing else is
+installed for it.
 
 ## A generator, end to end
 
@@ -74,7 +75,7 @@ each snippet in a temp directory and compares the tree it wrote.
 
 ```bash
 cd ts
-npm install     # also pulls peer deps: memfs, shape
+npm install     # also pulls the peer dep: shape
 npm run build   # tsc --build src test
 npm test        # node --test dist-test/**/*.test.js
 ```

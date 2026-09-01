@@ -44,6 +44,24 @@ Jostraca Options: Validation failed for object "{folder:/out,bogus:1}" because t
 | `cmp.Copy.ignore` | `RegExp[]` | `[/~$/]` | Extra names for `Copy` to skip. |
 | `exclude` | `boolean` | `false` | Skip output files modified since the last build. |
 
+`fs` takes a factory, not a filesystem, and `FS` is a small contract
+rather than the whole of `node:fs`. Six methods are required:
+
+| required | feature-detected | fallback when absent |
+|---|---|---|
+| `existsSync` | `renameSync` | a direct write, so no atomic rename |
+| `readFileSync` | `chmodSync` | modes stay at their default |
+| `writeFileSync` | `unlinkSync` | temp files are not cleaned up |
+| `mkdirSync` | `realpathSync` | identity, so no symlink-cycle detection |
+| `statSync` | | |
+| `readdirSync` | | |
+
+`existsSync` is the one checked at runtime: a provider without it is
+rejected outright. The four on the right are tested with `typeof`
+before each call, so a partial provider is legitimate. Everything is
+synchronous, and `node:fs` satisfies the contract, so passing it
+directly still works.
+
 `debug` is worth a note. Its shape declares `'info'` as an example
 value, not as a default, so nothing sets it when you omit it and the
 fallback is the string `'.'` — which is truthy. Debug callsite stamping
@@ -105,8 +123,8 @@ Set `build`, `control` and `exclude` on the `generate()` call.
     unchanged,   // byte-identical, so not rewritten
   },
   audit,      // () => [tag, data][]
-  vol,        // () => memfs Volume   -- only when a memfs was built
-  fs,         // () => FS             -- only when a memfs was built
+  vol,        // () => Volume  -- only when an in-memory fs was built
+  fs,         // () => FS      -- only when an in-memory fs was built
 }
 ```
 
@@ -121,13 +139,13 @@ byte-identical rewrite would bump the mtime and re-trigger every
 watcher downstream, so Jostraca skips it and records the path here
 instead of in `written`. An explicit `File` `mode` is still applied.
 
-`vol()` and `fs()` are present only when a memfs was constructed, and
-in two configurations one of them can mislead:
+`vol()` and `fs()` are present only when an in-memory filesystem was
+constructed, and in two configurations one of them can mislead:
 
 - Global `mem: true` with a per-call `fs`: `fs()` is right, `vol()`
   returns the untouched global volume.
 - Global `mem: true` with per-call `mem: false`: output still goes to
-  the global memfs, and both accessors are absent.
+  the global in-memory filesystem, and both accessors are absent.
 
 Neither is a configuration worth having. Pick one provider per
 instance.

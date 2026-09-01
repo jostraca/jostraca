@@ -11,6 +11,7 @@
     },
     "/tm/readme.txt": "hello $$v$$\n"
   },
+  "error": false,
   "vol": {
     "/tm/mod.wasm": {
       "b64": "AGFzbQEAAAAkJHYkJP/+gA=="

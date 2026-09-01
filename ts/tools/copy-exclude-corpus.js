@@ -17,7 +17,7 @@
 // it fails, the two stacks have drifted on how a Copy exclude is matched.
 // Do not regenerate the corpus to make it pass.
 
-const { memfs } = require('memfs')
+const { memfs } = require('../dist/util/memfs')
 
 const {
   Jostraca,

@@ -24,6 +24,7 @@
     "/out/p/readme.txt": "OLD\n",
     "/out/p/icon.png": "OLD-ICON\n"
   },
+  "error": false,
   "vol": {
     "/tm/logo.png": "hello $$v$$\n",
     "/tm/mod.wasm": {

@@ -4,6 +4,7 @@
   "prepopulate": {
     "/out/app/foo.txt": "no markers here\n"
   },
+  "error": false,
   "vol": {
     "/out/app/foo.txt": "no markers here\n",
     "/out/.jostraca/generated/app/foo.txt": "no markers here\n",

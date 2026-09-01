@@ -12,6 +12,7 @@
   "prepopulate": {
     "/out/app/a.txt": "# JOSTRACA_PROTECT\nkeep me\n"
   },
+  "error": false,
   "vol": {
     "/out/app/a.txt": "# JOSTRACA_PROTECT\nkeep me\n",
     "/out/app/a.new.txt": "NEW\n",

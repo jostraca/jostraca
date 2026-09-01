@@ -12,6 +12,7 @@
   "prepopulate": {
     "/out/app/a.txt": "OLD\n"
   },
+  "error": false,
   "vol": {
     "/out/app/a.txt": "<<<<<<< EXISTING: 1969-12-31T23:59:59.999Z/diff\nOLD\n>>>>>>> EXISTING: 1969-12-31T23:59:59.999Z/diff\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/diff\nNEW\n>>>>>>> GENERATED: 2025-01-01T00:00:00.000Z/diff\n",
     "/out/app/a.old.txt": "OLD\n",

@@ -10,6 +10,7 @@
     "/tm/skip.txt-jostraca-off": "SKIP\n",
     "/tm/backup.txt~": "BACKUP\n"
   },
+  "error": false,
   "vol": {
     "/tm/readme.txt": "hello $$v$$\n",
     "/tm/skip.txt-jostraca-off": "SKIP\n",

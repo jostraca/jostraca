@@ -5,6 +5,7 @@
     "/out/app/a.txt": "A",
     "/out/.jostraca/generated/app/a.txt": "A"
   },
+  "error": false,
   "vol": {
     "/out/app/a.txt": "A",
     "/out/.jostraca/generated/app/a.txt": "A",

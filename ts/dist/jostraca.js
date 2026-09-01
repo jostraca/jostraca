@@ -43,7 +43,7 @@ exports.cmp = cmp;
 const Fs = __importStar(require("node:fs"));
 const node_async_hooks_1 = require("node:async_hooks");
 const shape_1 = require("shape");
-const memfs_1 = require("memfs");
+const memfs_1 = require("./util/memfs");
 const BuildContext_1 = require("./build/BuildContext");
 Object.defineProperty(exports, "BuildContext", { enumerable: true, get: function () { return BuildContext_1.BuildContext; } });
 const basic_1 = require("./util/basic");
@@ -152,13 +152,19 @@ const OptionsShape = (0, shape_1.Shape)({
             ignore: []
         }
     },
+    // Each key is Skip so that shape does NOT inject a default here. A literal
+    // default would be injected into EVERY per-call options object, including an
+    // empty one, and the merge below would then let that injected default beat a
+    // global setting -- which silently disabled a global `dryrun: true` and wrote
+    // the user's files. Defaults are applied once, after the merge, from
+    // CONTROL_DEFAULTS. See PARITY_PLAN.md 1.1.
     control: {
         // Do not modify any files or folders.
-        dryrun: false,
+        dryrun: (0, shape_1.Skip)(Boolean),
         // Create duplicate of generated output (for 3diff).
-        duplicate: true,
+        duplicate: (0, shape_1.Skip)(Boolean),
         // Allow .jostraca files to be added to git.
-        version: false,
+        version: (0, shape_1.Skip)(Boolean),
     },
 }, { name: 'Jostraca Options' });
 const ExistingShape = (0, shape_1.Shape)({
@@ -178,6 +184,16 @@ const ExistingShape = (0, shape_1.Shape)({
     }
 }, { name: 'Jostraca Options (`existing` property)' });
 const sysFs = () => Fs;
+// Applied once, beneath both the global and the per-call `control`, so that
+// precedence runs defaults < global < per-call. These are NOT declared as
+// literals in OptionsShape: shape would inject them into every validated
+// options object, and an injected default is indistinguishable from a caller's
+// choice at merge time.
+const CONTROL_DEFAULTS = {
+    dryrun: false,
+    duplicate: true,
+    version: false,
+};
 function Jostraca(gopts_in) {
     // Global options are shared by calls to `generate`.
     const gOpts = OptionsShape(gopts_in || {});
@@ -221,7 +237,7 @@ function Jostraca(gopts_in) {
             bin: (0, basic_1.deep)({}, gOpts.existing.bin, opts.existing.bin),
         });
         // console.log('EXISTING', existing)
-        const control = (0, basic_1.deep)({}, gOpts.control, opts.control);
+        const control = (0, basic_1.deep)({}, CONTROL_DEFAULTS, gOpts.control, opts.control);
         // Component defaults.
         opts.cmp = (0, basic_1.deep)({
             Copy: {

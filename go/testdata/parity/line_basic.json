@@ -2,6 +2,7 @@
   "scenario": "line_basic",
   "opts": {},
   "prepopulate": {},
+  "error": false,
   "vol": {
     "/out/app/out.txt": "hello\n",
     "/out/.jostraca/generated/app/out.txt": "hello\n",

@@ -2,6 +2,7 @@
   "scenario": "quickstart",
   "opts": {},
   "prepopulate": {},
+  "error": false,
   "vol": {
     "/out/my-app/src/index.js": "console.log(\"hello world\")\n",
     "/out/my-app/package.json": "{ \"name\": \"my-app\" }\n",

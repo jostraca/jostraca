@@ -9,6 +9,7 @@
     }
   },
   "prepopulate": {},
+  "error": false,
   "vol": {
     "/out/app/config.txt": "App: Acme v1.0.0\n",
     "/out/.jostraca/generated/app/config.txt": "App: Acme v1.0.0\n",
