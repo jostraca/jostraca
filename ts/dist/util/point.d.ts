@@ -118,6 +118,7 @@ declare const PointDefShape: {
     }>;
     stringify: (...rest: any[]) => string;
     jsonify: () => any;
+    jsonSchema: () => any;
     toString: (this: any) => string;
     shape: {
         shape$: symbol;
