@@ -34,6 +34,16 @@ should not make unilaterally.
 | 3 | `File{Mode: 0}`, per-call `Control` | documented as deviations |
 | 4 | deviations lists | **updated**, both files |
 | 2.3 | caller-side state | **fixed**, 3 TS + 3 Go tests |
+| — | Go template non-determinism (#42) | **fixed**, corpus row + 3 Go tests |
+| — | `Copy.exclude` (#28) | **verified fixed**, closed |
+
+Two items were found or settled after the plan was written. Go's template
+output was **non-deterministic across processes** — `buildTemplateRE` ranged a
+map and the stable sort then kept that random order for equal-length replace
+keys, so identical input gave different output roughly 1 run in 20. Fixed via
+`sortedKeys`, with the residual rule difference (Go alphabetical, TS declaration
+order) documented rather than papered over. And issue #28 was re-measured on
+both stacks and is genuinely resolved, so it is closed.
 
 One audit finding was **refuted** by measurement while implementing §3, and it
 is recorded here because the audit's own cross-surface pass had adjudicated it
