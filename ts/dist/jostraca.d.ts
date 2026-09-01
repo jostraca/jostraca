@@ -47,9 +47,9 @@ declare const OptionsShape: {
             };
         };
         control: {
-            dryrun: boolean;
-            duplicate: boolean;
-            version: boolean;
+            dryrun: any;
+            duplicate: any;
+            version: any;
         };
     };
     valid: <V>(root?: V | undefined, ctx?: import("shape").Context) => root is V & {
@@ -85,9 +85,9 @@ declare const OptionsShape: {
             };
         };
         control: {
-            dryrun: boolean;
-            duplicate: boolean;
-            version: boolean;
+            dryrun: import("shape").Node<BooleanConstructor>;
+            duplicate: import("shape").Node<BooleanConstructor>;
+            version: import("shape").Node<BooleanConstructor>;
         };
     };
     match: (root?: any, ctx?: import("shape").Context) => boolean;
@@ -163,9 +163,9 @@ declare const OptionsShape: {
             };
         };
         control: {
-            dryrun: boolean;
-            duplicate: boolean;
-            version: boolean;
+            dryrun: import("shape").Node<BooleanConstructor>;
+            duplicate: import("shape").Node<BooleanConstructor>;
+            version: import("shape").Node<BooleanConstructor>;
         };
     }>;
     stringify: (...rest: any[]) => string;

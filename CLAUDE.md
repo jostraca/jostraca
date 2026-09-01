@@ -19,6 +19,14 @@ disagree, **TS wins and Go is the one to fix** — even if the Go code happens t
 look more correct (the port has occasionally pre-empted latent TS bugs; the fix
 is still to correct TS first, then realign Go).
 
+**The rule decides which side is canonical, not which side is correct.** Where
+Go is right and TS is wrong, the order still holds — fix TS, then realign Go —
+but Go must NOT be aligned to a TS defect. This has happened once and is worth
+recognising: a global `control: { dryrun: true }` was silently discarded in TS
+and wrote the user's files, while Go honoured it. Aligning Go to TS there would
+have propagated a data-destroying bug into the port. `PARITY_PLAN.md` §1.1 has
+the case; the fix went into TS and Go kept its behaviour.
+
 ## Layout
 
 The TypeScript package root is `ts/` (holds `package.json`, `src/`, `test/`,
