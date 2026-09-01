@@ -384,6 +384,15 @@ same logical input:
   the `ListP` body signature carries no props object. TS interpolates
   `{item.path}` per child. Tracked as issue #40; closing it is a
   signature change.
+- Template replace keys of EQUAL length tie-break alphabetically here and by
+  declaration order in TS. TS sorts `Object.keys()`, which is insertion
+  ordered, with a stable sort; a Go map has no declaration order to
+  reproduce, the same reason `OMap` sorts. Go used to inherit the map's
+  randomised iteration order for such ties, which made output differ
+  between processes -- see issue #42. Deterministic and documented was
+  chosen over matching TS and random. The two agree whenever declaration
+  order happens to be alphabetical, which `test/spec/template.tsv`
+  (`template-replace-equal-length-keys`) pins.
 - An eject marker given as a slash-wrapped STRING (`"/START.*/"`) is
   compiled as a regex here and matched literally by TS, which always
   escapes (`ts/src/util/basic.ts` `getCachedEjectRE`). A real

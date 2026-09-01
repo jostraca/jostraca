@@ -492,10 +492,19 @@ func buildTemplateRE(open, closeStr, ref string, replace map[string]any) *templa
 	sb.WriteString(`(?P<J_R>` + ref + `)`)
 	sb.WriteString(`(?P<J_C>` + closeStr + `)`)
 
-	keys := make([]string, 0, len(replace))
-	for k := range replace {
-		keys = append(keys, k)
-	}
+	// sortedKeys, NOT a bare map range. Go randomises map iteration order per
+	// process, and sortReplaceKeys is a STABLE sort whose every comparison ends
+	// in `len(b) < len(a)` -- so two keys of equal length are a tie and kept
+	// whatever order the map happened to yield. Those keys become alternation
+	// branches in one assembled regex, and alternation order picks the winner,
+	// so the same input produced different output between runs. Measured before
+	// this line changed: 20 processes, 19 one way and 1 the other.
+	//
+	// This makes Go's tie-break alphabetical where TS's is insertion order, the
+	// same deliberate deviation OMap already carries for the same reason: a Go
+	// map has no insertion order to reproduce. Deterministic and documented
+	// beats matching TS and random. See issue #42.
+	keys := sortedKeys(replace)
 	sortReplaceKeys(keys)
 
 	canonKeys := make([]canonKey, 0, len(keys))

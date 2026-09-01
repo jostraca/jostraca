@@ -319,6 +319,10 @@ is no sort-by-property in Go.
 - `List` passes no `{item}` replace macro and no `Indent` to its body, so
   a body interpolating `{item.path}` emits the macro verbatim where
   TypeScript resolves it. Issue #40.
+- Template replace keys of equal length tie-break alphabetically here and by
+  declaration order in TypeScript, which sorts insertion-ordered
+  `Object.keys()` with a stable sort. A Go map has no declaration order to
+  reproduce. The two agree whenever declaration order is alphabetical.
 - An eject marker given as a slash-wrapped string (`"/START.*/"`) is
   compiled as a regex here and matched literally by TypeScript. Passing a
   real regex value behaves the same on both sides. TypeScript is
