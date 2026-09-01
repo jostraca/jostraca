@@ -181,6 +181,12 @@ res, _ := j.Generate(jostraca.Options{}, root)
 vol := res.Vol() // map[string][]byte snapshot
 ```
 
+`Vol()` reports every file's content plus a **nil** entry for every EMPTY
+directory — a directory appears only while it is empty, otherwise its
+children stand for it, mirroring TS's `vol.toJSON()`. An empty FILE is a
+non-nil zero-length slice, so filter on `v != nil` rather than
+`len(v) > 0` when you want files alone.
+
 ### Make a reusable component
 
 Define a plain function taking `*J` and call it directly — that is the

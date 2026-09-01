@@ -12,10 +12,16 @@ import (
 
 const containWhen int64 = 1735689600000
 
+// outKeys lists the FILES written outside the meta folder. Vol() also
+// reports empty directories, as a nil value, and every assertion here is
+// about files: the traversal tests below check that a rejected name wrote
+// no file, and the Project folder itself is materialised by projectBefore
+// before any name is validated - as it is in TS, whose ProjectOp calls
+// ensureFolder the same way.
 func outKeys(m *MemFS) []string {
 	keys := []string{}
-	for k := range m.Vol() {
-		if !strings.Contains(k, ".jostraca") {
+	for k, v := range m.Vol() {
+		if v != nil && !strings.Contains(k, ".jostraca") {
 			keys = append(keys, k)
 		}
 	}

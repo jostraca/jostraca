@@ -968,4 +968,76 @@ const START_TIME = 1735689600000;
         (0, expect_1.expect)(out['/out/sub/y.txt']).equal('Y\n');
     });
 });
+// Directory-only state. `vol.toJSON()` records an empty directory as
+// `null` -- a populated one is stood for by its children -- and until the
+// Go port's MemFS.Vol() learned the same convention nothing could compare
+// the two stacks on it. Two behaviours hid behind that: an empty Folder
+// was materialised here and not in Go, and a dry run created the whole
+// output tree in Go while writing no files.
+//
+// These pin the TS side of the agreement. See #41 and the empty_folder
+// parity snapshot.
+(0, node_test_1.describe)('directory-state', () => {
+    const gen = async (control, def) => {
+        let nowI = 0;
+        const now = () => START_TIME + (++nowI * (60 * 1000));
+        const { fs, vol } = (0, memfs_1.memfs)({});
+        await (0, __1.Jostraca)({ now, control })
+            .generate({ fs: () => fs, folder: '/out' }, (0, __1.cmp)(def));
+        const json = vol.toJSON();
+        const files = [];
+        const dirs = [];
+        for (const [k, v] of Object.entries(json)) {
+            if (null == v) {
+                dirs.push(k);
+            }
+            else {
+                files.push(k);
+            }
+        }
+        return { files: files.sort(), dirs: dirs.sort() };
+    };
+    (0, node_test_1.test)('empty-folder-is-materialised', async () => {
+        const { dirs } = await gen({}, () => (0, __1.Project)({ folder: 'app' }, () => {
+            (0, __1.Folder)({ name: 'empty' }, () => { });
+            (0, __1.Folder)({ name: 'full' }, () => {
+                (0, __1.File)({ name: 'a.txt' }, () => (0, __1.Content)('A\n'));
+            });
+            (0, __1.Folder)({ name: 'outer' }, () => {
+                (0, __1.Folder)({ name: 'inner' }, () => { });
+            });
+        }));
+        // A directory appears only while EMPTY: `full` and `outer` each hold a
+        // child, so their children stand for them.
+        (0, expect_1.expect)(dirs).equal(['/out/app/empty', '/out/app/outer/inner']);
+    });
+    // An empty FILE is not a directory: it is recorded with its (empty)
+    // content, not as null.
+    (0, node_test_1.test)('empty-file-is-not-a-directory', async () => {
+        const { files, dirs } = await gen({}, () => (0, __1.Project)({ folder: 'app' }, () => (0, __1.File)({ name: 'e.txt' }, () => { })));
+        (0, expect_1.expect)(files.includes('/out/app/e.txt')).true();
+        (0, expect_1.expect)(dirs.includes('/out/app/e.txt')).false();
+    });
+    // A dry run creates nothing at all, directories included. ensureFolder is
+    // guarded, and so is every ensureDir call behind a write.
+    (0, node_test_1.test)('dryrun-creates-no-directories', async () => {
+        const { files, dirs } = await gen({ dryrun: true }, () => (0, __1.Project)({ folder: 'app' }, () => {
+            (0, __1.Folder)({ name: 'sub' }, () => {
+                (0, __1.File)({ name: 'a.txt' }, () => (0, __1.Content)('SECRET\n'));
+            });
+        }));
+        (0, expect_1.expect)(files).equal([]);
+        (0, expect_1.expect)(dirs).equal([]);
+    });
+    // The other side of the guard, so the test above measures it rather than
+    // an inert path.
+    (0, node_test_1.test)('without-dryrun-directories-are-created', async () => {
+        const { files } = await gen({}, () => (0, __1.Project)({ folder: 'app' }, () => {
+            (0, __1.Folder)({ name: 'sub' }, () => {
+                (0, __1.File)({ name: 'a.txt' }, () => (0, __1.Content)('X\n'));
+            });
+        }));
+        (0, expect_1.expect)(files.includes('/out/app/sub/a.txt')).true();
+    });
+});
 //# sourceMappingURL=jostraca.test.js.map

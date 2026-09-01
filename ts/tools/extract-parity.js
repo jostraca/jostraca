@@ -411,6 +411,28 @@ async function main() {
     })
   })
 
+  // Directory-only state. An EMPTY Folder is materialised by TS's FolderOp
+  // and was not by Go's folderBefore, and no gate could see the difference:
+  // MemFS.Vol() returned map[string][]byte, files only, so a snapshot
+  // recording TS's null entry had nothing on the Go side to compare with.
+  // Zero null entries existed across the whole corpus before this one. #41.
+  //
+  // A directory appears in the snapshot only while it is EMPTY - otherwise
+  // its children stand for it - so `full` is absent and `empty` is null.
+  await snapshot('empty_folder', {}, () => {
+    Project({ folder: 'app' }, () => {
+      Folder({ name: 'empty' }, () => { })
+      Folder({ name: 'full' }, () => {
+        File({ name: 'a.txt' }, () => Content('A\n'))
+      })
+      // Nested, so the recursive half is pinned too: `outer` holds a child
+      // and is absent, `outer/inner` is empty and is recorded.
+      Folder({ name: 'outer' }, () => {
+        Folder({ name: 'inner' }, () => { })
+      })
+    })
+  })
+
   // Line component (auto-newline).
   await snapshot('line_basic', {}, () => {
     Project({ folder: 'app' }, () => {

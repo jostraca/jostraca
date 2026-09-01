@@ -621,6 +621,17 @@ func (fh *fileHandler) ensureFolder(p string) error {
 	if p == "" || p == "." || p == "/" {
 		return nil
 	}
+	// A dry run creates nothing, directories included. The guard lives here
+	// rather than at each call site because every one of them - write,
+	// present, diff, merge, the duplicate baseline and BuildMeta.done -
+	// called ensureDirOf OUTSIDE its own dryrun guard, so `dryrun: true`
+	// wrote no files and still laid down the whole output tree. It was
+	// invisible until MemFS.Vol() learned to report directories: the test
+	// asserting a dry run writes nothing passed on a volume that could not
+	// see them. TS guards its own ensureFolder the same way. See #41.
+	if fh.control.Dryrun {
+		return nil
+	}
 	if _, ok := fh.createdDirs[p]; ok {
 		return nil
 	}

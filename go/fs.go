@@ -432,6 +432,20 @@ func (m *MemFS) Rename(oldpath, newpath string) error {
 
 // Vol returns a defensive copy of the underlying file map. Mutating the
 // returned map does not affect the MemFS.
+// Vol returns a snapshot of the volume: every file's content, plus a NIL
+// entry for every EMPTY directory.
+//
+// The nil entry mirrors TS's memfs toJSON(), which records a directory as
+// `null` only while it has no children - otherwise its children stand for
+// it. Until this existed a Go snapshot had no representation for a
+// directory at all, so directory-only behaviour was invisible to every
+// gate in the repo: an empty Folder that TS materialised and Go did not
+// could not be compared, and a dry run that created directories while
+// writing no files passed a test asserting Vol() was empty. See #41.
+//
+// A directory value is nil; an empty FILE is a non-nil zero-length slice.
+// Callers that only want files should test `v != nil` rather than
+// `len(v) > 0`.
 func (m *MemFS) Vol() map[string][]byte {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -441,7 +455,40 @@ func (m *MemFS) Vol() map[string][]byte {
 		copy(dup, v)
 		out[k] = dup
 	}
+
+	// A directory is emitted only while EMPTY, so first work out which
+	// ones have an immediate child - a file or another directory.
+	hasChild := make(map[string]bool, len(m.dirs))
+	markParent := func(k string) {
+		if d := memParent(k); d != "" {
+			hasChild[d] = true
+		}
+	}
+	for k := range m.files {
+		markParent(k)
+	}
+	for k := range m.dirs {
+		markParent(k)
+	}
+	for k := range m.dirs {
+		if k == "" || k == "/" || hasChild[k] {
+			continue
+		}
+		out[k] = nil
+	}
 	return out
+}
+
+// memParent is the immediate parent directory of a canonical memfs path,
+// or "" when there is none. "/a/b" -> "/a"; "/a" -> "" (the root is never
+// emitted, matching TS's toJSON, which walks from "/" and never records
+// it).
+func memParent(p string) string {
+	i := strings.LastIndex(p, "/")
+	if i <= 0 {
+		return ""
+	}
+	return p[:i]
 }
 
 func pathBase(p string) string {

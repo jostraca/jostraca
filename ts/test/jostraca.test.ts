@@ -1261,3 +1261,90 @@ describe('nested-emitters', () => {
   })
 
 })
+
+
+// Directory-only state. `vol.toJSON()` records an empty directory as
+// `null` -- a populated one is stood for by its children -- and until the
+// Go port's MemFS.Vol() learned the same convention nothing could compare
+// the two stacks on it. Two behaviours hid behind that: an empty Folder
+// was materialised here and not in Go, and a dry run created the whole
+// output tree in Go while writing no files.
+//
+// These pin the TS side of the agreement. See #41 and the empty_folder
+// parity snapshot.
+describe('directory-state', () => {
+
+  const gen = async (control: any, def: any) => {
+    let nowI = 0
+    const now = () => START_TIME + (++nowI * (60 * 1000))
+    const { fs, vol } = memfs({})
+    await Jostraca({ now, control })
+      .generate({ fs: () => fs, folder: '/out' }, cmp(def))
+
+    const json: any = vol.toJSON()
+    const files: string[] = []
+    const dirs: string[] = []
+    for (const [k, v] of Object.entries(json)) {
+      if (null == v) { dirs.push(k) } else { files.push(k) }
+    }
+    return { files: files.sort(), dirs: dirs.sort() }
+  }
+
+
+  test('empty-folder-is-materialised', async () => {
+    const { dirs } = await gen({}, () => Project({ folder: 'app' }, () => {
+      Folder({ name: 'empty' }, () => { })
+      Folder({ name: 'full' }, () => {
+        File({ name: 'a.txt' }, () => Content('A\n'))
+      })
+      Folder({ name: 'outer' }, () => {
+        Folder({ name: 'inner' }, () => { })
+      })
+    }))
+
+    // A directory appears only while EMPTY: `full` and `outer` each hold a
+    // child, so their children stand for them.
+    expect(dirs).equal(['/out/app/empty', '/out/app/outer/inner'])
+  })
+
+
+  // An empty FILE is not a directory: it is recorded with its (empty)
+  // content, not as null.
+  test('empty-file-is-not-a-directory', async () => {
+    const { files, dirs } = await gen({}, () =>
+      Project({ folder: 'app' }, () => File({ name: 'e.txt' }, () => { })))
+
+    expect(files.includes('/out/app/e.txt')).true()
+    expect(dirs.includes('/out/app/e.txt')).false()
+  })
+
+
+  // A dry run creates nothing at all, directories included. ensureFolder is
+  // guarded, and so is every ensureDir call behind a write.
+  test('dryrun-creates-no-directories', async () => {
+    const { files, dirs } = await gen({ dryrun: true }, () =>
+      Project({ folder: 'app' }, () => {
+        Folder({ name: 'sub' }, () => {
+          File({ name: 'a.txt' }, () => Content('SECRET\n'))
+        })
+      }))
+
+    expect(files).equal([])
+    expect(dirs).equal([])
+  })
+
+
+  // The other side of the guard, so the test above measures it rather than
+  // an inert path.
+  test('without-dryrun-directories-are-created', async () => {
+    const { files } = await gen({}, () =>
+      Project({ folder: 'app' }, () => {
+        Folder({ name: 'sub' }, () => {
+          File({ name: 'a.txt' }, () => Content('X\n'))
+        })
+      }))
+
+    expect(files.includes('/out/app/sub/a.txt')).true()
+  })
+
+})

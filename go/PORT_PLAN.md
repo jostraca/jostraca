@@ -1235,6 +1235,8 @@ func (m *MemFS) Vol() map[string][]byte { ... }   // copy under RLock
 
 Two callers can safely share a `*MemFS` across goroutines because of the mutex; the §2 concurrency test exercises this.
 
+**As shipped**, `Vol()` also reports directories: an EMPTY one is a nil value, mirroring TS's `vol.toJSON()`, which records it as `null`. A directory appears only while empty — otherwise its children stand for it. The plan's files-only shape meant no snapshot could carry a directory-only difference, and two behaviours hid behind that: an empty `Folder` was materialised by TS and not here, and a dry run created the whole output tree while writing no files. Issue #41.
+
 #### 7.2 The five existing-file modes
 
 Mirrors `ExistingShape` at `src/jostraca.ts:156-172`. Only the *first* applicable mode runs — TS evaluates them in this exact order; the Go port matches:

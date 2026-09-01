@@ -225,6 +225,23 @@ var scenarioRunners = map[string]func(j *J){
 			})
 		})
 	},
+	// Directory-only state: an EMPTY Folder. TS's FolderOp materialised one
+	// and folderBefore did not, and nothing could see the difference until
+	// Vol() learned to report directories - it returned files only, so a
+	// snapshot recording TS's null entry had nothing to compare against.
+	// A directory appears only while EMPTY, so `full` is absent and
+	// `empty` and `outer/inner` are null. #41.
+	"empty_folder": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.Folder("empty", func(j *J) {})
+			j.Folder("full", func(j *J) {
+				j.File("a.txt", func(j *J) { j.Content("A\n") })
+			})
+			j.Folder("outer", func(j *J) {
+				j.Folder("inner", func(j *J) {})
+			})
+		})
+	},
 	"line_basic": func(j *J) {
 		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
 			j.File("out.txt", func(j *J) {
@@ -496,10 +513,19 @@ func assertVol(t *testing.T, mem *MemFS, want map[string]corpusBytes) {
 
 	missing := []string{}
 	mismatched := []string{}
+	kind := []string{}
 	for p, w := range want {
 		actual, ok := gotS[p]
 		if !ok {
 			missing = append(missing, p)
+			continue
+		}
+		// A nil value is a DIRECTORY on both sides: TS's toJSON writes null
+		// for an empty one and corpusBytes decodes that to nil, while
+		// Vol() reports one as nil. bytes.Equal would call it equal to an
+		// empty FILE, so the kinds are compared before the bytes. See #41.
+		if (actual == nil) != (w == nil) {
+			kind = append(kind, p)
 			continue
 		}
 		if !bytes.Equal(actual, w) {
@@ -515,12 +541,17 @@ func assertVol(t *testing.T, mem *MemFS, want map[string]corpusBytes) {
 	sort.Strings(missing)
 	sort.Strings(mismatched)
 	sort.Strings(extra)
+	sort.Strings(kind)
 
 	if len(missing) > 0 {
 		t.Errorf("Go output missing %d paths from TS reference: %v", len(missing), missing)
 	}
 	if len(extra) > 0 {
 		t.Errorf("Go output has %d extra paths not in TS reference: %v", len(extra), extra)
+	}
+	for _, p := range kind {
+		t.Errorf("path %s: one stack has a directory where the other has a "+
+			"file (Go nil=%v, TS nil=%v)", p, gotS[p] == nil, want[p] == nil)
 	}
 	for _, p := range mismatched {
 		t.Errorf("path %s: bytes differ\nGo:\n%q\nTS:\n%q\n", p, gotS[p], want[p])

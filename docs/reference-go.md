@@ -234,6 +234,13 @@ type Files struct {
 
 `Audit` is `[]AuditEntry`, each `{Tag string; Data map[string]any}`.
 
+`Vol` snapshots the volume: every file's content, plus a **nil** entry for
+every empty directory. A directory appears only while it is empty —
+otherwise its children stand for it — mirroring TypeScript's
+`vol.toJSON()`, which records one as `null`. An empty *file* is a non-nil
+zero-length slice, so a caller that wants files alone should test
+`v != nil` rather than `len(v) > 0`.
+
 ## Utilities
 
 The same helper surface, capitalised, plus narrower variants where Go
