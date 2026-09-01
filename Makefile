@@ -145,8 +145,23 @@ TS_RELEASE_FILES = ts/package.json ts/dist ts/dist-test
 # sed against a hand-written const is fragile by nature: if the declaration in
 # jostraca.go is ever reformatted the substitution silently does nothing and
 # the tag ships the previous version. Check the result rather than trust it.
+#
+# Write to a temp file and mv, rather than `sed -i`. In-place editing is the
+# one sed flag whose spelling is NOT portable: BSD/macOS sed requires a suffix
+# argument (`-i ''`), while GNU sed takes the suffix ATTACHED (`-i.bak`) and
+# so reads a following `''` as the script -- pushing the real script along to
+# be read as a filename. This macro used to carry the BSD spelling, which made
+# `make publish` macOS-only: on Linux it failed with
+# `sed: can't read s/^const Version...`, after bump-ts had already rewritten
+# ts/package.json, leaving a half-applied bump in the tree. The grep below did
+# its job and caught it, which is why this surfaced as a failure rather than a
+# release tagged at the previous version.
+#
+# The `&&` matters: if sed fails, the mv does not run and jostraca.go is left
+# untouched.
 define bump-go
-	sed -i '' 's/^const Version = ".*"/const Version = "$(V)"/' go/jostraca.go
+	sed 's/^const Version = ".*"/const Version = "$(V)"/' go/jostraca.go \
+	  > go/jostraca.go.tmp && mv go/jostraca.go.tmp go/jostraca.go
 	@grep -q '^const Version = "$(V)"$$' go/jostraca.go \
 	  || (echo "go/jostraca.go: version bump to $(V) failed" && exit 1)
 endef
