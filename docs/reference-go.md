@@ -296,6 +296,34 @@ is no sort-by-property in Go.
   changes the shape of every Go component tree, so it stands.
 - `PointUtil` is not ported.
 
+**Consequences of Go's zero values**
+
+- A per-call `Control` cannot clear a global one. `Control` is a value
+  struct, so `Control{Dryrun: false}` is indistinguishable from "not
+  supplied" and the global wins. TypeScript can express "globally dry, but
+  write for this call". Closing it needs pointer fields.
+- `FileProps.Mode` of `0` means "unset", so the file keeps its default
+  `0644`. TypeScript treats `mode: 0` as a request and writes an
+  unreadable `0o000` file.
+
+**Permission bits**
+
+- Special bits use Go's encoding rather than POSIX octal. `fs.FileMode`
+  keeps setuid at `fs.ModeSetuid`, not at `0o4000`, so TypeScript's
+  `mode: 0o4755` is written `0o755 | fs.ModeSetuid` here. The resulting
+  file is identical; a literal `0o4755` is not setuid in Go and lands as
+  `0755`.
+
+**Known gaps, tracked**
+
+- `List` passes no `{item}` replace macro and no `Indent` to its body, so
+  a body interpolating `{item.path}` emits the macro verbatim where
+  TypeScript resolves it. Issue #40.
+- An eject marker given as a slash-wrapped string (`"/START.*/"`) is
+  compiled as a regex here and matched literally by TypeScript. Passing a
+  real regex value behaves the same on both sides. TypeScript is
+  canonical, so Go is the side to change.
+
 ## Concurrency
 
 `Generate` calls are isolated from one another: the builder state hangs

@@ -364,6 +364,32 @@ same logical input:
   stacks (`template_format_test.go` pins this); beyond that there is
   nothing to reconcile.
 
+- A per-call `Control` cannot clear a global one. `Control` is a value
+  struct, so `Control{Dryrun: false}` IS the zero value and `mergeOptions`
+  reads it as "not supplied", keeping the global. TS can express
+  "globally dry, but write for THIS call" because `{dryrun: false}` is
+  distinguishable from `{}`. Closing it needs pointer fields on `Control`.
+  Pinned by `TestPerCallCannotClearGlobalDryrun`.
+- `FileProps.Mode` of `0` means "unset" here (`node.go`), so the target
+  keeps its default `0644`. TS treats `mode: 0` as a real request and
+  writes an unreadable `0o000` file. Same zero-value limitation as
+  `Control` above.
+- Special permission bits use Go's encoding, not POSIX octal.
+  `fs.FileMode` keeps setuid at `fs.ModeSetuid` (bit 23), not at `0o4000`,
+  so a TS `mode: 0o4755` is spelled `0o755 | fs.ModeSetuid` here. The
+  behaviour is identical; only the spelling differs. `0o4755` written
+  literally is NOT setuid in Go and lands as `0755`.
+  `mode_special_bits_test.go` pins both halves.
+- `List` does not pass an `{item}` replace macro or `Indent` to its body:
+  the `ListP` body signature carries no props object. TS interpolates
+  `{item.path}` per child. Tracked as issue #40; closing it is a
+  signature change.
+- An eject marker given as a slash-wrapped STRING (`"/START.*/"`) is
+  compiled as a regex here and matched literally by TS, which always
+  escapes (`ts/src/util/basic.ts` `getCachedEjectRE`). A real
+  `*regexp.Regexp` / `RegExp` value behaves the same on both sides.
+  Untested on either stack; TS is canonical, so Go is the side to change.
+
 Design background lives in [`PORT_PLAN.md`](./PORT_PLAN.md);
 per-phase implementation notes in [`BUILD_LOG.md`](./BUILD_LOG.md).
 

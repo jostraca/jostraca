@@ -15,6 +15,46 @@ Act on [verified] directly. Treat the [audit] tail as leads, not as a to-do list
 
 ---
 
+## Status
+
+Worked through on this branch. Items marked **filed** need a decision this plan
+should not make unilaterally.
+
+| § | item | status |
+|---|---|---|
+| 1.1 | global `control` discarded in TS | **fixed**, 6 TS + 7 Go tests |
+| 1.2 | `exclude: true` inverted in Go | **fixed**, 4 Go tests |
+| 2.1 | `error` field never populated | **fixed**, gate live and exercised |
+| 3 | Go panic on nil-body Fragment | **fixed**, 4 Go tests |
+| 3 | Fragment `eject` never read in Go | **fixed**, cross-stack snapshot |
+| 3 | chmod comparison narrower than chmod | **fixed**, 4 Go tests |
+| 3 | Copy inside File destroys the file (TS) | filed, #39 |
+| 3 | `List` `{item}` macro absent in Go | filed, #40 |
+| 2.2 | directory-only state invisible | filed, #41 |
+| 3 | `File{Mode: 0}`, per-call `Control` | documented as deviations |
+| 4 | deviations lists | **updated**, both files |
+| 2.3 | caller-side state | open |
+
+One audit finding was **refuted** by measurement while implementing §3, and it
+is recorded here because the audit's own cross-surface pass had adjudicated it
+the other way. Go does not "silently discard setuid": `fs.FileMode` keeps setuid
+at `fs.ModeSetuid`, not at POSIX octal `0o4000`, so `0o4755` is not setuid in
+Go's encoding, while `0o755 | fs.ModeSetuid` works and always did. The API
+spelling differs from TS's octal; the behaviour does not. A real and separate
+bug was found next to it, and fixed: the mode comparison in `chmodUnchanged` was
+9 bits wide where chmod sets 12, so a special bit was never applied to a
+byte-identical rewrite.
+
+Two of the fixes above also justify the method. The `exclude` regression test
+PASSED against the broken code on its first draft, because a one-file build
+completes inside a millisecond and the stamp and the mtime collide; it needed
+300 files and a direct invariant assertion to discriminate. And a test asserting
+that a *named* slot renders empty with no body was wrong about TS, not about Go
+— both stacks leave the marker verbatim. Neither would have been caught without
+running the pre-fix code against every new test.
+
+---
+
 ## 0. Summary
 
 Parity sits at roughly **66-70%**, against per-surface scores that average ~74.
