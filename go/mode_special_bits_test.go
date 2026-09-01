@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -20,6 +21,19 @@ import (
 // setuid in Go's encoding. Written the idiomatic way -- 0o755|fs.ModeSetuid --
 // it works, and TestModeSetuidIsApplied below proves it. The API shape differs
 // from the TS octal spelling; the behaviour does not.
+
+// Windows has no Unix permission bits. Go's os.Chmod there toggles only the
+// read-only attribute, and every file stats as 0666 whatever was requested --
+// so these tests are meaningless rather than failing for a real reason. The
+// behaviour under test (which bits take part in the "has the mode changed?"
+// comparison) is POSIX-only. Same seam as platform_test.go's runtime.GOOS
+// check.
+func skipIfNoUnixModes(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("permission bits are not modelled on Windows; os.Chmod sets only read-only")
+	}
+}
 
 func modeGen(t *testing.T, dir string, mode fs.FileMode, content string) {
 	t.Helper()
@@ -44,6 +58,7 @@ func modeOf(t *testing.T, dir string) fs.FileMode {
 
 // The regression: content identical, only the special bit added.
 func TestModeSpecialBitAppliedOnUnchangedContent(t *testing.T) {
+	skipIfNoUnixModes(t)
 	dir := t.TempDir()
 
 	modeGen(t, dir, fs.FileMode(0o755), "SAME\n")
@@ -66,6 +81,7 @@ func TestModeSpecialBitAppliedOnUnchangedContent(t *testing.T) {
 
 // setuid is expressible, on a fresh write, in Go's own encoding.
 func TestModeSetuidIsApplied(t *testing.T) {
+	skipIfNoUnixModes(t)
 	dir := t.TempDir()
 	modeGen(t, dir, fs.FileMode(0o755)|fs.ModeSetuid, "NEW\n")
 
@@ -77,6 +93,7 @@ func TestModeSetuidIsApplied(t *testing.T) {
 
 // sticky and setgid travel the same path, so pin one of them too.
 func TestModeStickyBitApplied(t *testing.T) {
+	skipIfNoUnixModes(t)
 	dir := t.TempDir()
 
 	modeGen(t, dir, fs.FileMode(0o755), "SAME\n")
@@ -89,6 +106,7 @@ func TestModeStickyBitApplied(t *testing.T) {
 
 // The ordinary case still short-circuits: nothing changed, so nothing happens.
 func TestModeUnchangedStaysUnchanged(t *testing.T) {
+	skipIfNoUnixModes(t)
 	dir := t.TempDir()
 
 	modeGen(t, dir, fs.FileMode(0o750), "SAME\n")
