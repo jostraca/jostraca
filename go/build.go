@@ -872,6 +872,7 @@ func fragmentAfter(n *Node, st *jstate, b *buildCtx) error {
 
 	rendered, err := Template(string(src), st.model, &TemplateSpec{
 		Replace: replace,
+		Eject:   n.Meta["fragmentEject"],
 	})
 	if err != nil {
 		return err

@@ -1,0 +1,15 @@
+{
+  "scenario": "fragment_eject",
+  "opts": {},
+  "prepopulate": {
+    "/templates/whole.txt": "PRE\nSTART\nKEEP\nEND\nPOST\n"
+  },
+  "error": false,
+  "vol": {
+    "/templates/whole.txt": "PRE\nSTART\nKEEP\nEND\nPOST\n",
+    "/out/app/part.txt": "KEEP\n",
+    "/out/.jostraca/generated/app/part.txt": "KEEP\n",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/part.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/part.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}

@@ -283,6 +283,14 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 		Path:    childPath(j.cur, ""),
 		Meta:    map[string]any{},
 	}
+	// Eject rides on Meta, the way fragmentBody and slotNames already do.
+	// It used to be declared on FragmentProps and read by nothing at all, so
+	// a Fragment that trims to a region in TS emitted its whole source file
+	// here. Mirrors ts/src/cmp/Fragment.ts, which passes props.eject straight
+	// into template(). See PARITY_PLAN.md 3.
+	if p.Eject != nil {
+		n.Meta["fragmentEject"] = p.Eject
+	}
 	if j.cur != nil {
 		j.cur.Children = append(j.cur.Children, n)
 	}

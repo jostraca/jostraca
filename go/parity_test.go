@@ -75,6 +75,18 @@ type parityCase struct {
 // runners here mirror the tree shapes in tools/extract-parity.js so a
 // byte-equal parity assertion is meaningful.
 var scenarioRunners = map[string]func(j *J){
+	// Fragment eject: the source is trimmed to the region between the markers.
+	// See PARITY_PLAN.md 3.
+	"fragment_eject": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("part.txt", func(j *J) {
+				j.Fragment(FragmentProps{
+					From:  "/templates/whole.txt",
+					Eject: []any{"START\n", "END\n"},
+				}, nil)
+			})
+		})
+	},
 	// Fails in BOTH stacks, which is the point: it exercises the `error` field
 	// end to end. TS rejects `from` through the shape Check, Go at
 	// builder.go. See PARITY_PLAN.md 2.1.

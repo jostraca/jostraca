@@ -275,6 +275,19 @@ async function main() {
       '<html>\n<!-- <[SLOT:head]> -->\n<body>\n<!-- <[SLOT:body]> -->\n</body>\n</html>\n',
   })
 
+  // Fragment `eject` trims the source to the region between the markers. Go
+  // declared FragmentProps.Eject and read it nowhere, so it emitted the whole
+  // file. See PARITY_PLAN.md 3.
+  await snapshot('fragment_eject', {}, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'part.txt' }, () => {
+        Fragment({ from: '/templates/whole.txt', eject: ['START\n', 'END\n'] })
+      })
+    })
+  }, {
+    '/templates/whole.txt': 'PRE\nSTART\nKEEP\nEND\nPOST\n',
+  })
+
   // A scenario that FAILS in both stacks, so the `error` field is exercised
   // rather than merely present. A Fragment whose source does not exist is
   // rejected at define time by both: TS through the shape Check on `from`, Go
