@@ -71,8 +71,10 @@ There is no `peerDependenciesMeta`, so npm treats both as required. Renaming
 `ts/node_modules/memfs` away and requiring the package produces
 `Error: Cannot find module 'memfs'` with exit code 1, without any call to
 `mem: true` and without touching the API at all. **[verified]** A consumer whose
-package manager does not auto-install peers — pnpm's default, yarn classic,
-`npm --legacy-peer-deps` — gets that crash today.
+package manager does not auto-install peers — yarn classic,
+`npm --legacy-peer-deps`, or pnpm with `auto-install-peers` turned off — gets
+that crash today. Current pnpm defaults that setting to true, so a stock pnpm
+install is not affected.
 
 ### shape is also a compile-time dependency
 
@@ -252,13 +254,19 @@ dependencies, MIT, and the copyright holder is jostraca's own author. It would
 also silence the `EBADENGINE` warning noted in `CLAUDE.md`, since that comes from
 shape's `engines: node >= 24`, not from jostraca.
 
-Three costs. About 90% of it is dead weight — seven builders used of thirty,
-none of the `expr`/`Refer`/`Define`/StandardSchema machinery. The published type
-surface stays as it is, which means `JostracaOptions` keeps resolving to mostly
-`any`. And two filters assume a path segment literally named `shape`:
-`ShapeError` strips its own stack frames with `/.*\/shape\/shape\.[tj]s.*\n/`,
-and `ts/src/cmp/Copy.ts:41` builds its callsite suffix by dropping frames
-containing `/shape/`. Vendor to `ts/src/shape/shape.ts` or both quietly degrade.
+Two costs and one constraint. About 90% of it is dead weight — seven builders
+used of thirty, none of the `expr`/`Refer`/`Define`/StandardSchema machinery.
+The published type surface stays as it is, which means `JostracaOptions` keeps
+resolving to mostly `any`.
+
+The constraint is on where it lands, and it is satisfied for free by the obvious
+choice. Two filters look for a path segment named `shape`: `ShapeError` strips
+its own stack frames with `/.*\/shape\/shape\.[tj]s.*\n/`, and
+`ts/src/cmp/Copy.ts:41` builds its callsite suffix by dropping frames containing
+`/shape/`. Vendoring to `ts/src/shape/shape.ts`, emitting to
+`ts/dist/shape/shape.js`, satisfies both patterns; only a different directory or
+basename would break them. This is a naming rule to follow, not a reason to
+prefer reimplementation.
 
 **Reimplementing** means per-schema imperative checks, in the style Go already
 ships: `go/builder.go:258-273` and `:337-346` are about ten lines each, and
@@ -396,6 +404,15 @@ paying for it. Step two replaces it.
 - `docs/reference-options.md:108` documents `vol()` as returning a *memfs
   Volume*. An in-repo `vol` is a semver-visible narrowing even though nothing in
   the repo calls anything but `toJSON()`.
+- `res.fs()` narrows too, and by more. `ts/src/types.ts:55` types it
+  `fs?: () => FST` where `FST = typeof import('node:fs')` (`types.ts:7`), so the
+  declared return is the *entire* Node filesystem API, and memfs supplies a
+  handle broad enough to honour it. A consumer may legitimately call
+  `appendFileSync`, `symlinkSync` or `copyFileSync` on `res.fs()` even though
+  `ts/src` never does. A ten-method replacement therefore either ships a wider
+  compatibility facade or declares a new, smaller result type and documents the
+  break. Of the two narrowings this is the easier one to miss, because the ten
+  methods in §4.1 are what jostraca calls, not what it publishes.
 - The parity-corpus tools run on memfs, and CI runs them. The `corpus` job in
   `.github/workflows/go-test.yml` regenerates `go/testdata/parity` by running
   `ts/tools/extract-parity.js`, which requires memfs at line 16 and pulls in two
@@ -536,8 +553,8 @@ jostraca code runs. Removing them removes 21 packages from that exposure.
 
 **Install cost.** 21 packages and about 6.8 MiB become zero.
 
-**Peer-dep friction.** The `require('jostraca')` crash under pnpm, yarn classic
-and `--legacy-peer-deps` goes away.
+**Peer-dep friction.** The `require('jostraca')` crash under yarn classic,
+`--legacy-peer-deps` and peer-less pnpm configurations goes away.
 
 **Types.** Replacing `ReturnType<typeof OptionsShape>` with explicit interfaces
 gives consumers real types where they currently get mostly `any`.
@@ -552,8 +569,13 @@ semver-visible change to the published type surface, and the `vol()` narrowing.
 Each step is independently shippable, and TS leads Go per `CLAUDE.md`.
 
 1. **Go shape.** Already validated end to end (§5). Three files, no test changes.
-   Add error-path tests and sweep the stale `PORT_PLAN.md` claims. Leaves the Go
-   module fully dependency-free.
+   Add error-path tests and sweep the stale `PORT_PLAN.md` claims. One CI change
+   travels with it: both `setup-go` steps in `.github/workflows/go-test.yml` set
+   `cache-dependency-path: go/go.sum` (`:86` and `:128`), and a module with no
+   requires has no `go.sum`, so those must be retargeted at `go/go.mod` or their
+   caching disabled. The comments directly above those lines record the
+   *Restore cache failed* warning this exact mistake produced once already.
+   Leaves the Go module fully dependency-free.
 2. **`gen/readme.js`.** Delete or rewrite. Removes the phantom dependency and
    stops shipping a broken script.
 3. **memfs, step one.** Lazy import behind `useMemFS`, `peerDependenciesMeta`
@@ -659,11 +681,28 @@ the magic ref `__JOSTRACA_REPLACE__` renders the live pattern through
 slashes. **[verified]** A port must therefore run an arbitrary user pattern *and*
 round-trip its source text into JS syntax. No hand-written scanner does that.
 
-The good news is that no API narrowing is needed, because the port already
-narrowed itself. `unsupportedLookRE` at `go/template.go:487` rejects `(?=`,
-`(?!`, `(?<=` and `(?<!` with `ErrLookbehind`, since RE2 has no lookaround. Rust's
-`regex` crate has the identical restriction and supports the `(?P<name>)` groups
-the template dispatch depends on. It is a semantic drop-in.
+On lookaround, no API narrowing is needed, because the port already narrowed
+itself. `unsupportedLookRE` at `go/template.go:487` rejects `(?=`, `(?!`, `(?<=`
+and `(?<!` with `ErrLookbehind`, since RE2 has no lookaround. Rust's `regex`
+crate has the identical restriction and supports the `(?P<name>)` groups the
+template dispatch depends on.
+
+It is not, however, a drop-in on character classes, and this is a real trap. Go
+defines the Perl classes as ASCII, while Rust's `regex` makes them Unicode-aware
+by default. Measured against Go 1.22: **[verified]**
+
+```
+\d+ on "123"   -> "123"      \d+ on "١٢٣" -> no match    \d+ on "०१" -> no match
+\w+ on "héllo" -> "h"
+```
+
+Under Rust's defaults every one of those matches. So a user-supplied
+`TemplateSpec.Insert`, `Copy.exclude` or getx `~` pattern containing `\d`, `\w`
+or `\b` would accept input in a Rust port that the Go and TS stacks reject. The
+port must compile user patterns with Unicode mode off — `(?-u)`, which reduces
+`\d` to `[0-9]` — or translate the classes explicitly, and pin the decision with
+non-ASCII corpus rows. Note that `test/spec` is ASCII-heavy today, so this
+divergence would not show up in any existing test.
 
 Hand-rolling instead means 800-1500 LOC of backtracking engine whose semantics
 must match RE2 on a corpus that barely pins them — `test/spec/template.tsv` has
@@ -681,10 +720,16 @@ labels and `Humanify`. Days-from-civil arithmetic, about 40 LOC. No `chrono`.
 
 ### 9.3 Corrections to carry into a port
 
-- **`name.exclude` is dead in both stacks.** Go declares `Exclude []NameMatcher`
-  at `options.go:77`, `decodeName` never populates it, and nothing reads it. The
-  TS schema entry sits under a `// TODO: implement`. **[verified]** It is not
-  public API and should not shape a port's regex requirements.
+- **`name.exclude` is inert, but still accepted.** Go declares
+  `Exclude []NameMatcher` at `options.go:77`, `decodeName` never populates it,
+  and nothing reads it. The TS schema entry sits under a `// TODO: implement`.
+  **[verified]** It is nonetheless part of the accepted surface: it appears in
+  `OptionsShape`, reaches the exported `JostracaOptions` type, and
+  `docs/reference-options.md:55` says outright that `name.folder.suffix` and
+  `name.exclude` "validate, and no code reads" them. So a port must keep
+  **accepting** the field, or configurations the canonical TS API takes would be
+  rejected. What it does not need is an engine behind it: nothing matches
+  against it, so it places no requirement on the regex decision above.
 - **`eject` with a slash-wrapped string diverges.** `go/template.go:773-790`
   treats `"/START.*/"` as a regex body, citing `basic.ts:584-590` as its
   authority. That citation points at the function-replacement branch. TS's real
@@ -760,8 +805,9 @@ protocol is deliberately hand-rolled.
 ### 9.7 Verdict
 
 Zero-crate is achievable for everything except regex, and there one crate buys
-more than it costs. `regex` is a semantic drop-in for the RE2 contract the port
-already enforces, and it is the only thing that can serve `TemplateSpec.Insert`.
+more than it costs. `regex` matches the RE2 contract the port already enforces
+on lookaround, needs `(?-u)` to match it on character classes, and is the only
+thing that can serve `TemplateSpec.Insert`.
 Neither `serde_json` nor `chrono` earns its place, since the hard parts of both
 are already hand-rolled for byte-parity, and a diff crate is disqualified
 outright. Test-only, `tempfile` is defensible, and nothing else is.
