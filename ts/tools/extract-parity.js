@@ -374,6 +374,43 @@ async function main() {
     })
   })
 
+  // The `{item}` macro and `indent` a List hands its body. Go's ListP had
+  // no props object at all, so a body interpolating {item.n} emitted the
+  // macro verbatim and ListProps.Indent was declared and never read - the
+  // single list_basic fixture used a plain body and so could not see it.
+  // #40. Every quiet limit is exercised here: a bare {item}, a $-suffixed
+  // key, an unresolved path, and a near-miss that is left in place.
+  await snapshot('list_item_macro', {}, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'out.txt' }, () => {
+        List({ item: [{ n: 'p', d: { e: 'X' } }, { n: 'q', d: { e: 'Y' } }] },
+          (props) => Content({
+            src: 'n={item.n} deep={item.d.e} bare={item} ' +
+              'dollar={item.index$} miss={item.zz} near={itemx}\n',
+            replace: props.replace,
+          }))
+      })
+      File({ name: 'indent.txt' }, () => {
+        List({ item: [{ n: 'p' }, { n: 'q' }], indent: '>>', line: false },
+          (props) => Content({
+            src: 'n={item.n}\n', replace: props.replace, indent: props.indent,
+          }))
+      })
+      // Value formatting: a function replacement now JSONifies objects and
+      // arrays, as a plain replacement and `$$path$$` already did. It used
+      // to emit "[object Object]" and "1,2", which Go cannot reproduce -
+      // a ReplaceFunc returns a string, so there is no JS coercion to
+      // inherit. TS was the side to move.
+      File({ name: 'values.txt' }, () => {
+        List({
+          item: [{ v: 42 }, { v: 1.5 }, { v: true }, { v: null },
+          { v: { a: 1 } }, { v: [1, 2] }],
+          line: false,
+        }, (props) => Content({ src: 'v={item.v}\n', replace: props.replace }))
+      })
+    })
+  })
+
   // Line component (auto-newline).
   await snapshot('line_basic', {}, () => {
     Project({ folder: 'app' }, () => {

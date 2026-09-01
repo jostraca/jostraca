@@ -91,8 +91,8 @@ func TestListIteratesItems(t *testing.T) {
 	j := New(WithFS(mem), WithFolder("/out"))
 	_, err := j.Generate(Options{}, func(j *J) {
 		j.File("out.txt", func(j *J) {
-			j.List([]any{"a", "b", "c"}, func(j *J, item any) {
-				j.Line(item.(string))
+			j.List([]any{"a", "b", "c"}, func(j *J, it ListItemProps) {
+				j.Line(it.Item.(string))
 			})
 		})
 	})

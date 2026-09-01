@@ -389,10 +389,15 @@ same logical input:
   behaviour is identical; only the spelling differs. `0o4755` written
   literally is NOT setuid in Go and lands as `0755`.
   `mode_special_bits_test.go` pins both halves.
-- `List` does not pass an `{item}` replace macro or `Indent` to its body:
-  the `ListP` body signature carries no props object. TS interpolates
-  `{item.path}` per child. Tracked as issue #40; closing it is a
-  signature change.
+- `List`'s body signature is `func(j *J, it ListItemProps)`, not TS's
+  single props object, and `ListItemProps.Item` is the RAW item where TS's
+  `props.item` is each-wrapped (a scalar arrives there as
+  `{val$, index$}`). The `{item.path}` macro itself is byte-identical: the
+  replace key is the same string on both sides, and `getx` cannot address a
+  `$`-suffixed key on either, so `{item.val$}` and `{item.index$}` yield
+  the empty string in TS as well. `ListProps` has no `Replace` field,
+  matching TS, where `List`'s own `replace` prop is accepted and never
+  used.
 - Template replace keys of EQUAL length tie-break alphabetically here and by
   declaration order in TS. TS sorts `Object.keys()`, which is insertion
   ordered, with a stable sort; a Go map has no declaration order to

@@ -29,7 +29,7 @@ should not make unilaterally.
 | 3 | Fragment `eject` never read in Go | **fixed**, cross-stack snapshot |
 | 3 | chmod comparison narrower than chmod | **fixed**, 4 Go tests |
 | 3 | Copy inside File destroys the file (TS) | **fixed** (#39), 6 TS + 5 Go tests + 2 snapshots |
-| 3 | `List` `{item}` macro absent in Go | filed, #40 |
+| 3 | `List` `{item}` macro absent in Go | **fixed** (#40), 1 TS + 17 Go cases + snapshot |
 | 2.2 | directory-only state invisible | filed, #41 |
 | 3 | `File{Mode: 0}`, per-call `Control` | documented as deviations |
 | 4 | deviations lists | **updated**, both files |

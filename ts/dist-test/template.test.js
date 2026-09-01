@@ -115,5 +115,40 @@ B
         (0, expect_1.expect)((0, __1.template)('$$v$$', { v: [] })).equal('[]');
         (0, expect_1.expect)((0, __1.template)('$$v$$', { v: {} })).equal('{}');
     });
+    // A replace value that is a FUNCTION used to have its return value put
+    // into the output with no formatting at all, so an object arrived as
+    // "[object Object]" and an array as its comma-joined elements - while the
+    // same object reached through `$$path$$`, or supplied as a plain
+    // (non-function) replacement, was JSONified. One value formatted two ways
+    // depending on how it was supplied.
+    //
+    // Go cannot reproduce the JS coercion: a ReplaceFunc returns a string, so
+    // there is nothing to inherit it from. Rather than teach the port to
+    // imitate `[object Object]`, TS moved to its own JSON convention, which
+    // is what `test/spec/template.tsv`'s template-object-value already pins
+    // for the model path. See #40 and the list_item_macro parity snapshot.
+    (0, node_test_1.test)('replace-function-jsonifies-objects', () => {
+        const fn = (v) => () => v;
+        (0, expect_1.expect)((0, __1.template)('x=[V]', {}, { replace: { '[V]': fn({ a: 1 }) } }))
+            .equal('x={"a":1}');
+        (0, expect_1.expect)((0, __1.template)('x=[V]', {}, { replace: { '[V]': fn([1, 2]) } }))
+            .equal('x=[1,2]');
+        // Keys sort, the same as every other JSONified value here.
+        (0, expect_1.expect)((0, __1.template)('x=[V]', {}, { replace: { '[V]': fn({ b: 1, a: 2 }) } }))
+            .equal('x={"a":2,"b":1}');
+        // Scalars are untouched by the change.
+        (0, expect_1.expect)((0, __1.template)('x=[V]', {}, { replace: { '[V]': fn('S') } })).equal('x=S');
+        (0, expect_1.expect)((0, __1.template)('x=[V]', {}, { replace: { '[V]': fn(42) } })).equal('x=42');
+        (0, expect_1.expect)((0, __1.template)('x=[V]', {}, { replace: { '[V]': fn(true) } }))
+            .equal('x=true');
+        // A function returning nothing yields the empty string - it does NOT
+        // pick up the leave-in-place branch that an unresolved `$$path$$` has.
+        // That asymmetry is the documented `{item.path}` contract and predates
+        // this change.
+        (0, expect_1.expect)((0, __1.template)('x=[V]', {}, { replace: { '[V]': fn(undefined) } }))
+            .equal('x=');
+        (0, expect_1.expect)((0, __1.template)('x=[V]', {}, { replace: { '[V]': fn(null) } })).equal('x=');
+        (0, expect_1.expect)((0, __1.template)('x=$$nope$$', {})).equal('x=$$nope$$');
+    });
 });
 //# sourceMappingURL=template.test.js.map

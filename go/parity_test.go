@@ -164,8 +164,63 @@ var scenarioRunners = map[string]func(j *J){
 	"list_basic": func(j *J) {
 		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
 			j.File("out.txt", func(j *J) {
-				j.List([]any{"a", "b", "c"}, func(j *J, item any) {
-					j.Line(item.(string))
+				j.List([]any{"a", "b", "c"}, func(j *J, it ListItemProps) {
+					j.Line(it.Item.(string))
+				})
+			})
+		})
+	},
+	// The `{item}` macro and `indent` a List hands its body. ListP used to
+	// take no props object at all, so a body interpolating {item.n} emitted
+	// the macro verbatim and ListProps.Indent was declared and never read.
+	// The single list_basic fixture used a plain body, which is how #40
+	// survived. Every quiet limit is exercised: a bare {item}, a $-suffixed
+	// key, an unresolved path, and a near-miss left in place.
+	"list_item_macro": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("out.txt", func(j *J) {
+				j.List([]any{
+					map[string]any{"n": "p", "d": map[string]any{"e": "X"}},
+					map[string]any{"n": "q", "d": map[string]any{"e": "Y"}},
+				}, func(j *J, it ListItemProps) {
+					j.ContentP(ContentProps{
+						Src: "n={item.n} deep={item.d.e} bare={item} " +
+							"dollar={item.index$} miss={item.zz} near={itemx}\n",
+						Replace: it.Replace,
+					})
+				})
+			})
+			j.File("indent.txt", func(j *J) {
+				j.ListP(ListProps{
+					Item: []any{
+						map[string]any{"n": "p"},
+						map[string]any{"n": "q"},
+					},
+					Indent: ">>",
+					NoLine: true,
+				}, func(j *J, it ListItemProps) {
+					j.ContentP(ContentProps{
+						Src: "n={item.n}\n", Replace: it.Replace, Indent: it.Indent,
+					})
+				})
+			})
+			// Value formatting. A function replacement JSONifies objects and
+			// arrays on both stacks now; TS used to emit "[object Object]"
+			// and "1,2", which a ReplaceFunc cannot reproduce - it returns a
+			// string, so there is no JS coercion to inherit.
+			j.File("values.txt", func(j *J) {
+				j.ListP(ListProps{
+					Item: []any{
+						map[string]any{"v": 42.0},
+						map[string]any{"v": 1.5},
+						map[string]any{"v": true},
+						map[string]any{"v": nil},
+						map[string]any{"v": map[string]any{"a": 1.0}},
+						map[string]any{"v": []any{1.0, 2.0}},
+					},
+					NoLine: true,
+				}, func(j *J, it ListItemProps) {
+					j.ContentP(ContentProps{Src: "v={item.v}\n", Replace: it.Replace})
 				})
 			})
 		})

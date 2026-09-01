@@ -933,6 +933,15 @@ func (j *J) ListP(p ListProps, body func(j *J, item any)) {
 
 This deviates from TS in the small way that `List` doesn't allocate its own node — children attach to the surrounding parent, which matches TS observed behaviour where `List` simply `each`-iterates its children.
 
+**As shipped**, the sketch above differs in three places. `Line string` became
+`NoLine bool`, so the Go zero value matches TS's default of always emitting a
+trailing empty line. `EachSpec{}` became `EachSpec{Raw: true}`, so the body
+receives the raw item rather than an each-wrapped one. And the body signature is
+`func(j *J, it ListItemProps)`, not `func(j *J, item any)`: the second argument
+is a props struct carrying `Item`, `Indent` and the `{item.path}` replace macro,
+mirroring the `{item, indent, replace}` object TS hands each child. The macro
+had no route to arrive under the original signature — issue #40.
+
 #### 5.4 The `cmp()` analogue: `J.Cmp` and free-standing custom components
 
 TS exports `cmp(component)` (`src/jostraca.ts:376`) so users can build reusable components:

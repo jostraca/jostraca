@@ -374,25 +374,93 @@ func (j *J) Copy(p CopyProps) {
 // after iterating all items a trailing empty Line is emitted unless
 // NoLine is true. NoLine inverts TS's `props.line === false` opt-out
 // so Go's zero value matches TS's default.
+//
+// There is no Replace field, matching TS, where List's own `replace` prop
+// is accepted and never used - the one handed to the body is built fresh
+// per item.
 type ListProps struct {
 	Item   any
 	NoLine bool
 	Indent any
 }
 
+// listItemMacro is the replace key List hands to its body. Byte-identical
+// to the one TS builds in ts/src/cmp/List.ts, so a template written for
+// one stack resolves on the other. `(?<path>...)` is the JS spelling of a
+// named group; renameUserGroups in template.go accepts it alongside Go's
+// own `(?P<path>...)`.
+const listItemMacro = `/{item(\.(?<path>[^}]+))?}/`
+
+// ListItemProps is what a List body receives for each item. It mirrors the
+// `{item, indent, replace}` object TS hands to each child.
+//
+// Indent and Replace are meant to be passed straight through to the
+// components inside the body - neither does anything on its own:
+//
+//	j.ListP(ListProps{Item: items, Indent: "  "}, func(j *J, it ListItemProps) {
+//		j.ContentP(ContentProps{
+//			Src:     "{item.name}: {item.role}\n",
+//			Indent:  it.Indent,
+//			Replace: it.Replace,
+//		})
+//	})
+//
+// Item is the raw item. TS's props.item is each-WRAPPED (a scalar arrives
+// as {val$, index$}), because TS's List iterates with each()'s default
+// annotation while this one passes Raw. The macro is unaffected: getx
+// cannot address a `$`-suffixed key on either stack, so {item.val$} and
+// {item.index$} yield the empty string in TS too - the item argument is
+// the documented route to a scalar there as much as here.
+//
+// Three limits on the macro, identical on both stacks and all quiet:
+// a bare {item} yields the empty string, so does a `$`-suffixed key, and
+// so does an unresolved path - unlike $$path$$, which is left in place.
+type ListItemProps struct {
+	Item    any
+	Indent  any
+	Replace map[string]any
+}
+
+// listItemReplace builds the per-item `{item.path}` substitution spec.
+func listItemReplace(item any) map[string]any {
+	return map[string]any{
+		listItemMacro: ReplaceFunc(func(groups map[string]string, _ string) string {
+			// The path group is optional: a bare `{item}` leaves it empty,
+			// and TS yields "" there rather than the item itself.
+			path := groups["path"]
+			if path == "" {
+				return ""
+			}
+			v := GetX(item, path)
+			if v == nil {
+				return ""
+			}
+			// "" as the fallback, not the full match: an unresolved path
+			// yields the empty string here, where an unresolved $$path$$
+			// is left in place. TS draws the same distinction - its
+			// replace FUNCTIONS have no leave-in-place branch.
+			return formatValue(v, "")
+		}),
+	}
+}
+
 // List iterates a slice or map and calls body once per item. The body
 // receives the same *J (children attach to the surrounding parent).
 // After the iteration a trailing empty line is emitted (TS parity).
-func (j *J) List(items any, body func(j *J, item any)) {
+func (j *J) List(items any, body func(j *J, it ListItemProps)) {
 	j.ListP(ListProps{Item: items}, body)
 }
 
-func (j *J) ListP(p ListProps, body func(j *J, item any)) {
+func (j *J) ListP(p ListProps, body func(j *J, it ListItemProps)) {
 	if j.st.err != nil || body == nil {
 		return
 	}
 	for _, item := range Each(p.Item, EachSpec{Raw: true}, nil) {
-		body(j, item)
+		body(j, ListItemProps{
+			Item:    item,
+			Indent:  p.Indent,
+			Replace: listItemReplace(item),
+		})
 	}
 	if !p.NoLine {
 		j.Line("")

@@ -92,11 +92,33 @@ more than one prop, a `…P` variant taking a props struct.
 | `Slot(name, body)` / `SlotP(SlotProps, body)` | `SlotProps` | `Name` |
 | `Inject(name, body)` / `InjectP(InjectProps, body)` | `InjectProps` | `Name`, `Markers`, `Exclude` |
 | `Copy(CopyProps)` | `CopyProps` | `From`, `To`, `Exclude`, `Replace` |
-| `List(items, body)` / `ListP(ListProps, body)` | `ListProps` | `Item`, `Indent`, `NoLine`, `Replace` |
+| `List(items, body)` / `ListP(ListProps, body)` | `ListProps` | `Item`, `Indent`, `NoLine` |
 | `Cmp(name, fn)` | — | a user component |
 
-`List`'s body signature is `func(j *J, item any)`, so the item arrives
-as a parameter rather than through a props object.
+`List`'s body signature is `func(j *J, it ListItemProps)`, mirroring the
+`{item, indent, replace}` object TypeScript hands each child.
+`ListItemProps` carries `Item any`, `Indent any` and
+`Replace map[string]any`. The last two are meant to be passed straight
+through — neither does anything on its own:
+
+<!-- test: skip a Go sample; the body signature is pinned by go/list_item_test.go and the list_item_macro parity snapshot -->
+```go
+j.ListP(ListProps{Item: items, Indent: "  "}, func(j *J, it ListItemProps) {
+    j.ContentP(ContentProps{
+        Src:     "{item.name}: {item.role}\n",
+        Indent:  it.Indent,
+        Replace: it.Replace,
+    })
+})
+```
+
+`{item.path}` resolves with `GetX`, so nested paths work. The three quiet
+limits are the same as TypeScript's: a bare `{item}`, a `$`-suffixed key
+(`{item.index$}`), and an unresolved path all yield the empty string,
+unlike `$$path$$`, which is left in place.
+
+`ListProps` has no `Replace` field, matching TypeScript, where `List`'s
+own `replace` prop is accepted and never used.
 
 Semantics follow the [component reference](reference-components.md)
 unless the deviations below say otherwise.
@@ -302,6 +324,13 @@ is no sort-by-property in Go.
   nothing rather than a corrupted approximation. A **text** copy splices
   identically on both sides, and the copy itself is written intact either
   way.
+- `ListItemProps.Item` is the **raw** item; TypeScript's `props.item` is
+  each-wrapped, so a scalar arrives there as `{val$, index$}`. `List`
+  iterates with `Raw` here and with `each`'s default annotation in
+  TypeScript. The `{item.path}` macro is unaffected: `getx` cannot address
+  a `$`-suffixed key on either stack, so `{item.val$}` and `{item.index$}`
+  yield the empty string in TypeScript too, and the item argument is the
+  documented route to a scalar on both sides.
 - `PointUtil` is not ported.
 
 **Consequences of Go's zero values**
@@ -324,9 +353,6 @@ is no sort-by-property in Go.
 
 **Known gaps, tracked**
 
-- `List` passes no `{item}` replace macro and no `Indent` to its body, so
-  a body interpolating `{item.path}` emits the macro verbatim where
-  TypeScript resolves it. Issue #40.
 - Template replace keys of equal length tie-break alphabetically here and by
   declaration order in TypeScript, which sorts insertion-ordered
   `Object.keys()` with a stable sort. A Go map has no declaration order to
