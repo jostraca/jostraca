@@ -35,8 +35,18 @@ const CopyOp = {
         name = node.name = Path.basename(from)
       }
 
+      // FileOp.before reassigns buildctx.current.file to THIS node, so the
+      // enclosing file has to be saved here and put back in after() - the
+      // same save/restore FragmentOp and SlotOp already do. Without it
+      // every later sibling of the Copy accumulated into the Copy's buffer,
+      // and FileOp.after then wrote that buffer to the COPY's path: the
+      // enclosing file was never written at all and the content before the
+      // Copy was lost outright. Go's copyBefore leaves b.current.file
+      // alone, so TS was the side to correct.
+      node.meta.copy_file = buildctx.current.file
+
       FileOp.before(node, ctx$, buildctx)
-      const topath = buildctx.current.file.path
+      const topath = node.path
       const state = {
         fileCount: 0,
         folderCount: 0,
@@ -48,7 +58,20 @@ const CopyOp = {
 
       let content = processTemplate(state, fs.readFileSync(from), spec)
 
-      buildctx.current.file.content.push(content)
+      // Only TEXT can travel in the enclosing file's stream. processTemplate
+      // returns the raw Buffer for a binary source, and a Buffer joined into
+      // a JS string is UTF-8 decoded - every byte that is not valid UTF-8
+      // becomes U+FFFD - so splicing it would silently corrupt the copy.
+      // Go splices the bytes losslessly because a Go string is a byte
+      // string; TS has no equivalent, so a binary Copy contributes nothing
+      // to the file around it. Recorded in the deviations list.
+      if ('string' === typeof content) {
+        node.content.push(content)
+      }
+      else {
+        dlog('copy', 'binary Copy not spliced into the enclosing file: ' + from)
+      }
+
       node.after = node.after || {}
       node.after.kind = 'file'
     }
@@ -69,6 +92,20 @@ const CopyOp = {
   after(node: Node, ctx$: any, buildctx: BuildContext) {
     const fs = ctx$.fs()
     const kind = node.after.kind
+
+    // Put back the file that before() displaced. Only the single-file
+    // branch takes it - a directory Copy never becomes current.file - so
+    // the stash doubles as the guard. The Copy's own text was pushed onto
+    // the enclosing file's stream in before(), at the position the Copy
+    // sits in source order, matching Go's fileAfter, which concatenates
+    // its KindCopy children in place.
+    if (node.meta.copy_file) {
+      const copied = node.content
+      buildctx.current.file = node.meta.copy_file
+      for (const part of copied) {
+        buildctx.current.file.content.push(part)
+      }
+    }
 
     const frompath = node.from as string
     let topath = buildctx.folderPath()

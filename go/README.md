@@ -346,6 +346,15 @@ same logical input:
   slot name is never collected and the marker survives verbatim); Go
   handles it. Not reconciled: aligning it means giving `Cmp` a node, which
   changes the shape of every Go component tree.
+- A **binary** single-file `Copy` nested inside a `File` splices its raw
+  bytes into the enclosing file here; TS contributes nothing and logs it.
+  A Go string is a byte string, so the bytes survive; TS's copy content is
+  a `Buffer`, and joining one into a JS string UTF-8 decodes it, turning
+  every byte that is not valid UTF-8 into U+FFFD. TS writes nothing rather
+  than a corrupted approximation. The copy itself is written intact on both
+  sides, and a TEXT copy splices identically. Pinned by
+  `TestBinaryCopyInsideFileSplicesBytes` here and
+  `binary-copy-inside-file-splices-nothing` in `ts/test/jostraca.test.ts`.
 - `Deep` builds a new map or slice instead of mutating and returning its
   first argument the way TS `deep` does. Callers that use the return value
   see no difference; callers relying on the aliasing would. Merge semantics

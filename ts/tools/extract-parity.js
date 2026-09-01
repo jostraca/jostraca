@@ -323,6 +323,45 @@ async function main() {
     { '/tpl/hello.txt': 'Hello $$name$$' },
   )
 
+  // A Copy nested INSIDE a File. No fixture covered this shape, which is how
+  // #39 survived: TS's CopyOp.before displaced buildctx.current.file and never
+  // put it back, so `AFTER` accumulated into the Copy's buffer and FileOp.after
+  // wrote that buffer to the COPY's path. `/out/app/a.txt` was never written at
+  // all and `BEFORE` was lost. Go was correct throughout. The copied text is
+  // spliced into the enclosing file at the position the Copy sits in source
+  // order, AND still written to its own destination.
+  await snapshot('copy_in_file',
+    { model: { name: 'World' } },
+    () => {
+      Project({ folder: 'app' }, () => {
+        File({ name: 'a.txt' }, () => {
+          Content('BEFORE\n')
+          Copy({ from: '/tpl/hello.txt' })
+          Content('AFTER\n')
+        })
+      })
+    },
+    { '/tpl/hello.txt': 'Hello $$name$$\n' },
+  )
+
+  // An Inject nested inside a File: the same displaced-current.file defect one
+  // component along, and the more destructive of the two - the enclosing File
+  // wrote its own content over the Inject's TARGET, a pre-existing file the
+  // build was only supposed to edit a region of. Unlike Fragment and Slot, an
+  // Inject contributes NO text to the file around it.
+  await snapshot('inject_in_file', {}, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'a.txt' }, () => {
+        Content('BEFORE\n')
+        Inject({ name: 'foo.txt' }, () => Content('new content'))
+        Content('AFTER\n')
+      })
+    })
+  }, {
+    '/out/app/foo.txt':
+      'HEADER\n#--START--#\nold\n#--END--#\nFOOTER\n',
+  })
+
   // List iteration. TS each() default-wraps items in {val$, index$};
   // the body extracts via .val$ to access the raw value.
   await snapshot('list_basic', {}, () => {

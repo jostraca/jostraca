@@ -136,6 +136,31 @@ var scenarioRunners = map[string]func(j *J){
 			j.Copy(CopyProps{From: "/tpl/hello.txt"})
 		})
 	},
+	// A Copy nested INSIDE a File, the shape no fixture covered and the reason
+	// #39 survived: TS displaced buildctx.current.file and never put it back,
+	// so the enclosing file was never written and its earlier content was lost.
+	// Go was correct throughout; this pins both sides on the same output.
+	"copy_in_file": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("a.txt", func(j *J) {
+				j.Content("BEFORE\n")
+				j.Copy(CopyProps{From: "/tpl/hello.txt"})
+				j.Content("AFTER\n")
+			})
+		})
+	},
+	// The same defect one component along, and the more destructive of the
+	// two: the enclosing File wrote its own content over the Inject's TARGET.
+	// An Inject contributes no text to the file around it.
+	"inject_in_file": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("a.txt", func(j *J) {
+				j.Content("BEFORE\n")
+				j.Inject("foo.txt", func(j *J) { j.Content("new content") })
+				j.Content("AFTER\n")
+			})
+		})
+	},
 	"list_basic": func(j *J) {
 		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
 			j.File("out.txt", func(j *J) {
@@ -295,7 +320,7 @@ func scenarioOptions(scenario string) []Option {
 		return []Option{WithModel(map[string]any{
 			"app": map[string]any{"name": "Acme", "version": "1.0.0"},
 		})}
-	case "copy_file":
+	case "copy_file", "copy_in_file":
 		return []Option{WithModel(map[string]any{"name": "World"})}
 	case "preserve_mode", "dotfile_preserve":
 		t := true

@@ -1,0 +1,16 @@
+{
+  "scenario": "inject_in_file",
+  "opts": {},
+  "prepopulate": {
+    "/out/app/foo.txt": "HEADER\n#--START--#\nold\n#--END--#\nFOOTER\n"
+  },
+  "error": false,
+  "vol": {
+    "/out/app/foo.txt": "HEADER\n#--START--#\nnew content\n#--END--#\nFOOTER\n",
+    "/out/app/a.txt": "BEFORE\nAFTER\n",
+    "/out/.jostraca/generated/app/foo.txt": "HEADER\n#--START--#\nnew content\n#--END--#\nFOOTER\n",
+    "/out/.jostraca/generated/app/a.txt": "BEFORE\nAFTER\n",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/foo.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/foo.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/a.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}

@@ -1076,3 +1076,188 @@ describe('jostraca', () => {
 
 })
 
+
+// A Copy or an Inject nested INSIDE a File used to destroy the enclosing
+// file. Both ops make themselves buildctx.current.file for the duration of
+// their own work - Copy indirectly, by calling FileOp.before on its own node
+// - and neither put the previous one back. Every later sibling then
+// accumulated into the WRONG buffer, and FileOp.after wrote that buffer to
+// the WRONG path.
+//
+// Measured before the fix:
+//
+//   Copy inside File   -> /out/a.txt never written at all,
+//                         /out/h.txt = "HELLO\nAFTER\n" ("BEFORE" lost)
+//   Inject inside File -> /out/a.txt never written at all,
+//                         the Inject's pre-existing TARGET overwritten
+//                         with "new contentAFTER\n", markers and all
+//
+// Go was correct on both counts, so TS is the side that moved. See #39 and
+// the copy_in_file / inject_in_file parity snapshots, which pin the same
+// two shapes across both stacks.
+describe('nested-emitters', () => {
+
+  const gen = async (fsdef: any, def: any) => {
+    let nowI = 0
+    const now = () => START_TIME + (++nowI * (60 * 1000))
+    const { fs, vol } = memfs(fsdef)
+    await Jostraca({ now }).generate({ fs: () => fs, folder: '/out' }, cmp(def))
+    const out: any = {}
+    for (const [k, v] of Object.entries(vol.toJSON() as any)) {
+      if (k.startsWith('/out/' + META_FOLDER)) continue
+      out[k] = v
+    }
+    return out
+  }
+
+
+  test('copy-inside-file', async () => {
+    const out = await gen({ '/tm/h.txt': 'HELLO\n' }, () => {
+      Project({}, () => {
+        File({ name: 'a.txt' }, () => {
+          Content('BEFORE\n')
+          Copy({ from: '/tm/h.txt' })
+          Content('AFTER\n')
+        })
+      })
+    })
+
+    // The copied text is spliced into the enclosing file where the Copy sat
+    // in source order, AND still written to its own destination.
+    expect(out).equal({
+      '/tm/h.txt': 'HELLO\n',
+      '/out/h.txt': 'HELLO\n',
+      '/out/a.txt': 'BEFORE\nHELLO\nAFTER\n',
+    })
+  })
+
+
+  test('inject-inside-file', async () => {
+    const out = await gen({
+      '/tm/x': '',
+      '/out/t.txt': 'HEADER\n#--START--#\nold\n#--END--#\nFOOTER\n',
+    }, () => {
+      Project({}, () => {
+        File({ name: 'a.txt' }, () => {
+          Content('BEFORE\n')
+          Inject({ name: 't.txt' }, () => Content('new content'))
+          Content('AFTER\n')
+        })
+      })
+    })
+
+    // Unlike Fragment and Slot, an Inject contributes NOTHING to the file
+    // around it - it writes to its own target. The target keeps everything
+    // outside the markers.
+    expect(out['/out/a.txt']).equal('BEFORE\nAFTER\n')
+    expect(out['/out/t.txt'])
+      .equal('HEADER\n#--START--#\nnew content\n#--END--#\nFOOTER\n')
+  })
+
+
+  // Two Copies in one File: each has to restore independently, or the second
+  // would splice into the first.
+  test('two-copies-inside-file', async () => {
+    const out = await gen({ '/tm/h.txt': 'H\n', '/tm/i.txt': 'I\n' }, () => {
+      Project({}, () => {
+        File({ name: 'a.txt' }, () => {
+          Copy({ from: '/tm/h.txt' })
+          Content('MID\n')
+          Copy({ from: '/tm/i.txt' })
+        })
+      })
+    })
+
+    expect(out['/out/a.txt']).equal('H\nMID\nI\n')
+    expect(out['/out/h.txt']).equal('H\n')
+    expect(out['/out/i.txt']).equal('I\n')
+  })
+
+
+  // A Copy that is NOT inside a File is unaffected: it writes its own
+  // destination and nothing else. Both orderings, because the fix restores
+  // whatever current.file happened to be - which for a Copy following a File
+  // is that File, already written by then.
+  test('copy-outside-file-unchanged', async () => {
+    const before = await gen({ '/tm/h.txt': 'HELLO\n' }, () => {
+      Project({}, () => {
+        Copy({ from: '/tm/h.txt' })
+        File({ name: 'a.txt' }, () => Content('A\n'))
+      })
+    })
+    expect(before).equal({
+      '/tm/h.txt': 'HELLO\n',
+      '/out/h.txt': 'HELLO\n',
+      '/out/a.txt': 'A\n',
+    })
+
+    const after = await gen({ '/tm/h.txt': 'HELLO\n' }, () => {
+      Project({}, () => {
+        File({ name: 'a.txt' }, () => Content('A\n'))
+        Copy({ from: '/tm/h.txt' })
+      })
+    })
+    expect(after).equal({
+      '/tm/h.txt': 'HELLO\n',
+      '/out/a.txt': 'A\n',
+      '/out/h.txt': 'HELLO\n',
+    })
+  })
+
+
+  // KNOWN DEVIATION from Go, pinned deliberately rather than closed.
+  //
+  // A BINARY single-file Copy inside a File contributes nothing to the
+  // enclosing file here, and says so on the debug channel. Its content is a
+  // Buffer, and a Buffer joined into a JS string is UTF-8 decoded, so every
+  // byte that is not valid UTF-8 would become U+FFFD - the splice would
+  // silently corrupt the copy. A Go string is a byte string, so Go embeds the
+  // bytes losslessly (TestBinaryCopyInsideFileSplicesBytes measures 20 bytes
+  // there against 13 here). Closing the gap means a byte-oriented content
+  // pipeline through FileHandler, for a shape - a binary inside a text file -
+  // that is a user error either way. The copy itself is written intact on
+  // both sides.
+  test('binary-copy-inside-file-splices-nothing', async () => {
+    let nowI = 0
+    const now = () => START_TIME + (++nowI * (60 * 1000))
+    const { fs } = memfs({})
+    const raw = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0xff, 0xfe])
+    fs.mkdirSync('/tm', { recursive: true })
+    fs.writeFileSync('/tm/i.png', raw)
+
+    await Jostraca({ now }).generate(
+      { fs: () => fs, folder: '/out' },
+      cmp(() => Project({}, () => {
+        File({ name: 'a.txt' }, () => {
+          Content('BEFORE\n')
+          Copy({ from: '/tm/i.png' })
+          Content('AFTER\n')
+        })
+      })))
+
+    expect([...fs.readFileSync('/out/a.txt')])
+      .equal([...Buffer.from('BEFORE\nAFTER\n')])
+    expect([...fs.readFileSync('/out/i.png')]).equal([...raw])
+  })
+
+
+  // A DIRECTORY Copy never becomes current.file in the first place, so it
+  // contributes no text to the file around it - in either stack. Pinned so
+  // the single-file splice cannot quietly grow to cover the tree walk.
+  test('directory-copy-inside-file-splices-nothing', async () => {
+    const out = await gen({ '/tm/d/x.txt': 'X\n', '/tm/d/y.txt': 'Y\n' }, () => {
+      Project({}, () => {
+        File({ name: 'a.txt' }, () => {
+          Content('BEFORE\n')
+          Copy({ from: '/tm/d', to: 'sub' })
+          Content('AFTER\n')
+        })
+      })
+    })
+
+    expect(out['/out/a.txt']).equal('BEFORE\nAFTER\n')
+    expect(out['/out/sub/x.txt']).equal('X\n')
+    expect(out['/out/sub/y.txt']).equal('Y\n')
+  })
+
+})

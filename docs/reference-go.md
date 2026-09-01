@@ -294,6 +294,14 @@ is no sort-by-property in Go.
   — the slot name is never collected and the marker survives verbatim —
   and Go handles it. Reconciling means giving `Cmp` a node, which
   changes the shape of every Go component tree, so it stands.
+- A **binary** single-file `Copy` nested inside a `File` splices its raw
+  bytes into the enclosing file here; TypeScript contributes nothing and
+  logs it. A Go string is a byte string; TypeScript's copy content is a
+  `Buffer`, and joining one into a JS string UTF-8 decodes it, so every
+  byte that is not valid UTF-8 would become U+FFFD. TypeScript writes
+  nothing rather than a corrupted approximation. A **text** copy splices
+  identically on both sides, and the copy itself is written intact either
+  way.
 - `PointUtil` is not ported.
 
 **Consequences of Go's zero values**

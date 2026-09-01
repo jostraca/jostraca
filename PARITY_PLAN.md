@@ -28,7 +28,7 @@ should not make unilaterally.
 | 3 | Go panic on nil-body Fragment | **fixed**, 4 Go tests |
 | 3 | Fragment `eject` never read in Go | **fixed**, cross-stack snapshot |
 | 3 | chmod comparison narrower than chmod | **fixed**, 4 Go tests |
-| 3 | Copy inside File destroys the file (TS) | filed, #39 |
+| 3 | Copy inside File destroys the file (TS) | **fixed** (#39), 6 TS + 5 Go tests + 2 snapshots |
 | 3 | `List` `{item}` macro absent in Go | filed, #40 |
 | 2.2 | directory-only state invisible | filed, #41 |
 | 3 | `File{Mode: 0}`, per-call `Control` | documented as deviations |

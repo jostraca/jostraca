@@ -26,9 +26,17 @@ const FileOp = {
 
   after(node: Node, ctx$: any, buildctx: BuildContext) {
     const FN = 'after:'
-    const { log, current } = buildctx
+    const { log } = buildctx
     const fs = ctx$.fs()
-    const cfile = current.file
+
+    // The node's own buffer, not buildctx.current.file. Every op that makes
+    // itself current.file for the duration of its children puts the previous
+    // one back, so by now the two are the same object - but reading `node`
+    // says so directly, and keeps a File's output from following whatever a
+    // descendant left behind. Copy and Inject each used to leave themselves
+    // in place, and this line then wrote THIS file's content to THEIR path.
+    // Go's fileAfter reads its own n throughout. See #39.
+    const cfile: any = node
     const content = cfile.content?.join('')
     const rpath = cfile.path?.join('/') // NOT Path.sep - needs to be canonical
 
