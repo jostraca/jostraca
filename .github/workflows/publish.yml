@@ -5,18 +5,33 @@ name: Publish npm
 # secrets and none on a developer's machine.
 #
 # The trust is pinned on npmjs.com to the triple
-# (org `jostraca`, repo `jostraca`, workflow `publish-npm.yml`). npm matches on
-# the workflow *filename*, so renaming this file silently breaks publishing
-# until the npm-side setting is changed to match.
+# (org `jostraca`, repo `jostraca`, workflow `publish.yml`). npm matches on the
+# workflow *filename*, so renaming this file silently breaks publishing until
+# the npm-side setting is changed to match. It was `publish-npm.yml` until the
+# npm-side trust was moved to `publish.yml`; the two must always agree.
 #
 # `v*` is the npm/TS tag namespace. The Go module tags as `go/v*` and is served
 # straight from the tag by the module proxy, so it must never reach this
 # workflow -- a `*` glob does not cross `/`, so `go/v0.1.7` cannot match here.
+#
+# workflow_dispatch is the second route in, for a release whose commit is on
+# master but whose tag does not exist -- pushing a tag needs credentials a CI
+# agent does not have, while dispatching a workflow only needs API access. The
+# `version` input is not a choice of what to publish: package.json already
+# decides that. It is an assertion of what the caller BELIEVES is about to be
+# published, checked below, so a dispatch against the wrong commit fails
+# before it burns a version number rather than after.
 
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version expected in ts/package.json, e.g. 0.34.0'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -49,11 +64,32 @@ jobs:
       # these agree unless a tag was made by hand. Catching a mismatch here costs
       # a second; catching it after the publish costs a version number, since npm
       # will not let one be reused.
-      - name: Tag matches package.json version
+      #
+      # On a tag push the expected version comes from the tag. On a dispatch
+      # there is no tag -- GITHUB_REF_NAME is the branch, so the old `#v` strip
+      # would have compared "master" against the package version and failed
+      # every dispatch -- so it comes from the input instead.
+      #
+      # Both travel through env rather than `${{ }}` interpolated into the
+      # script. A workflow input is caller-controlled text, and interpolating it
+      # directly would let a crafted "version" run arbitrary shell in a job
+      # holding an id-token.
+      - name: Expected version matches package.json
+        env:
+          WANT: ${{ github.event_name == 'workflow_dispatch' && inputs.version || '' }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          TAG="${GITHUB_REF_NAME#v}"
+          if [ -n "$WANT" ]; then
+            EXPECT="$WANT"
+            SRC="dispatch input"
+          else
+            EXPECT="${REF_NAME#v}"
+            SRC="tag $REF_NAME"
+          fi
           PKG=$(node -p "require('./package.json').version")
-          test "$TAG" = "$PKG" || { echo "tag v$TAG != package.json $PKG"; exit 1; }
+          test "$EXPECT" = "$PKG" || {
+            echo "$SRC says $EXPECT, package.json says $PKG"; exit 1; }
+          echo "publishing $PKG (from $SRC)"
 
       # No package-lock.json is committed (.gitignore drops it), so `npm ci` has
       # nothing to read and `npm install` is the only option.
