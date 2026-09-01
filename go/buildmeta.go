@@ -43,8 +43,12 @@ func newBuildMeta(fh *fileHandler) *buildMeta {
 		next: metaSnapshot{
 			foldername: ".jostraca",
 			filename:   "jostraca.meta.log",
-			last:       fh.now(),
-			byPath:     map[string]*metaEntry{},
+			// `last` is stamped in done(), at the END of the build, NOT here.
+			// Stamping it at construction put it BEFORE every generated file's
+			// mtime, so the Options.Exclude window (`mtime > last`, build.go)
+			// then skipped the files this build had just written. See
+			// PARITY_PLAN.md 1.2. Mirrors ts/src/build/BuildMeta.ts done().
+			byPath: map[string]*metaEntry{},
 		},
 	}
 	bm.load()
@@ -148,6 +152,12 @@ func (bm *buildMeta) done() error {
 	if bm == nil {
 		return nil
 	}
+
+	// Stamp at the end of the build, so a file this run generated is never
+	// newer than `last` and the Exclude mtime window only ever catches edits
+	// made after the build finished.
+	bm.next.last = bm.fh.now()
+
 	out := bm.encode()
 	if err := bm.fh.ensureDirOf(bm.metaPath()); err != nil {
 		return err
