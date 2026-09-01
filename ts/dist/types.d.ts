@@ -1,5 +1,15 @@
-import * as Fs from 'node:fs';
-type FST = typeof Fs;
+type FST = {
+    existsSync(path: string): boolean;
+    readFileSync(path: string, options?: any): any;
+    writeFileSync(path: string, data: any, options?: any): void;
+    mkdirSync(path: string, options?: any): any;
+    statSync(path: string, options?: any): any;
+    readdirSync(path: string, options?: any): any;
+    renameSync?: (from: string, to: string) => void;
+    chmodSync?: (path: string, mode: any) => void;
+    unlinkSync?: (path: string) => void;
+    realpathSync?: (path: string) => any;
+};
 type JostracaResult = {
     when: number;
     files: {

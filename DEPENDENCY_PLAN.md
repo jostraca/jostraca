@@ -20,13 +20,18 @@ The recommendation is to reimplement all three rather than vendor any of them,
 because that is what the used subsets are worth and because it is what this
 project has already done twice.
 
-| target | today | action | size |
-|---|---|---|---|
-| `go/` shape | 1 module, 3813 LOC, one 4-line schema | reimplement | ~40 LOC |
-| `ts/` shape | 1 package, 356K, 5 schemas in 4 files | reimplement | ~200-300 LOC |
-| `ts/` memfs | 20 packages, 68,557 JS LOC | reimplement | ~350-600 LOC |
-| `ts/gen/readme.js` | phantom `oxc-parser`, never installed | delete or rewrite | — |
-| `typescript`, `@types/node` | dev only, not shipped | keep | — |
+| target | today | action | size | status |
+|---|---|---|---|---|
+| `ts/` memfs | 20 packages, 68,557 JS LOC | reimplement | 469 LOC | **done** |
+| `ts/gen/readme.js` | phantom `oxc-parser`, never installed | delete | — | **done** |
+| `go/` shape | 1 module, 3813 LOC, one 4-line schema | reimplement | ~40 LOC | open |
+| `ts/` shape | 1 package, 356K, 5 schemas in 4 files | reimplement | ~200-300 LOC | open |
+| `typescript`, `@types/node` | dev only, not shipped | keep | — | — |
+
+Two steps have landed on this branch. The consumer-facing tree is down from
+21 packages to 1, `shape` alone, and `res.fs()` now declares the contract it
+actually serves rather than the whole of `node:fs` (§4.4). What remains is
+`shape` on both sides.
 
 The Go removal is not a proposal. It was carried out in a sandbox and the
 full suite passed. **[verified]**
@@ -404,15 +409,18 @@ paying for it. Step two replaces it.
 - `docs/reference-options.md:108` documents `vol()` as returning a *memfs
   Volume*. An in-repo `vol` is a semver-visible narrowing even though nothing in
   the repo calls anything but `toJSON()`.
-- `res.fs()` narrows too, and by more. `ts/src/types.ts:55` types it
-  `fs?: () => FST` where `FST = typeof import('node:fs')` (`types.ts:7`), so the
-  declared return is the *entire* Node filesystem API, and memfs supplies a
-  handle broad enough to honour it. A consumer may legitimately call
-  `appendFileSync`, `symlinkSync` or `copyFileSync` on `res.fs()` even though
-  `ts/src` never does. A ten-method replacement therefore either ships a wider
-  compatibility facade or declares a new, smaller result type and documents the
-  break. Of the two narrowings this is the easier one to miss, because the ten
-  methods in §4.1 are what jostraca calls, not what it publishes.
+- `res.fs()` narrows too, and by more. **Resolved by narrowing the declared
+  type.** `ts/src/types.ts` used to define `FST = typeof import('node:fs')`, so
+  the declared return was the *entire* Node filesystem API while the code only
+  ever called the ten methods in §4.1, and memfs happened to supply a handle
+  broad enough to honour the promise. `FST` is now the contract itself: six
+  required methods and four optional ones, mirroring exactly what the call
+  sites do. Real `node:fs` still satisfies it structurally, so passing it as
+  the `fs` option is unaffected, and a partial provider is now expressible
+  rather than a lie. The cost is a semver-visible narrowing: a consumer calling
+  `copyFileSync` on `res.fs()` compiled before and does not now. Of the two
+  narrowings this was the easier one to miss, because the ten methods in §4.1
+  are what jostraca calls, not what it published.
 - The parity-corpus tools run on memfs, and CI runs them. The `corpus` job in
   `.github/workflows/go-test.yml` regenerates `go/testdata/parity` by running
   `ts/tools/extract-parity.js`, which requires memfs at line 16 and pulls in two
@@ -480,10 +488,14 @@ dependencies; neither ever landed. **[verified]** `PORT_PLAN.md:445-457`,
 
 ## 6. The rest of the dependency surface
 
-### 6.1 `oxc-parser` — the one genuinely hidden dependency
+### 6.1 `oxc-parser` — the one genuinely hidden dependency (removed)
 
-`ts/gen/readme.js:4` requires `oxc-parser`. It appears in no manifest, no
-lockfile, and is not installed. Running it: **[verified]**
+`ts/gen/` is deleted and `gen` is out of the `files` array, so the phantom
+dependency and the broken script it sat in are both gone. The reasoning that
+got it there:
+
+`ts/gen/readme.js:4` required `oxc-parser`. It appeared in no manifest, no
+lockfile, and was not installed. Running it: **[verified]**
 
 ```
 Error: Cannot find module 'oxc-parser'
@@ -492,7 +504,14 @@ Error: Cannot find module 'oxc-parser'
 EXIT: 1
 ```
 
-It is broken three ways over. Installing the parser would not fix it: the script
+It was broken four ways over, and the fourth is decisive: the
+`JostracaOptions` it parses out of `src/types.ts` sits inside a `/* ... */`
+block (`types.ts:9-37`). A commented-out type is not in the AST at all, so
+the `getx` query that drives the whole generator could only ever return
+nothing. **[verified]** The script cannot have produced output at any point
+in its history.
+
+The other three: installing the parser would not fix it, because the script
 injects between `<!--START-OPTIONS-->` and `<!--END-OPTIONS-->` markers that
 exist nowhere in the repo, and it reads `JostracaOptions` from `src/types.ts`,
 where that name is commented out of the export list at `ts/src/types.ts:114`.
@@ -576,18 +595,18 @@ Each step is independently shippable, and TS leads Go per `CLAUDE.md`.
    caching disabled. The comments directly above those lines record the
    *Restore cache failed* warning this exact mistake produced once already.
    Leaves the Go module fully dependency-free.
-2. **`gen/readme.js`.** Delete or rewrite. Removes the phantom dependency and
-   stops shipping a broken script.
-3. **memfs, step one.** Lazy import behind `useMemFS`, `peerDependenciesMeta`
-   optional, memfs to `devDependencies`. Five lines, and the load-time crash is
-   gone for everyone not using `mem: true`.
+2. **`gen/readme.js`.** ~~Delete or rewrite.~~ **Done** — deleted, and `gen`
+   dropped from the `files` array so it stops shipping to npm.
+3. **memfs.** ~~Two steps: lazy import first, replacement second.~~ **Done in
+   one** — `ts/src/util/memfs.ts` replaced the package outright, so the lazy-import
+   half was never needed. The load-time crash is gone because the import is gone.
 4. **TS shape.** Per-schema imperative checks (§3.5), adopting Go's message
    wording so the two stacks converge. Differential-test against real shape
    before deleting, the way `jsonic` was handled. Pin the unknown-key and
    `existing.bin` decisions in `test/spec/`, then fix Go to match.
-5. **memfs, step two.** In-repo `memfs(json) -> {fs, vol}` keeping the factory
-   signature. Port the three corpus tools in the same change so the CI parity
-   gate never goes dark.
+5. ~~**memfs, step two.**~~ Folded into step 3. The three corpus tools moved in
+   the same change, and the CI `corpus` job confirms `go/testdata/parity`
+   regenerates byte-identical.
 6. **Docs.** Six citations name the peers, none pinned by any test (§3.3).
    `ts/README.md:22-24` and `:77`, `docs/tutorial.md:20` and `:28`,
    `docs/how-to/generate-in-memory.md:84`, `docs/reference-options.md:25` and

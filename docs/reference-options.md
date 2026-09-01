@@ -44,6 +44,24 @@ Jostraca Options: Validation failed for object "{folder:/out,bogus:1}" because t
 | `cmp.Copy.ignore` | `RegExp[]` | `[/~$/]` | Extra names for `Copy` to skip. |
 | `exclude` | `boolean` | `false` | Skip output files modified since the last build. |
 
+`fs` takes a factory, not a filesystem, and `FS` is a small contract
+rather than the whole of `node:fs`. Six methods are required:
+
+| required | feature-detected | fallback when absent |
+|---|---|---|
+| `existsSync` | `renameSync` | a direct write, so no atomic rename |
+| `readFileSync` | `chmodSync` | modes stay at their default |
+| `writeFileSync` | `unlinkSync` | temp files are not cleaned up |
+| `mkdirSync` | `realpathSync` | identity, so no symlink-cycle detection |
+| `statSync` | | |
+| `readdirSync` | | |
+
+`existsSync` is the one checked at runtime: a provider without it is
+rejected outright. The four on the right are tested with `typeof`
+before each call, so a partial provider is legitimate. Everything is
+synchronous, and `node:fs` satisfies the contract, so passing it
+directly still works.
+
 `debug` is worth a note. Its shape declares `'info'` as an example
 value, not as a default, so nothing sets it when you omit it and the
 fallback is the string `'.'` — which is truthy. Debug callsite stamping

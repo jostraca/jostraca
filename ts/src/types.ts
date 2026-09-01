@@ -1,10 +1,38 @@
 /* Copyright (c) 2024-2025 Richard Rodger, MIT License */
 
 
-import * as Fs from 'node:fs'
+// The filesystem contract jostraca actually uses.
+//
+// Deliberately narrower than `typeof import('node:fs')`, which is what this
+// was until the `memfs` package was replaced by src/util/memfs.ts. That
+// declaration promised the whole Node API while the code only ever called
+// what is listed here, so a provider had to implement far more than jostraca
+// needed -- and `res.fs()` advertised methods an in-repo filesystem has no
+// reason to carry.
+//
+// Real `node:fs` satisfies this structurally, so passing it, or any broader
+// handle, still works.
+type FST = {
+  // Required. `existsSync` is the one asserted at runtime, by
+  // BuildContext and FileHandler, as the provider-validity check.
+  existsSync(path: string): boolean
+  readFileSync(path: string, options?: any): any
+  writeFileSync(path: string, data: any, options?: any): void
+  mkdirSync(path: string, options?: any): any
+  statSync(path: string, options?: any): any
+  readdirSync(path: string, options?: any): any
 
-
-type FST = typeof Fs
+  // Feature-detected: each call site tests `typeof` first and has a
+  // fallback, so a provider may omit any of these.
+  //   renameSync   -- FileHandler falls back to a direct write
+  //   chmodSync    -- modes are left at their default
+  //   unlinkSync   -- temp files are not cleaned up
+  //   realpathSync -- CopyOp falls back to identity, losing cycle detection
+  renameSync?: (from: string, to: string) => void
+  chmodSync?: (path: string, mode: any) => void
+  unlinkSync?: (path: string) => void
+  realpathSync?: (path: string) => any
+}
 
 /*
 // For calling code.
