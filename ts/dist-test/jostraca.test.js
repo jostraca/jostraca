@@ -806,4 +806,238 @@ const START_TIME = 1735689600000;
         });
     });
 });
+// A Copy or an Inject nested INSIDE a File used to destroy the enclosing
+// file. Both ops make themselves buildctx.current.file for the duration of
+// their own work - Copy indirectly, by calling FileOp.before on its own node
+// - and neither put the previous one back. Every later sibling then
+// accumulated into the WRONG buffer, and FileOp.after wrote that buffer to
+// the WRONG path.
+//
+// Measured before the fix:
+//
+//   Copy inside File   -> /out/a.txt never written at all,
+//                         /out/h.txt = "HELLO\nAFTER\n" ("BEFORE" lost)
+//   Inject inside File -> /out/a.txt never written at all,
+//                         the Inject's pre-existing TARGET overwritten
+//                         with "new contentAFTER\n", markers and all
+//
+// Go was correct on both counts, so TS is the side that moved. See #39 and
+// the copy_in_file / inject_in_file parity snapshots, which pin the same
+// two shapes across both stacks.
+(0, node_test_1.describe)('nested-emitters', () => {
+    const gen = async (fsdef, def) => {
+        let nowI = 0;
+        const now = () => START_TIME + (++nowI * (60 * 1000));
+        const { fs, vol } = (0, memfs_1.memfs)(fsdef);
+        await (0, __1.Jostraca)({ now }).generate({ fs: () => fs, folder: '/out' }, (0, __1.cmp)(def));
+        const out = {};
+        for (const [k, v] of Object.entries(vol.toJSON())) {
+            if (k.startsWith('/out/' + META_FOLDER))
+                continue;
+            out[k] = v;
+        }
+        return out;
+    };
+    (0, node_test_1.test)('copy-inside-file', async () => {
+        const out = await gen({ '/tm/h.txt': 'HELLO\n' }, () => {
+            (0, __1.Project)({}, () => {
+                (0, __1.File)({ name: 'a.txt' }, () => {
+                    (0, __1.Content)('BEFORE\n');
+                    (0, __1.Copy)({ from: '/tm/h.txt' });
+                    (0, __1.Content)('AFTER\n');
+                });
+            });
+        });
+        // The copied text is spliced into the enclosing file where the Copy sat
+        // in source order, AND still written to its own destination.
+        (0, expect_1.expect)(out).equal({
+            '/tm/h.txt': 'HELLO\n',
+            '/out/h.txt': 'HELLO\n',
+            '/out/a.txt': 'BEFORE\nHELLO\nAFTER\n',
+        });
+    });
+    (0, node_test_1.test)('inject-inside-file', async () => {
+        const out = await gen({
+            '/tm/x': '',
+            '/out/t.txt': 'HEADER\n#--START--#\nold\n#--END--#\nFOOTER\n',
+        }, () => {
+            (0, __1.Project)({}, () => {
+                (0, __1.File)({ name: 'a.txt' }, () => {
+                    (0, __1.Content)('BEFORE\n');
+                    (0, __1.Inject)({ name: 't.txt' }, () => (0, __1.Content)('new content'));
+                    (0, __1.Content)('AFTER\n');
+                });
+            });
+        });
+        // Unlike Fragment and Slot, an Inject contributes NOTHING to the file
+        // around it - it writes to its own target. The target keeps everything
+        // outside the markers.
+        (0, expect_1.expect)(out['/out/a.txt']).equal('BEFORE\nAFTER\n');
+        (0, expect_1.expect)(out['/out/t.txt'])
+            .equal('HEADER\n#--START--#\nnew content\n#--END--#\nFOOTER\n');
+    });
+    // Two Copies in one File: each has to restore independently, or the second
+    // would splice into the first.
+    (0, node_test_1.test)('two-copies-inside-file', async () => {
+        const out = await gen({ '/tm/h.txt': 'H\n', '/tm/i.txt': 'I\n' }, () => {
+            (0, __1.Project)({}, () => {
+                (0, __1.File)({ name: 'a.txt' }, () => {
+                    (0, __1.Copy)({ from: '/tm/h.txt' });
+                    (0, __1.Content)('MID\n');
+                    (0, __1.Copy)({ from: '/tm/i.txt' });
+                });
+            });
+        });
+        (0, expect_1.expect)(out['/out/a.txt']).equal('H\nMID\nI\n');
+        (0, expect_1.expect)(out['/out/h.txt']).equal('H\n');
+        (0, expect_1.expect)(out['/out/i.txt']).equal('I\n');
+    });
+    // A Copy that is NOT inside a File is unaffected: it writes its own
+    // destination and nothing else. Both orderings, because the fix restores
+    // whatever current.file happened to be - which for a Copy following a File
+    // is that File, already written by then.
+    (0, node_test_1.test)('copy-outside-file-unchanged', async () => {
+        const before = await gen({ '/tm/h.txt': 'HELLO\n' }, () => {
+            (0, __1.Project)({}, () => {
+                (0, __1.Copy)({ from: '/tm/h.txt' });
+                (0, __1.File)({ name: 'a.txt' }, () => (0, __1.Content)('A\n'));
+            });
+        });
+        (0, expect_1.expect)(before).equal({
+            '/tm/h.txt': 'HELLO\n',
+            '/out/h.txt': 'HELLO\n',
+            '/out/a.txt': 'A\n',
+        });
+        const after = await gen({ '/tm/h.txt': 'HELLO\n' }, () => {
+            (0, __1.Project)({}, () => {
+                (0, __1.File)({ name: 'a.txt' }, () => (0, __1.Content)('A\n'));
+                (0, __1.Copy)({ from: '/tm/h.txt' });
+            });
+        });
+        (0, expect_1.expect)(after).equal({
+            '/tm/h.txt': 'HELLO\n',
+            '/out/a.txt': 'A\n',
+            '/out/h.txt': 'HELLO\n',
+        });
+    });
+    // KNOWN DEVIATION from Go, pinned deliberately rather than closed.
+    //
+    // A BINARY single-file Copy inside a File contributes nothing to the
+    // enclosing file here, and says so on the debug channel. Its content is a
+    // Buffer, and a Buffer joined into a JS string is UTF-8 decoded, so every
+    // byte that is not valid UTF-8 would become U+FFFD - the splice would
+    // silently corrupt the copy. A Go string is a byte string, so Go embeds the
+    // bytes losslessly (TestBinaryCopyInsideFileSplicesBytes measures 20 bytes
+    // there against 13 here). Closing the gap means a byte-oriented content
+    // pipeline through FileHandler, for a shape - a binary inside a text file -
+    // that is a user error either way. The copy itself is written intact on
+    // both sides.
+    (0, node_test_1.test)('binary-copy-inside-file-splices-nothing', async () => {
+        let nowI = 0;
+        const now = () => START_TIME + (++nowI * (60 * 1000));
+        const { fs } = (0, memfs_1.memfs)({});
+        const raw = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0xff, 0xfe]);
+        fs.mkdirSync('/tm', { recursive: true });
+        fs.writeFileSync('/tm/i.png', raw);
+        await (0, __1.Jostraca)({ now }).generate({ fs: () => fs, folder: '/out' }, (0, __1.cmp)(() => (0, __1.Project)({}, () => {
+            (0, __1.File)({ name: 'a.txt' }, () => {
+                (0, __1.Content)('BEFORE\n');
+                (0, __1.Copy)({ from: '/tm/i.png' });
+                (0, __1.Content)('AFTER\n');
+            });
+        })));
+        (0, expect_1.expect)([...fs.readFileSync('/out/a.txt')])
+            .equal([...Buffer.from('BEFORE\nAFTER\n')]);
+        (0, expect_1.expect)([...fs.readFileSync('/out/i.png')]).equal([...raw]);
+    });
+    // A DIRECTORY Copy never becomes current.file in the first place, so it
+    // contributes no text to the file around it - in either stack. Pinned so
+    // the single-file splice cannot quietly grow to cover the tree walk.
+    (0, node_test_1.test)('directory-copy-inside-file-splices-nothing', async () => {
+        const out = await gen({ '/tm/d/x.txt': 'X\n', '/tm/d/y.txt': 'Y\n' }, () => {
+            (0, __1.Project)({}, () => {
+                (0, __1.File)({ name: 'a.txt' }, () => {
+                    (0, __1.Content)('BEFORE\n');
+                    (0, __1.Copy)({ from: '/tm/d', to: 'sub' });
+                    (0, __1.Content)('AFTER\n');
+                });
+            });
+        });
+        (0, expect_1.expect)(out['/out/a.txt']).equal('BEFORE\nAFTER\n');
+        (0, expect_1.expect)(out['/out/sub/x.txt']).equal('X\n');
+        (0, expect_1.expect)(out['/out/sub/y.txt']).equal('Y\n');
+    });
+});
+// Directory-only state. `vol.toJSON()` records an empty directory as
+// `null` -- a populated one is stood for by its children -- and until the
+// Go port's MemFS.Vol() learned the same convention nothing could compare
+// the two stacks on it. Two behaviours hid behind that: an empty Folder
+// was materialised here and not in Go, and a dry run created the whole
+// output tree in Go while writing no files.
+//
+// These pin the TS side of the agreement. See #41 and the empty_folder
+// parity snapshot.
+(0, node_test_1.describe)('directory-state', () => {
+    const gen = async (control, def) => {
+        let nowI = 0;
+        const now = () => START_TIME + (++nowI * (60 * 1000));
+        const { fs, vol } = (0, memfs_1.memfs)({});
+        await (0, __1.Jostraca)({ now, control })
+            .generate({ fs: () => fs, folder: '/out' }, (0, __1.cmp)(def));
+        const json = vol.toJSON();
+        const files = [];
+        const dirs = [];
+        for (const [k, v] of Object.entries(json)) {
+            if (null == v) {
+                dirs.push(k);
+            }
+            else {
+                files.push(k);
+            }
+        }
+        return { files: files.sort(), dirs: dirs.sort() };
+    };
+    (0, node_test_1.test)('empty-folder-is-materialised', async () => {
+        const { dirs } = await gen({}, () => (0, __1.Project)({ folder: 'app' }, () => {
+            (0, __1.Folder)({ name: 'empty' }, () => { });
+            (0, __1.Folder)({ name: 'full' }, () => {
+                (0, __1.File)({ name: 'a.txt' }, () => (0, __1.Content)('A\n'));
+            });
+            (0, __1.Folder)({ name: 'outer' }, () => {
+                (0, __1.Folder)({ name: 'inner' }, () => { });
+            });
+        }));
+        // A directory appears only while EMPTY: `full` and `outer` each hold a
+        // child, so their children stand for them.
+        (0, expect_1.expect)(dirs).equal(['/out/app/empty', '/out/app/outer/inner']);
+    });
+    // An empty FILE is not a directory: it is recorded with its (empty)
+    // content, not as null.
+    (0, node_test_1.test)('empty-file-is-not-a-directory', async () => {
+        const { files, dirs } = await gen({}, () => (0, __1.Project)({ folder: 'app' }, () => (0, __1.File)({ name: 'e.txt' }, () => { })));
+        (0, expect_1.expect)(files.includes('/out/app/e.txt')).true();
+        (0, expect_1.expect)(dirs.includes('/out/app/e.txt')).false();
+    });
+    // A dry run creates nothing at all, directories included. ensureFolder is
+    // guarded, and so is every ensureDir call behind a write.
+    (0, node_test_1.test)('dryrun-creates-no-directories', async () => {
+        const { files, dirs } = await gen({ dryrun: true }, () => (0, __1.Project)({ folder: 'app' }, () => {
+            (0, __1.Folder)({ name: 'sub' }, () => {
+                (0, __1.File)({ name: 'a.txt' }, () => (0, __1.Content)('SECRET\n'));
+            });
+        }));
+        (0, expect_1.expect)(files).equal([]);
+        (0, expect_1.expect)(dirs).equal([]);
+    });
+    // The other side of the guard, so the test above measures it rather than
+    // an inert path.
+    (0, node_test_1.test)('without-dryrun-directories-are-created', async () => {
+        const { files } = await gen({}, () => (0, __1.Project)({ folder: 'app' }, () => {
+            (0, __1.Folder)({ name: 'sub' }, () => {
+                (0, __1.File)({ name: 'a.txt' }, () => (0, __1.Content)('X\n'));
+            });
+        }));
+        (0, expect_1.expect)(files.includes('/out/app/sub/a.txt')).true();
+    });
+});
 //# sourceMappingURL=jostraca.test.js.map

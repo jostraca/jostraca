@@ -28,9 +28,9 @@ should not make unilaterally.
 | 3 | Go panic on nil-body Fragment | **fixed**, 4 Go tests |
 | 3 | Fragment `eject` never read in Go | **fixed**, cross-stack snapshot |
 | 3 | chmod comparison narrower than chmod | **fixed**, 4 Go tests |
-| 3 | Copy inside File destroys the file (TS) | filed, #39 |
-| 3 | `List` `{item}` macro absent in Go | filed, #40 |
-| 2.2 | directory-only state invisible | filed, #41 |
+| 3 | Copy inside File destroys the file (TS) | **fixed** (#39), 6 TS + 5 Go tests + 2 snapshots |
+| 3 | `List` `{item}` macro absent in Go | **fixed** (#40), 1 TS + 17 Go cases + snapshot |
+| 2.2 | directory-only state invisible | **fixed** (#41), 4 TS + 7 Go tests + snapshot |
 | 3 | `File{Mode: 0}`, per-call `Control` | documented as deviations |
 | 4 | deviations lists | **updated**, both files |
 | 2.3 | caller-side state | **fixed**, 3 TS + 3 Go tests |
@@ -216,14 +216,30 @@ eight. This turns an entire invisible class into a gated one.
 
 ### 2.2 Directory-only state
 
-**[audit]** No snapshot can contain a directory-only difference. `volOf(mfs,
-nulls)` at `ts/tools/corpus-bytes.js:59-68` records an empty directory as `null`
-only when asked, and none of the seven call sites in `extract-parity.js` passes
-the argument; Go's `MemFS.Vol()` copies files only. Zero `null` entries exist
-across all 38 JSONs.
+**[audit]** No snapshot can contain a directory-only difference. Go's
+`MemFS.Vol()` copied files only, so there was nothing on that side to compare a
+recorded directory against. Zero `null` entries existed across all 38 JSONs.
 
-This one gap hides two separately-filed findings: TS materialises an empty
+The audit put the blame in the wrong place, and the correction matters because
+it changes what had to be fixed. It read `volOf(mfs, nulls)` at
+`ts/tools/corpus-bytes.js:59-68` as recording an empty directory "only when
+asked", with none of the call sites asking. The default is the opposite:
+`nulls` undefined fails the `'empty' === nulls` test and the `null` is kept. The
+generator was never the problem. Zero `null` entries existed because no fixture
+had an empty directory — and none could be written usefully while the Go side
+had no way to see one.
+
+This one gap hid two separately-filed findings: TS materialises an empty
 `Folder` where Go does not, and Go creates output directories during a dry run.
+
+**Fixed.** `Vol()` now reports an empty directory as a nil value, matching TS's
+`toJSON`. That made both findings visible immediately — three Go tests failed
+the moment the change landed, the dry-run ones among them — and both are fixed:
+`folderBefore` materialises the folder as TS's `FolderOp` does, and
+`ensureFolder` is a no-op under a dry run as TS's is. The `empty_folder`
+snapshot carries the first `null` entries the corpus has ever held, and
+`assertVol` compares kinds before bytes, so a directory can never match an empty
+file.
 
 ### 2.3 Caller-side state
 

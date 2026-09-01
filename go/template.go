@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
@@ -331,7 +332,7 @@ func formatValue(v any, fallback string) string {
 	case func() string:
 		return v()
 	case map[string]any, []any, []string, map[string]string:
-		b, err := marshalJSLike(v)
+		b, err := marshalJSLikeSorted(v)
 		if err != nil {
 			return fmt.Sprintf("%v", v)
 		}
@@ -345,10 +346,44 @@ func formatValue(v any, fallback string) string {
 		return formatJSNumber(v)
 	case float32:
 		return formatJSNumber(float64(v))
-
-	default:
-		return fmt.Sprintf("%v", v)
 	}
+
+	// The four cases above are the fast path for the shapes that arrive from
+	// JSON or YAML. Any OTHER composite has to reach the same formatter, or
+	// ordinary typed Go data renders in Go's debug syntax: a
+	// map[string]int{"a": 1} came out as `map[a:1]`, a []int as `[1 2]` and
+	// a struct as `{1 x}`, where TS - which has one object type and JSONifies
+	// all of it - gives {"a":1}, [1,2] and {"a":1,"b":"x"}. Only the TOP
+	// level was affected, since encoding/json handles a typed value nested
+	// inside a recognised one.
+	//
+	// The kind test runs after the type switch, so fmt.Stringer still wins:
+	// a time.Time keeps its String() form rather than becoming a JSON
+	// timestamp.
+	if rv := reflect.ValueOf(v); rv.IsValid() {
+		switch rv.Kind() {
+		case reflect.Map, reflect.Array, reflect.Struct:
+			if b, err := marshalJSLikeSorted(v); err == nil {
+				return b
+			}
+		case reflect.Slice:
+			// []byte deliberately excluded, and left exactly as it was.
+			// encoding/json renders a byte slice as base64, while TS renders
+			// a Buffer through its toJSON as {"type":"Buffer","data":[...]}.
+			// Neither matches the other, so this fix does not pretend to
+			// settle it - that needs its own decision.
+			if rv.Type().Elem().Kind() != reflect.Uint8 {
+				if b, err := marshalJSLikeSorted(v); err == nil {
+					return b
+				}
+			}
+		}
+	}
+
+	// Pointers are also left alone. Dereferencing one raises questions this
+	// fix should not answer on its own - what a nil pointer renders as, and
+	// whether a pointer is a value or a reference to the caller.
+	return fmt.Sprintf("%v", v)
 }
 
 // marshalJSLike renders JSON the way JSON.stringify does: no HTML escaping.
@@ -366,6 +401,42 @@ func marshalJSLike(v any) (string, error) {
 	}
 	// Encode appends a newline.
 	return strings.TrimSuffix(buf.String(), "\n"), nil
+}
+
+// marshalJSLikeSorted renders v with every object key sorted, at every
+// depth, by taking it through a generic decode.
+//
+// encoding/json sorts MAP keys but emits STRUCT fields in DECLARATION
+// order, while TS's jsonify sorts every object - so without this a struct
+// would be the one shape whose key order depended on how the Go side
+// happened to declare it. Every composite goes through it, not only a
+// struct at the top: a struct nested inside a map[string]any took the fast
+// path and kept its declaration order, which would have left the two
+// spellings of the same value disagreeing. See the note on jsonify in
+// ts/src/util/basic.ts for why sorting is the convention here.
+//
+// UseNumber keeps integers exact: decoding into `any` would route every
+// number through float64 and silently round anything past 2^53, which is
+// the one thing Go can represent here that TS cannot.
+//
+// The round trip costs about 7.9us against 2.1us for a plain marshal, on
+// the model object from test/spec/perf/workloads.tsv. Taken deliberately:
+// it is paid only when a macro resolves to a COMPOSITE, which is rare -
+// the scalar path is 5.9ns and untouched, and neither template workload
+// resolves a macro to a composite at all. Deterministic key order is worth
+// more here than microseconds on an uncommon branch.
+func marshalJSLikeSorted(v any) (string, error) {
+	first, err := marshalJSLike(v)
+	if err != nil {
+		return "", err
+	}
+	dec := json.NewDecoder(strings.NewReader(first))
+	dec.UseNumber()
+	var generic any
+	if err := dec.Decode(&generic); err != nil {
+		return "", err
+	}
+	return marshalJSLike(generic)
 }
 
 // formatJSNumber renders a float the way ECMAScript's Number::toString

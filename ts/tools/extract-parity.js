@@ -323,6 +323,45 @@ async function main() {
     { '/tpl/hello.txt': 'Hello $$name$$' },
   )
 
+  // A Copy nested INSIDE a File. No fixture covered this shape, which is how
+  // #39 survived: TS's CopyOp.before displaced buildctx.current.file and never
+  // put it back, so `AFTER` accumulated into the Copy's buffer and FileOp.after
+  // wrote that buffer to the COPY's path. `/out/app/a.txt` was never written at
+  // all and `BEFORE` was lost. Go was correct throughout. The copied text is
+  // spliced into the enclosing file at the position the Copy sits in source
+  // order, AND still written to its own destination.
+  await snapshot('copy_in_file',
+    { model: { name: 'World' } },
+    () => {
+      Project({ folder: 'app' }, () => {
+        File({ name: 'a.txt' }, () => {
+          Content('BEFORE\n')
+          Copy({ from: '/tpl/hello.txt' })
+          Content('AFTER\n')
+        })
+      })
+    },
+    { '/tpl/hello.txt': 'Hello $$name$$\n' },
+  )
+
+  // An Inject nested inside a File: the same displaced-current.file defect one
+  // component along, and the more destructive of the two - the enclosing File
+  // wrote its own content over the Inject's TARGET, a pre-existing file the
+  // build was only supposed to edit a region of. Unlike Fragment and Slot, an
+  // Inject contributes NO text to the file around it.
+  await snapshot('inject_in_file', {}, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'a.txt' }, () => {
+        Content('BEFORE\n')
+        Inject({ name: 'foo.txt' }, () => Content('new content'))
+        Content('AFTER\n')
+      })
+    })
+  }, {
+    '/out/app/foo.txt':
+      'HEADER\n#--START--#\nold\n#--END--#\nFOOTER\n',
+  })
+
   // List iteration. TS each() default-wraps items in {val$, index$};
   // the body extracts via .val$ to access the raw value.
   await snapshot('list_basic', {}, () => {
@@ -331,6 +370,65 @@ async function main() {
         List({ item: ['a', 'b', 'c'] }, (props) => {
           Line(props.item.val$)
         })
+      })
+    })
+  })
+
+  // The `{item}` macro and `indent` a List hands its body. Go's ListP had
+  // no props object at all, so a body interpolating {item.n} emitted the
+  // macro verbatim and ListProps.Indent was declared and never read - the
+  // single list_basic fixture used a plain body and so could not see it.
+  // #40. Every quiet limit is exercised here: a bare {item}, a $-suffixed
+  // key, an unresolved path, and a near-miss that is left in place.
+  await snapshot('list_item_macro', {}, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'out.txt' }, () => {
+        List({ item: [{ n: 'p', d: { e: 'X' } }, { n: 'q', d: { e: 'Y' } }] },
+          (props) => Content({
+            src: 'n={item.n} deep={item.d.e} bare={item} ' +
+              'dollar={item.index$} miss={item.zz} near={itemx}\n',
+            replace: props.replace,
+          }))
+      })
+      File({ name: 'indent.txt' }, () => {
+        List({ item: [{ n: 'p' }, { n: 'q' }], indent: '>>', line: false },
+          (props) => Content({
+            src: 'n={item.n}\n', replace: props.replace, indent: props.indent,
+          }))
+      })
+      // Value formatting: a function replacement now JSONifies objects and
+      // arrays, as a plain replacement and `$$path$$` already did. It used
+      // to emit "[object Object]" and "1,2", which Go cannot reproduce -
+      // a ReplaceFunc returns a string, so there is no JS coercion to
+      // inherit. TS was the side to move.
+      File({ name: 'values.txt' }, () => {
+        List({
+          item: [{ v: 42 }, { v: 1.5 }, { v: true }, { v: null },
+          { v: { a: 1 } }, { v: [1, 2] }],
+          line: false,
+        }, (props) => Content({ src: 'v={item.v}\n', replace: props.replace }))
+      })
+    })
+  })
+
+  // Directory-only state. An EMPTY Folder is materialised by TS's FolderOp
+  // and was not by Go's folderBefore, and no gate could see the difference:
+  // MemFS.Vol() returned map[string][]byte, files only, so a snapshot
+  // recording TS's null entry had nothing on the Go side to compare with.
+  // Zero null entries existed across the whole corpus before this one. #41.
+  //
+  // A directory appears in the snapshot only while it is EMPTY - otherwise
+  // its children stand for it - so `full` is absent and `empty` is null.
+  await snapshot('empty_folder', {}, () => {
+    Project({ folder: 'app' }, () => {
+      Folder({ name: 'empty' }, () => { })
+      Folder({ name: 'full' }, () => {
+        File({ name: 'a.txt' }, () => Content('A\n'))
+      })
+      // Nested, so the recursive half is pinned too: `outer` holds a child
+      // and is absent, `outer/inner` is empty and is recorded.
+      Folder({ name: 'outer' }, () => {
+        Folder({ name: 'inner' }, () => { })
       })
     })
   })

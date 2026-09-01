@@ -181,6 +181,12 @@ res, _ := j.Generate(jostraca.Options{}, root)
 vol := res.Vol() // map[string][]byte snapshot
 ```
 
+`Vol()` reports every file's content plus a **nil** entry for every EMPTY
+directory — a directory appears only while it is empty, otherwise its
+children stand for it, mirroring TS's `vol.toJSON()`. An empty FILE is a
+non-nil zero-length slice, so filter on `v != nil` rather than
+`len(v) > 0` when you want files alone.
+
 ### Make a reusable component
 
 Define a plain function taking `*J` and call it directly — that is the
@@ -346,6 +352,15 @@ same logical input:
   slot name is never collected and the marker survives verbatim); Go
   handles it. Not reconciled: aligning it means giving `Cmp` a node, which
   changes the shape of every Go component tree.
+- A **binary** single-file `Copy` nested inside a `File` splices its raw
+  bytes into the enclosing file here; TS contributes nothing and logs it.
+  A Go string is a byte string, so the bytes survive; TS's copy content is
+  a `Buffer`, and joining one into a JS string UTF-8 decodes it, turning
+  every byte that is not valid UTF-8 into U+FFFD. TS writes nothing rather
+  than a corrupted approximation. The copy itself is written intact on both
+  sides, and a TEXT copy splices identically. Pinned by
+  `TestBinaryCopyInsideFileSplicesBytes` here and
+  `binary-copy-inside-file-splices-nothing` in `ts/test/jostraca.test.ts`.
 - `Deep` builds a new map or slice instead of mutating and returning its
   first argument the way TS `deep` does. Callers that use the return value
   see no difference; callers relying on the aliasing would. Merge semantics
@@ -380,10 +395,23 @@ same logical input:
   behaviour is identical; only the spelling differs. `0o4755` written
   literally is NOT setuid in Go and lands as `0755`.
   `mode_special_bits_test.go` pins both halves.
-- `List` does not pass an `{item}` replace macro or `Indent` to its body:
-  the `ListP` body signature carries no props object. TS interpolates
-  `{item.path}` per child. Tracked as issue #40; closing it is a
-  signature change.
+- A template macro resolving to a `[]byte` renders as Go's `[104 105]`,
+  and to a pointer as `&{1 x}`. Every OTHER composite — maps, slices,
+  arrays and structs, of any element type — JSONifies with keys sorted at
+  every depth, matching TS. Neither exception has an obvious right answer:
+  `encoding/json` renders a byte slice as base64 where TS renders a
+  `Buffer` through its `toJSON` as `{"type":"Buffer","data":[...]}`, and
+  dereferencing a pointer raises its own questions about nil and about
+  value-versus-reference. `format_composite_test.go` pins both.
+- `List`'s body signature is `func(j *J, it ListItemProps)`, not TS's
+  single props object, and `ListItemProps.Item` is the RAW item where TS's
+  `props.item` is each-wrapped (a scalar arrives there as
+  `{val$, index$}`). The `{item.path}` macro itself is byte-identical: the
+  replace key is the same string on both sides, and `getx` cannot address a
+  `$`-suffixed key on either, so `{item.val$}` and `{item.index$}` yield
+  the empty string in TS as well. `ListProps` has no `Replace` field,
+  matching TS, where `List`'s own `replace` prop is accepted and never
+  used.
 - Template replace keys of EQUAL length tie-break alphabetically here and by
   declaration order in TS. TS sorts `Object.keys()`, which is insertion
   ordered, with a stable sort; a Go map has no declaration order to

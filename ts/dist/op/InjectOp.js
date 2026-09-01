@@ -9,15 +9,31 @@ const ON = 'InjectOp:';
 const dlog = (0, basic_1.getdlog)('jostraca', __filename);
 const InjectOp = {
     before(node, _ctx$, buildctx) {
+        // Save the enclosing file. An Inject makes itself current.file so its
+        // children accumulate into the injected region rather than into the
+        // file around it, and it has to put that back in after() - the same
+        // save/restore FragmentOp and SlotOp do. Without it every later sibling
+        // of the Inject accumulated into the Inject's buffer, and the enclosing
+        // File then wrote that buffer over the Inject's TARGET, destroying a
+        // file the build was only supposed to edit a region of. Same defect as
+        // the nested Copy in #39, one component along.
+        node.meta.inject_file = buildctx.current.file;
         const cfile = buildctx.current.file = node;
         (0, FileHandler_1.validName)(node.name, 'Inject', ON + 'before:');
         cfile.fullpath = buildctx.folderPath() + '/' + node.name;
         cfile.content = [];
     },
     after(node, ctx$, buildctx) {
-        const { current } = buildctx;
         const fs = ctx$.fs();
-        const cfile = current.file;
+        // Read the node's own buffer rather than current.file, and put the
+        // enclosing file back before anything below can throw.
+        //
+        // Nothing is pushed into it, unlike FragmentOp and SlotOp: an Inject
+        // writes to its own target and contributes no text to the file that
+        // contains it. Matches Go, whose fileAfter splices its KindInject
+        // children and finds no Content because injectAfter never sets any.
+        const cfile = node;
+        buildctx.current.file = node.meta.inject_file;
         let content = cfile.content.join('');
         // const rpath = cfile.path.join('/') // NOT Path.sep - needs to be canonical
         let exclude = node.exclude;

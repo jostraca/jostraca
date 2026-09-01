@@ -214,6 +214,27 @@ func folderBefore(n *Node, _ *jstate, b *buildCtx) error {
 		b.current.folder.path = []string{}
 	}
 	b.current.folder.path = append(b.current.folder.path, n.Name)
+
+	// Materialise the folder, as TS's FolderOp does. Without this an EMPTY
+	// Folder existed in the TS output and not here: nothing else creates a
+	// directory that holds no file, since every other route runs from a
+	// write. ensureFolder is a no-op under a dry run, matching TS's own
+	// guard. See #41 - the divergence was invisible until MemFS.Vol()
+	// learned to report directories.
+	//
+	// The path is composed exactly as fileBefore composes a file's, so a
+	// folder and the files inside it cannot disagree about where they are.
+	if b.fh != nil {
+		parent := b.current.folder.parent
+		dir := strings.Join(b.current.folder.path, "/")
+		full := parent
+		if dir != "" {
+			full = parent + "/" + dir
+		}
+		if full != "" {
+			return b.fh.ensureFolder(path.Clean(fwd(full)))
+		}
+	}
 	return nil
 }
 

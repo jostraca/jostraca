@@ -136,12 +136,109 @@ var scenarioRunners = map[string]func(j *J){
 			j.Copy(CopyProps{From: "/tpl/hello.txt"})
 		})
 	},
+	// A Copy nested INSIDE a File, the shape no fixture covered and the reason
+	// #39 survived: TS displaced buildctx.current.file and never put it back,
+	// so the enclosing file was never written and its earlier content was lost.
+	// Go was correct throughout; this pins both sides on the same output.
+	"copy_in_file": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("a.txt", func(j *J) {
+				j.Content("BEFORE\n")
+				j.Copy(CopyProps{From: "/tpl/hello.txt"})
+				j.Content("AFTER\n")
+			})
+		})
+	},
+	// The same defect one component along, and the more destructive of the
+	// two: the enclosing File wrote its own content over the Inject's TARGET.
+	// An Inject contributes no text to the file around it.
+	"inject_in_file": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("a.txt", func(j *J) {
+				j.Content("BEFORE\n")
+				j.Inject("foo.txt", func(j *J) { j.Content("new content") })
+				j.Content("AFTER\n")
+			})
+		})
+	},
 	"list_basic": func(j *J) {
 		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
 			j.File("out.txt", func(j *J) {
-				j.List([]any{"a", "b", "c"}, func(j *J, item any) {
-					j.Line(item.(string))
+				j.List([]any{"a", "b", "c"}, func(j *J, it ListItemProps) {
+					j.Line(it.Item.(string))
 				})
+			})
+		})
+	},
+	// The `{item}` macro and `indent` a List hands its body. ListP used to
+	// take no props object at all, so a body interpolating {item.n} emitted
+	// the macro verbatim and ListProps.Indent was declared and never read.
+	// The single list_basic fixture used a plain body, which is how #40
+	// survived. Every quiet limit is exercised: a bare {item}, a $-suffixed
+	// key, an unresolved path, and a near-miss left in place.
+	"list_item_macro": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("out.txt", func(j *J) {
+				j.List([]any{
+					map[string]any{"n": "p", "d": map[string]any{"e": "X"}},
+					map[string]any{"n": "q", "d": map[string]any{"e": "Y"}},
+				}, func(j *J, it ListItemProps) {
+					j.ContentP(ContentProps{
+						Src: "n={item.n} deep={item.d.e} bare={item} " +
+							"dollar={item.index$} miss={item.zz} near={itemx}\n",
+						Replace: it.Replace,
+					})
+				})
+			})
+			j.File("indent.txt", func(j *J) {
+				j.ListP(ListProps{
+					Item: []any{
+						map[string]any{"n": "p"},
+						map[string]any{"n": "q"},
+					},
+					Indent: ">>",
+					NoLine: true,
+				}, func(j *J, it ListItemProps) {
+					j.ContentP(ContentProps{
+						Src: "n={item.n}\n", Replace: it.Replace, Indent: it.Indent,
+					})
+				})
+			})
+			// Value formatting. A function replacement JSONifies objects and
+			// arrays on both stacks now; TS used to emit "[object Object]"
+			// and "1,2", which a ReplaceFunc cannot reproduce - it returns a
+			// string, so there is no JS coercion to inherit.
+			j.File("values.txt", func(j *J) {
+				j.ListP(ListProps{
+					Item: []any{
+						map[string]any{"v": 42.0},
+						map[string]any{"v": 1.5},
+						map[string]any{"v": true},
+						map[string]any{"v": nil},
+						map[string]any{"v": map[string]any{"a": 1.0}},
+						map[string]any{"v": []any{1.0, 2.0}},
+					},
+					NoLine: true,
+				}, func(j *J, it ListItemProps) {
+					j.ContentP(ContentProps{Src: "v={item.v}\n", Replace: it.Replace})
+				})
+			})
+		})
+	},
+	// Directory-only state: an EMPTY Folder. TS's FolderOp materialised one
+	// and folderBefore did not, and nothing could see the difference until
+	// Vol() learned to report directories - it returned files only, so a
+	// snapshot recording TS's null entry had nothing to compare against.
+	// A directory appears only while EMPTY, so `full` is absent and
+	// `empty` and `outer/inner` are null. #41.
+	"empty_folder": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.Folder("empty", func(j *J) {})
+			j.Folder("full", func(j *J) {
+				j.File("a.txt", func(j *J) { j.Content("A\n") })
+			})
+			j.Folder("outer", func(j *J) {
+				j.Folder("inner", func(j *J) {})
 			})
 		})
 	},
@@ -295,7 +392,7 @@ func scenarioOptions(scenario string) []Option {
 		return []Option{WithModel(map[string]any{
 			"app": map[string]any{"name": "Acme", "version": "1.0.0"},
 		})}
-	case "copy_file":
+	case "copy_file", "copy_in_file":
 		return []Option{WithModel(map[string]any{"name": "World"})}
 	case "preserve_mode", "dotfile_preserve":
 		t := true
@@ -416,10 +513,19 @@ func assertVol(t *testing.T, mem *MemFS, want map[string]corpusBytes) {
 
 	missing := []string{}
 	mismatched := []string{}
+	kind := []string{}
 	for p, w := range want {
 		actual, ok := gotS[p]
 		if !ok {
 			missing = append(missing, p)
+			continue
+		}
+		// A nil value is a DIRECTORY on both sides: TS's toJSON writes null
+		// for an empty one and corpusBytes decodes that to nil, while
+		// Vol() reports one as nil. bytes.Equal would call it equal to an
+		// empty FILE, so the kinds are compared before the bytes. See #41.
+		if (actual == nil) != (w == nil) {
+			kind = append(kind, p)
 			continue
 		}
 		if !bytes.Equal(actual, w) {
@@ -435,12 +541,17 @@ func assertVol(t *testing.T, mem *MemFS, want map[string]corpusBytes) {
 	sort.Strings(missing)
 	sort.Strings(mismatched)
 	sort.Strings(extra)
+	sort.Strings(kind)
 
 	if len(missing) > 0 {
 		t.Errorf("Go output missing %d paths from TS reference: %v", len(missing), missing)
 	}
 	if len(extra) > 0 {
 		t.Errorf("Go output has %d extra paths not in TS reference: %v", len(extra), extra)
+	}
+	for _, p := range kind {
+		t.Errorf("path %s: one stack has a directory where the other has a "+
+			"file (Go nil=%v, TS nil=%v)", p, gotS[p] == nil, want[p] == nil)
 	}
 	for _, p := range mismatched {
 		t.Errorf("path %s: bytes differ\nGo:\n%q\nTS:\n%q\n", p, gotS[p], want[p])

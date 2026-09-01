@@ -933,6 +933,15 @@ func (j *J) ListP(p ListProps, body func(j *J, item any)) {
 
 This deviates from TS in the small way that `List` doesn't allocate its own node — children attach to the surrounding parent, which matches TS observed behaviour where `List` simply `each`-iterates its children.
 
+**As shipped**, the sketch above differs in three places. `Line string` became
+`NoLine bool`, so the Go zero value matches TS's default of always emitting a
+trailing empty line. `EachSpec{}` became `EachSpec{Raw: true}`, so the body
+receives the raw item rather than an each-wrapped one. And the body signature is
+`func(j *J, it ListItemProps)`, not `func(j *J, item any)`: the second argument
+is a props struct carrying `Item`, `Indent` and the `{item.path}` replace macro,
+mirroring the `{item, indent, replace}` object TS hands each child. The macro
+had no route to arrive under the original signature — issue #40.
+
 #### 5.4 The `cmp()` analogue: `J.Cmp` and free-standing custom components
 
 TS exports `cmp(component)` (`src/jostraca.ts:376`) so users can build reusable components:
@@ -1225,6 +1234,8 @@ func (m *MemFS) Vol() map[string][]byte { ... }   // copy under RLock
 ```
 
 Two callers can safely share a `*MemFS` across goroutines because of the mutex; the §2 concurrency test exercises this.
+
+**As shipped**, `Vol()` also reports directories: an EMPTY one is a nil value, mirroring TS's `vol.toJSON()`, which records it as `null`. A directory appears only while empty — otherwise its children stand for it. The plan's files-only shape meant no snapshot could carry a directory-only difference, and two behaviours hid behind that: an empty `Folder` was materialised by TS and not here, and a dry run created the whole output tree while writing no files. Issue #41.
 
 #### 7.2 The five existing-file modes
 

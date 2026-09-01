@@ -1,0 +1,14 @@
+{
+  "scenario": "empty_folder",
+  "opts": {},
+  "prepopulate": {},
+  "error": false,
+  "vol": {
+    "/out/app/empty": null,
+    "/out/app/full/a.txt": "A\n",
+    "/out/app/outer/inner": null,
+    "/out/.jostraca/generated/app/full/a.txt": "A\n",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/full/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/full/a.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}

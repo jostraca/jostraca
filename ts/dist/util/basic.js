@@ -515,7 +515,22 @@ function template(src, model, spec) {
                             // Tag also sets property `name`
                             (_[0].startsWith('J_T') ? a.name = n[1] : null))
                         : null) : a[n[0]] = n[1]), a), { '$&': m[0] });
-                    handle(insert(groups, { src, model, spec, ref, index: mi, groups }));
+                    const fnval = insert(groups, { src, model, spec, ref, index: mi, groups });
+                    // A function's return used to go straight into the output with
+                    // no formatting at all, so an object arrived as
+                    // "[object Object]" and an array as its comma-joined elements -
+                    // while the very same object reached through `$$path$$`, or as a
+                    // plain (non-function) replacement value, was JSONified. Route it
+                    // through the same jsonify, so one value formats one way however
+                    // it is supplied.
+                    //
+                    // The leave-in-place branch above is deliberately NOT extended
+                    // here: a function that returns nothing yields the empty string,
+                    // where an unresolved $$path$$ stays visible for debugging. That
+                    // asymmetry is the documented contract for `{item.path}` (see
+                    // docs/reference-components.md, List) and predates this.
+                    handle(null == fnval ? '' :
+                        'object' === typeof fnval ? jsonify(fnval) : fnval);
                 }
                 // Insert a plain replacement value, JSONifying if necessary.
                 else {
