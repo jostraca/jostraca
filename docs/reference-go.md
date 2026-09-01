@@ -392,8 +392,9 @@ two copies of the package interoperate.
 ## Parity, and where it is pinned
 
 Behaviour shared by both stacks lives in
-[`../test/spec/`](../test/spec/): language-neutral TSV cases that
-`ts/test/spec.test.ts` and `go/spec_test.go` both read. An unknown case
+[`test/spec/`](https://github.com/jostraca/jostraca/tree/HEAD/test/spec):
+language-neutral TSV cases that `ts/test/spec.test.ts` and
+`go/spec_test.go` both read. An unknown case
 is a hard failure on both sides, so a row cannot be silently skipped by
 one.
 
@@ -402,9 +403,10 @@ generated from canonical TypeScript, and CI regenerates them and fails
 on any diff — so a TypeScript change cannot leave the Go expectations
 stale.
 
-Design background is in [`../go/PORT_PLAN.md`](../go/PORT_PLAN.md), and
-the per-phase implementation notes in
-[`../go/BUILD_LOG.md`](../go/BUILD_LOG.md).
+Design background is in
+[`go/PORT_PLAN.md`](https://github.com/jostraca/jostraca/blob/HEAD/go/PORT_PLAN.md),
+and the per-phase implementation notes in
+[`go/BUILD_LOG.md`](https://github.com/jostraca/jostraca/blob/HEAD/go/BUILD_LOG.md).
 
 ## Build and test
 

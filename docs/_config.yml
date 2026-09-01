@@ -1,0 +1,27 @@
+# GitHub Pages builds this directory: docs/ is the site root, every .md
+# beside this file is a page, and the result is
+# https://jostraca.github.io/jostraca/. It is the same documentation set
+# jostraca.org renders and the same files a reader browses on GitHub -- no
+# second copy, so a correction here is live in all three places.
+#
+# Settings only, deliberately. The behaviour these pages already rely on
+# comes from the plugins GitHub Pages runs by default:
+# jekyll-optional-front-matter renders a page that has no frontmatter (most
+# of them), jekyll-relative-links turns a link to `tutorial.md` into
+# `tutorial.html`, and jekyll-titles-from-headings takes each page's title
+# from its H1. Adding a `plugins:` key here risks changing that set, and
+# nothing on this site needs one.
+#
+# Links out of docs/ are absolute, because Jekyll serves this directory as
+# the site root: `../ts/` resolves above it and 404s on the rendered site
+# while working perfectly in the GitHub blob view, which is exactly the kind
+# of breakage that goes unnoticed.
+
+title: Jostraca documentation
+description: >-
+  A code generator you can run twice: components in, a file tree out, and a
+  second run that can preserve, present, diff or merge over code a human
+  edited in between.
+
+theme: jekyll-theme-primer
+show_downloads: false
