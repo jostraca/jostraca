@@ -433,6 +433,28 @@ async function main() {
     })
   })
 
+  // A STRING child of List, which used to emit nothing at all: the wrapper
+  // that renders one called Content with no `src`, so the string was
+  // captured and dropped. #44.
+  //
+  // Go has no string-children concept, so its runner writes out the explicit
+  // body the shorthand desugars to - which is exactly the point of pinning
+  // it here. The two spellings have to produce the same bytes, or the
+  // shorthand means something TS-only.
+  await snapshot('list_string_child', {}, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'out.txt' }, () => {
+        List({ item: [{ n: 'p' }, { n: 'q' }], indent: '>>' }, 'n={item.n}\n')
+      })
+      // Two string children, to pin that children iterate INSIDE the item
+      // loop: a=p,b=p,a=q,b=q rather than a=p,a=q,b=p,b=q.
+      File({ name: 'two.txt' }, () => {
+        List({ item: [{ n: 'p' }, { n: 'q' }], line: false },
+          ['a={item.n}\n', 'b={item.n}\n'])
+      })
+    })
+  })
+
   // Line component (auto-newline).
   await snapshot('line_basic', {}, () => {
     Project({ folder: 'app' }, () => {

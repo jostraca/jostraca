@@ -242,6 +242,34 @@ var scenarioRunners = map[string]func(j *J){
 			})
 		})
 	},
+	// A STRING child of TS's List, which used to emit nothing at all (#44).
+	// Go has no string-children concept, so this writes out the explicit body
+	// the shorthand desugars to -- which is the point. The two spellings have
+	// to produce the same bytes, or the shorthand means something TS-only.
+	"list_string_child": func(j *J) {
+		items := []any{
+			map[string]any{"n": "p"},
+			map[string]any{"n": "q"},
+		}
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("out.txt", func(j *J) {
+				j.ListP(ListProps{Item: items, Indent: ">>"},
+					func(j *J, it ListItemProps) {
+						j.ContentP(ContentProps{
+							Src: "n={item.n}\n", Replace: it.Replace, Indent: it.Indent,
+						})
+					})
+			})
+			// Two children, to pin that they iterate INSIDE the item loop.
+			j.File("two.txt", func(j *J) {
+				j.ListP(ListProps{Item: items, NoLine: true},
+					func(j *J, it ListItemProps) {
+						j.ContentP(ContentProps{Src: "a={item.n}\n", Replace: it.Replace})
+						j.ContentP(ContentProps{Src: "b={item.n}\n", Replace: it.Replace})
+					})
+			})
+		})
+	},
 	"line_basic": func(j *J) {
 		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
 			j.File("out.txt", func(j *J) {

@@ -672,11 +672,18 @@ List(props, children)
 | `replace` | — | — | Accepted and never used. The `replace` handed to children is built fresh. |
 
 Each child is called once per item with one object argument:
-`{item, indent, replace}`.
+`{item, indent, replace}`. Children iterate *inside* the item loop, so two
+children over items `p` and `q` emit `a=p, b=p, a=q, b=q`.
 
-The `replace` it receives implements `{item.path}` substitution, and it
-has to be threaded into a component that takes a `replace` prop — which
-means the props-object call form. `Content(text, {replace})` passes
+A child may also be a plain **string**, which is shorthand for a child that
+renders it: the string is emitted once per item, `{item.path}` resolves in
+it, and `indent` is applied for you rather than left to the child. It is
+the same output as the props-object form spelled out by hand, so the two
+mix freely in one list.
+
+The `replace` a *function* child receives implements `{item.path}`
+substitution, and it has to be threaded into a component that takes a
+`replace` prop — which means the props-object call form. `Content(text, {replace})` passes
 `{replace}` as *children* and substitutes nothing:
 
 | call inside the child | output |

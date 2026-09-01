@@ -15,6 +15,7 @@ import {
   Copy,
   Inject,
   Line,
+  List,
   Slot,
 
   cmp,
@@ -1345,6 +1346,85 @@ describe('directory-state', () => {
       }))
 
     expect(files.includes('/out/app/sub/a.txt')).true()
+  })
+
+})
+
+
+// A STRING child of `List` used to emit nothing at all. The wrapper that
+// renders one called `Content({indent, replace})` with no `src`, so the
+// string was captured by the typeof test and then dropped:
+// `List({item: [...]}, 'n={item.n}\n')` produced just the trailing newline.
+//
+// Nothing caught it because no fixture, test or doc example passed a string
+// child - the component reference documents only the function form. Found
+// while probing #40 and filed as #44. Go has no string-children concept, so
+// this is TS-only; the `list_string_child` parity snapshot pins that the
+// shorthand desugars to exactly the explicit body Go has to write by hand.
+describe('list-string-child', () => {
+
+  const gen = async (def: any) => {
+    let nowI = 0
+    const now = () => START_TIME + (++nowI * (60 * 1000))
+    const { fs } = memfs({})
+    await Jostraca({ now }).generate({ fs: () => fs, folder: '/out' }, cmp(def))
+    return fs.readFileSync('/out/a.txt', 'utf8')
+  }
+
+  const ITEMS = [{ n: 'p' }, { n: 'q' }]
+
+  const list = (props: any, children: any) => () =>
+    Project({}, () => File({ name: 'a.txt' }, () => List(props, children)))
+
+
+  // The regression: the string is rendered, once per item, and `{item.path}`
+  // resolves in it exactly as it does in a function child.
+  test('renders-and-resolves-the-macro', async () => {
+    expect(await gen(list({ item: ITEMS, line: false }, 'n={item.n}\n')))
+      .equal('n=p\nn=q\n')
+  })
+
+
+  // A string child with no macro is still emitted once per item - the
+  // failure was in the wrapper, not in the substitution.
+  test('renders-a-string-with-no-macro', async () => {
+    expect(await gen(list({ item: ITEMS, line: false }, 'X\n')))
+      .equal('X\nX\n')
+  })
+
+
+  // `indent` reaches a string child automatically, unlike a function child,
+  // which has to apply it. The wrapper already threaded it through.
+  test('applies-indent', async () => {
+    expect(await gen(list({ item: ITEMS, indent: '>>' }, 'n={item.n}\n')))
+      .equal('>>n=p\n>>n=q\n\n')
+  })
+
+
+  // Children iterate INSIDE the item loop, so two string children give
+  // a=p,b=p,a=q,b=q rather than a=p,a=q,b=p,b=q.
+  test('two-string-children-interleave-per-item', async () => {
+    expect(await gen(list({ item: ITEMS, line: false },
+      ['a={item.n}\n', 'b={item.n}\n'])))
+      .equal('a=p\nb=p\na=q\nb=q\n')
+  })
+
+
+  // A string child and a function child compose.
+  test('mixes-with-a-function-child', async () => {
+    expect(await gen(list({ item: ITEMS, line: false }, [
+      's={item.n}\n',
+      (props: any) => Content({ src: 'f={item.n}\n', replace: props.replace }),
+    ]))).equal('s=p\nf=p\ns=q\nf=q\n')
+  })
+
+
+  // The documented quiet limits still hold in a string child: a bare
+  // `{item}` on a scalar list yields the empty string, because getx cannot
+  // address the `val$` key each() wraps a scalar in.
+  test('keeps-the-bare-item-limit', async () => {
+    expect(await gen(list({ item: ['a', 'b'], line: false }, 'v={item}\n')))
+      .equal('v=\nv=\n')
   })
 
 })
