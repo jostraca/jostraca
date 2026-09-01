@@ -109,9 +109,16 @@ clean-go:
 # inverts the old ordering guarantee: an irreversible step can no longer be
 # held back until everything local has succeeded. What is left is that
 # everything which can fail cheaply -- version check, build, test, bump,
-# commit, tag -- still runs before the push, and a failed npm workflow has
-# published nothing, so the recovery is to fix the tree, delete the tag on both
-# ends, and cut it again.
+# commit, tag -- still runs before the push.
+#
+# These targets need push rights, which is what makes them the wrong route
+# from a machine that does not have them. That route is: land the release
+# commit (the bump to both files, and the rebuilt dist/) on the default
+# branch, then dispatch publish.yml with the same version. The workflow cuts
+# `v$(V)` and `go/v$(V)` itself, so a release still ends with both tags
+# whichever way it was started -- and every step of it skips work that is
+# already done, so an interrupted release is finished by running it again
+# rather than by unpicking tags.
 
 # A release is a patch bump unless told otherwise, so the ordinary case is a
 # bare `make publish`. An explicit V=x.y.z still wins: a command-line variable
@@ -171,6 +178,25 @@ define bump-ts
 	cd ts && npm version $(V) --no-git-tag-version --allow-same-version
 endef
 
+# The default branch. It was `master` until the repository was renamed, and
+# these push lines went on naming it: `git push origin master ...` fails
+# outright against a branch that no longer exists -- and fails *after* the
+# bump, the commit and both tags have been made locally, leaving a release to
+# unpick by hand. Named once, so the next rename is one edit.
+RELEASE_BRANCH = main
+
+# The `go/v$(V)` release page is created here rather than left to CI, because
+# a `go/v*` push does not reach publish.yml -- `v*` does not match it, and a
+# workflow that fired on both would have to guess which stack it was releasing.
+# `publish` does not need this: it pushes `v$(V)`, so the workflow runs and
+# makes the page itself. Guarded on the release not already existing, so a
+# re-run of a half-finished release is not an error.
+define go-release
+	if command -v gh >/dev/null 2>&1 && ! gh release view go/v$(V) >/dev/null 2>&1; then \
+	  gh release create go/v$(V) --title "go/v$(V)" --notes "Go module release v$(V)"; \
+	fi
+endef
+
 publish: check-version build test
 	$(bump-ts)
 	$(bump-go)
@@ -178,23 +204,22 @@ publish: check-version build test
 	git commit -m "release v$(V)"
 	git tag v$(V)
 	git tag go/v$(V)
-	git push origin master v$(V) go/v$(V)
-	if command -v gh >/dev/null 2>&1; then gh release create go/v$(V) --title "go/v$(V)" --notes "Go module release v$(V)"; fi
+	git push origin $(RELEASE_BRANCH) v$(V) go/v$(V)
 
 publish-ts: check-version build-ts test-ts
 	$(bump-ts)
 	git add $(TS_RELEASE_FILES)
 	git commit -m "ts: v$(V)"
 	git tag v$(V)
-	git push origin master v$(V)
+	git push origin $(RELEASE_BRANCH) v$(V)
 
 publish-go: check-version test-go
 	$(bump-go)
 	git add go/jostraca.go
 	git commit -m "go: v$(V)"
 	git tag go/v$(V)
-	git push origin master go/v$(V)
-	if command -v gh >/dev/null 2>&1; then gh release create go/v$(V) --title "go/v$(V)" --notes "Go module release v$(V)"; fi
+	git push origin $(RELEASE_BRANCH) go/v$(V)
+	$(go-release)
 
 # A malformed V would otherwise reach the registry and the tag namespace
 # before anything complained.
