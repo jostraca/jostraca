@@ -534,3 +534,45 @@ describe('util', () => {
 
 })
 
+// Caller-side state is recorded by no corpus: all four record OUTPUT only,
+// never the model, the options object, or returned slices. So a helper that
+// quietly mutates its input is invisible cross-stack, and one did -- getx's `?`
+// filter left key$/index$ on every child the filter REJECTED, because the
+// cleanup only ever reached the survivors. That pollution is observable in
+// generated files, since Content shallow-copies the model and nested objects
+// are shared for the whole run. Go rebuilds instead of stamping, so TS was the
+// side that was wrong. See PARITY_PLAN.md 2.3.
+describe('caller-state', () => {
+
+  test('getx-filter-does-not-mutate-the-model', () => {
+    const model: any = { a: { x: { v: 1 }, y: { v: 2 } } }
+    const before = JSON.stringify(model)
+
+    const out = getx(model, 'a?v=1')
+
+    expect(out).equal({ x: { v: 1 } })
+    expect(JSON.stringify(model)).equal(before)
+  })
+
+  test('getx-filter-does-not-mutate-an-array-model', () => {
+    const model: any = { a: [{ v: 1 }, { v: 2 }] }
+    const before = JSON.stringify(model)
+
+    const out = getx(model, 'a?v=1')
+
+    expect(out).equal([{ v: 1 }])
+    expect(JSON.stringify(model)).equal(before)
+  })
+
+  test('getx-filter-leaves-no-stamp-on-rejected-children', () => {
+    const rejected: any = { v: 2 }
+    const model: any = { a: { x: { v: 1 }, y: rejected } }
+
+    getx(model, 'a?v=1')
+
+    // The specific leak: `y` was filtered out and kept its bookkeeping key.
+    expect(undefined === rejected.key$).true()
+    expect(undefined === rejected.index$).true()
+  })
+
+})

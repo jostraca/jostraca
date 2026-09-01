@@ -33,7 +33,7 @@ should not make unilaterally.
 | 2.2 | directory-only state invisible | filed, #41 |
 | 3 | `File{Mode: 0}`, per-call `Control` | documented as deviations |
 | 4 | deviations lists | **updated**, both files |
-| 2.3 | caller-side state | open |
+| 2.3 | caller-side state | **fixed**, 3 TS + 3 Go tests |
 
 One audit finding was **refuted** by measurement while implementing §3, and it
 is recorded here because the audit's own cross-surface pass had adjudicated it

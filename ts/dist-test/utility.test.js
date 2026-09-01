@@ -449,4 +449,36 @@ const __1 = require("../");
         (0, expect_1.expect)(pkg.get({ a: { b: { c: 1 } } }, 'a.b.c')).equal(1);
     });
 });
+// Caller-side state is recorded by no corpus: all four record OUTPUT only,
+// never the model, the options object, or returned slices. So a helper that
+// quietly mutates its input is invisible cross-stack, and one did -- getx's `?`
+// filter left key$/index$ on every child the filter REJECTED, because the
+// cleanup only ever reached the survivors. That pollution is observable in
+// generated files, since Content shallow-copies the model and nested objects
+// are shared for the whole run. Go rebuilds instead of stamping, so TS was the
+// side that was wrong. See PARITY_PLAN.md 2.3.
+(0, node_test_1.describe)('caller-state', () => {
+    (0, node_test_1.test)('getx-filter-does-not-mutate-the-model', () => {
+        const model = { a: { x: { v: 1 }, y: { v: 2 } } };
+        const before = JSON.stringify(model);
+        const out = (0, __1.getx)(model, 'a?v=1');
+        (0, expect_1.expect)(out).equal({ x: { v: 1 } });
+        (0, expect_1.expect)(JSON.stringify(model)).equal(before);
+    });
+    (0, node_test_1.test)('getx-filter-does-not-mutate-an-array-model', () => {
+        const model = { a: [{ v: 1 }, { v: 2 }] };
+        const before = JSON.stringify(model);
+        const out = (0, __1.getx)(model, 'a?v=1');
+        (0, expect_1.expect)(out).equal([{ v: 1 }]);
+        (0, expect_1.expect)(JSON.stringify(model)).equal(before);
+    });
+    (0, node_test_1.test)('getx-filter-leaves-no-stamp-on-rejected-children', () => {
+        const rejected = { v: 2 };
+        const model = { a: { x: { v: 1 }, y: rejected } };
+        (0, __1.getx)(model, 'a?v=1');
+        // The specific leak: `y` was filtered out and kept its bookkeeping key.
+        (0, expect_1.expect)(undefined === rejected.key$).true();
+        (0, expect_1.expect)(undefined === rejected.index$).true();
+    });
+});
 //# sourceMappingURL=utility.test.js.map
