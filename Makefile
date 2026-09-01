@@ -100,7 +100,7 @@ clean-go:
 # honest description of a release that changed both.
 #
 # Neither stack is published from here any more. npm is published by the
-# `.github/workflows/publish-npm.yml` workflow, which fires on the `v$(V)` tag
+# `.github/workflows/publish.yml` workflow, which fires on the `v$(V)` tag
 # and authenticates to the registry over OIDC (npm trusted publishing) -- there
 # is no npm token on this machine to leak. The Go module has always published
 # by tag alone, via the module proxy.
