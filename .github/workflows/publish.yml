@@ -1,24 +1,46 @@
-name: Publish npm
+name: Publish
 
-# Trusted publishing (OIDC). npm exchanges a GitHub-issued OIDC token for a
-# short-lived publish credential, so there is no npm token in this repo's
-# secrets and none on a developer's machine.
+# One release, both stacks -- or npm alone, when that is what the tree says.
+#
+# npm publishes over trusted publishing (OIDC): npm exchanges a GitHub-issued
+# token for a short-lived publish credential, so there is no npm token in this
+# repo's secrets and none on a developer's machine. The Go module has no
+# registry to push to at all -- the module proxy serves it straight from a
+# `go/vX.Y.Z` git tag -- so for Go, CUTTING THE TAG *IS* THE RELEASE.
+#
+# That is what this workflow got wrong until v0.34.0. It published to npm and
+# stopped, so 0.34.0 reached the registry with no `v0.34.0` tag behind it and
+# no `go/v0.34.0` at all: the Go module simply never shipped that version, and
+# there was no way to recover, because a second run died on npm refusing to
+# republish 0.34.0 before it reached any tagging step. Hence both halves of the
+# fix below -- the run now cuts the tags, and every step is a no-op when its
+# work is already done, so a partial release can be finished by running it
+# again. A no-op is not the same as an unchecked assumption, though: each of
+# those steps confirms that what already exists came from the commit this run
+# tested, and stops if it did not.
+#
+# Which stacks ship is read from the tree rather than asked for: the `version`
+# job below cuts a Go tag when go/jostraca.go declares the release version, and
+# publishes npm alone when it does not, which is exactly what `make publish`
+# and `make publish-ts` respectively leave behind.
 #
 # The trust is pinned on npmjs.com to the triple
 # (org `jostraca`, repo `jostraca`, workflow `publish.yml`). npm matches on the
 # workflow *filename*, so renaming this file silently breaks publishing until
 # the npm-side setting is changed to match. It was `publish-npm.yml` until the
-# npm-side trust was moved to `publish.yml`; the two must always agree.
+# npm-side trust was moved to `publish.yml`; the two must always agree. The
+# `name:` above is only a label and is not part of the claim.
 #
-# `v*` is the npm/TS tag namespace. The Go module tags as `go/v*` and is served
-# straight from the tag by the module proxy, so it must never reach this
-# workflow -- a `*` glob does not cross `/`, so `go/v0.1.7` cannot match here.
+# `v*` is the npm/TS tag namespace, `go/v*` the Go one. A `*` glob does not
+# cross `/`, so a `go/v0.34.1` push cannot re-enter this workflow -- and
+# neither can the `v0.34.1` this run pushes itself, since a ref pushed with
+# GITHUB_TOKEN does not trigger workflows.
 #
 # workflow_dispatch is the second route in, for a release whose commit is on
-# master but whose tag does not exist -- pushing a tag needs credentials a CI
+# main but whose tag does not exist -- pushing a tag needs credentials a CI
 # agent does not have, while dispatching a workflow only needs API access. The
-# `version` input is not a choice of what to publish: package.json already
-# decides that. It is an assertion of what the caller BELIEVES is about to be
+# `version` input is not a choice of what to publish: the tree already decides
+# that. It is an assertion of what the caller BELIEVES is about to be
 # published, checked below, so a dispatch against the wrong commit fails
 # before it burns a version number rather than after.
 
@@ -29,22 +51,112 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version expected in ts/package.json, e.g. 0.34.0'
+        description: 'Version expected in ts/package.json and go/jostraca.go, e.g. 0.34.1'
         required: true
         type: string
 
+# Least privilege, per job. The token that can write refs is deliberately NOT
+# present in the jobs that run `npm install` and the test suites: `tag` gets
+# `contents: write`, and it runs nothing but git and gh.
 permissions:
   contents: read
-  id-token: write # mint the OIDC token npm exchanges; without it npm falls back to token auth and fails
 
 jobs:
-  publish:
+  # Everything that can be wrong about a release is cheapest to find here, in
+  # a job that needs no toolchain and finishes in seconds. Both stacks are
+  # tagged from one commit, so both version declarations have to agree with
+  # the release version and with each other before anything is published.
+  version:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+      go_release: ${{ steps.stacks.outputs.go_release }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # On a tag push the expected version comes from the tag. On a dispatch
+      # there is no tag -- GITHUB_REF_NAME is the branch, so a `#v` strip would
+      # compare "main" against the package version and fail every dispatch --
+      # so it comes from the input instead.
+      #
+      # Both travel through env rather than `${{ }}` interpolated into the
+      # script. A workflow input is caller-controlled text, and interpolating
+      # it directly would let a crafted "version" run arbitrary shell in a job
+      # whose sibling holds an id-token.
+      - name: Resolve the version being released
+        id: resolve
+        env:
+          WANT: ${{ github.event_name == 'workflow_dispatch' && inputs.version || '' }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ -n "$WANT" ]; then
+            V="$WANT"
+            SRC="dispatch input"
+          else
+            V="${REF_NAME#v}"
+            SRC="tag $REF_NAME"
+          fi
+          echo "$V" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)*$' \
+            || { echo "$SRC gives '$V', which is not an x.y.z version"; exit 1; }
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "releasing $V (from $SRC)"
+
+      # ts/package.json must say what is being released: catching a mismatch
+      # here costs a second, catching it after the publish costs a version
+      # number, since npm will not let one be reused.
+      #
+      # go/jostraca.go is READ, not required to match. `make publish` bumps
+      # both files, so a joint release has both declaring the version --
+      # while `make publish-ts` deliberately moves npm alone and leaves the Go
+      # const where it was, which is the whole point of that target. So the
+      # tree says which release this is: Go declares this version and gets a
+      # `go/v$V` tag, or it does not and this is npm-only. Requiring parity
+      # unconditionally would have broken the npm-only path outright, and
+      # tagging Go regardless would have published a Go version nobody cut.
+      #
+      # An unreadable const is an error rather than an npm-only release: a
+      # reformatted declaration must not quietly cost the Go stack its tag.
+      - name: What this release is
+        id: stacks
+        env:
+          V: ${{ steps.resolve.outputs.version }}
+        run: |
+          PKG=$(node -p "require('./ts/package.json').version")
+          test "$V" = "$PKG" \
+            || { echo "::error::releasing $V, ts/package.json says $PKG"; exit 1; }
+
+          GO=$(sed -n 's/^const Version = "\(.*\)"/\1/p' go/jostraca.go)
+          test -n "$GO" \
+            || { echo "::error::go/jostraca.go has no readable 'const Version = \"...\"'"; exit 1; }
+
+          if [ "$V" = "$GO" ]; then
+            echo "go_release=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::joint release $V: npm and the Go module"
+          else
+            echo "go_release=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::npm-only release $V: go/jostraca.go declares $GO, so no go/v$V tag is cut"
+          fi
+
+  # After `go`, not beside it. An npm publish cannot be taken back, so it must
+  # not race a gate that can still fail: publishing and then failing the Go job
+  # would leave the registry holding a version with neither tag behind it,
+  # which is precisely the half-finished release this workflow exists to stop
+  # making.
+  npm:
+    needs: [version, go]
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write # mint the OIDC token npm exchanges; without it npm falls back to token auth and fails
 
     # The npm package root is ts/, not the repo root.
     defaults:
       run:
         working-directory: ts
+
+    env:
+      V: ${{ needs.version.outputs.version }}
 
     steps:
       - uses: actions/checkout@v7
@@ -60,37 +172,6 @@ jobs:
       - name: Ensure npm is new enough for trusted publishing
         run: npm install -g npm@latest
 
-      # `make publish` bumps package.json and cuts the tag in the same commit, so
-      # these agree unless a tag was made by hand. Catching a mismatch here costs
-      # a second; catching it after the publish costs a version number, since npm
-      # will not let one be reused.
-      #
-      # On a tag push the expected version comes from the tag. On a dispatch
-      # there is no tag -- GITHUB_REF_NAME is the branch, so the old `#v` strip
-      # would have compared "master" against the package version and failed
-      # every dispatch -- so it comes from the input instead.
-      #
-      # Both travel through env rather than `${{ }}` interpolated into the
-      # script. A workflow input is caller-controlled text, and interpolating it
-      # directly would let a crafted "version" run arbitrary shell in a job
-      # holding an id-token.
-      - name: Expected version matches package.json
-        env:
-          WANT: ${{ github.event_name == 'workflow_dispatch' && inputs.version || '' }}
-          REF_NAME: ${{ github.ref_name }}
-        run: |
-          if [ -n "$WANT" ]; then
-            EXPECT="$WANT"
-            SRC="dispatch input"
-          else
-            EXPECT="${REF_NAME#v}"
-            SRC="tag $REF_NAME"
-          fi
-          PKG=$(node -p "require('./package.json').version")
-          test "$EXPECT" = "$PKG" || {
-            echo "$SRC says $EXPECT, package.json says $PKG"; exit 1; }
-          echo "publishing $PKG (from $SRC)"
-
       # No package-lock.json is committed (.gitignore drops it), so `npm ci` has
       # nothing to read and `npm install` is the only option.
       - run: npm install
@@ -102,4 +183,154 @@ jobs:
       # No NODE_AUTH_TOKEN: the npm CLI finds the OIDC token itself. Provenance
       # attestations are generated automatically on a trusted-publisher publish,
       # so `--provenance` is not needed either.
-      - run: npm publish
+      #
+      # The registry check is what makes a re-run possible. npm refuses to
+      # republish a version, and a hard failure here would stop the run before
+      # it cut the tags -- which is exactly how 0.34.0 ended up published and
+      # untagged, with no way to finish the release. A version that is already
+      # on the registry is a step that has nothing left to do, not an error.
+      - name: Publish to npm, unless the registry already has it
+        run: |
+          ON_REGISTRY=$(npm view "jostraca@$V" version 2>/dev/null || true)
+          if [ "$ON_REGISTRY" != "$V" ]; then
+            npm publish
+            exit 0
+          fi
+
+          # Already there, which is the recovery path -- but only if what the
+          # registry holds came from this tree. A re-run from a LATER commit
+          # that still declares $V would otherwise skip happily and go on to
+          # tag a commit npm never published, leaving the tag and the tarball
+          # describing different code. npm records the commit it published
+          # from as gitHead, so ask it.
+          FROM=$(npm view "jostraca@$V" gitHead 2>/dev/null || true)
+          if [ -z "$FROM" ]; then
+            echo "::warning::npm serves $V but records no gitHead; this run cannot confirm it was published from $GITHUB_SHA"
+          elif [ "$FROM" != "$GITHUB_SHA" ]; then
+            echo "::error::npm already serves $V, published from $FROM, but this run tested $GITHUB_SHA."
+            echo "npm will not replace a version. Release a new one rather than tagging a tree npm never published."
+            exit 1
+          fi
+          echo "npm already serves jostraca@$V from this commit; leaving it alone"
+
+  # The Go module ships by tag, so this run is its only gate: nothing else
+  # stands between `go/v$V` existing and `go get` serving it. The full OS
+  # matrix and the parity corpora live in go-test.yml; this is the
+  # release-blocking subset, on the commit about to be tagged.
+  #
+  # It runs on an npm-only release too, where no Go tag is cut. One repository,
+  # one commit: a release whose other half does not build is not one to ship,
+  # and the npm publish waits on this job either way.
+  go:
+    needs: version
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: go
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.22'
+          # The module is in go/, not at the repo root, and an action does not
+          # inherit the job's working-directory.
+          cache-dependency-path: go/go.sum
+
+      - run: go build ./...
+      - run: go vet ./...
+      - run: go test ./... -count=1
+
+  # The release itself, for both stacks: `v$V` records what npm now serves,
+  # and `go/v$V` IS the Go release -- the proxy serves the module from it.
+  #
+  # This is the only job holding a token that can write to the repository, and
+  # it runs no project code: git, gh, curl.
+  tag:
+    needs: [version, go, npm]
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    env:
+      V: ${{ needs.version.outputs.version }}
+      GO_RELEASE: ${{ needs.version.outputs.go_release }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Both tags name the commit this run tested -- the tag's own commit on a
+      # tag push, the dispatched ref's head otherwise.
+      #
+      # An existing tag is never moved: moving one changes what the proxy has
+      # already served for that version, and a version whose contents can
+      # change is worse than a version that is missing. But existence alone is
+      # not success either. A tag sitting on some other commit means this run
+      # and that tag disagree about what $V is, and carrying on would cut the
+      # missing counterpart here -- leaving `v$V` and `go/v$V` naming two
+      # different trees, or a release page describing code that was never
+      # tested. So: same commit, skip; different commit, stop.
+      - name: Cut the release tags
+        run: |
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          TAGS="v$V"
+          if [ 'true' = "$GO_RELEASE" ]; then
+            TAGS="$TAGS go/v$V"
+          fi
+
+          for T in $TAGS; do
+            # An annotated tag answers with a peeled line and a lightweight one
+            # does not, so ask for both and take whichever came back.
+            SHA=$(git ls-remote --tags origin "refs/tags/$T^{}" | cut -f1)
+            [ -n "$SHA" ] || SHA=$(git ls-remote --tags origin "refs/tags/$T" | cut -f1)
+
+            if [ -z "$SHA" ]; then
+              git tag "$T" "$GITHUB_SHA"
+              git push origin "refs/tags/$T"
+              echo "cut $T at $GITHUB_SHA"
+            elif [ "$SHA" = "$GITHUB_SHA" ]; then
+              echo "$T already names this commit"
+            else
+              echo "::error::$T already exists at $SHA, but this run tested $GITHUB_SHA."
+              echo "A version is one tree. Release a new version rather than moving the tag."
+              exit 1
+            fi
+          done
+
+      # A release page is how a Go version becomes visible to anyone reading
+      # the repository; the proxy is happy with the bare tag.
+      - name: Release page for the Go module
+        if: needs.version.outputs.go_release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "go/v$V" >/dev/null 2>&1; then
+            echo "release go/v$V already exists"
+          else
+            gh release create "go/v$V" \
+              --title "go/v$V" \
+              --notes "Go module release v$V — \`go get github.com/jostraca/jostraca/go@v$V\`"
+          fi
+
+      # Asking the proxy for the version is what makes it fetch: until someone
+      # does, `go get` and pkg.go.dev have never heard of it. Best effort --
+      # the tag is the release whether or not this call lands, and the proxy
+      # can take a moment to see a ref that was pushed seconds ago.
+      - name: Warm the Go module proxy
+        if: needs.version.outputs.go_release == 'true'
+        continue-on-error: true
+        run: |
+          for _ in 1 2 3 4 5; do
+            if curl -sSf "https://proxy.golang.org/github.com/jostraca/jostraca/go/@v/v$V.info"; then
+              echo
+              echo "proxy.golang.org serves go/v$V"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "proxy.golang.org has not picked up go/v$V yet; the tag is pushed and it will"

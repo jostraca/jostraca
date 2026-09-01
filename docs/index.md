@@ -10,16 +10,19 @@ than a single destructive default.
 
 This repository ships **two implementations kept in parity**:
 
-- **TypeScript** in [`../ts/`](../ts/) — the canonical implementation,
-  published to npm as [`jostraca`](https://www.npmjs.com/package/jostraca).
-- **Go** in [`../go/`](../go/) — a port
-  (`github.com/jostraca/jostraca/go`) that aims at byte-identical
-  output for the same logical input.
+- **TypeScript** in
+  [`ts/`](https://github.com/jostraca/jostraca/tree/HEAD/ts) — the
+  canonical implementation, published to npm as
+  [`jostraca`](https://www.npmjs.com/package/jostraca).
+- **Go** in [`go/`](https://github.com/jostraca/jostraca/tree/HEAD/go)
+  — a port (`github.com/jostraca/jostraca/go`) that aims at
+  byte-identical output for the same logical input.
 
 Both are checked against one language-neutral corpus in
-[`../test/spec/`](../test/spec/), and every example in these pages is
-executed by `ts/test/docs.test.ts`: each snippet runs in a temp
-directory and the pages state the tree it actually wrote.
+[`test/spec/`](https://github.com/jostraca/jostraca/tree/HEAD/test/spec),
+and every example in these pages is executed by
+`ts/test/docs.test.ts`: each snippet runs in a temp directory and the
+pages state the tree it actually wrote.
 
 ## How this documentation is organised
 
@@ -74,13 +77,14 @@ See [generate in memory](how-to/generate-in-memory.md).
 - [The style guide](STYLE-GUIDE.md) — how these pages are written:
   Diátaxis placement, the voice, the banned-phrase list, and the
   snippet directives under which every example runs.
-- [`../CLAUDE.md`](../CLAUDE.md) — the contributor guide: layout, build
-  and test commands, and the rule that TypeScript is the source of
-  truth.
-- [`../test/spec/`](../test/spec/) — the shared corpus. A change to any
-  pure helper adds a row there rather than a case in one stack's suite.
-- [`../go/PORT_PLAN.md`](../go/PORT_PLAN.md) — how the Go port was
-  built and what it decided.
+- [`CLAUDE.md`](https://github.com/jostraca/jostraca/blob/HEAD/CLAUDE.md)
+  — the contributor guide: layout, build and test commands, and the
+  rule that TypeScript is the source of truth.
+- [`test/spec/`](https://github.com/jostraca/jostraca/tree/HEAD/test/spec)
+  — the shared corpus. A change to any pure helper adds a row there
+  rather than a case in one stack's suite.
+- [`go/PORT_PLAN.md`](https://github.com/jostraca/jostraca/blob/HEAD/go/PORT_PLAN.md)
+  — how the Go port was built and what it decided.
 
 If a page here is wrong, it is wrong in this repository. Fix it here;
 [jostraca.org](https://jostraca.org) renders these files rather than

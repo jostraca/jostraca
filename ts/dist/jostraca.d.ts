@@ -170,6 +170,7 @@ declare const OptionsShape: {
     }>;
     stringify: (...rest: any[]) => string;
     jsonify: () => any;
+    jsonSchema: () => any;
     toString: (this: any) => string;
     shape: {
         shape$: symbol;
@@ -261,6 +262,7 @@ declare const ExistingShape: {
     }>;
     stringify: (...rest: any[]) => string;
     jsonify: () => any;
+    jsonSchema: () => any;
     toString: (this: any) => string;
     shape: {
         shape$: symbol;

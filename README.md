@@ -4,7 +4,7 @@ A code and project generator that uses React-style components to define
 files, folders, and content declaratively.
 
 [![npm version](https://badge.fury.io/js/jostraca.svg)](https://www.npmjs.com/package/jostraca)
-[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/jostraca/jostraca/blob/master/LICENSE)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/jostraca/jostraca/blob/HEAD/LICENSE)
 
 You describe an output file tree with components — `Project`, `Folder`,
 `File`, `Content`, `Fragment`, `Slot`, `Inject`, `Copy`, and more — in a
