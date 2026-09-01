@@ -331,6 +331,15 @@ is no sort-by-property in Go.
   nothing rather than a corrupted approximation. A **text** copy splices
   identically on both sides, and the copy itself is written intact either
   way.
+- A template macro resolving to a **`[]byte`** renders as Go's
+  `[104 105]`, and to a **pointer** as `&{1 x}`. Every other composite —
+  maps, slices, arrays and structs, of any element type — JSONifies with
+  keys sorted at every depth, matching TypeScript. Neither exception has
+  an obvious right answer: `encoding/json` renders a byte slice as base64
+  while TypeScript renders a `Buffer` through its `toJSON` as
+  `{"type":"Buffer","data":[…]}`, and dereferencing a pointer raises its
+  own questions about nil and about value-versus-reference. Both are
+  pinned so they cannot change by accident.
 - `ListItemProps.Item` is the **raw** item; TypeScript's `props.item` is
   each-wrapped, so a scalar arrives there as `{val$, index$}`. `List`
   iterates with `Raw` here and with `each`'s default annotation in

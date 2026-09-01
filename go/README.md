@@ -395,6 +395,14 @@ same logical input:
   behaviour is identical; only the spelling differs. `0o4755` written
   literally is NOT setuid in Go and lands as `0755`.
   `mode_special_bits_test.go` pins both halves.
+- A template macro resolving to a `[]byte` renders as Go's `[104 105]`,
+  and to a pointer as `&{1 x}`. Every OTHER composite — maps, slices,
+  arrays and structs, of any element type — JSONifies with keys sorted at
+  every depth, matching TS. Neither exception has an obvious right answer:
+  `encoding/json` renders a byte slice as base64 where TS renders a
+  `Buffer` through its `toJSON` as `{"type":"Buffer","data":[...]}`, and
+  dereferencing a pointer raises its own questions about nil and about
+  value-versus-reference. `format_composite_test.go` pins both.
 - `List`'s body signature is `func(j *J, it ListItemProps)`, not TS's
   single props object, and `ListItemProps.Item` is the RAW item where TS's
   `props.item` is each-wrapped (a scalar arrives there as
