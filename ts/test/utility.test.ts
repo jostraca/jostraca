@@ -4,6 +4,7 @@ import * as Assert from 'node:assert'
 import { expect } from './expect'
 
 import * as Package from '../'
+import { memfs } from '../dist/util/memfs'
 
 
 import {
@@ -573,6 +574,41 @@ describe('caller-state', () => {
     // The specific leak: `y` was filtered out and kept its bookkeeping key.
     expect(undefined === rejected.key$).true()
     expect(undefined === rejected.index$).true()
+  })
+
+
+  // The third instance of the same class, and the one a user hits without
+  // reaching for an internal: `OptionsShape` injects its defaults into the
+  // object it is handed and returns that same object, so `generate` used to
+  // write `build`, `cmp`, `control`, `exclude` and `name` into the caller's
+  // own options -- and `bin` into an `existing` they passed. Reusing one
+  // options object across two calls then passed something different the
+  // second time. Go's Options is a value struct and never had it.
+  test('generate-does-not-mutate-the-caller-options', async () => {
+    const { fs } = memfs({})
+
+    const model = { v: 'V' }
+    const existing = { txt: { preserve: true } }
+    const opts: any = { fs: () => fs, folder: '/out', model, existing }
+
+    const before = JSON.stringify({
+      keys: Object.keys(opts).sort(),
+      existing,
+    })
+
+    await Package.Jostraca({ now: () => 1735689600000 }).generate(opts,
+      Package.cmp(() => Package.Project({ folder: 'p' }, () => {
+        Package.File({ name: 'a.txt' }, () => Package.Content('A'))
+      })))
+
+    expect(JSON.stringify({
+      keys: Object.keys(opts).sort(),
+      existing,
+    })).equal(before)
+
+    // The model is passed by reference on purpose -- it is the caller's
+    // data, not option structure -- so this asserts identity, not a copy.
+    expect(opts.model === model).true()
   })
 
 })

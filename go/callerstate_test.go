@@ -125,3 +125,50 @@ func TestHunksDoesNotAliasCallerSlices(t *testing.T) {
 		})
 	}
 }
+
+// The third instance of the same class, pinned on this side too. TS's
+// `generate` used to hand the caller's own options object to the validator,
+// which injects its defaults in place, so the caller got `build`, `cmp`,
+// `control`, `exclude` and `name` written into their object -- and `bin`
+// into an `existing` they supplied. Go passes Options by VALUE, so the
+// struct itself cannot be touched; what could still leak is the maps it
+// carries, which are reference types. Nothing in Generate should write to
+// the caller's Meta, Model or Vol. See PARITY_PLAN.md 2.3.
+func TestGenerateDoesNotMutateCallerOptions(t *testing.T) {
+	mem := NewMemFS()
+
+	meta := map[string]any{"k": 1.0}
+	model := map[string]any{"v": "V"}
+	vol := map[string][]byte{"/seed.txt": []byte("S")}
+	preserve := true
+	existing := Existing{}
+	existing.Txt.Preserve = &preserve
+
+	opts := Options{
+		Folder:   "/out",
+		Meta:     meta,
+		Model:    model,
+		Vol:      vol,
+		Existing: existing,
+	}
+
+	before := callerStateJSON(t, map[string]any{
+		"meta": meta, "model": model, "vol": vol, "preserve": preserve,
+	})
+
+	j := New(WithFS(mem), WithFolder("/out"), WithNow(func() int64 { return 1735689600000 }))
+	if _, err := j.Generate(opts, func(j *J) {
+		j.Project(ProjectProps{Folder: "p"}, func(j *J) {
+			j.File("a.txt", func(j *J) { j.Content("A") })
+		})
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	after := callerStateJSON(t, map[string]any{
+		"meta": meta, "model": model, "vol": vol, "preserve": preserve,
+	})
+	if after != before {
+		t.Errorf("Generate mutated the caller's options:\n before=%s\n after =%s", before, after)
+	}
+}

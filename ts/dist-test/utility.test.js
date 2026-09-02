@@ -37,6 +37,7 @@ const node_test_1 = require("node:test");
 const Assert = __importStar(require("node:assert"));
 const expect_1 = require("./expect");
 const Package = __importStar(require("../"));
+const memfs_1 = require("../dist/util/memfs");
 const __1 = require("../");
 (0, node_test_1.describe)('util', () => {
     (0, node_test_1.test)('each', () => {
@@ -479,6 +480,33 @@ const __1 = require("../");
         // The specific leak: `y` was filtered out and kept its bookkeeping key.
         (0, expect_1.expect)(undefined === rejected.key$).true();
         (0, expect_1.expect)(undefined === rejected.index$).true();
+    });
+    // The third instance of the same class, and the one a user hits without
+    // reaching for an internal: `OptionsShape` injects its defaults into the
+    // object it is handed and returns that same object, so `generate` used to
+    // write `build`, `cmp`, `control`, `exclude` and `name` into the caller's
+    // own options -- and `bin` into an `existing` they passed. Reusing one
+    // options object across two calls then passed something different the
+    // second time. Go's Options is a value struct and never had it.
+    (0, node_test_1.test)('generate-does-not-mutate-the-caller-options', async () => {
+        const { fs } = (0, memfs_1.memfs)({});
+        const model = { v: 'V' };
+        const existing = { txt: { preserve: true } };
+        const opts = { fs: () => fs, folder: '/out', model, existing };
+        const before = JSON.stringify({
+            keys: Object.keys(opts).sort(),
+            existing,
+        });
+        await Package.Jostraca({ now: () => 1735689600000 }).generate(opts, Package.cmp(() => Package.Project({ folder: 'p' }, () => {
+            Package.File({ name: 'a.txt' }, () => Package.Content('A'));
+        })));
+        (0, expect_1.expect)(JSON.stringify({
+            keys: Object.keys(opts).sort(),
+            existing,
+        })).equal(before);
+        // The model is passed by reference on purpose -- it is the caller's
+        // data, not option structure -- so this asserts identity, not a copy.
+        (0, expect_1.expect)(opts.model === model).true();
     });
 });
 //# sourceMappingURL=utility.test.js.map
