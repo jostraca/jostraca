@@ -108,6 +108,16 @@ func (j *J) ContentP(p ContentProps) {
 	if j.st.err != nil {
 		return
 	}
+
+	// Reject BEFORE rendering. `Template` runs user-supplied ReplaceFunc
+	// callbacks, and a Fragment's scan pass rejects every child -- so
+	// rendering first fired those callbacks on a pass TS never runs at all,
+	// and fired them again on the replay that accepts the child. A callback
+	// carrying state saw two calls where TS makes one.
+	if j.filteredKind(KindContent, p.Name) {
+		return
+	}
+
 	model := mergeModel(j.st.model, p.Extra)
 	rendered := p.Src
 	if rendered != "" {
@@ -168,9 +178,8 @@ func (j *J) SlotP(p SlotProps, body func(*J)) {
 	if j.st.err != nil {
 		return
 	}
-	if j.cur != nil && j.cur.Filter != nil && !j.cur.Filter("slot", p.Name) {
-		return
-	}
+	// The filter check that used to live here is in attachAndDescend now,
+	// where it covers every component rather than this one.
 	n := &Node{
 		Kind: KindSlot,
 		Name: p.Name,
@@ -180,17 +189,38 @@ func (j *J) SlotP(p SlotProps, body func(*J)) {
 	j.attachAndDescend(n, body)
 }
 
-// Cmp runs fn under the current frame without allocating a new node.
-// It's the Go analogue of the TS cmp() factory for user-authored
-// reusable components.
+// Cmp runs fn as a user-authored component. It allocates a KindNone node
+// and descends into it, which is what TS's cmp() factory does: it makes a
+// `kind: 'none'` node, nests the component's children under it, and passes
+// through the enclosing Fragment's filter on the way.
+//
+// The node is why this is not simply `fn(j)`. Without one, a user component
+// used as a direct Fragment child was invisible to the filter, so its body
+// ran once per replay pass where TS ran it zero times, and the tree Go
+// assembled was flatter than TS's. KindNone carries no op and nodeText
+// walks straight through it, so nesting changes no output on its own. See
+// #29.
 func (j *J) Cmp(name string, fn func(*J)) {
 	if j.st.err != nil || fn == nil {
 		return
 	}
-	if j.st.opts.Debug != "" && j.cur != nil {
-		j.cur.Meta["callsite"] = name
+
+	n := &Node{
+		Kind: KindNone,
+		Meta: map[string]any{},
 	}
-	fn(j)
+	if j.cur != nil {
+		n.Path = append([]string(nil), j.cur.Path...)
+	}
+
+	// TS records the callsite on the component's OWN node
+	// (`node.meta.debug.callsite`), not on its parent, which is where this
+	// used to write it for want of a node to write to.
+	if j.st.opts.Debug != "" {
+		n.Meta["callsite"] = name
+	}
+
+	j.attachAndDescend(n, fn)
 }
 
 // InjectProps configures Inject. Markers default to TS's
@@ -291,6 +321,9 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 	if p.Eject != nil {
 		n.Meta["fragmentEject"] = p.Eject
 	}
+	if j.filtered(n) {
+		return
+	}
 	if j.cur != nil {
 		j.cur.Children = append(j.cur.Children, n)
 	}
@@ -308,14 +341,25 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 	// Fragment can inject <[SLOT:name]> replace handlers before
 	// the build phase runs Template.
 	slotNames := map[string]struct{}{}
+	sawNonSlot := false
 	n.Filter = func(kind, name string) bool {
 		if kind == "slot" {
 			slotNames[name] = struct{}{}
+		} else {
+			sawNonSlot = true
 		}
 		return false
 	}
 	body(&J{st: j.st, cur: n})
 	n.Filter = nil
+
+	// Which children the scan REJECTED, recorded here because it can no
+	// longer be inferred from n.Children: nothing attaches during the scan
+	// now, so a Fragment's children are always empty at this point. TS
+	// tracks the same thing in a `sawnonslot` local, for the same reason.
+	if sawNonSlot {
+		n.Meta["fragmentSawNonSlot"] = true
+	}
 
 	// Stash the slot names so the op can build the right replace keys.
 	// Sorted for deterministic regex-build order across stacks.
@@ -361,6 +405,9 @@ func (j *J) Copy(p CopyProps) {
 		Indent:  p.Indent,
 		Path:    childPath(j.cur, p.To),
 		Meta:    map[string]any{},
+	}
+	if j.filtered(n) {
+		return
 	}
 	if j.cur != nil {
 		j.cur.Children = append(j.cur.Children, n)
@@ -455,22 +502,66 @@ func (j *J) ListP(p ListProps, body func(j *J, it ListItemProps)) {
 	if j.st.err != nil || body == nil {
 		return
 	}
-	for _, item := range Each(p.Item, EachSpec{Raw: true}, nil) {
-		body(j, ListItemProps{
-			Item:    item,
-			Indent:  p.Indent,
-			Replace: listItemReplace(item),
-		})
+
+	// List allocates a node for the same reason Cmp does: TS wraps it in
+	// `cmp()`, so the enclosing Fragment's filter sees the LIST, not just
+	// whatever it emits. Without one the per-item bodies ran during a
+	// Fragment's scan pass, and an empty list with NoLine set emitted
+	// nothing at all -- so a Fragment with no unnamed marker succeeded here
+	// and raised the non-Slot-child error in TS. KindNone carries no op and
+	// the content walk goes through it, so the nesting changes no output.
+	n := &Node{
+		Kind: KindNone,
+		Meta: map[string]any{},
 	}
-	if !p.NoLine {
-		j.Line("")
+	if j.cur != nil {
+		n.Path = append([]string(nil), j.cur.Path...)
 	}
+
+	j.attachAndDescend(n, func(j *J) {
+		for _, item := range Each(p.Item, EachSpec{Raw: true}, nil) {
+			body(j, ListItemProps{
+				Item:    item,
+				Indent:  p.Indent,
+				Replace: listItemReplace(item),
+			})
+		}
+		if !p.NoLine {
+			j.Line("")
+		}
+	})
 }
 
 // attachAndDescend is the shared 5-step body: append the node, set root
 // on first call, recurse with a child *J. Used by every component
 // method that allocates a node.
+// filtered reports whether the enclosing Fragment rejects this node.
+//
+// TS consults its filter at `cmp()`, which EVERY component -- built-in and
+// user-authored alike -- is wrapped in, so a rejected child never allocates
+// and its body never runs. Go used to consult it in SlotP alone, so a
+// Fragment's non-Slot children ran during the scan walk and attached, where
+// TS's ran zero times. Every component that allocates a node calls this now:
+// through attachAndDescend if it takes a body, directly if it does not. See
+// #29.
+func (j *J) filtered(n *Node) bool {
+	return j.filteredKind(n.Kind, n.Name)
+}
+
+// filteredKind asks the same question before a node exists, which matters
+// for any component that does work while building one. TS rejects at
+// `cmp()`, BEFORE the component's function body runs, so anything the body
+// would have done -- rendering a template, running a user ReplaceFunc --
+// must not happen on a pass that rejects it.
+func (j *J) filteredKind(k Kind, name string) bool {
+	return j.cur != nil && j.cur.Filter != nil && !j.cur.Filter(kindName(k), name)
+}
+
 func (j *J) attachAndDescend(n *Node, body func(*J)) {
+	if j.filtered(n) {
+		return
+	}
+
 	if j.cur != nil {
 		j.cur.Children = append(j.cur.Children, n)
 	}

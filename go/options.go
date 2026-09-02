@@ -17,11 +17,16 @@ type Options struct {
 	Existing Existing
 	Model    map[string]any
 	Build    *bool
-	Mem      bool
-	Vol      map[string][]byte
-	Cmp      CmpOptions
-	Control  Control
-	Name     NameOptions
+	// Mem is tri-state, like Build: unset inherits the global setting,
+	// while an explicit false turns an inherited one OFF. TS distinguishes
+	// the same three cases (`null == opts.mem ? gUseMemFs : !!opts.mem`),
+	// and a plain bool could not express the third -- a call could turn
+	// memory mode on but never off.
+	Mem     *bool
+	Vol     map[string][]byte
+	Cmp     CmpOptions
+	Control Control
+	Name    NameOptions
 
 	// Exclude, when true, skips regenerating files that have been
 	// modified on disk since the last successful build (mtime > meta.last).
@@ -96,7 +101,15 @@ func WithModel(m map[string]any) Option { return func(o *Options) { o.Model = m 
 func WithMeta(m map[string]any) Option  { return func(o *Options) { o.Meta = m } }
 func WithLog(l Log) Option              { return func(o *Options) { o.Log = l } }
 func WithDebug(s string) Option         { return func(o *Options) { o.Debug = s } }
-func WithMem() Option                   { return func(o *Options) { o.Mem = true } }
+func WithMem() Option {
+	return func(o *Options) { t := true; o.Mem = &t }
+}
+
+// WithoutMem turns OFF an in-memory filesystem inherited from the builder,
+// which is what an explicit `mem: false` does in TS.
+func WithoutMem() Option {
+	return func(o *Options) { f := false; o.Mem = &f }
+}
 func WithVol(v map[string][]byte) Option {
 	return func(o *Options) { o.Vol = v }
 }
@@ -146,7 +159,7 @@ func OptionsFromMap(m map[string]any) (Options, error) {
 			if !ok {
 				return o, fmt.Errorf("jostraca: option %q must be bool", k)
 			}
-			o.Mem = b
+			o.Mem = &b
 		case "exclude":
 			b, ok := v.(bool)
 			if !ok {
@@ -353,11 +366,24 @@ func mergeOptions(global, call Options) Options {
 	if call.Build != nil {
 		out.Build = call.Build
 	}
-	if call.Mem {
-		out.Mem = true
+	// An explicitly supplied Mem wins either way round, including false.
+	if call.Mem != nil {
+		out.Mem = call.Mem
 	}
+
+	// The per-call volume MERGES over the global seed rather than replacing
+	// it, which is TS's `deep({}, gVol, opts.vol)`. Replacing it dropped the
+	// global Fragment and Copy sources a call was relying on, and could fail
+	// its validation outright.
 	if call.Vol != nil {
-		out.Vol = call.Vol
+		merged := make(map[string][]byte, len(out.Vol)+len(call.Vol))
+		for k, v := range out.Vol {
+			merged[k] = v
+		}
+		for k, v := range call.Vol {
+			merged[k] = v
+		}
+		out.Vol = merged
 	}
 	if call.Existing != (Existing{}) {
 		out.Existing = call.Existing

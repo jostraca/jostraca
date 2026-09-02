@@ -267,24 +267,43 @@ func fileBefore(n *Node, st *jstate, b *buildCtx) error {
 	return nil
 }
 
-func fileAfter(n *Node, st *jstate, b *buildCtx) error {
-	var sb strings.Builder
-	for _, c := range n.Children {
-		switch c.Kind {
-		case KindContent:
-			for _, s := range c.Content {
-				sb.WriteString(s)
-			}
-		case KindFragment, KindInject, KindCopy, KindSlot:
-			// In-place content emission. Fragment/Inject/Copy/Slot ops
-			// stash their accumulated text in n.Content during their
-			// after-hooks; we splice it into the parent file's stream
-			// at the position where the child sat in source order.
+// collectInPlace appends the in-place content of `parent`'s children, in
+// source order, for the kinds `want` accepts.
+//
+// KindNone is walked THROUGH rather than skipped. A user component wraps its
+// children in one (see Cmp in builder.go, mirroring TS's cmp()), and in TS
+// the nesting is invisible at this point because Content pushes into the
+// ambient current-file buffer at whatever depth it sits. Go collects from the
+// tree instead, so this walk has to do what TS's ambient buffer did for free
+// -- otherwise wrapping content in a user component emitted nothing at all.
+// See #29.
+func collectInPlace(sb *strings.Builder, parent *Node, want func(Kind) bool) {
+	for _, c := range parent.Children {
+		if c.Kind == KindNone {
+			collectInPlace(sb, c, want)
+			continue
+		}
+		if want(c.Kind) {
 			for _, s := range c.Content {
 				sb.WriteString(s)
 			}
 		}
 	}
+}
+
+func fileAfter(n *Node, st *jstate, b *buildCtx) error {
+	// In-place content emission. Fragment/Inject/Copy/Slot ops stash their
+	// accumulated text in n.Content during their after-hooks; this splices
+	// it into the parent file's stream at the position where the child sat
+	// in source order.
+	var sb strings.Builder
+	collectInPlace(&sb, n, func(k Kind) bool {
+		switch k {
+		case KindContent, KindFragment, KindInject, KindCopy, KindSlot:
+			return true
+		}
+		return false
+	})
 	body := sb.String()
 	n.Content = []string{body}
 
@@ -683,13 +702,7 @@ func injectAfter(n *Node, _ *jstate, b *buildCtx) error {
 		return nil
 	}
 	var sb strings.Builder
-	for _, c := range n.Children {
-		if c.Kind == KindContent {
-			for _, s := range c.Content {
-				sb.WriteString(s)
-			}
-		}
-	}
+	collectInPlace(&sb, n, func(k Kind) bool { return k == KindContent })
 	body := sb.String()
 
 	// Inject rewrites a region of an existing file; a missing target is a
@@ -905,10 +918,14 @@ func fragmentAfter(n *Node, st *jstate, b *buildCtx) error {
 	// Non-Slot children of a Fragment are the content of the *unnamed*
 	// <[SLOT]> marker. If the source has no unnamed marker there is
 	// nowhere for them to go, and both stacks used to drop them without a
-	// word. n.Children holds exactly the non-Slot direct children: SlotP
-	// returns before attaching while the define-time collect filter is
-	// set, so only non-Slot children survive that walk.
-	if len(n.Children) > 0 && !defaultSlot {
+	// word.
+	//
+	// The signal is a flag set by the scan filter, not `len(n.Children)`:
+	// since the filter moved to attachAndDescend, nothing attaches during
+	// the scan at all, so children are always empty here. TS reads its own
+	// `sawnonslot` local at the same point.
+	_, sawNonSlot := n.Meta["fragmentSawNonSlot"]
+	if sawNonSlot && !defaultSlot {
 		return &NodeError{Step: "fragment", Err: fmtErrorf(
 			"Fragment has non-Slot children, but %s contains no unnamed "+
 				"<[SLOT]> marker to receive them; their output would be "+

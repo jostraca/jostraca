@@ -134,7 +134,7 @@ func TestBuilderErrorShortCircuit(t *testing.T) {
 	}
 }
 
-func TestBuilderCmpDoesNotAddNode(t *testing.T) {
+func TestBuilderCmpAddsATransparentNode(t *testing.T) {
 	j := New()
 	var captured *Node
 	build := false
@@ -148,16 +148,60 @@ func TestBuilderCmpDoesNotAddNode(t *testing.T) {
 		// attachAndDescend; that lets us inspect File.Children directly.
 		captured = j.st.root
 	})
-	// captured IS the File; its single child must be the Content node
-	// added by the Cmp body, with no wrapper interposed.
+
+	// This test used to assert the opposite -- that Cmp added NO node --
+	// which pinned the deviation #29 was about. TS's cmp() allocates a
+	// `kind: 'none'` node and nests the component's children under it, and
+	// that node is what the enclosing Fragment's filter sees. Go now does
+	// the same, so the shapes match.
 	if captured.Kind != KindFile {
 		t.Fatalf("captured.Kind = %v, want KindFile", captured.Kind)
 	}
 	if len(captured.Children) != 1 {
 		t.Fatalf("file.Children len = %d, want 1", len(captured.Children))
 	}
-	if captured.Children[0].Kind != KindContent {
-		t.Errorf("Cmp wrapped Content as kind %v, want KindContent", captured.Children[0].Kind)
+
+	cmpNode := captured.Children[0]
+	if cmpNode.Kind != KindNone {
+		t.Fatalf("Cmp node kind = %v, want KindNone", cmpNode.Kind)
+	}
+	if len(cmpNode.Children) != 1 {
+		t.Fatalf("cmp.Children len = %d, want 1", len(cmpNode.Children))
+	}
+	if cmpNode.Children[0].Kind != KindContent {
+		t.Errorf("Cmp child kind = %v, want KindContent", cmpNode.Children[0].Kind)
+	}
+}
+
+// KindNone carries no op and nodeText walks through it, so wrapping a
+// component's children in one must not change a byte of output. Same tree
+// built with and without the Cmp wrapper.
+func TestBuilderCmpNodeIsOutputTransparent(t *testing.T) {
+	run := func(wrap bool) string {
+		m := NewMemFS()
+		j := New(WithFS(m), WithFolder("/out"), WithNow(func() int64 { return 1 }))
+		if _, err := j.Generate(Options{}, func(j *J) {
+			j.Project(ProjectProps{Folder: "p"}, func(j *J) {
+				j.File("a.txt", func(j *J) {
+					body := func(j *J) {
+						j.Content("ONE\n")
+						j.Content("TWO\n")
+					}
+					if wrap {
+						j.Cmp("greet", body)
+					} else {
+						body(j)
+					}
+				})
+			})
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return string(m.Vol()["/out/p/a.txt"])
+	}
+
+	if got, want := run(true), run(false); got != want {
+		t.Errorf("Cmp wrapper changed output: got %q, want %q", got, want)
 	}
 }
 

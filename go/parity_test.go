@@ -125,6 +125,21 @@ var scenarioRunners = map[string]func(j *J){
 			j.Copy(CopyProps{From: "/src/mod.wasm", To: "mod.wasm"})
 		})
 	},
+	// A user component as a direct Fragment child, with an unnamed <[SLOT]>
+	// to receive it. Its body runs once, in the default-slot replay, and its
+	// content is spliced at the marker -- the same as TS. Before #29 was
+	// closed, `j.Cmp` allocated no node, so the Fragment filter never saw
+	// this child and its body ran once per replay pass instead.
+	"fragment_cmp_child_default_slot": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("a.txt", func(j *J) {
+				j.FragmentP(FragmentProps{From: "/tpl/f.txt"}, func(j *J) {
+					j.Cmp("Counter", func(j *J) { j.Content("H") })
+					j.SlotP(SlotProps{Name: "s0"}, func(j *J) { j.Content("S0") })
+				})
+			})
+		})
+	},
 	"quickstart": func(j *J) {
 		j.Project(ProjectProps{Folder: "my-app"}, func(j *J) {
 			j.Folder("src", func(j *J) {

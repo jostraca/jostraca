@@ -25,8 +25,8 @@ func TestNewWithOptions(t *testing.T) {
 	if j.st.opts.Folder != folder {
 		t.Errorf("Folder = %q, want %q", j.st.opts.Folder, folder)
 	}
-	if !j.st.opts.Mem {
-		t.Errorf("Mem = false, want true")
+	if j.st.opts.Mem == nil || !*j.st.opts.Mem {
+		t.Errorf("Mem = %v, want pointer to true", j.st.opts.Mem)
 	}
 }
 

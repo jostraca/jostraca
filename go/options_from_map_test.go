@@ -10,7 +10,8 @@ import (
 
 func TestOptionsFromMapTopLevelScalars(t *testing.T) {
 	build := true
-	want := Options{Folder: "/out", Debug: "info", Mem: true, Exclude: true, Build: &build}
+	mem := true
+	want := Options{Folder: "/out", Debug: "info", Mem: &mem, Exclude: true, Build: &build}
 
 	o, err := OptionsFromMap(map[string]any{
 		"folder":  "/out",
@@ -23,8 +24,14 @@ func TestOptionsFromMapTopLevelScalars(t *testing.T) {
 		t.Fatal(err)
 	}
 	if o.Folder != want.Folder || o.Debug != want.Debug ||
-		o.Mem != want.Mem || o.Exclude != want.Exclude {
+		o.Exclude != want.Exclude {
 		t.Errorf("scalars wrong: got %+v", o)
+	}
+	// Mem is tri-state now, so an unset value is distinguishable from a
+	// supplied false -- which is what lets a call turn OFF a builder's
+	// memory mode, as TS's explicit `mem: false` does.
+	if o.Mem == nil || *o.Mem != *want.Mem {
+		t.Errorf("Mem = %v, want pointer to true", o.Mem)
 	}
 	if o.Build == nil || *o.Build != true {
 		t.Errorf("Build = %v, want pointer to true", o.Build)
