@@ -207,7 +207,15 @@ class PrintPoint extends Point {
 const PointDefShape = Shape({
   k: Skip(String),
   n: Skip(String),
-  p: Skip([]),
+
+  // `p` holds child PointDefs. `Skip([])` describes the runtime check
+  // exactly -- absent is legal, present must be an array -- but an empty
+  // array literal infers as `never[]`, which no child can be assigned to.
+  // The cast is the same idiom FragmentShape uses to state the intended TS
+  // type beside the runtime one; it cannot be `PointDef[]` because PointDef
+  // is derived from this shape.
+  p: Skip([]) as unknown as any[],
+
   a: Any(),
   m: {}
 })
@@ -227,13 +235,16 @@ function buildPoints(pdef: PointDef, pm: Record<string, MakePoint>, id?: () => s
   pdef = PointDefShape(pdef)
   let isSerial = 'Serial' === pdef.k || Array.isArray(pdef.p)
 
-  const mp = pm[pdef.k]
+  // `k` is Skip(String), so absent is a legal PointDef. Indexing with it
+  // yielded undefined at runtime and fell through to the Root branch below;
+  // this says so rather than relying on JS tolerating an undefined key.
+  const mp = null == pdef.k ? undefined : pm[pdef.k]
   if (null != mp) {
     p = mp(id, pdef)
   }
   else if (null == pdef.k || 'Root' === pdef.k) {
     const rp = new RootPoint(id())
-    let cp = pdef.p
+    const cp = pdef.p || []
     for (let c of cp) {
       rp.add(buildPoints(c, pm, id))
     }
@@ -242,7 +253,7 @@ function buildPoints(pdef: PointDef, pm: Record<string, MakePoint>, id?: () => s
   }
   else if ('Parallel' === pdef.k) {
     const sp = new ParallelPoint(id())
-    let cp = pdef.p
+    const cp = pdef.p || []
     for (let c of cp) {
       sp.add(buildPoints(c, pm, id))
     }
@@ -252,7 +263,7 @@ function buildPoints(pdef: PointDef, pm: Record<string, MakePoint>, id?: () => s
 
   if (isSerial) {
     const sp = (p || new SerialPoint(id())) as SerialPoint
-    let cp = pdef.p
+    const cp = pdef.p || []
     for (let c of cp) {
       sp.add(buildPoints(c, pm, id))
     }
