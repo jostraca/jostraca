@@ -327,6 +327,9 @@ func TestParseTemplateSpecEjectArity(t *testing.T) {
 	}{
 		{"absent", map[string]any{}, false, false},
 		{"pair", map[string]any{"eject": []any{"A", "B"}}, false, true},
+		// More than two markers applies the FIRST pair, as TS does.
+		{"triple", map[string]any{"eject": []any{"A", "B", "C"}}, false, true},
+		{"quad", map[string]any{"eject": []any{"A", "B", "C", "D"}}, false, true},
 		// Accepted by the schema, then not applied -- TS does the same.
 		{"single", map[string]any{"eject": []any{"A"}}, false, false},
 		{"empty", map[string]any{"eject": []any{}}, false, false},
@@ -347,6 +350,58 @@ func TestParseTemplateSpecEjectArity(t *testing.T) {
 			}
 			if got := spec.Eject != nil; got != tc.wantEj {
 				t.Fatalf("Eject populated = %v, want %v (Eject=%v)", got, tc.wantEj, spec.Eject)
+			}
+		})
+	}
+}
+
+// The rendered result of a longer eject array, through BOTH routes into
+// applyEject: a spec parsed from a raw map, and a TemplateSpec.Eject set
+// directly. Measured against canonical TS on the same input, which yields
+// "X\n" for two, three and four markers alike -- util/basic.ts indexes
+// eject[0] and eject[1] and never looks past them.
+func TestTemplateEjectIgnoresExtraMarkers(t *testing.T) {
+	const src = "A\nSTART\nX\nEND\nB"
+
+	lengths := map[string][]any{
+		"two":   {"START", "END"},
+		"three": {"START", "END", "EXTRA"},
+		"four":  {"START", "END", "E1", "E2"},
+	}
+	for name, eject := range lengths {
+		t.Run("parsed/"+name, func(t *testing.T) {
+			spec, err := ParseTemplateSpec(map[string]any{"eject": eject})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			out, err := Template(src, map[string]any{}, spec)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if out != "X\n" {
+				t.Fatalf("got %q, want %q", out, "X\n")
+			}
+		})
+		t.Run("direct/"+name, func(t *testing.T) {
+			out, err := Template(src, map[string]any{}, &TemplateSpec{Eject: eject})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if out != "X\n" {
+				t.Fatalf("got %q, want %q", out, "X\n")
+			}
+		})
+	}
+
+	// Fewer than two markers cannot eject: TS requires BOTH non-nil.
+	for name, eject := range map[string][]any{"one": {"START"}, "none": {}} {
+		t.Run("noop/"+name, func(t *testing.T) {
+			out, err := Template(src, map[string]any{}, &TemplateSpec{Eject: eject})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if out != src {
+				t.Fatalf("got %q, want the source unchanged", out)
 			}
 		})
 	}
