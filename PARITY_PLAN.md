@@ -13,7 +13,10 @@ Evidence is marked three ways, and the distinctions are deliberate:
 - **[re-verified v0.34.1]** — probed again at v0.34.1, both stacks, by running
   the scenario rather than by reading the diff or trusting the row above it.
   Every such verdict below was produced that way, including the ones that came
-  back *unchanged*, and two came back different from what this document said.
+  back *unchanged*. Four came back different from what this document said, and
+  a fifth came back different from what the re-verification pass itself first
+  concluded: `Hunks` was marked fixed on a probe whose inputs never reached the
+  aliasing path. A probe is evidence of what it exercised and nothing else.
 
 Act on [verified] directly. Treat the [audit] tail as leads, not as a to-do list.
 
@@ -28,9 +31,9 @@ the commit that made it is still in the log.
 |---|---|---|---|
 | 1.1 | global `control` discarded in TS | **fixed, holds** | global dryrun writes 0 files; per-call 0; no-dryrun baseline 4 |
 | 1.2 | `exclude: true` inverted in Go | **fixed, holds** | live clock, two runs: regenerates its own 20/20, preserves user edits 40/40 |
-| 2.1 | `error` field never populated | **half done** | field now recorded on all 1292 scenario and exclude rows; **0 rows set it** — see below |
+| 2.1 | `error` field never populated | **half done** | one snapshot sets it; the known shapes are absent AND the bulk runners skip the volume on error rows |
 | 2.2 | directory-only state invisible | **fixed, holds** | `Vol()` returns nil for an empty dir; dry run creates none; TS materialises the `Folder` |
-| 2.3 | caller-side state | **2 of 3** | getx stamp swept (object and array); `Hunks` no longer aliases; **TS still mutates the caller's options object** |
+| 2.3 | caller-side state | **1 of 3** | getx stamp swept; **`Hunks` still aliases** via the trailing flush; **TS still mutates the caller's options object** |
 | 2.4 | shared bugs invisible by construction | **unchanged, by design** | #26 and #32 both still live and still byte-identical across stacks |
 | 3 | Go panic on nil-body Fragment | **fixed, holds** | no panic; emits `"A\n\nB\n"` |
 | 3 | Fragment `eject` never read in Go | **fixed, holds** | Go `"KEEP\n"` == TS `"KEEP\n"` on the same source |
@@ -38,7 +41,7 @@ the commit that made it is still in the log.
 | 3 | Copy inside File destroys the file (TS) | **fixed, holds** (#39) | `"BEFORE\nHELLO\nAFTER\n"`, and the copy still written to its own destination |
 | 3 | `List` `{item}` macro absent in Go | **fixed, holds** (#40) | Go `"n=p\nn=q\n\n"` |
 | 3 | `File{Mode: 0}`, per-call `Control` | documented as deviations | unchanged |
-| 4 | deviations lists | **one line now stale** | the `Cmp`-in-`Fragment` note is right for one shape and wrong for the other — see §4 |
+| 4 | deviations lists | **three defects** | 22 bullets vs 20, a false claim about the README, and the stale `Cmp`-in-`Fragment` note — see §4 |
 | — | Go template non-determinism (#42) | **fixed, holds** | identical output across 25 fresh processes |
 | — | `Copy.exclude` (#28) | fixed, closed | **not re-probed** — closed before this pass, and nothing here touches it |
 | — | `List` string child (TS) (#44) | **fixed, holds** | `"n=p\nn=q\n\n"` |
@@ -91,33 +94,78 @@ scenario on both stacks.
 The two numbers are not comparable and the old one is kept below as history.
 What follows is a count of tracked items, not an estimate of unknown ones.
 
-| surface | tracked | resolved | live | what is still live |
-|---|---|---|---|---|
-| components + op walker | 8 | 6 | 2 | #26 folder leak (shared), #29 Fragment filter |
-| FileHandler + modes | 5 | 3 | 2 | #30 binary vs string, `File{Mode:0}` (deviation) |
-| options surface | 5 | 1 | 4 | caller options mutated, #37 inert `WithMem`, #32 single-file `exclude` (shared), `mergeOptions` drops `Cmp`/`Name` (deviation) |
-| parity machinery + docs | 6 | 4 | 2 | §2.1 rows never added, one stale deviation line |
-| template + getx + utils | 4 | 3 | 1 | slash-wrapped string eject marker (deviation, untested both sides) |
-| diff/merge + fs | 3 | 3 | 0 | — |
-| **total** | **31** | **20** | **11** | |
+A **tracked item** is one this document's §1-§4 names, or an open issue, or a
+deviation this document calls out. Not all 22 recorded deviations — only the
+ones argued about here. The ledger is written out so the totals can be checked
+rather than taken:
 
-Of the 11 live, **4 are recorded deviations** rather than defects, **2 are
-bugs both stacks share** (so not parity breaks at all), and **5 are real
-divergences**: the TS options mutation, #29, #30, #37, and §2.1's missing rows.
+| surface | item | at v0.34.1 |
+|---|---|---|
+| diff/merge + fs | chmod comparison width | resolved |
+| | `MemFS.Vol()` reports directories | resolved |
+| | `Hunks` aliases the caller's arrays | **live** |
+| template + getx + utils | getx `?` filter stamps the model | resolved |
+| | template non-determinism (#42) | resolved |
+| | slash-wrapped string eject marker | **live** (deviation) |
+| components + op walker | Go panic, nil-body Fragment | resolved |
+| | Fragment `eject` never read | resolved |
+| | `List` `{item}` macro (#40) | resolved |
+| | Copy inside File destroys it (#39) | resolved |
+| | `List` string child (#44) | resolved |
+| | top-level siblings dropped (#21) | resolved |
+| | `Project` folder leaks (#26) | **live** (shared) |
+| | Fragment filter, non-Slot children (#29) | **live** |
+| FileHandler + modes | `exclude` timing in Go (§1.2) | resolved |
+| | txt/bin classification (#27) | resolved |
+| | `Copy.exclude` on directories (#28) | resolved (not re-probed) |
+| | binary compared against string (#30) | **live** |
+| | `File{Mode: 0}` | **live** (deviation) |
+| options surface | global `control` discarded (§1.1) | resolved |
+| | TS mutates the caller's options object | **live** |
+| | `WithMem`/`WithVol` inert (#37) | **live** (deviation + open decision) |
+| | `Copy.exclude`, single-file (#32) | **live** (shared) |
+| | `mergeOptions` drops `Cmp`/`Name` | **live** (deviation) |
+| | per-call `Control` cannot clear a global | **live** (deviation) |
+| parity machinery + docs | directory-only state (§2.2) | resolved |
+| | corpus cannot express binary (#24) | resolved |
+| | Windows blind spot (#22) | resolved |
+| | divergent failure modes (§2.1) | **live** |
+| | deviation lists accurate and mirrored (§4) | **live** |
+| | shared bugs invisible by construction (§2.4) | structural |
 
-Three verdicts changed direction under re-probing, which is the argument for
-re-probing rather than reading the log:
+| surface | tracked | resolved | live |
+|---|---|---|---|
+| components + op walker | 8 | 6 | 2 |
+| options surface | 6 | 1 | 5 |
+| parity machinery + docs | 6 | 3 | 2 (+1 structural) |
+| FileHandler + modes | 5 | 3 | 2 |
+| diff/merge + fs | 3 | 2 | 1 |
+| template + getx + utils | 3 | 2 | 1 |
+| **total** | **31** | **17** | **13** (+1 structural) |
 
-- **#27 is fixed and nobody closed it.** `save` now classifies by destination
+Of the 13 live: **5 are recorded deviations** rather than defects, **2 are bugs
+both stacks share** (so not parity breaks at all), and **6 are real
+divergences** — `Hunks`, #29, #30, the TS options mutation, §2.1's coverage, and
+§4's documentation.
+
+Four verdicts moved under re-probing, and one of those was this document's own
+first answer:
+
+- **#27 is fixed and nobody closed it.** `save` classifies by destination
   extension, so an `a.png` holding ASCII takes `existing.bin` on *both* sides.
   Measured: `bin.preserve` writes `a.old.png` in TS and in Go; `txt.preserve`
   writes no backup in either.
 - **#29 is worse than filed.** The issue records matching output with only the
   side-effect count diverging. With a user component whose body emits nothing,
   TS aborts the whole build and Go writes `AS0BS1C\n` — an output divergence.
-- **§2.1 is half done, not done.** The generator wrap landed and every scenario
-  row now carries `error`; no row has ever set it, so the class it was built to
-  catch is still unexercised.
+- **§2.1 is neither done nor idle.** One snapshot exercises the `error` field;
+  the known divergent shapes are absent, and the bulk runners skip the volume
+  comparison on error rows entirely. §2.1 has both halves.
+- **`Hunks` is still live, and the first pass here said otherwise.** The probe
+  used inputs that share a first and last line, so the trailing `flush` was
+  empty and nothing aliased. Inputs with divergent tails alias every time. One
+  probe shaped like the happy path is how a re-verification pass produces a
+  wrong verdict, which is worth recording next to the method that produced it.
 
 Two issues are closed by work that shipped without closing them: **#22**
 (Windows now runs `go test -race` in the CI matrix) and **#24** (the corpus b64
@@ -279,38 +327,57 @@ So the response to "108 of 116 are untested" is not to fix 108 bugs. It is to
 add pins where they would catch the classes that matter, and let the pins say
 what to fix. Three classes are invisible to every piece of machinery at once.
 
-**[re-verified v0.34.1]** Two of the three are now pinned (§2.2 fully, §2.3 for
-two of its three instances) and the third, §2.1, has its machinery built and no
-rows to run through it. The claim above that "nothing has been found since"
-needs one correction: this re-score found two things without adding a single
-pin — #27 fixed and left open, and #29 diverging in output rather than only in
-side effects. Both were found by running the scenarios again. That is not an
-argument against pins; it is the reason the pins are worth building, since a
-gate would have reported both without anyone deciding to go and look.
+**[re-verified v0.34.1]** One of the three is fully pinned (§2.2). §2.3 has one
+of its three instances fixed, and §2.1 has its machinery built, one row through
+it, and no comparison of output when that row fires.
+
+The claim above that "nothing has been found since" needs correcting: the
+re-score found #27 fixed and left open, and #29 diverging in output rather than
+only in side effects — both by running the scenarios again, neither by a pin.
+
+And then a review of the re-score found a wrong verdict in it, which is the same
+lesson one turn further out. `Hunks` was probed with inputs sharing a first and
+last line, so the trailing flush was empty and the aliasing never appeared. The
+probe was real, ran, and proved nothing about the path that matters. A gate
+would have carried the shapes a hand-written probe forgets, which is the whole
+argument of this section, now demonstrated at the expense of its own author.
 
 ### 2.1 Divergent failure modes — HALF DONE, and the top of the queue
 
-**[re-verified v0.34.1]** The mechanism landed; the rows never did.
+**[re-verified v0.34.1]** The mechanism landed and one row uses it. The
+known divergent shapes are still absent, and the comparison is thinner than it
+looks.
 
-`ts/tools/extract-parity.js:45-50` now wraps the generate call, records
-`error`, and still captures the volume so a partial write before the throw is
-compared too. Every scenario row carries the field:
+`ts/tools/extract-parity.js:45-50` wraps the generate call and records `error`.
+Coverage as it stands:
 
 | corpus | rows | rows carrying `error` | `error` set |
 |---|---|---|---|
-| `scenario_corpus.json` | 1197 | 1197 | **0** |
-| `copy_exclude_corpus.json` | 95 | 95 | **0** |
+| `scenario_corpus.json` | 1197 | 1197 | 0 |
+| `copy_exclude_corpus.json` | 95 | 95 | 0 |
 | `template_corpus.json` | 471 | 0 | — |
+| whole-scenario snapshots | 40 | 40 | **1** |
 
-So the gate is live and still idle: no scenario in the corpus throws on either
-side, which means the class "one stack throws, panics or aborts where the other
-completes" remains unexercised. The plan's second half — *add rows for the known
-members* — was never done, and the members are not hypothetical: the empty-body
-`Cmp`-inside-`Fragment` shape measured for §3 below is exactly one of them, TS
-aborting where Go writes a file.
+That one is `go/testdata/parity/fragment_missing_from_errors.json`, generated
+expressly to exercise the field and checked by `runParityCase`. So the gate is
+**not idle** — it has a single row proving it works, which is exactly the
+argument for adding more.
 
-**Remaining fix**: add scenarios that throw. One row per known member; the
-machinery to compare them has been sitting ready since the wrap landed.
+Two things are still missing, and the second is the one that would quietly
+weaken the first:
+
+1. **The known divergent shapes are not represented.** They are not
+   hypothetical: the empty-body `Cmp`-inside-`Fragment` shape measured in §3 is
+   one, TS aborting where Go writes a file.
+2. **The bulk runners do not compare the volume on an error row.**
+   `go/scenario_corpus_test.go:234-241` and `go/copy_exclude_corpus_test.go:157-164`
+   both `continue` as soon as the expected error matches. The generator captures
+   the partial tree, and nothing reads it — so two stacks that both throw while
+   leaving *different* partial output pass. Adding throwing rows without fixing
+   this buys an assertion that both sides threw, and no more.
+
+**Remaining fix**: make the runners compare volume on error rows, then add one
+row per known member.
 
 **The original finding, for the record.** Across the four corpora, the `error`
 field was never set:
@@ -375,8 +442,25 @@ file.
 | instance | at v0.34.1 |
 |---|---|
 | getx's `?` filter stamps the caller's model | **fixed** — `key$`/`index$` swept from rejected children too, on object and array nodes |
-| Go's `Hunks` returns slices aliasing the caller's arrays | **fixed** — mutating every returned hunk leaves the inputs untouched |
+| Go's `Hunks` returns slices aliasing the caller's arrays | **live** — see below |
 | TS mutates the caller's options object | **live** |
+
+**`Hunks` still aliases, and the first probe of it here was wrong.** The
+in-loop hunks are built with `append` onto nil slices, so those are fresh. The
+trailing `flush(generated[gi:], existing[ei:])` at `go/diff.go:593` hands the
+caller's own backing array straight into the returned `Hunk`, and `flush` does
+not copy. Whether a caller can observe it depends entirely on the input shape,
+which is why one probe was not enough:
+
+| input | trailing flush | caller's arrays |
+|---|---|---|
+| `[a b c]` vs `[a X c]` | empty | untouched |
+| `[a]` vs `[b]` (no common line) | both sides | **mutated** |
+| `[a b c]` vs `[a X Y]` (divergent tails) | both sides | **mutated** |
+| `[a b c d]` vs `[a]` | generated side | **mutated** |
+
+The fix is to copy the suffixes in that last `flush`, the way the loop already
+does by construction.
 
 The live one, measured: passing `{folder: '/out'}` to `generate` and reading the
 same object back afterwards yields
@@ -457,21 +541,39 @@ The second row is an **output divergence**: TS aborts the build and writes
 nothing, Go writes the file. That is a different and larger claim than the one
 on the issue, and it is also a ready-made row for §2.1.
 
-One trap, still live as written. `go/durability_test.go:124-137` pins the Go
-side of the dry-run divergence, which is the case §1.1 flags as needing an
-explicit exception to the TS-wins rule.
+**The trap this section used to carry is gone**, and saying so matters because
+it was pointing future work at a test that needs nothing.
+`go/durability_test.go` `TestDryrunWritesNothing` supplies a *global*
+`WithControl(Control{Dryrun: true})` and asserts that Go writes nothing at all,
+baseline included. That is the behaviour §1.1 brought TypeScript to, so the test
+pins agreement rather than a divergence and no rewrite is owed. The standing
+exception to the TS-wins rule in `CLAUDE.md` is unaffected: it records why TS
+was fixed toward Go, which is still the reason it reads the way it does.
 
 ---
 
 ## 4. Record
 
-The documented deviation lists are where a Go user actually looks. Both were
-brought up to date; 22 bullets now, mirrored in `go/README.md` and
-`docs/reference-go.md`.
+The documented deviation lists are where a Go user actually looks, and
+**[re-verified v0.34.1]** they are not in the state this section previously
+claimed. Two defects, both in the direction that misleads:
 
-**[re-verified v0.34.1]** One line in them is now wrong, and it is wrong in the
-direction that flatters the port. Both lists say of a user component used as a
-direct `Fragment` child:
+**They are not mirrored.** `go/README.md` carries 22 deviation bullets;
+`docs/reference-go.md` carries 20. A reader who checks one and not the other
+gets a different list depending which they open.
+
+**`docs/reference-go.md` states something false about `go/README.md`.** At
+`:314-316` it says of the inert `WithMem`/`WithVol` and the dropped per-call
+`Cmp`/`Name`:
+
+> Neither is in `go/README.md`'s own deviations list.
+
+Both are in it. Whatever was true when that sentence was written, it now sends a
+reader looking for a gap that is not there — and, worse, implies the README is
+less complete than it is.
+
+**And one line in both is wrong about behaviour**, again flattering the port.
+Both lists say of a user component used as a direct `Fragment` child:
 
 > the "non-`Slot` child with no unnamed `<[SLOT]>` marker" error fires in TS and
 > not in Go for that one shape
@@ -482,6 +584,9 @@ distinction, because as written it reads as though Go never raises it.
 
 The correction is a documentation fix, not a behaviour change, and it should not
 be made by aligning either stack: the underlying divergence is #29.
+
+All three want doing together, since anyone opening these files to fix one will
+be looking straight at the others.
 
 ---
 
@@ -510,22 +615,27 @@ fails exactly where it matters most (§1.1).
 Steps 1, 2, 4 (partly), and the §2.2/§2.3 pins are done. What is left, in the
 order it is worth doing:
 
-1. **§2.1's missing rows.** The wrap is in and the assertion is bidirectional;
-   what is absent is a single scenario that throws. Start with the empty-body
-   `Cmp`-inside-`Fragment` shape from §3, which is already measured on both
-   sides and diverges in output. This is still where the compounding is, and it
-   is still the step worth protecting from being deprioritised.
+1. **§2.1, both halves.** Make the bulk runners compare the recorded volume on
+   an error row -- without that, every row added below asserts only that both
+   sides threw. Then add rows for the known shapes, starting with the empty-body
+   `Cmp`-inside-`Fragment` case from §3, already measured on both sides and
+   diverging in output. This is still where the compounding is, and still the
+   step worth protecting from being deprioritised.
 2. **Close #22, #24 and #27.** All three are fixed in the tree and open on the
    tracker. #27 in particular reads as a live inversion to anyone triaging from
    the issue list, and it is not one.
 3. **Re-file #29** with the measured matrix. It is an output divergence, not a
    side-effect count, and today's title understates it.
-4. **The TS options mutation** (§2.3). The one caller-side instance left, and
-   the only one of the three that a user can hit without reaching for an
-   internal.
+4. **The two caller-side instances left** (§2.3): copy the suffixes in
+   `Hunks`'s trailing flush, and stop `generate` writing shape's injected
+   defaults into the caller's own options object. The second is the one a user
+   hits without reaching for an internal; the first is a one-line copy.
 5. **#30**, which writes a spurious `.old` sidecar on every regeneration of an
    unchanged binary.
-6. **The §4 deviation line**, corrected rather than deleted.
+6. **The three §4 documentation defects**, together: reconcile the two lists
+   (22 bullets against 20), delete the false claim in `docs/reference-go.md`
+   that the README is missing two of them, and correct the `Cmp`-in-`Fragment`
+   line rather than deleting it.
 
 #26, #32 and `File{Mode:0}` are deliberately not on this list: two are bugs both
 stacks share (§2.4) and one is a recorded deviation. #37 stays where it is until
