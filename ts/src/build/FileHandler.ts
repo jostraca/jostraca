@@ -64,6 +64,22 @@ function tmppathFor(path: string): string {
 const dlog = getdlog('jostraca', __filename)
 
 
+// Compare two content values that may each be a string or a Buffer.
+//
+// `===` on a string and a Buffer is false whatever the bytes are, which is
+// how a byte-identical binary target came to be reported as changed on
+// every run (issue #30). Buffers compare by bytes; strings keep the cheap
+// length check first, which is what the `===` sites here always did.
+function sameContent(a: string | Buffer, b: string | Buffer): boolean {
+  if (Buffer.isBuffer(a) || Buffer.isBuffer(b)) {
+    const ab = Buffer.isBuffer(a) ? a : Buffer.from(a, 'utf8')
+    const bb = Buffer.isBuffer(b) ? b : Buffer.from(b, 'utf8')
+    return ab.equals(bb)
+  }
+  return a.length === b.length && a === b
+}
+
+
 class FileHandler {
 
   when: number
@@ -326,13 +342,26 @@ class FileHandler {
 
     if (exists) {
       why.push('exists-0')
-      let currentContent = this.loadFile(path)
+      // Load the existing bytes in the SAME SHAPE as the incoming content.
+      // `loadFile` decodes utf8 by default, so a Copy-routed binary file --
+      // whose content arrives here as a Buffer -- was compared as
+      // `string === Buffer`, which is false whatever the bytes are. A target
+      // already holding exactly those bytes was therefore "changed" on every
+      // run: `bin.preserve` wrote a `.old` backup of a file about to be
+      // rewritten identically, `bin.present` wrote a `.new` sidecar of the
+      // same bytes, and the unchanged-file optimisation was defeated for
+      // every binary. Issue #30. Go has always used bytes.Equal.
+      //
+      // Decoding cannot be fixed by converting one side afterwards: utf8
+      // decoding is lossy for binary, so the string no longer carries the
+      // bytes to compare.
+      let currentContent = this.loadFile(
+        path, isTextFile ? undefined : { encoding: null })
 
       const protect = 0 <= currentContent.indexOf(JOSTRACA_PROTECT)
       meta.protect = protect
 
-      unchanged = currentContent.length === newContentSource.length &&
-        currentContent === newContentSource
+      unchanged = sameContent(currentContent, newContentSource)
 
       if (existing.preserve) {
         why.push('preserve-0')
@@ -341,8 +370,7 @@ class FileHandler {
           why.push('protect-0')
           write = false
         }
-        else if (currentContent.length !== newContentSource.length ||
-          currentContent !== newContentSource) {
+        else if (!sameContent(currentContent, newContentSource)) {
           why.push('content-0')
 
           let oldpath = annotatedPath(path, 'old')
@@ -366,7 +394,7 @@ class FileHandler {
       else if (existing.present) {
         why.push('present-0')
 
-        if (currentContent.length !== newContentSource.length || currentContent !== newContentSource) {
+        if (!sameContent(currentContent, newContentSource)) {
           why.push('content-1')
 
           let newpath = annotatedPath(path, 'new')
@@ -390,8 +418,7 @@ class FileHandler {
 
           write = false
 
-          if (currentContent.length !== newContentSource.length ||
-            currentContent !== newContentSource) {
+          if (!sameContent(currentContent, newContentSource)) {
             why.push('content-2')
 
             meta.action = 'diff'
@@ -435,8 +462,7 @@ class FileHandler {
         else if (existing.merge) {
           why.push('merge-0')
 
-          if (currentContent.length !== newContentSource.length ||
-            currentContent !== newContentSource) {
+          if (!sameContent(currentContent, newContentSource)) {
             why.push('content-3')
 
             if (this.control.duplicate) {

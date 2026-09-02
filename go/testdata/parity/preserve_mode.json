@@ -4,8 +4,7 @@
     "existing": {
       "txt": {
         "preserve": true
-      },
-      "bin": {}
+      }
     }
   },
   "prepopulate": {

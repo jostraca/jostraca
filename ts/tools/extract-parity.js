@@ -326,6 +326,27 @@ async function main() {
     })
   })
 
+  // A binary Copy onto a target that ALREADY holds exactly those bytes,
+  // with bin.preserve on. Nothing should be backed up, because nothing
+  // changed.
+  //
+  // This is issue #30, and it went unnoticed because no corpus case reached
+  // it: `save` compared the incoming Buffer against the utf8 STRING loadFile
+  // returns, and `string === Buffer` is false whatever the bytes are, so a
+  // `.old.` backup of an identical file was written on every run. Go used
+  // bytes.Equal and was right. Fixing TS changed no existing row, which is
+  // exactly why this one is added. See PARITY_PLAN.md 3.
+  await snapshot('binary_copy_identical_no_backup', {
+    existing: { bin: { preserve: true } },
+  }, () => {
+    Project({ folder: 'app' }, () => {
+      Copy({ from: '/src/mod.wasm', to: 'mod.wasm' })
+    })
+  }, {
+    '/src/mod.wasm': Buffer.from([0x00, 0x01, 0xff, 0xfe, 0x89]),
+    '/out/app/mod.wasm': Buffer.from([0x00, 0x01, 0xff, 0xfe, 0x89]),
+  })
+
   // Inject between markers.
   await snapshot('inject_basic', {}, () => {
     Project({ folder: 'app' }, () => {

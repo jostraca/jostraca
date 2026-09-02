@@ -5,8 +5,7 @@
       "txt": {
         "write": false,
         "present": true
-      },
-      "bin": {}
+      }
     }
   },
   "prepopulate": {
