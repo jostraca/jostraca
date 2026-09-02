@@ -183,6 +183,51 @@ const ExistingShape = (0, shape_1.Shape)({
         // No merge of binary files
     }
 }, { name: 'Jostraca Options (`existing` property)' });
+// Copy an options object so shape's injection cannot reach the caller's own
+// objects, and no further than that.
+//
+// The injection is RECURSIVE, so this has to be: `{cmp: {Copy: {}}}` had its
+// `Copy` object handed straight through by a one-level copy, and shape wrote
+// `ignore: []` into the caller's object two levels down. Measuring `existing`
+// and `meta` and concluding one level was enough is how that was missed.
+//
+// What is NOT copied, and why:
+//
+//   - `model` at the top level. It is the caller's DATA rather than option
+//     structure -- every component reads it through `ctx$.model` -- so
+//     cloning it per `generate` would change identity semantics and copy an
+//     arbitrarily large object to guard against an injection that does not
+//     touch it.
+//   - Anything carrying a constructor of its own: Buffer, RegExp, Date, a
+//     class instance. Copying their enumerable properties is not copying
+//     them, which is the rule `deep` follows for the same reason. A
+//     `cmp.Copy.ignore` entry is a RegExp, and must stay the same RegExp.
+//
+// `seen` keeps a shared reference shared and makes a cyclic options object
+// terminate rather than overflow the stack.
+function copyOptions(opts_in) {
+    return copyOptionTree(opts_in, new WeakMap(), true);
+}
+function copyOptionTree(val, seen, top) {
+    if (null == val || 'object' !== typeof val) {
+        return val;
+    }
+    const isArray = Array.isArray(val);
+    if (!isArray && Object !== val.constructor) {
+        return val;
+    }
+    const already = seen.get(val);
+    if (undefined !== already) {
+        return already;
+    }
+    const out = isArray ? [] : {};
+    seen.set(val, out);
+    for (const key of Object.keys(val)) {
+        out[key] = (top && 'model' === key) ? val[key] :
+            copyOptionTree(val[key], seen, false);
+    }
+    return out;
+}
 const sysFs = () => Fs;
 // Applied once, beneath both the global and the per-call `control`, so that
 // precedence runs defaults < global < per-call. These are NOT declared as
@@ -208,7 +253,19 @@ function Jostraca(gopts_in) {
     // filesystem at all.
     const gGetFs = gOpts.fs || (gUseMemFs ? get_gMemFs : undefined);
     async function generate(opts_in, root) {
-        const opts = OptionsShape(opts_in);
+        // Validate a COPY. `OptionsShape` injects its defaults into the object
+        // it is handed and returns that same object, so validating the caller's
+        // own options wrote `build`, `cmp`, `control`, `exclude` and `name`
+        // into it -- and `bin` into an `existing` they passed in. A caller who
+        // reuses one options object across two `generate` calls was not passing
+        // what they thought on the second.
+        //
+        // The injection itself stays: DEPENDENCY_PLAN.md 3.2 and PARITY_PLAN.md
+        // 1.3 are explicit that a validator which checks without injecting
+        // crashes on `existing` and silently produces a wrong output tree on
+        // `control`. Change where it lands, not whether it happens. Go has never
+        // had this: its Options is a value struct. See PARITY_PLAN.md 2.3.
+        const opts = OptionsShape(copyOptions(opts_in));
         // Parameters to `generate` override any global options.
         const useMemFS = null == opts.mem ? gUseMemFs : !!opts.mem;
         const vol = null == opts.vol ? gVol : (0, basic_1.deep)({}, gVol, opts.vol);

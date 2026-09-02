@@ -5,8 +5,7 @@
       "txt": {
         "preserve": true,
         "diff": true
-      },
-      "bin": {}
+      }
     }
   },
   "prepopulate": {

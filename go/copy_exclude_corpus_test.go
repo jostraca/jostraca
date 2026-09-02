@@ -160,10 +160,15 @@ func TestCopyExcludeCorpusMatchesTS(t *testing.T) {
 				if errmismatch <= 10 {
 					t.Errorf("%s: TS failed but Go succeeded", c.Name)
 				}
+				continue
 			}
-			continue
-		}
-		if gerr != nil {
+			// Both threw. Fall through to the tree comparison rather than
+			// calling it a match here: a failed build still leaves whatever
+			// it wrote before it stopped, and two stacks that throw at
+			// DIFFERENT points leave different partial trees. Skipping the
+			// comparison bought an assertion that both sides failed and
+			// nothing about what they left behind. See PARITY_PLAN.md 2.1.
+		} else if gerr != nil {
 			errmismatch++
 			if errmismatch <= 10 {
 				t.Errorf("%s: TS succeeded but Go failed: %v", c.Name, gerr)

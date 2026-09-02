@@ -14,24 +14,24 @@ import { Folder } from './cmp/Folder';
 import { Project } from './cmp/Project';
 import { List } from './cmp/List';
 declare const OptionsShape: {
-    <V>(root?: V | undefined, ctx?: import("shape").Context): V & {
-        folder: any;
+    <V>(root?: V | undefined, ctx?: import("shape").Context): (0 extends 1 & V ? true : false) extends true ? {
+        folder: string | undefined;
         name: {
             file: {
-                prefix: any;
-                suffix: any;
+                prefix: string | undefined;
+                suffix: string | undefined;
             };
             folder: {
-                prefix: any;
-                suffix: any;
+                prefix: string | undefined;
+                suffix: string | undefined;
             };
-            exclude: any;
+            exclude: string | (string | RegExpConstructor)[] | RegExpConstructor | undefined;
         };
         meta: any;
         fs: any;
         now: any;
         log: any;
-        debug: any;
+        debug: string | undefined;
         exclude: boolean;
         existing: {
             txt: {};
@@ -39,37 +39,111 @@ declare const OptionsShape: {
         };
         model: any;
         build: boolean;
-        mem: any;
-        vol: any;
+        mem: boolean | undefined;
+        vol: {} | undefined;
         cmp: {
             Copy: {
                 ignore: any[];
             };
         };
         control: {
-            dryrun: any;
-            duplicate: any;
-            version: any;
+            dryrun: boolean | undefined;
+            duplicate: boolean | undefined;
+            version: boolean | undefined;
+        };
+    } : V extends object ? Omit<V, "build" | "cmp" | "control" | "debug" | "exclude" | "existing" | "folder" | "fs" | "log" | "mem" | "meta" | "model" | "name" | "now" | "vol"> & {
+        folder: string | undefined;
+        name: {
+            file: {
+                prefix: string | undefined;
+                suffix: string | undefined;
+            };
+            folder: {
+                prefix: string | undefined;
+                suffix: string | undefined;
+            };
+            exclude: string | (string | RegExpConstructor)[] | RegExpConstructor | undefined;
+        };
+        meta: any;
+        fs: any;
+        now: any;
+        log: any;
+        debug: string | undefined;
+        exclude: boolean;
+        existing: {
+            txt: {};
+            bin: {};
+        };
+        model: any;
+        build: boolean;
+        mem: boolean | undefined;
+        vol: {} | undefined;
+        cmp: {
+            Copy: {
+                ignore: any[];
+            };
+        };
+        control: {
+            dryrun: boolean | undefined;
+            duplicate: boolean | undefined;
+            version: boolean | undefined;
+        };
+    } : {
+        folder: string | undefined;
+        name: {
+            file: {
+                prefix: string | undefined;
+                suffix: string | undefined;
+            };
+            folder: {
+                prefix: string | undefined;
+                suffix: string | undefined;
+            };
+            exclude: string | (string | RegExpConstructor)[] | RegExpConstructor | undefined;
+        };
+        meta: any;
+        fs: any;
+        now: any;
+        log: any;
+        debug: string | undefined;
+        exclude: boolean;
+        existing: {
+            txt: {};
+            bin: {};
+        };
+        model: any;
+        build: boolean;
+        mem: boolean | undefined;
+        vol: {} | undefined;
+        cmp: {
+            Copy: {
+                ignore: any[];
+            };
+        };
+        control: {
+            dryrun: boolean | undefined;
+            duplicate: boolean | undefined;
+            version: boolean | undefined;
         };
     };
     valid: <V>(root?: V | undefined, ctx?: import("shape").Context) => root is V & {
-        folder: import("shape").Node<StringConstructor>;
+        folder: string | undefined;
         name: {
             file: {
-                prefix: import("shape").Node<StringConstructor>;
-                suffix: import("shape").Node<StringConstructor>;
+                prefix: string | undefined;
+                suffix: string | undefined;
             };
             folder: {
-                prefix: import("shape").Node<StringConstructor>;
-                suffix: import("shape").Node<StringConstructor>;
+                prefix: string | undefined;
+                suffix: string | undefined;
             };
-            exclude: import("shape").Node<unknown>;
+            exclude: string | (string | RegExpConstructor)[] | RegExpConstructor | undefined;
         };
         meta: any;
         fs: any;
         now: any;
         log: any;
-        debug: import("shape").Node<string>;
+        debug: string | undefined;
         exclude: boolean;
         existing: {
             txt: {};
@@ -77,17 +151,17 @@ declare const OptionsShape: {
         };
         model: any;
         build: boolean;
-        mem: import("shape").Node<BooleanConstructor>;
-        vol: import("shape").Node<{}>;
+        mem: boolean | undefined;
+        vol: {} | undefined;
         cmp: {
             Copy: {
                 ignore: any[];
             };
         };
         control: {
-            dryrun: import("shape").Node<BooleanConstructor>;
-            duplicate: import("shape").Node<BooleanConstructor>;
-            version: import("shape").Node<BooleanConstructor>;
+            dryrun: boolean | undefined;
+            duplicate: boolean | undefined;
+            version: boolean | undefined;
         };
     };
     match: (root?: any, ctx?: import("shape").Context) => boolean;
@@ -131,45 +205,46 @@ declare const OptionsShape: {
     }[];
     spec: () => any;
     node: () => import("shape").Node<{
-        folder: import("shape").Node<StringConstructor>;
-        name: {
+        readonly folder: import("shape").Node<StringConstructor | undefined>;
+        readonly name: {
             file: {
-                prefix: import("shape").Node<StringConstructor>;
-                suffix: import("shape").Node<StringConstructor>;
+                prefix: import("shape").Node<StringConstructor | undefined>;
+                suffix: import("shape").Node<StringConstructor | undefined>;
             };
             folder: {
-                prefix: import("shape").Node<StringConstructor>;
-                suffix: import("shape").Node<StringConstructor>;
+                prefix: import("shape").Node<StringConstructor | undefined>;
+                suffix: import("shape").Node<StringConstructor | undefined>;
             };
-            exclude: import("shape").Node<unknown>;
+            exclude: import("shape").Node<RegExpConstructor | StringConstructor | readonly [import("shape").Node<RegExpConstructor | StringConstructor>] | undefined>;
         };
-        meta: any;
-        fs: any;
-        now: any;
-        log: any;
-        debug: import("shape").Node<string>;
-        exclude: boolean;
-        existing: {
+        readonly meta: any;
+        readonly fs: any;
+        readonly now: any;
+        readonly log: any;
+        readonly debug: import("shape").Node<string | undefined>;
+        readonly exclude: false;
+        readonly existing: {
             txt: {};
             bin: {};
         };
-        model: any;
-        build: boolean;
-        mem: import("shape").Node<BooleanConstructor>;
-        vol: import("shape").Node<{}>;
-        cmp: {
+        readonly model: any;
+        readonly build: true;
+        readonly mem: import("shape").Node<BooleanConstructor | undefined>;
+        readonly vol: import("shape").Node<{} | undefined>;
+        readonly cmp: {
             Copy: {
                 ignore: any[];
             };
         };
-        control: {
-            dryrun: import("shape").Node<BooleanConstructor>;
-            duplicate: import("shape").Node<BooleanConstructor>;
-            version: import("shape").Node<BooleanConstructor>;
+        readonly control: {
+            dryrun: import("shape").Node<BooleanConstructor | undefined>;
+            duplicate: import("shape").Node<BooleanConstructor | undefined>;
+            version: import("shape").Node<BooleanConstructor | undefined>;
         };
     }>;
     stringify: (...rest: any[]) => string;
     jsonify: () => any;
+    jsonSchema: () => any;
     toString: (this: any) => string;
     shape: {
         shape$: symbol;
@@ -177,7 +252,33 @@ declare const OptionsShape: {
     };
 };
 declare const ExistingShape: {
-    <V>(root?: V | undefined, ctx?: import("shape").Context): V & {
+    <V>(root?: V | undefined, ctx?: import("shape").Context): (0 extends 1 & V ? true : false) extends true ? {
+        txt: {
+            write: boolean;
+            preserve: boolean;
+            present: boolean;
+            diff: boolean;
+            merge: boolean;
+        };
+        bin: {
+            write: boolean;
+            preserve: boolean;
+            present: boolean;
+        };
+    } : V extends object ? Omit<V, "bin" | "txt"> & {
+        txt: {
+            write: boolean;
+            preserve: boolean;
+            present: boolean;
+            diff: boolean;
+            merge: boolean;
+        };
+        bin: {
+            write: boolean;
+            preserve: boolean;
+            present: boolean;
+        };
+    } : {
         txt: {
             write: boolean;
             preserve: boolean;
@@ -246,21 +347,22 @@ declare const ExistingShape: {
     }[];
     spec: () => any;
     node: () => import("shape").Node<{
-        txt: {
-            write: boolean;
-            preserve: boolean;
-            present: boolean;
-            diff: boolean;
-            merge: boolean;
+        readonly txt: {
+            readonly write: true;
+            readonly preserve: false;
+            readonly present: false;
+            readonly diff: false;
+            readonly merge: false;
         };
-        bin: {
-            write: boolean;
-            preserve: boolean;
-            present: boolean;
+        readonly bin: {
+            readonly write: true;
+            readonly preserve: false;
+            readonly present: false;
         };
     }>;
     stringify: (...rest: any[]) => string;
     jsonify: () => any;
+    jsonSchema: () => any;
     toString: (this: any) => string;
     shape: {
         shape$: symbol;

@@ -55,18 +55,30 @@ declare class PrintPoint extends Point {
     run(pctx: PointCtx): Promise<void>;
 }
 declare const PointDefShape: {
-    <V>(root?: V | undefined, ctx?: import("shape").Context): V & {
-        k: any;
-        n: any;
+    <V>(root?: V | undefined, ctx?: import("shape").Context): (0 extends 1 & V ? true : false) extends true ? {
+        k: string | undefined;
+        n: string | undefined;
+        p: any[];
+        a: any;
+        m: {};
+    } : V extends object ? Omit<V, "a" | "k" | "m" | "n" | "p"> & {
+        k: string | undefined;
+        n: string | undefined;
+        p: any[];
+        a: any;
+        m: {};
+    } : {
+        k: string | undefined;
+        n: string | undefined;
         p: any[];
         a: any;
         m: {};
     };
     valid: <V>(root?: V | undefined, ctx?: import("shape").Context) => root is V & {
-        k: import("shape").Node<StringConstructor>;
-        n: import("shape").Node<StringConstructor>;
+        k: string | undefined;
+        n: string | undefined;
         p: any[];
-        a: import("shape").Node<unknown>;
+        a: any;
         m: {};
     };
     match: (root?: any, ctx?: import("shape").Context) => boolean;
@@ -110,14 +122,15 @@ declare const PointDefShape: {
     }[];
     spec: () => any;
     node: () => import("shape").Node<{
-        k: import("shape").Node<StringConstructor>;
-        n: import("shape").Node<StringConstructor>;
-        p: any[];
-        a: import("shape").Node<unknown>;
-        m: {};
+        readonly k: import("shape").Node<StringConstructor | undefined>;
+        readonly n: import("shape").Node<StringConstructor | undefined>;
+        readonly p: any[];
+        readonly a: import("shape").Node<any>;
+        readonly m: {};
     }>;
     stringify: (...rest: any[]) => string;
     jsonify: () => any;
+    jsonSchema: () => any;
     toString: (this: any) => string;
     shape: {
         shape$: symbol;

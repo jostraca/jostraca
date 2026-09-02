@@ -31,9 +31,9 @@ the commit that made it is still in the log.
 |---|---|---|---|
 | 1.1 | global `control` discarded in TS | **fixed, holds** | global dryrun writes 0 files; per-call 0; no-dryrun baseline 4 |
 | 1.2 | `exclude: true` inverted in Go | **fixed, holds** | live clock, two runs: regenerates its own 20/20, preserves user edits 40/40 |
-| 2.1 | `error` field never populated | **half done** | one snapshot sets it; the known shapes are absent AND the bulk runners skip the volume on error rows |
+| 2.1 | `error` field never populated | **done** | runners now compare the tree on error rows; two more both-fail scenarios added, one with a non-empty partial tree |
 | 2.2 | directory-only state invisible | **fixed, holds** | `Vol()` returns nil for an empty dir; dry run creates none; TS materialises the `Folder` |
-| 2.3 | caller-side state | **1 of 3** | getx stamp swept; **`Hunks` still aliases** via the trailing flush; **TS still mutates the caller's options object** |
+| 2.3 | caller-side state | **done** | getx stamp swept; `Hunks` copies its suffixes; `generate` validates a copy of the caller's options |
 | 2.4 | shared bugs invisible by construction | **unchanged, by design** | #26 and #32 both still live and still byte-identical across stacks |
 | 3 | Go panic on nil-body Fragment | **fixed, holds** | no panic; emits `"A\n\nB\n"` |
 | 3 | Fragment `eject` never read in Go | **fixed, holds** | Go `"KEEP\n"` == TS `"KEEP\n"` on the same source |
@@ -41,13 +41,13 @@ the commit that made it is still in the log.
 | 3 | Copy inside File destroys the file (TS) | **fixed, holds** (#39) | `"BEFORE\nHELLO\nAFTER\n"`, and the copy still written to its own destination |
 | 3 | `List` `{item}` macro absent in Go | **fixed, holds** (#40) | Go `"n=p\nn=q\n\n"` |
 | 3 | `File{Mode: 0}`, per-call `Control` | documented as deviations | unchanged |
-| 4 | deviations lists | **three defects** | 22 bullets vs 20, a false claim about the README, and the stale `Cmp`-in-`Fragment` note — see §4 |
+| 4 | deviations lists | **done** | false claim deleted, `Cmp`-in-`Fragment` note corrected in both, grouping relationship stated — see §4 |
 | — | Go template non-determinism (#42) | **fixed, holds** | identical output across 25 fresh processes |
 | — | `Copy.exclude` (#28) | fixed, closed | **not re-probed** — closed before this pass, and nothing here touches it |
 | — | `List` string child (TS) (#44) | **fixed, holds** | `"n=p\nn=q\n\n"` |
 | — | txt/bin classification (#27) | **fixed in code, issue still open** | the two stacks now **agree**; see §3 |
 | — | Fragment filter on non-Slot children (#29) | **live, and worse than filed** | side effects 0 vs 3 — plus an *output* divergence the issue does not record |
-| — | binary compared against a string (#30) | **live** | TS writes `mod.old.wasm` for byte-identical content; Go does not |
+| — | binary compared against a string (#30) | **fixed** | `sameContent` compares bytes; pinned by `binary_copy_identical_no_backup` |
 | — | `WithMem`/`WithVol` inert (#37) | **live** | writes to the real filesystem, `Vol` nil, no error |
 | — | Windows blind spot (#22) | **closed in CI, issue still open** | the matrix runs `go test -race` on `windows-latest` |
 | — | corpus cannot express binary (#24) | **closed in code, issue still open** | b64 escape hatch; 1043 b64 values in the committed corpora |
@@ -103,7 +103,7 @@ rather than taken:
 |---|---|---|
 | diff/merge + fs | chmod comparison width | resolved |
 | | `MemFS.Vol()` reports directories | resolved |
-| | `Hunks` aliases the caller's arrays | **live** |
+| | `Hunks` aliases the caller's arrays | resolved |
 | template + getx + utils | getx `?` filter stamps the model | resolved |
 | | template non-determinism (#42) | resolved |
 | | slash-wrapped string eject marker | **live** (deviation) |
@@ -115,13 +115,14 @@ rather than taken:
 | | top-level siblings dropped (#21) | resolved |
 | | `Project` folder leaks (#26) | **live** (shared) |
 | | Fragment filter, non-Slot children (#29) | **live** |
+| | Fragment error path leaves different trees | **live** (new) |
 | FileHandler + modes | `exclude` timing in Go (§1.2) | resolved |
 | | txt/bin classification (#27) | resolved |
 | | `Copy.exclude` on directories (#28) | resolved (not re-probed) |
-| | binary compared against string (#30) | **live** |
+| | binary compared against string (#30) | resolved |
 | | `File{Mode: 0}` | **live** (deviation) |
 | options surface | global `control` discarded (§1.1) | resolved |
-| | TS mutates the caller's options object | **live** |
+| | TS mutates the caller's options object | resolved |
 | | `WithMem`/`WithVol` inert (#37) | **live** (deviation + open decision) |
 | | `Copy.exclude`, single-file (#32) | **live** (shared) |
 | | `mergeOptions` drops `Cmp`/`Name` | **live** (deviation) |
@@ -129,24 +130,30 @@ rather than taken:
 | parity machinery + docs | directory-only state (§2.2) | resolved |
 | | corpus cannot express binary (#24) | resolved |
 | | Windows blind spot (#22) | resolved |
-| | divergent failure modes (§2.1) | **live** |
-| | deviation lists accurate and mirrored (§4) | **live** |
+| | divergent failure modes (§2.1) | resolved |
+| | deviation lists accurate and grouped honestly (§4) | resolved |
 | | shared bugs invisible by construction (§2.4) | structural |
 
 | surface | tracked | resolved | live |
 |---|---|---|---|
-| components + op walker | 8 | 6 | 2 |
-| options surface | 6 | 1 | 5 |
-| parity machinery + docs | 6 | 3 | 2 (+1 structural) |
-| FileHandler + modes | 5 | 3 | 2 |
-| diff/merge + fs | 3 | 2 | 1 |
+| components + op walker | 9 | 6 | 3 |
+| options surface | 6 | 2 | 4 |
+| parity machinery + docs | 6 | 5 | 0 (+1 structural) |
+| FileHandler + modes | 5 | 4 | 1 |
+| diff/merge + fs | 3 | 3 | 0 |
 | template + getx + utils | 3 | 2 | 1 |
-| **total** | **31** | **17** | **13** (+1 structural) |
+| **total** | **32** | **22** | **9** (+1 structural) |
 
-Of the 13 live: **5 are recorded deviations** rather than defects, **2 are bugs
-both stacks share** (so not parity breaks at all), and **6 are real
-divergences** — `Hunks`, #29, #30, the TS options mutation, §2.1's coverage, and
-§4's documentation.
+Of the 9 live: **5 are recorded deviations** rather than defects, **2 are bugs
+both stacks share** (so not parity breaks at all), and **2 are real
+divergences** — #29, and the partial-tree difference on the Fragment error path
+found while implementing §2.1.
+
+Five of the six divergences the re-score listed have since been fixed:
+`Hunks` copies its suffixes, `generate` validates a copy of the caller's
+options, `sameContent` compares binary by bytes, §2.1's runners compare the
+tree on error rows, and §4's documentation defects are corrected. Each landed
+with a pin, because a fix with no pin is how this list refills.
 
 Four verdicts moved under re-probing, and one of those was this document's own
 first answer:
@@ -342,7 +349,7 @@ probe was real, ran, and proved nothing about the path that matters. A gate
 would have carried the shapes a hand-written probe forgets, which is the whole
 argument of this section, now demonstrated at the expense of its own author.
 
-### 2.1 Divergent failure modes — HALF DONE, and the top of the queue
+### 2.1 Divergent failure modes — DONE, and it found something
 
 **[re-verified v0.34.1]** The mechanism landed and one row uses it. The
 known divergent shapes are still absent, and the comparison is thinner than it
@@ -376,8 +383,24 @@ weaken the first:
    leaving *different* partial output pass. Adding throwing rows without fixing
    this buys an assertion that both sides threw, and no more.
 
-**Remaining fix**: make the runners compare volume on error rows, then add one
-row per known member.
+**Both halves are now done.**
+
+`go/scenario_corpus_test.go` and `go/copy_exclude_corpus_test.go` fall through
+to the same tree comparison every other row gets instead of `continue`-ing on
+a matched error. Two more both-stacks-fail scenarios are in the corpus:
+`copy_missing_source_errors` (nothing written) and
+`inject_missing_target_errors`, which fails in its after-hook with the project
+folder already made — so it pins a NON-EMPTY tree on an error path, which is
+the shape the `continue` used to hide.
+
+**And the pin immediately earned itself.** A third candidate was measured and
+deliberately not committed: a `Fragment` with a non-Slot child and no unnamed
+marker fails in both stacks, but leaves `/out/app` behind in Go and nothing in
+TS. Both throw; the partial trees differ. That is a live divergence of exactly
+the class this section exists to catch, found within an hour of building the
+gate for it, and it is not in the corpus yet because a knowingly-red row is not
+a gate. It is adjacent to #29 but distinct: #29 is about which children run,
+this is about what survives when the build stops.
 
 **The original finding, for the record.** Across the four corpora, the `error`
 field was never set:
@@ -435,15 +458,22 @@ snapshot carries the first `null` entries the corpus has ever held, and
 `assertVol` compares kinds before bytes, so a directory can never match an empty
 file.
 
-### 2.3 Caller-side state — 2 of 3 FIXED, one still live
+### 2.3 Caller-side state — ALL THREE FIXED
 
 **[re-verified v0.34.1]** Probed one instance at a time:
 
 | instance | at v0.34.1 |
 |---|---|
 | getx's `?` filter stamps the caller's model | **fixed** — `key$`/`index$` swept from rejected children too, on object and array nodes |
-| Go's `Hunks` returns slices aliasing the caller's arrays | **live** — see below |
-| TS mutates the caller's options object | **live** |
+| Go's `Hunks` returns slices aliasing the caller's arrays | **fixed** — the trailing flush copies, as canonical TS always did |
+| TS mutates the caller's options object | **fixed** — `generate` validates a copy |
+
+The class is closed, and each fix carries a pin: `TestHunksDoesNotAliasCallerSlices`
+runs every input shape that reaches the trailing flush,
+`generate-does-not-mutate-the-caller-options` asserts the caller's object is
+untouched, and `TestGenerateDoesNotMutateCallerOptions` holds the Go side over
+the maps its value-struct Options carries. Both new tests were run against the
+pre-fix code first; both fail there.
 
 **`Hunks` still aliases, and the first probe of it here was wrong.** The
 in-loop hunks are built with `append` onto nil slices, so those are fresh. The
@@ -524,7 +554,7 @@ measured here rather than trusted.
 | #26 | `Project` folder leaks to a following sibling | live, and identical on both sides — §2.4's example, not a parity break |
 | #27 | txt/bin chosen by different criteria | **fixed in code, issue still open.** `save` classifies by destination extension now (`ts/src/build/FileHandler.ts:290-291`, with the reasoning at `:278-289` naming this exact scenario), so both stacks give an ASCII-holding `a.png` to `existing.bin`. Measured both ways round. Close the issue. |
 | #29 | Fragment filter skipped for non-Slot children | **live, and worse than filed** — see below |
-| #30 | Buffer compared against string | live; TS writes `mod.old.wasm` beside byte-identical content, Go writes nothing |
+| #30 | Buffer compared against string | **fixed**; `sameContent` compares bytes, and `binary_copy_identical_no_backup` pins it. The fix changed no existing corpus row, which is why the pin was added |
 | #32 | `exclude` ignored for a single-file `Copy` | live, identical on both sides, and still frozen as expected output by the corpus |
 | #37 | `WithMem`/`WithVol` inert | live; writes to the real filesystem, returns `Vol` nil and no error |
 
@@ -554,26 +584,30 @@ was fixed toward Go, which is still the reason it reads the way it does.
 
 ## 4. Record
 
-The documented deviation lists are where a Go user actually looks, and
-**[re-verified v0.34.1]** they are not in the state this section previously
-claimed. Two defects, both in the direction that misleads:
+The documented deviation lists are where a Go user actually looks.
+**[re-verified v0.34.1]** Three defects were found and all three are fixed.
 
-**They are not mirrored.** `go/README.md` carries 22 deviation bullets;
-`docs/reference-go.md` carries 20. A reader who checks one and not the other
-gets a different list depending which they open.
+**The counts differ, and that one turned out to be fine.** `go/README.md`
+carries 22 deviation bullets, `docs/reference-go.md` 20. Checked
+topic-by-topic rather than by counting: every item in one has a home in the
+other. `reference-go.md` merges the inert `WithMem`/`WithVol` with the dropped
+`Cmp`/`Name` into a single bullet, and covers `Each.Raw` (`:287`) and
+`PointUtil` (`:364`) in its own sections rather than as deviation bullets.
+Nothing is missing either way, so the lists are left grouped as they are and
+`reference-go.md` now says so, instead of a future reader deriving it again.
 
-**`docs/reference-go.md` states something false about `go/README.md`.** At
-`:314-316` it says of the inert `WithMem`/`WithVol` and the dropped per-call
+**`docs/reference-go.md` stated something false about `go/README.md`.** At
+`:314-316` it said of the inert `WithMem`/`WithVol` and the dropped per-call
 `Cmp`/`Name`:
 
 > Neither is in `go/README.md`'s own deviations list.
 
-Both are in it. Whatever was true when that sentence was written, it now sends a
-reader looking for a gap that is not there — and, worse, implies the README is
-less complete than it is.
+Both are in it. Whatever was true when that sentence was written, it sent a
+reader looking for a gap that is not there and implied the README was less
+complete than it is. **Deleted.**
 
-**And one line in both is wrong about behaviour**, again flattering the port.
-Both lists say of a user component used as a direct `Fragment` child:
+**And one line in both was wrong about behaviour**, again flattering the port.
+Both lists said of a user component used as a direct `Fragment` child:
 
 > the "non-`Slot` child with no unnamed `<[SLOT]>` marker" error fires in TS and
 > not in Go for that one shape
@@ -582,11 +616,12 @@ That holds only when the component's body emits nothing. When it emits content,
 Go raises the same error TS does — measured in §3. The sentence needs the
 distinction, because as written it reads as though Go never raises it.
 
-The correction is a documentation fix, not a behaviour change, and it should not
-be made by aligning either stack: the underlying divergence is #29.
+**Corrected in both**, with the measured matrix rather than a single claim, and
+without aligning either stack: the underlying divergence is #29, which is a
+decision this document does not make on its own.
 
-All three want doing together, since anyone opening these files to fix one will
-be looking straight at the others.
+All three were done together, since anyone opening these files to fix one is
+looking straight at the others.
 
 ---
 
@@ -612,32 +647,33 @@ fails exactly where it matters most (§1.1).
 
 ## 6. Sequence
 
-Steps 1, 2, 4 (partly), and the §2.2/§2.3 pins are done. What is left, in the
-order it is worth doing:
+Steps 1, 2 and 4-6 of the previous list are done, each with a pin, because a
+fix with no pin is how this document refills. What is left is short, and two of
+the three are decisions rather than work.
 
-1. **§2.1, both halves.** Make the bulk runners compare the recorded volume on
-   an error row -- without that, every row added below asserts only that both
-   sides threw. Then add rows for the known shapes, starting with the empty-body
-   `Cmp`-inside-`Fragment` case from §3, already measured on both sides and
-   diverging in output. This is still where the compounding is, and still the
-   step worth protecting from being deprioritised.
-2. **Close #22, #24 and #27.** All three are fixed in the tree and open on the
-   tracker. #27 in particular reads as a live inversion to anyone triaging from
-   the issue list, and it is not one.
-3. **Re-file #29** with the measured matrix. It is an output divergence, not a
-   side-effect count, and today's title understates it.
-4. **The two caller-side instances left** (§2.3): copy the suffixes in
-   `Hunks`'s trailing flush, and stop `generate` writing shape's injected
-   defaults into the caller's own options object. The second is the one a user
-   hits without reaching for an internal; the first is a one-line copy.
-5. **#30**, which writes a spurious `.old` sidecar on every regeneration of an
-   unchanged binary.
-6. **The three §4 documentation defects**, together: reconcile the two lists
-   (22 bullets against 20), delete the false claim in `docs/reference-go.md`
-   that the README is missing two of them, and correct the `Cmp`-in-`Fragment`
-   line rather than deleting it.
+1. **Close #22, #24, #27 and #30, and re-file #29.** All five are wrong on the
+   tracker: four are fixed in the tree and open, and #29's title understates it
+   as a side-effect count when the empty-body shape diverges in OUTPUT. The
+   measured matrix is in §3 and in both deviation lists.
 
-#26, #32 and `File{Mode:0}` are deliberately not on this list: two are bugs both
-stacks share (§2.4) and one is a recorded deviation. #37 stays where it is until
-someone decides whether `WithMem` should work or should fail loudly; it is
-documented either way, which is the part that mattered.
+2. **The Fragment error-path divergence** found while building §2.1's gate:
+   both stacks reject a `Fragment` with a non-Slot child and no unnamed
+   marker, and Go leaves `/out/app` behind where TS leaves nothing. Small
+   enough to fix, but it is the same question as #29 seen from the error path,
+   so decide them together rather than twice.
+
+3. **#29 itself.** Aligning Go means giving `Cmp` a node, which changes the
+   shape of every Go component tree. That is a decision for the maintainer,
+   not a defect to be cleared, and it is why both deviation lists describe it
+   rather than promise it.
+
+Not on this list, deliberately: #26 and #32 are bugs both stacks share (§2.4),
+and `File{Mode:0}`, per-call `Control`, `mergeOptions` and the eject marker are
+recorded deviations. #37 stays where it is until someone decides whether
+`WithMem` should work or fail loudly; it is documented either way, which was
+the part that mattered.
+
+The one thing worth protecting: §2.1's gate is now live and found a divergence
+the same afternoon it was built. The next pin will do the same. That is the
+argument this document has been making since it was written, and it is the
+reason to keep building them rather than working the list of findings.

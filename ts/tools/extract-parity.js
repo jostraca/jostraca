@@ -302,6 +302,51 @@ async function main() {
     })
   })
 
+  // Two more scenarios that FAIL in both stacks, added because one row is
+  // not a gated class. Both were chosen by measuring candidates on both
+  // sides first: these two agree on the error AND on the partial tree the
+  // failed build leaves behind, which is the half the bulk runners used to
+  // skip. See PARITY_PLAN.md 2.1.
+  //
+  // A Copy whose source does not exist: rejected by the shape Check on
+  // `from` in TS, by CopyOp in Go. Neither writes anything.
+  await snapshot('copy_missing_source_errors', {}, () => {
+    Project({ folder: 'app' }, () => {
+      Copy({ from: '/src/does-not-exist.txt', to: 'a.txt' })
+    })
+  })
+
+  // An Inject whose target does not exist. Both fail in the AFTER hook,
+  // which is later than the Copy case above -- late enough that the project
+  // folder has already been made, so this row pins a NON-EMPTY partial tree
+  // on an error path. That is the shape that would have gone unnoticed.
+  await snapshot('inject_missing_target_errors', {}, () => {
+    Project({ folder: 'app' }, () => {
+      Inject({ name: 'does-not-exist.txt' }, () => Content('new content'))
+    })
+  })
+
+  // A binary Copy onto a target that ALREADY holds exactly those bytes,
+  // with bin.preserve on. Nothing should be backed up, because nothing
+  // changed.
+  //
+  // This is issue #30, and it went unnoticed because no corpus case reached
+  // it: `save` compared the incoming Buffer against the utf8 STRING loadFile
+  // returns, and `string === Buffer` is false whatever the bytes are, so a
+  // `.old.` backup of an identical file was written on every run. Go used
+  // bytes.Equal and was right. Fixing TS changed no existing row, which is
+  // exactly why this one is added. See PARITY_PLAN.md 3.
+  await snapshot('binary_copy_identical_no_backup', {
+    existing: { bin: { preserve: true } },
+  }, () => {
+    Project({ folder: 'app' }, () => {
+      Copy({ from: '/src/mod.wasm', to: 'mod.wasm' })
+    })
+  }, {
+    '/src/mod.wasm': Buffer.from([0x00, 0x01, 0xff, 0xfe, 0x89]),
+    '/out/app/mod.wasm': Buffer.from([0x00, 0x01, 0xff, 0xfe, 0x89]),
+  })
+
   // Inject between markers.
   await snapshot('inject_basic', {}, () => {
     Project({ folder: 'app' }, () => {

@@ -4,8 +4,7 @@
     "existing": {
       "txt": {
         "diff": true
-      },
-      "bin": {}
+      }
     }
   },
   "prepopulate": {

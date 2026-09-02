@@ -274,6 +274,11 @@ can agree on.
 Every difference below is deliberate, and each is either Go idiom or a
 consequence of the language.
 
+`go/README.md` carries the same set for a reader who is already in the
+repository. The two lists are not line-for-line: this one groups a few
+items that one keeps separate, and covers others in the sections above
+rather than as bullets. Neither omits anything the other has.
+
 **Shape of the API**
 
 - Components are methods on `*J`, not free functions. Receiver-shadowing
@@ -313,16 +318,31 @@ is no sort-by-property in Go.
   custom-constructor rule.
 - **`WithMem` and `WithVol` are inert**, and the option merge drops
   per-call `Cmp` and `Name`. Both are described above, with what to do
-  instead. Neither is in `go/README.md`'s own deviations list.
+  instead, and both are in `go/README.md`'s deviations list too.
 - `J.Cmp` runs its body inline without allocating a node, where the
   TypeScript `cmp()` allocates one and routes it through the fragment
-  filter. So a user component used as a direct `Fragment` child is a
-  non-`Slot` child in TypeScript and invisible in Go, and the
-  "non-`Slot` child with no unnamed marker" error fires in TypeScript
-  only. A component that *wraps* a `Slot` is broken in TypeScript today
-  — the slot name is never collected and the marker survives verbatim —
-  and Go handles it. Reconciling means giving `Cmp` a node, which
-  changes the shape of every Go component tree, so it stands.
+  filter. A user component used as a direct `Fragment` child is
+  therefore filtered out in TypeScript and runs in Go — once per replay
+  pass, so its side effects happen N times against TypeScript's zero.
+  What the two stacks then do depends on whether that body emits
+  anything:
+
+  | the component's body | TypeScript | Go |
+  |---|---|---|
+  | emits content | errors, body runs 0× | errors, body runs 3× |
+  | emits nothing | errors, body runs 0× | **no error**, writes the fragment, body runs 3× |
+
+  So the "non-`Slot` child with no unnamed marker" error fires in both
+  when the body emits content — Go's emitted content lands on the
+  fragment node and trips the same check — and in TypeScript only when
+  the body is silent, where Go completes and writes the file. That
+  second row is an output divergence; the side-effect count is the
+  lesser half of it.
+
+  A component that *wraps* a `Slot` is broken in TypeScript today — the
+  slot name is never collected and the marker survives verbatim — and Go
+  handles it. Reconciling means giving `Cmp` a node, which changes the
+  shape of every Go component tree, so it stands.
 - A **binary** single-file `Copy` nested inside a `File` splices its raw
   bytes into the enclosing file here; TypeScript contributes nothing and
   logs it. A Go string is a byte string; TypeScript's copy content is a
