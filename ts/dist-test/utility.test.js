@@ -508,5 +508,47 @@ const __1 = require("../");
         // data, not option structure -- so this asserts identity, not a copy.
         (0, expect_1.expect)(opts.model === model).true();
     });
+    // The injection is RECURSIVE, so the copy has to be. A one-level copy
+    // handed `cmp.Copy` straight through and shape wrote `ignore: []` into
+    // the caller's object two levels down -- measuring `existing` and `meta`,
+    // finding one level enough, and generalising is how that was missed.
+    //
+    // The RegExp assertion is the other half: `cmp.Copy.ignore` holds RegExp
+    // values, and copying a RegExp's enumerable properties is not copying it,
+    // so those have to survive as the same object.
+    (0, node_test_1.test)('generate-does-not-mutate-nested-caller-options', async () => {
+        const { fs } = (0, memfs_1.memfs)({});
+        // `Copy` is EMPTY on purpose. A `Copy` that already carries `ignore`
+        // gives the injection nothing to add, so it passes against a one-level
+        // copy and pins nothing -- which is what the first version of this test
+        // did.
+        const empty = {};
+        const opts = {
+            fs: () => fs,
+            folder: '/out',
+            cmp: { Copy: empty },
+            existing: { txt: { preserve: true } },
+        };
+        const before = JSON.stringify({
+            copyKeys: Object.keys(empty).sort(),
+            existing: opts.existing,
+        });
+        await Package.Jostraca({ now: () => 1735689600000 }).generate(opts, Package.cmp(() => Package.Project({ folder: 'p' }, () => {
+            Package.File({ name: 'a.txt' }, () => Package.Content('A'));
+        })));
+        (0, expect_1.expect)(JSON.stringify({
+            copyKeys: Object.keys(empty).sort(),
+            existing: opts.existing,
+        })).equal(before);
+        // And a `Copy` that DOES carry `ignore` keeps its RegExp as the same
+        // object: copying a RegExp's enumerable properties is not copying it.
+        const re = /~$/;
+        const ignore = [re];
+        await Package.Jostraca({ now: () => 1735689600000 }).generate({ fs: () => fs, folder: '/out', cmp: { Copy: { ignore } } }, Package.cmp(() => Package.Project({ folder: 'q' }, () => {
+            Package.File({ name: 'b.txt' }, () => Package.Content('B'));
+        })));
+        (0, expect_1.expect)(1 === ignore.length).true();
+        (0, expect_1.expect)(ignore[0] === re).true();
+    });
 });
 //# sourceMappingURL=utility.test.js.map

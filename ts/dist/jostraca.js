@@ -183,34 +183,48 @@ const ExistingShape = (0, shape_1.Shape)({
         // No merge of binary files
     }
 }, { name: 'Jostraca Options (`existing` property)' });
-// Copy an options object deeply enough that shape's injection cannot reach
-// the caller's own objects, and no more than that.
+// Copy an options object so shape's injection cannot reach the caller's own
+// objects, and no further than that.
 //
-// One level down through the option subtrees is enough: `existing` is the
-// only nested object measured to gain a key, and `txt`/`bin` inside it are
-// rebuilt from scratch further down anyway.
+// The injection is RECURSIVE, so this has to be: `{cmp: {Copy: {}}}` had its
+// `Copy` object handed straight through by a one-level copy, and shape wrote
+// `ignore: []` into the caller's object two levels down. Measuring `existing`
+// and `meta` and concluding one level was enough is how that was missed.
 //
-// `model` is deliberately left by reference. It is the caller's DATA rather
-// than option structure -- every component reads it through `ctx$.model` --
-// so cloning it per `generate` would change identity semantics and copy an
-// arbitrarily large object to guard against an injection that never touches
-// it. Values with a constructor of their own (Buffer, RegExp, Date, class
-// instances) are left alone for the same reason `deep` leaves them alone:
-// copying their enumerable properties is not copying them.
+// What is NOT copied, and why:
+//
+//   - `model` at the top level. It is the caller's DATA rather than option
+//     structure -- every component reads it through `ctx$.model` -- so
+//     cloning it per `generate` would change identity semantics and copy an
+//     arbitrarily large object to guard against an injection that does not
+//     touch it.
+//   - Anything carrying a constructor of its own: Buffer, RegExp, Date, a
+//     class instance. Copying their enumerable properties is not copying
+//     them, which is the rule `deep` follows for the same reason. A
+//     `cmp.Copy.ignore` entry is a RegExp, and must stay the same RegExp.
+//
+// `seen` keeps a shared reference shared and makes a cyclic options object
+// terminate rather than overflow the stack.
 function copyOptions(opts_in) {
-    if (null == opts_in || 'object' !== typeof opts_in) {
-        return opts_in;
+    return copyOptionTree(opts_in, new WeakMap(), true);
+}
+function copyOptionTree(val, seen, top) {
+    if (null == val || 'object' !== typeof val) {
+        return val;
     }
-    const out = { ...opts_in };
-    for (const key of Object.keys(out)) {
-        const val = out[key];
-        if ('model' !== key &&
-            null != val &&
-            'object' === typeof val &&
-            !Array.isArray(val) &&
-            Object === val.constructor) {
-            out[key] = { ...val };
-        }
+    const isArray = Array.isArray(val);
+    if (!isArray && Object !== val.constructor) {
+        return val;
+    }
+    const already = seen.get(val);
+    if (undefined !== already) {
+        return already;
+    }
+    const out = isArray ? [] : {};
+    seen.set(val, out);
+    for (const key of Object.keys(val)) {
+        out[key] = (top && 'model' === key) ? val[key] :
+            copyOptionTree(val[key], seen, false);
     }
     return out;
 }
