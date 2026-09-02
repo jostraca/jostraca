@@ -65,16 +65,13 @@ The documentation set lives in
 repository root, and is rendered at [jostraca.org](https://jostraca.org). It
 follows [Diátaxis](https://diataxis.fr):
 
-- **[Tutorial](https://github.com/jostraca/jostraca/blob/HEAD/docs/tutorial.md)**
-—build a generator from nothing, then run it again over hand-edited output.
-- **[How-to guides](https://github.com/jostraca/jostraca/blob/HEAD/docs/how-to/README.md)**
-—one page per task.
+- **[Tutorial](https://github.com/jostraca/jostraca/blob/HEAD/docs/tutorial.md)**. Build a generator from nothing, then run it again over hand-edited output.
+- **[How-to guides](https://github.com/jostraca/jostraca/blob/HEAD/docs/how-to/README.md)**. One page per task.
 - **Reference**—
   [components](https://github.com/jostraca/jostraca/blob/HEAD/docs/reference-components.md),
   [options](https://github.com/jostraca/jostraca/blob/HEAD/docs/reference-options.md),
   [utilities](https://github.com/jostraca/jostraca/blob/HEAD/docs/reference-utilities.md).
-- **[Explanation](https://github.com/jostraca/jostraca/blob/HEAD/docs/explanation.md)**
-—the two-phase model, and what it costs.
+- **[Explanation](https://github.com/jostraca/jostraca/blob/HEAD/docs/explanation.md)**. The two-phase model, and what it costs.
 
 Every example in those pages is executed by `ts/test/docs.test.ts`, which runs
 each snippet in a temp directory and compares the tree it wrote.

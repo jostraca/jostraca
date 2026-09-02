@@ -59,8 +59,9 @@ rather than the whole of `node:fs`. Six methods are required:
 `existsSync` is the one checked at runtime: a provider without it is
 rejected outright. The four on the right are tested with `typeof`
 before each call, so a partial provider is legitimate. Everything is
-synchronous, and `node:fs` satisfies the contract, so passing it
-directly still works.
+synchronous, and `node:fs` satisfies the contract—but it is the
+FACTORY that is the option, so pass `fs: () => nodeFs` rather than
+`fs: nodeFs`. The bare module fails options validation.
 
 `debug` is worth a note. Its shape declares `'info'` as an example
 value, not as a default, so nothing sets it when you omit it and the
