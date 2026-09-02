@@ -1,0 +1,9 @@
+{
+  "scenario": "inject_missing_target_errors",
+  "opts": {},
+  "prepopulate": {},
+  "error": true,
+  "vol": {
+    "/out/app": null
+  }
+}

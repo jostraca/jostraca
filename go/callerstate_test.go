@@ -2,6 +2,7 @@ package jostraca
 
 import (
 	"encoding/json"
+	"slices"
 	"testing"
 )
 
@@ -70,5 +71,57 @@ func TestGetXLeavesNoStampOnRejectedChildren(t *testing.T) {
 		if _, found := rejected[k]; found {
 			t.Errorf("rejected child kept bookkeeping key %q: %v", k, rejected)
 		}
+	}
+}
+
+// Hunks is EXPORTED, so what it returns is the caller's to keep and to
+// modify. It used to hand back the caller's own backing array: the loop
+// builds each hunk by appending onto a nil slice, so those own their
+// storage, but the trailing `flush(generated[gi:], existing[ei:])` passed
+// sub-slices straight through.
+//
+// Whether that was observable depended entirely on the input shape, which
+// is why one probe missed it: inputs sharing a first and last line leave
+// the trailing flush empty and nothing aliases. Every shape that reaches
+// it is covered here. Canonical TS copies (`generated.slice(gi)`), so this
+// pins Go to the behaviour TS always had. See PARITY_PLAN.md 2.3.
+func TestHunksDoesNotAliasCallerSlices(t *testing.T) {
+	cases := []struct {
+		name      string
+		generated []string
+		existing  []string
+	}{
+		{"no common line", []string{"a"}, []string{"b"}},
+		{"divergent tails", []string{"a", "b", "c"}, []string{"a", "X", "Y"}},
+		{"generated longer", []string{"a", "b", "c", "d"}, []string{"a"}},
+		{"existing longer", []string{"a"}, []string{"a", "b", "c", "d"}},
+		{"shared ends", []string{"a", "b", "c"}, []string{"a", "X", "c"}},
+		{"identical", []string{"a", "b"}, []string{"a", "b"}},
+		{"both empty", nil, nil},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			gen := slices.Clone(c.generated)
+			exi := slices.Clone(c.existing)
+			wantGen := callerStateJSON(t, gen)
+			wantExi := callerStateJSON(t, exi)
+
+			for _, h := range Hunks(gen, exi) {
+				for i := range h.Generated {
+					h.Generated[i] = "MUTATED"
+				}
+				for i := range h.Existing {
+					h.Existing[i] = "MUTATED"
+				}
+			}
+
+			if got := callerStateJSON(t, gen); got != wantGen {
+				t.Errorf("generated was mutated: got %s, want %s", got, wantGen)
+			}
+			if got := callerStateJSON(t, exi); got != wantExi {
+				t.Errorf("existing was mutated: got %s, want %s", got, wantExi)
+			}
+		})
 	}
 }

@@ -1,6 +1,7 @@
 package jostraca
 
 import (
+	"slices"
 	"strings"
 	"time"
 )
@@ -590,7 +591,15 @@ func Hunks(generated, existing []string) []Hunk {
 		ei++
 	}
 
-	flush(generated[gi:], existing[ei:])
+	// COPY the suffixes. Every hunk the loop above built owns its backing
+	// array, because `g`/`e` are appended onto nil slices -- but these two
+	// are sub-slices of the CALLER's arrays, and `flush` stores what it is
+	// given. A caller writing into a returned hunk was therefore writing
+	// into its own input. Canonical TS has always copied here
+	// (`generated.slice(gi)` in ts/src/diff.ts), so this was a port defect
+	// rather than a decision. `Hunks` is exported, which is what made it
+	// reachable on this side and not the other. See PARITY_PLAN.md 2.3.
+	flush(slices.Clone(generated[gi:]), slices.Clone(existing[ei:]))
 
 	return out
 }

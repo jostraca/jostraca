@@ -1,0 +1,7 @@
+{
+  "scenario": "copy_missing_source_errors",
+  "opts": {},
+  "prepopulate": {},
+  "error": true,
+  "vol": {}
+}

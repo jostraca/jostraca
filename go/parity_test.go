@@ -97,6 +97,25 @@ var scenarioRunners = map[string]func(j *J){
 			})
 		})
 	},
+	// Two more both-stacks-fail rows, added with the same reasoning as the
+	// one above: one row does not gate a class. Measured on both sides
+	// before being added -- they agree on the error AND on the partial tree,
+	// which assertVol below checks even for an error case.
+	//
+	// The Copy fails before anything is written; the Inject fails in its
+	// after-hook, by which time the project folder exists. That second row
+	// is the one that pins a NON-EMPTY tree on an error path.
+	// See PARITY_PLAN.md 2.1.
+	"copy_missing_source_errors": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.Copy(CopyProps{From: "/src/does-not-exist.txt", To: "a.txt"})
+		})
+	},
+	"inject_missing_target_errors": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.Inject("does-not-exist.txt", func(j *J) { j.Content("new content") })
+		})
+	},
 	"quickstart": func(j *J) {
 		j.Project(ProjectProps{Folder: "my-app"}, func(j *J) {
 			j.Folder("src", func(j *J) {
