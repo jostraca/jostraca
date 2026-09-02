@@ -418,9 +418,6 @@ same logical input:
   `*regexp.Regexp` / `RegExp` value behaves the same on both sides.
   Untested on either stack; TS is canonical, so Go is the side to change.
 
-Design background lives in [`PORT_PLAN.md`](./PORT_PLAN.md);
-per-phase implementation notes in [`BUILD_LOG.md`](./BUILD_LOG.md).
-
 ### Status
 
 The port is feature-complete for v1: all 9 components, all 5 existing-file
@@ -437,7 +434,7 @@ cd go && go build ./... && go test ./...
 
 From the repo root, `make all` builds and tests both the Go and TypeScript
 stacks. TypeScript is the source of truth: change it first, then bring Go
-into parity. See the top-level [`CLAUDE.md`](../CLAUDE.md).
+into parity.
 
 ## License
 

@@ -167,6 +167,61 @@ function stylePaths(): { file: string, abs: string }[] {
 }
 
 
+// Internal working documents: plans, decision records, build logs, review
+// notes, and the files that instruct contributors and agents. See
+// docs/STYLE-GUIDE.md, "Documentation does not cite internal documents".
+//
+// The NAME is banned as well as the link. "As the parity plan records"
+// strands a reader exactly as a URL does: the sentence cannot be acted on
+// without leaving the documentation, and the document it points at is
+// working material that moves with the code.
+const INTERNAL_DOCS: [RegExp, string][] = [
+  [/\bADRs?\b/, 'ADR'],
+  [/architecture decision record/i, 'architecture decision record'],
+  [/(?:^|[^\w.-])adr\//, 'adr/'],
+  [/\b[A-Z][A-Z0-9_]*_PLAN\.md\b/, 'a plan file'],
+  [/\b(?:parity|dependency|port|design) plan\b/i, 'a plan'],
+  [/\bBUILD_LOG\.md\b/, 'BUILD_LOG.md'],
+  [/\bCODE_REVIEW\.md\b/, 'CODE_REVIEW.md'],
+  [/\bCLAUDE\.md\b/, 'CLAUDE.md'],
+  [/\bAGENTS\.md\b/, 'AGENTS.md'],
+]
+
+
+// The reader-facing set: every page the site renders, plus the three
+// READMEs that land on GitHub, npm and pkg.go.dev.
+//
+// Deliberately NOT stylePaths(). adr/ is excluded because a decision record
+// citing the analysis it came from is doing its job -- the rule runs one
+// way, out of documentation only. STYLE-GUIDE.md is excluded because it
+// names the internal documents in order to ban them, the same exemption it
+// already holds for the banned phrases.
+function readerPaths(): { file: string, abs: string }[] {
+  const docs = stylePages()
+    .map((f) => ({ file: `docs/${f}`, abs: Path.join(DOCS_DIR, f) }))
+
+  // DOCS_PAGES narrows to pages under docs/, so a narrowed run leaves the
+  // READMEs alone rather than reporting on all of them.
+  const readmes = (null == narrowed())
+    ? ['README.md', 'ts/README.md', 'go/README.md']
+      .map((f) => ({ file: f, abs: Path.join(REPO, f) }))
+      .filter(({ abs }) => Fs.existsSync(abs))
+    : []
+
+  return [...docs, ...readmes]
+}
+
+
+// Fenced blocks blanked rather than dropped, so a reported line number
+// still matches the file. Inline code spans are KEPT: `CLAUDE.md` in a
+// sentence is the citation being banned, not an incidental token.
+function fenceless(md: string): string {
+  return lf(md).replace(
+    /^```[a-zA-Z0-9_-]*[ \t]*$[\s\S]*?^```[ \t]*$/gm,
+    (block) => block.replace(/[^\n]/g, ''))
+}
+
+
 // LINE ENDINGS ARE THE CHECKOUT'S BUSINESS, not this file's. git on
 // Windows checks out with CRLF by default and every pattern below
 // anchors on "\n", so without this the extractor would match zero
@@ -957,6 +1012,27 @@ describe('docs-style', () => {
     }
     Assert.deepEqual(hits, [],
       `emoji are not used in documentation:\n${hits.join('\n')}`)
+  })
+
+
+  // A repo-layout listing that happens to show CLAUDE.md is fine; it is
+  // inside a fence, and it makes no claim the reader has to follow.
+  test('no-internal-doc-references', () => {
+    const hits: string[] = []
+    for (const { file, abs } of readerPaths()) {
+      fenceless(Fs.readFileSync(abs, 'utf8'))
+        .split('\n')
+        .forEach((line, i) => {
+          for (const [re, name] of INTERNAL_DOCS) {
+            if (re.test(line)) {
+              hits.push(`${file}:${i + 1} "${name}": ${line.trim()}`)
+            }
+          }
+        })
+    }
+    Assert.deepEqual(hits, [],
+      'documentation cites an internal working document ' +
+      `(docs/STYLE-GUIDE.md):\n${hits.join('\n')}`)
   })
 
 

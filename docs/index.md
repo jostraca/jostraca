@@ -83,14 +83,15 @@ See [generate in memory](how-to/generate-in-memory.md).
 
 ## For contributors
 
+TypeScript is the source of truth. A behaviour change lands in `ts/src/`
+first and Go follows it; `make all` from the repository root builds and
+tests both stacks.
+
 - [The style guide](STYLE-GUIDE.md). How these pages are written:
   Diátaxis placement, the voice, the banned-phrase list, and the
   snippet directives under which every example runs.
-- [`CLAUDE.md`](https://github.com/jostraca/jostraca/blob/HEAD/CLAUDE.md). The contributor guide: layout, build and test commands, and the
-  rule that TypeScript is the source of truth.
 - [`test/spec/`](https://github.com/jostraca/jostraca/tree/HEAD/test/spec). The shared corpus. A change to any pure helper adds a row there
   rather than a case in one stack's suite.
-- [`go/PORT_PLAN.md`](https://github.com/jostraca/jostraca/blob/HEAD/go/PORT_PLAN.md). How the Go port was built and what it decided.
 
 If a page here is wrong, it is wrong in this repository. Fix it here;
 [jostraca.org](https://jostraca.org) renders these files rather than

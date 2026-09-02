@@ -415,11 +415,6 @@ generated from canonical TypeScript, and CI regenerates them and fails
 on any diff—so a TypeScript change cannot leave the Go expectations
 stale.
 
-Design background is in
-[`go/PORT_PLAN.md`](https://github.com/jostraca/jostraca/blob/HEAD/go/PORT_PLAN.md),
-and the per-phase implementation notes in
-[`go/BUILD_LOG.md`](https://github.com/jostraca/jostraca/blob/HEAD/go/BUILD_LOG.md).
-
 ## Build and test
 
 <!-- test: skip environment setup; the go toolchain is outside the scenario vocabulary -->
