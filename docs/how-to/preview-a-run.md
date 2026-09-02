@@ -46,7 +46,7 @@ out exists: false
 The report is the point: `files.written` names what a real run would
 write, so a wrapper command can print a plan and ask before doing it.
 The other arrays are filled in the same way, so a dry run over an
-existing tree tells you which files would be merged and which would
+existing tree shows which files would be merged and which would
 conflict.
 
 For the narrower question "what changed since last time", generate for

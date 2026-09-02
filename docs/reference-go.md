@@ -281,7 +281,7 @@ consequence of the language.
 
 `go/README.md` carries the same set for a reader who is already in the
 repository. The two lists are not line-for-line: this one groups a few
-items that one keeps separate, and covers others in the sections above
+items that one keeps separate, and covers others in the preceding sections
 rather than as bullets. Neither omits anything the other has.
 
 **Shape of the API**
@@ -303,7 +303,7 @@ is no sort-by-property in Go.
 
 **Language limits**
 
-- Go's `regexp` is RE2 and has no lookbehind, so a user-supplied regex
+- Go's `regexp` is RE2 and has no lookbehind, so a user-supplied regular expression
   key containing `(?<=…)` is rejected at compile time.
 - A template value that is an integer wider than 2^53 keeps its exact
   value in Go and loses precision in TypeScript, where every number is a
@@ -322,7 +322,7 @@ is no sort-by-property in Go.
   any value carrying a type of its own—which is TypeScript's
   custom-constructor rule.
 - **The option merge drops per-call `Cmp` and `Name`**, so
-  `cmp.Copy.ignore` has to be set on `New`. Described above, with what to
+  `cmp.Copy.ignore` has to be set on `New`. Described earlier, with what to
   do instead, and in `go/README.md`'s deviations list too.
 - A user component that *wraps* a `Slot` is broken in TypeScript—the
   slot name is never collected and the marker survives verbatim—and Go
@@ -385,8 +385,9 @@ is no sort-by-property in Go.
   `Object.keys()` with a stable sort. A Go map has no declaration order to
   reproduce. The two agree whenever declaration order is alphabetical.
 - An eject marker given as a slash-wrapped string (`"/START.*/"`) is
-  compiled as a regex here and matched literally by TypeScript. Passing a
-  real regex value behaves the same on both sides. TypeScript is
+  compiled as a regular expression here and matched literally by
+  TypeScript. Passing a
+  real regular-expression value behaves the same on both sides. TypeScript is
   canonical, so Go is the side to change.
 
 ## Concurrency

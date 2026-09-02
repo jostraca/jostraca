@@ -76,7 +76,7 @@ The generated `h.js`:
 /* acme */
 ```
 
-`ctx$` also carries `meta`, the filesystem provider and the resolved
+`ctx$` also carries `meta`, the filesystem provider, and the resolved
 output folder. Use `meta` for data that is about the run rather than
 about the output—Jostraca never reads it.
 

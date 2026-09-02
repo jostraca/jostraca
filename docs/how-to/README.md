@@ -57,7 +57,7 @@ Getting existing assets into the output, and setting how they land.
 
 ## Embedding Jostraca
 
-Driving the generator from your own tool, in memory or on disk.
+Driving the generator from your own tool, in memory, or on disk.
 
 - [Generate in memory](generate-in-memory.md). Run a generator on a virtual filesystem with mem, and read the result back from the volume.
 - [Report what a run did](report-what-a-run-did.md). Read the result arrays and the audit trail to tell a user what a generate changed.

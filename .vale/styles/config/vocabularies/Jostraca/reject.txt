@@ -71,7 +71,7 @@ quietly
 
 # --- The contrast frame and its cousins --------------------------------
 not just
-not only
+not only .{0,40}\bbut\b
 it'?s not about
 the whole game
 the entire point

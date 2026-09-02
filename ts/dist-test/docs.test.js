@@ -689,48 +689,29 @@ function rewriteSpecifier(source, url) {
     });
 });
 // ---------------------------------------------------------------------
-// The style gate: the enforceable subset of docs/STYLE-GUIDE.md's
-// banned list, applied to prose only — fences are code, and quoted
-// output inside them is the generator's business. Phrases whose
-// legitimate technical uses are common (surface as a noun, navigate a
-// tree) are left to review; what is listed here is banned in any
-// context these pages produce.
-const BANNED = [
-    [/\bworth noting\b/i, 'worth noting'],
-    [/\bimportant to note\b/i, 'important to note'],
-    [/\bat its core\b/i, 'at its core'],
-    [/\bwhen it comes to\b/i, 'when it comes to'],
-    [/\blet'?s break it down\b/i, 'let us break it down'],
-    [/\bdelve\b/i, 'delve'],
-    [/\bdive into\b/i, 'dive into'],
-    [/\brobust\b/i, 'robust'],
-    [/\bseamless(?:ly)?\b/i, 'seamless'],
-    [/\bcomprehensive(?:ly)?\b/i, 'comprehensive'],
-    [/\bholistic\b/i, 'holistic'],
-    [/\bleverag(?:e|es|ed|ing)\b/i, 'leverage'],
-    [/\bfoster(?:s|ed|ing)?\b/i, 'foster'],
-    [/\bshed(?:s|ding)? light on\b/i, 'shed light on'],
-    [/\bpav(?:e|es|ed|ing) the way\b/i, 'pave the way'],
-    [/\bpivotal\b/i, 'pivotal'],
-    [/\btransformative\b/i, 'transformative'],
-    [/\bgame.chang(?:er|ing)\b/i, 'game-changing'],
-    [/\bcutting.edge\b/i, 'cutting-edge'],
-    [/\bgroundbreaking\b/i, 'groundbreaking'],
-    [/\btestament to\b/i, 'testament to'],
-    [/\bparadigm shift\b/i, 'paradigm shift'],
-    [/\bnorth star\b/i, 'north star'],
-    [/\bkey takeaways\b/i, 'key takeaways'],
-    [/\bbest practices\b/i, 'best practices'],
-    [/\bat the end of the day\b/i, 'at the end of the day'],
-    [/\bload.bearing\b/i, 'load-bearing'],
-    [/\bheavy lifting\b/i, 'heavy lifting'],
-    [/\bnot just\b/i, 'the "not just X" contrast frame'],
-    [/\bhere'?s where it gets interesting\b/i, 'here is where it gets interesting'],
-    [/\bthe right (?:way|answer|tool|question)\b/i, 'the right way/answer/tool/question'],
-    [/\bworth (?:exploring|considering|a look)\b/i, 'the "worth X-ing" frame'],
-    [/\bthe whole game\b/i, 'the whole game'],
-    [/\bthat'?s the tell\b/i, 'that is the tell'],
-];
+// The style gate: the banned list from
+// .vale/styles/config/vocabularies/Jostraca/reject.txt, applied to
+// prose only — fences are code, and quoted output inside them is the
+// generator's business.
+//
+// The list is READ FROM THAT FILE, not copied here. Vale reads the same
+// file in CI, so the fast local gate and the CI prose gate cannot
+// disagree about what is banned; adding a phrase in one place arms
+// both. Phrases whose legitimate technical uses are common (`real`,
+// `shape`, `surface`, navigate a tree) are deliberately absent from it
+// — see "What is not banned, and why" in docs/STYLE-GUIDE.md.
+const REJECT_FILE = Path.join(REPO, '.vale', 'styles', 'config', 'vocabularies', 'Jostraca', 'reject.txt');
+// Vale matches reject.txt entries case-insensitively on word
+// boundaries; mirror exactly that so a phrase cannot pass one gate and
+// fail the other.
+function loadBanned() {
+    return Fs.readFileSync(REJECT_FILE, 'utf8')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => '' !== line && !line.startsWith('#'))
+        .map((pat) => [new RegExp(`\\b(?:${pat})\\b`, 'i'), pat]);
+}
+const BANNED = loadBanned();
 // Strip frontmatter, fenced blocks and inline code spans; what remains
 // is prose.
 function prose(md) {

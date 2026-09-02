@@ -11,7 +11,7 @@ costs.
 Code generation has an easy first run and a hard second one. The first
 run writes into an empty directory and everybody is pleased. The second
 run arrives weeks later, after the generated code has been checked in,
-read, debugged and edited by hand. A generator that treats the output
+read, debugged, and edited by hand. A generator that treats the output
 directory as scratch space deletes that work, silently, with a zero exit
 code.
 
@@ -94,7 +94,7 @@ interoperate.
 And a component called outside `generate()` has no context, so it
 throws. The error says so in as many words rather than failing with an
 undefined property read, because "cannot read properties of undefined"
-tells a caller nothing about the actual mistake.
+carries nothing about the actual mistake.
 
 ## Components, not a template dialect
 
@@ -148,8 +148,8 @@ lines, conflict markers go in and the file is reported in
 stopping.
 
 Choosing the previous generate rather than, say, an empty file is what
-makes hand edits survivable. It also means the guarantee is narrower
-than people expect, and the narrowness is deliberate:
+makes hand edits survivable. It also means the promise is narrower
+than readers expect, and the narrowness is deliberate:
 
 <!-- test: scenario merge-drops -->
 

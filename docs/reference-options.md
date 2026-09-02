@@ -356,7 +356,7 @@ TypeScript rewrites the identical bytes and lists the file under
 `merged`, with no conflict; Go does not write at all and records the
 file as skipped.
 
-### Merge needs a baseline, and degrades quietly without one
+### Merge needs a baseline, and degrades silently without one
 
 The merge ancestor is the copy under `.jostraca/generated/`. Where
 there is no such copy the merge cannot run, and the file is
@@ -409,7 +409,7 @@ The decision tree, the audit and the `files` arrays all report what
 
 **`duplicate`** writes a copy of each generated file to
 `.jostraca/generated/<relative path>` after every save. That copy is
-the merge ancestor, so turning this off disables `merge` (see above).
+the merge ancestor, so turning this off disables `merge` (see earlier).
 It is skipped for a path that resolves outside the output folder.
 
 **`version`** does exactly one thing: when `false`, `.jostraca/.gitignore`

@@ -125,10 +125,10 @@ substitution puts the value in as text and the surrounding JSON was
 already quoted the way it wanted to be.
 
 Two things are worth pinning down here. Substitution happens **inside
-content**, not in names: the project folder above is
+content**, not in names: the project folder shown earlier is
 `model.service.name`, an ordinary JavaScript expression, because a
 component call is a function call and you already have a language for
-that. And `$$path$$` has no conditionals, no loops and no expressions
+that. And `$$path$$` has no conditionals, no loops, and no expressions
 of its own. Anything harder belongs in the code around it.
 
 ## 4. One file per item
@@ -223,7 +223,7 @@ export function health() {
 }
 ```
 
-`Handler` never mentions a file, a folder or a path. It emits content,
+`Handler` never mentions a file, a folder, or a path. It emits content,
 and where that content lands is decided by whoever called it—which is
 what makes it reusable. A component receives its props as the first
 argument, always with `ctx$` added, so `props.ctx$.model` reaches the

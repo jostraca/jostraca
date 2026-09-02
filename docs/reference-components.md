@@ -202,7 +202,7 @@ File(props, children)
 
 | prop | type | default | effect |
 |---|---|---|---|
-| `name` | `string` |—| The file name. Slashes create nested directories. A `..` segment throws. Omitted, the file is literally called `undefined`. |
+| `name` | `string` |—| The filename. Slashes create nested directories. A `..` segment throws. Omitted, the file is literally called `undefined`. |
 | `exclude` | `boolean \| string \| (string\|RegExp)[]` |—| Skip the file, but **only when it already exists**. See below. |
 | `mode` | `number` | platform default | POSIX permission bits, re-applied after the atomic write-then-rename. |
 
@@ -405,7 +405,7 @@ An unnamed `<[SLOT]>` marker receives the fragment's non-`Slot`
 children. A named `<[SLOT:name]>` marker receives the matching `Slot`.
 
 Markers may be wrapped in comment decoration: any run of `- < ! / # *`
-before, and any run of `- > / # *` after, with optional spaces or tabs.
+before, and any run of `- > / # *` after, with optional spaces, or tabs.
 So all of these work, and the list is not exhaustive:
 
 ```
@@ -502,7 +502,7 @@ Inject(props, children)
 Children build the replacement body exactly as they would inside a
 `File`.
 
-Both markers are matched literally: regex metacharacters in a marker
+Both markers are matched literally: regular-expression metacharacters
 are escaped rather than interpreted. **Every** matching pair in the
 file is replaced, not only the first. The body is inserted verbatim, so
 `$&`, `$1` and `$$` in generated content survive.

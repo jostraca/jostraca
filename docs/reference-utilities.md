@@ -348,7 +348,7 @@ console.log(JSON.stringify(cmap(src, { x: cmap.FILTER((v) => [1 < v, v]) })))
 {"a":{"x":1}}
 ```
 
-Neither function has a dedicated test suite. Treat the behaviour above
+Neither function has a dedicated test suite. Treat the preceding behaviour
 as the specification and add a case when you rely on something else.
 
 ## `deep`
@@ -517,7 +517,7 @@ template(src, model, spec?) => string
 
 The substitution engine behind `Content`, `Fragment` and `Copy`.
 `$$path$$` resolves against the model with `getx`, so the full path
-grammar above is available. An unresolved path is **left in place**,
+grammar described earlier is available. An unresolved path is **left in place**,
 which is deliberate: a typo shows up in the output rather than
 vanishing.
 

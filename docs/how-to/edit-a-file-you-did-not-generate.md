@@ -61,7 +61,7 @@ export default router
 
 The default markers are `#--START--#\n` and `\n#--END--#`; give your
 own pair when the file's comment syntax needs it. Both are matched
-literally, so regex metacharacters in a marker are safe, and **every**
+literally, so regular-expression metacharacters in a marker are safe, and **every**
 matching pair in the file is replaced rather than only the first.
 
 Two failure modes, and they differ:

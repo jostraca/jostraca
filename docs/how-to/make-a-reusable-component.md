@@ -44,7 +44,7 @@ The generated `a.js`:
 export const a = 1
 ```
 
-`Banner` never mentions a file, a folder or a path. It emits content,
+`Banner` never mentions a file, a folder, or a path. It emits content,
 and its caller decides where that content lands. That is what makes it
 reusable, and it is the discipline to keep: a component that calls
 `File` is a section of a generator, not a building block.

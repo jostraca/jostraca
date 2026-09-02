@@ -58,7 +58,7 @@ export function handler(req) {
 The markers themselves are removed, so the extracted region needs no
 cleaning up afterwards.
 
-`eject` is forgiving in one direction only, and quietly: if either
+`eject` is forgiving in one direction only, and silently: if either
 marker is missing from the file, or the end marker comes before the
 start, or you pass a one-element array, the **whole** source is used
 instead. There is no error. Check the output the first time, and pin it
