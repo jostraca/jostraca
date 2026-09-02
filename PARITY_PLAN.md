@@ -46,9 +46,9 @@ the commit that made it is still in the log.
 | — | `Copy.exclude` (#28) | fixed, closed | **not re-probed** — closed before this pass, and nothing here touches it |
 | — | `List` string child (TS) (#44) | **fixed, holds** | `"n=p\nn=q\n\n"` |
 | — | txt/bin classification (#27) | **fixed in code, issue still open** | the two stacks now **agree**; see §3 |
-| — | Fragment filter on non-Slot children (#29) | **fixed** | `Cmp` allocates a node and goes through the filter; body runs 0 vs 0, and the output divergence is gone |
+| — | Fragment filter on non-Slot children (#29) | **fixed** | every node-allocating component goes through the filter — `Cmp` and `List` via a transparent node, `Content` before it renders; body runs 0 vs 0, and the output divergence is gone |
 | — | binary compared against a string (#30) | **fixed** | `sameContent` compares bytes; pinned by `binary_copy_identical_no_backup` |
-| — | `WithMem`/`WithVol` inert (#37) | **fixed** | `Mem` builds a MemFS, `Vol` seeds it, and a global one persists across calls |
+| — | `WithMem`/`WithVol` inert (#37) | **fixed** | `Mem` builds a MemFS, `Vol` seeds it (per-call merging over global), a global one persists across calls, and the handles come back from a define-only run too |
 | — | Windows blind spot (#22) | **closed in CI, issue still open** | the matrix runs `go test -race` on `windows-latest` |
 | — | corpus cannot express binary (#24) | **closed in code, issue still open** | b64 escape hatch; 1043 b64 values in the committed corpora |
 
@@ -706,6 +706,16 @@ Each was caught by running the PRE-FIX code against the new test, and by an
 adversarial reader asking which inputs reach the path. Neither step is
 optional; the first is cheap and mechanical, and it is the one that keeps
 being worth its cost.
+
+**Fixing one member of a family is not fixing the family.** #29 was filed
+against `Cmp`, so `Cmp` is what got the node, the filter call and the pin —
+and the pin passed. Review then found `Content` still rendering its template
+before asking, and `List` never allocating a node at all, both of them the
+same divergence under a different component. The pin was honest about `Cmp`
+and said nothing about its siblings. When a fix is "route X through the
+check", the next question is which other X there are; here the answer was
+every component that allocates a node, which is a list the code can be
+grepped for rather than recalled.
 
 **A fix with no pin is how this list refills.** #30 changed no existing corpus
 row — that is why it survived so long, and why the fix shipped with a new row
