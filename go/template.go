@@ -48,9 +48,18 @@ type TemplateSpec struct {
 
 var defaultMacroRE = regexp.MustCompile(`\$\$([^$]+)\$\$`)
 
+// eject is declared as a REPEATED-element array (one element spec), not a
+// fixed two-element tuple, matching TS's `Optional([One(String, RegExp)])`
+// in cmp/Fragment.ts. The tuple form broke under shape v0.5.0, which no
+// longer suppresses element validation when an Optional array is absent:
+// a spec with no eject reported both tuple slots missing. The repeated
+// form yields an empty slice when absent, still rejects a non-string
+// element, and closes a divergence -- a one-element eject is now accepted
+// by the schema and then not applied, which is what TS does (util/basic.ts
+// requires BOTH markers non-nil before it ejects).
 var templateSpecSchema = shape.MustShape(map[string]any{
 	"replace": shape.Optional(map[string]any{}),
-	"eject":   shape.Optional([]any{shape.String, shape.String}),
+	"eject":   shape.Optional([]any{shape.String}),
 })
 
 // ParseTemplateSpec validates and builds a TemplateSpec from a raw map.
@@ -72,7 +81,11 @@ func ParseTemplateSpec(raw map[string]any) (*TemplateSpec, error) {
 		spec.Replace = r
 	}
 
-	if e, ok := validated["eject"].([]any); ok && len(e) == 2 {
+	// Two OR MORE elements: TS reads eject[0] and eject[1] and ignores the
+	// rest (util/basic.ts), so a longer array applies its first pair
+	// rather than being discarded. Fewer than two cannot eject at all,
+	// since TS requires both markers non-nil.
+	if e, ok := validated["eject"].([]any); ok && len(e) >= 2 {
 		spec.Eject = e
 	}
 
@@ -821,13 +834,17 @@ func decomposeEject(eject any) (start, end any, ok bool) {
 		return v[0], v[1], true
 	case [2]any:
 		return v[0], v[1], true
+	// A slice carrying MORE than two markers yields its first pair, which
+	// is what TS does -- util/basic.ts indexes eject[0] and eject[1] and
+	// never looks past them. Requiring exactly two here silently disabled
+	// eject for a longer slice handed straight to TemplateSpec.Eject.
 	case []any:
-		if len(v) != 2 {
+		if len(v) < 2 {
 			return nil, nil, false
 		}
 		return v[0], v[1], true
 	case []string:
-		if len(v) != 2 {
+		if len(v) < 2 {
 			return nil, nil, false
 		}
 		return v[0], v[1], true

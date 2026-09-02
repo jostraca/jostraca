@@ -20,7 +20,7 @@ npm install jostraca
 ```
 
 `shape` is the only peer dependency, and npm installs it for you. It
-validates options, on a loose range (`shape >=10`). In-memory generation is
+validates options, on a loose range (`shape >=11`). In-memory generation is
 served by an in-repo filesystem (`src/util/memfs.ts`), so nothing else is
 installed for it.
 

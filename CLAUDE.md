@@ -98,7 +98,7 @@ so a case can never be silently ignored by one side.
   every other path starts from a populated one.
 - **`shape` engine warning.** `shape` may emit `EBADENGINE` on Node < 24; the
   build and tests still pass on Node 22. The peer range is intentionally
-  loose (`shape >=10`).
+  loose (`shape >=11`).
 - **`memfs` is in-repo, not imported.** `src/util/memfs.ts` is a port of
   `go/fs.go`'s MemFS wearing `node:fs` sync signatures. It replaced the
   `memfs` package, which cost 20 transitive packages for six required

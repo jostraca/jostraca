@@ -847,8 +847,9 @@ Not dependency questions, but found on the way and worth recording.
 5. **Dead code**: `defaultMacroRE` (`go/template.go:48`) is compiled and never
    referenced; `go/node.go:101` holds a `var _ = regexp.MustCompile` to keep an
    import alive; `name.exclude` is declared in both stacks and read by neither.
-6. **`go/PORT_PLAN.md`** names shape v0.1.0 against a v0.1.3 pin, says it
-   validates options when it never has, and lists two dependencies that never
-   landed (§5).
+6. **`go/PORT_PLAN.md`** says shape validates options when it never has, and
+   lists two dependencies that never landed (§5). The stale version number it
+   also carried is fixed — it now names the pin rather than a number that
+   drifts every upgrade.
 7. **`ts/test/parity-fidelity.test.ts:3`** claims to cover per-component shape
    validation; the file contains no such test.

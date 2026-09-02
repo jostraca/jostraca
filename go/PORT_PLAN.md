@@ -47,7 +47,7 @@ Go has no idiomatic equivalent: `goroutine`-local storage is non-standard and di
 
 **Constraints.**
 - Go module path stays `github.com/jostraca/jostraca/go` (`go/go.mod`).
-- The existing `github.com/rjrodger/shape/go v0.1.0` dependency continues to validate options — it already validates `TemplateSpec` in `template.go:24`.
+- The existing `github.com/rjrodger/shape/go` dependency (pinned at v0.5.0) continues to validate options — it already validates `TemplateSpec` in `template.go:24`.
 - Match TS behaviour where it's well-defined; deviate where Go idioms strongly favour an alternative, but flag every deviation explicitly (§14).
 
 ### 2. Threadlocal replacement — receiver-shadowing closure
