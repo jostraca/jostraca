@@ -79,6 +79,26 @@ When changing any pure helper (the name-case family, `template`, `deep`,
 row with no code change, and an unknown `fn` is a hard failure in both —
 so a case can never be silently ignored by one side.
 
+## Production dependencies need an ADR first
+
+**Do not add a production dependency without writing its ADR.** That is
+`dependencies` or `peerDependencies` in `ts/package.json`, and any non-test
+`require` in `go/go.mod`. A peer dependency counts: the consumer still installs
+it.
+
+The rule and its reasoning are [adr/0001](adr/0001-production-dependencies-require-an-adr.md);
+the one accepted dependency, `shape`, is [adr/0002](adr/0002-shape.md). Write
+the record before the change, not after: it exists to make the case at the
+moment the decision is still cheap to reverse.
+
+The published tree is one runtime dependency per stack, with nothing behind it.
+`jsonic`, `memfs` and a phantom `oxc-parser` were all removed after the fact,
+and removing `memfs` alone took 20 packages and 68,557 lines of JavaScript out
+of every consumer's install. Adding is one line; removing is a reimplementation.
+
+Development dependencies are out of scope. `typescript`, `@types/node` and the
+pinned Vale binary never reach a consumer.
+
 ## Gotchas
 
 - **Canonical paths in `FileHandler`.** Paths reaching `FileHandler` are already

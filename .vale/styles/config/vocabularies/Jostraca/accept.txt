@@ -75,3 +75,8 @@ declaratives
 declaratively
 repo
 [Mm]akefile
+
+# Decision-record vocabulary.
+[Rr]eimplement(?:s|ed|ing|ation)?
+allowlist
+else's
