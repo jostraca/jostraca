@@ -58,14 +58,14 @@ declare const PointDefShape: {
     <V>(root?: V | undefined, ctx?: import("shape").Context): V & {
         k: any;
         n: any;
-        p: any;
+        p: any[];
         a: any;
         m: {};
     };
     valid: <V>(root?: V | undefined, ctx?: import("shape").Context) => root is V & {
         k: import("shape").Node<StringConstructor>;
         n: import("shape").Node<StringConstructor>;
-        p: import("shape").Node<never[]>;
+        p: any[];
         a: import("shape").Node<unknown>;
         m: {};
     };
@@ -112,13 +112,12 @@ declare const PointDefShape: {
     node: () => import("shape").Node<{
         k: import("shape").Node<StringConstructor>;
         n: import("shape").Node<StringConstructor>;
-        p: import("shape").Node<never[]>;
+        p: any[];
         a: import("shape").Node<unknown>;
         m: {};
     }>;
     stringify: (...rest: any[]) => string;
     jsonify: () => any;
-    jsonSchema: () => any;
     toString: (this: any) => string;
     shape: {
         shape$: symbol;

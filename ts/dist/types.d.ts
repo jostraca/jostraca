@@ -37,7 +37,7 @@ type Node = {
     after?: any;
     exclude?: boolean | string | (string | RegExp)[];
     mode?: number;
-    indent?: string;
+    indent?: string | number;
     filter?: (props: any, children: any, component: any) => boolean;
     fullpath?: string;
     replace?: Record<string, any>;

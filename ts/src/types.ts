@@ -101,7 +101,14 @@ type Node = {
   // script executable. Unset leaves the platform default (or, when the
   // file already exists, its current mode).
   mode?: number
-  indent?: string
+
+  // string | number, because that is what `indent()` accepts and what the
+  // component reference promises: a number is that many spaces, a string is
+  // a literal prefix. It was declared `string` alone, and only Fragment
+  // could see the discrepancy -- the other components take untyped props,
+  // so `indent: 2` type-checked everywhere and was assigned into a field
+  // that said it could not hold it.
+  indent?: string | number
   filter?: (props: any, children: any, component: any) => boolean
   fullpath?: string
   replace?: Record<string, any>
