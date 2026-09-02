@@ -345,13 +345,20 @@ same logical input:
   passed to `New`. TypeScript has no equivalent hole.
 - `J.Cmp` runs its body inline without allocating a node, where TS's
   `cmp()` allocates one and routes it through the Fragment filter. A user
-  component used as a direct Fragment child is therefore a non-`Slot` child
-  in TS but invisible in Go, so the "non-`Slot` child with no unnamed
-  `<[SLOT]>` marker" error fires in TS and not in Go for that one shape. A
-  user component that *wraps* a `Slot` is already broken in TS today (the
-  slot name is never collected and the marker survives verbatim); Go
-  handles it. Not reconciled: aligning it means giving `Cmp` a node, which
-  changes the shape of every Go component tree.
+  component used as a direct Fragment child is therefore filtered out in
+  TS and runs in Go, once per replay pass -- so its side effects happen N
+  times against TS's zero. What follows depends on whether that body emits
+  anything: with content, Go's output lands on the fragment node and trips
+  the same "non-`Slot` child with no unnamed `<[SLOT]>` marker" error TS
+  raises, so both fail; with a silent body, TS still errors and Go
+  completes and writes the file. That second shape is an OUTPUT
+  divergence, not only a side-effect count. (This bullet used to say the
+  error fires in TS and not in Go, which is true of the silent shape and
+  wrong about the other.) A user component that *wraps* a `Slot` is
+  already broken in TS today (the slot name is never collected and the
+  marker survives verbatim); Go handles it. Not reconciled: aligning it
+  means giving `Cmp` a node, which changes the shape of every Go component
+  tree.
 - A **binary** single-file `Copy` nested inside a `File` splices its raw
   bytes into the enclosing file here; TS contributes nothing and logs it.
   A Go string is a byte string, so the bytes survive; TS's copy content is
