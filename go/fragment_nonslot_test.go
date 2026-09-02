@@ -49,3 +49,59 @@ func TestFragmentNonSlotChildWithoutDefaultSlot(t *testing.T) {
 		t.Fatalf("unnamed marker present, should be legal: %v", err)
 	}
 }
+
+// #29: a user component used as a direct Fragment child.
+//
+// TS wraps every component in cmp(), which consults the enclosing
+// Fragment's filter before allocating anything, so a non-Slot child's body
+// runs ZERO times during the scan and once per replay that accepts it. Go
+// ran `j.Cmp` inline with no node, so the filter never saw it: the body ran
+// on the scan walk and again on every replay pass -- three times against
+// TS's zero -- and with a silent body Go completed where TS aborted.
+//
+// Both counts are pinned here. The output side is pinned cross-stack by the
+// fragment_cmp_child_default_slot parity snapshot.
+func TestCmpChildOfFragmentGoesThroughTheFilter(t *testing.T) {
+	run := func(src string) (int, error, string) {
+		runs := 0
+		mem := NewMemFS()
+		_ = mem.WriteFile("/tpl/f.txt", []byte(src))
+		j := New(WithFS(mem), WithFolder("/out"), WithNow(func() int64 { return 1735689600000 }))
+		_, err := j.Generate(Options{}, func(j *J) {
+			j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+				j.File("a.txt", func(j *J) {
+					j.FragmentP(FragmentProps{From: "/tpl/f.txt"}, func(j *J) {
+						j.Cmp("Counter", func(j *J) { runs++; j.Content("H") })
+						j.SlotP(SlotProps{Name: "s0"}, func(j *J) { j.Content("S0") })
+					})
+				})
+			})
+		})
+		body, _ := mem.ReadFile("/out/app/a.txt")
+		return runs, err, string(body)
+	}
+
+	// An unnamed <[SLOT]> accepts the component: exactly one run, and its
+	// content lands at the marker.
+	runs, err, out := run("A<[SLOT]>B<[SLOT:s0]>C\n")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if runs != 1 {
+		t.Errorf("component body ran %d times, want 1", runs)
+	}
+	if out != "AHBS0C\n" {
+		t.Errorf("got %q, want %q", out, "AHBS0C\n")
+	}
+
+	// No unnamed marker: the filter rejects it on every pass, so the body
+	// never runs at all, and the build fails because its output would be
+	// silently discarded.
+	runs, err, _ = run("A<[SLOT:s0]>B\n")
+	if err == nil {
+		t.Error("expected an error with no unnamed <[SLOT]> marker")
+	}
+	if runs != 0 {
+		t.Errorf("component body ran %d times, want 0", runs)
+	}
+}

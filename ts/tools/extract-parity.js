@@ -10,7 +10,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 
 const {
-  Jostraca, Project, Folder, File, Content, Inject, Fragment, Slot, Copy, Line, List,
+  Jostraca, Project, Folder, File, Content, Inject, Fragment, Slot, Copy, Line, List, cmp,
 } = require('../dist/jostraca')
 
 const { memfs } = require('../dist/util/memfs')
@@ -345,6 +345,31 @@ async function main() {
   }, {
     '/src/mod.wasm': Buffer.from([0x00, 0x01, 0xff, 0xfe, 0x89]),
     '/out/app/mod.wasm': Buffer.from([0x00, 0x01, 0xff, 0xfe, 0x89]),
+  })
+
+  // A USER COMPONENT as a direct Fragment child, with an unnamed <[SLOT]>
+  // marker to receive it. Both stacks run its body exactly once -- during
+  // the default-slot replay -- and splice its content at the marker.
+  //
+  // This row could not have existed before #29 was closed. Go used to run
+  // the body once per replay pass and never route it through the Fragment
+  // filter, because `j.Cmp` allocated no node for the filter to see. Now it
+  // allocates a KindNone node, as TS's cmp() always has.
+  const Counter = cmp(function Counter() {
+    Content('H')
+  })
+
+  await snapshot('fragment_cmp_child_default_slot', {}, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'a.txt' }, () => {
+        Fragment({ from: '/tpl/f.txt' }, () => {
+          Counter({})
+          Slot({ name: 's0' }, () => Content('S0'))
+        })
+      })
+    })
+  }, {
+    '/tpl/f.txt': 'A<[SLOT]>B<[SLOT:s0]>C\n',
   })
 
   // Inject between markers.
