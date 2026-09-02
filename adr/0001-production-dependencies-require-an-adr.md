@@ -35,10 +35,17 @@ reimplementing it, and proving the suite still passes.
 **A production dependency may not be added to either stack without an ADR in
 this directory that justifies it.**
 
-Production means anything a consumer installs: `dependencies` and
-`peerDependencies` in `ts/package.json`, and any `require` in `go/go.mod` that
-is not test-only. A peer dependency counts—the consumer still installs it,
-and `shape` is a peer.
+Production means anything a consumer installs: `dependencies`,
+`peerDependencies` and `optionalDependencies` in `ts/package.json`, and any
+`require` in `go/go.mod` that is not test-only.
+
+The last two are named because the obvious reading of "production dependency"
+misses them. A peer dependency counts: the consumer still installs it, and
+`shape` is a peer. An optional one counts for the same reason—npm attempts
+the install, so it lands in the tree, carries the same install weight, and
+has the same supply-chain reach; only its *failure* is tolerated. A field that is
+empty today is exactly where a dependency would arrive without tripping this
+rule.
 
 The ADR must state, with numbers rather than adjectives:
 

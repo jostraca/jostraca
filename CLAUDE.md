@@ -82,9 +82,9 @@ so a case can never be silently ignored by one side.
 ## Production dependencies need an ADR first
 
 **Do not add a production dependency without writing its ADR.** That is
-`dependencies` or `peerDependencies` in `ts/package.json`, and any non-test
-`require` in `go/go.mod`. A peer dependency counts: the consumer still installs
-it.
+`dependencies`, `peerDependencies` or `optionalDependencies` in
+`ts/package.json`, and any non-test `require` in `go/go.mod`. Peer and optional
+both count: npm installs them into the consumer's tree either way.
 
 The rule and its reasoning are [adr/0001](adr/0001-production-dependencies-require-an-adr.md);
 the one accepted dependency, `shape`, is [adr/0002](adr/0002-shape.md). Write
