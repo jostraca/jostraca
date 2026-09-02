@@ -101,8 +101,7 @@ jostraca/
   `make publish` releases both (see the Makefile).
 
 When changing behaviour, change TypeScript first, then bring Go into
-parity—TS is the source of truth. See [`CLAUDE.md`](./CLAUDE.md) for the
-full contributor guide.
+parity—TS is the source of truth.
 
 ## License
 

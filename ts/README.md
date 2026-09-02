@@ -86,9 +86,8 @@ npm test        # node --test dist-test/**/*.test.js
 ```
 
 From the repository root, `make all` builds and tests both the TypeScript and
-Go stacks. See
-[`CLAUDE.md`](https://github.com/jostraca/jostraca/blob/HEAD/CLAUDE.md) for
-the contributor guide and
+Go stacks. TypeScript is the source of truth: change it first, then bring Go
+into parity. See
 [`go/README.md`](https://github.com/jostraca/jostraca/blob/HEAD/go/README.md)
 for the port.
 

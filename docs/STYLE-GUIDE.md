@@ -31,7 +31,7 @@ Two gates check it, and both run in CI:
 | Gate | Runs | Checks |
 |---|---|---|
 | `vale docs adr README.md ts/README.md` | `.github/workflows/docs.yml` | Google's rules plus the banned list, at the levels set in `.vale.ini` |
-| `ts/test/docs.test.ts` | `npm test` | the banned list, the em-dash ration, no emoji, and that every code snippet executes |
+| `ts/test/docs.test.ts` | `npm test` | the banned list, the em-dash ration, the first-person rules, no emoji, no internal-document citations, and that every code snippet executes |
 
 The banned list is read from one file by both, so they cannot drift.
 A Google rule sitting at `warning` rather than `error` was tried at
@@ -57,6 +57,49 @@ everything else links to it.
 
 `index.md` is the doorway and belongs to no kind: it routes, and states
 no fact of its own that a page below it does not also state.
+
+## Documentation does not cite internal documents
+
+**A documentation page never sends a reader to a plan, a decision
+record, a build log, or an agent instruction file.** Those are working
+documents: written for the people changing this repository, argued rather
+than stated, and stale the moment the code moves past them. A reader who
+follows a link out of the documentation and lands in one has been handed
+the project's notes in place of an answer.
+
+The internal set, by name:
+
+| Document | What it is |
+|---|---|
+| `adr/*.md` | decision records: what was decided, and the reasoning available at the time |
+| `PARITY_PLAN.md`, `DEPENDENCY_PLAN.md`, `go/PORT_PLAN.md` | analysis and recommendations, revised as the code moves |
+| `go/BUILD_LOG.md` | per-phase notes from building the Go port |
+| `CODE_REVIEW.md` | review findings |
+| `CLAUDE.md`, `AGENTS.md` | instructions to contributors and agents working in the repository |
+
+The ban covers the name as much as the link. "As the parity plan
+records" fails for the same reason the URL does: the reader still cannot
+act on the sentence without leaving the documentation.
+
+State the fact instead. "TypeScript is the source of truth; change it
+first, then bring Go into parity" is what a reader needs, and a link to
+the guide that also says so adds nothing to it. Where the fact belongs in
+the documentation and is missing, write it into the Diátaxis page that
+owns it rather than pointing outside.
+
+The rule runs one way. Internal documents cite each other and cite the
+documentation freely, because an ADR that does not show its working is
+not an ADR. Only the direction out of documentation is closed.
+
+Three things are not internal documents, and stay linkable. **Source** is
+code: `test/spec/`, a file under `ts/src/`, or the test a claim is pinned
+to. **This guide** is normative rather than exploratory, and it names the
+internal documents in order to ban them. **The other READMEs** are
+documentation themselves.
+
+`ts/test/docs.test.ts` enforces this over `docs/`, `docs/how-to/` and the
+three READMEs. Vale does not, because the set it lints includes `adr/`,
+where the citations are correct.
 
 ## The voice
 
@@ -172,9 +215,17 @@ matter is a gate people learn to switch off.
 | `surface` | `the option surface` is how the reference describes an API. |
 | `hold`, `carry`, `hands` | A slice holds bytes, a node carries meta, a function hands back a `Result`. |
 | `lives` | `the normative statement lives in the reference` is this guide, one section up. |
+| `decision record` | `audit()` emits one per file. The internal-document gate matches the citation shape (`as the decision record explains`), never the bare noun, for exactly this reason. |
 
 The rule behind the list: ban the phrase that adds nothing, never the
 word that names a thing.
+
+**Matching spans a line wrap.** These pages wrap near 72 columns and most
+of the list is multi-word, so the gate joins each paragraph before
+matching: `worth\nnoting` fails exactly as `worth noting` does. It was
+not always so, and the day the gate started reading paragraphs it found
+two phrases that had been passing since it was written, each saved only
+by where its line happened to break.
 
 **Patterns** (not mechanically checkable, enforced at review):
 
