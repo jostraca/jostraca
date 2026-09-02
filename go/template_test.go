@@ -311,3 +311,43 @@ func TestTemplateTagDashName(t *testing.T) {
 		t.Errorf("got %q, expected to contain 'Foo' as inner identifier", got)
 	}
 }
+
+// The eject schema is a repeated-element array, not a fixed two-element
+// tuple. shape v0.5.0 stopped suppressing element validation for an absent
+// Optional array, which made the tuple form reject a spec that simply had
+// no eject. These pin the four boundaries the repeated form has to hold,
+// all of them matching TS (cmp/Fragment.ts declares the same repeated
+// shape, and util/basic.ts requires BOTH markers before it ejects).
+func TestParseTemplateSpecEjectArity(t *testing.T) {
+	cases := []struct {
+		name    string
+		raw     map[string]any
+		wantErr bool
+		wantEj  bool // Eject populated
+	}{
+		{"absent", map[string]any{}, false, false},
+		{"pair", map[string]any{"eject": []any{"A", "B"}}, false, true},
+		// Accepted by the schema, then not applied -- TS does the same.
+		{"single", map[string]any{"eject": []any{"A"}}, false, false},
+		{"empty", map[string]any{"eject": []any{}}, false, false},
+		// Element validation must survive the change to the repeated form.
+		{"non-string element", map[string]any{"eject": []any{"A", 1}}, true, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			spec, err := ParseTemplateSpec(tc.raw)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got spec %+v", spec)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got := spec.Eject != nil; got != tc.wantEj {
+				t.Fatalf("Eject populated = %v, want %v (Eject=%v)", got, tc.wantEj, spec.Eject)
+			}
+		})
+	}
+}

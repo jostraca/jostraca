@@ -48,9 +48,18 @@ type TemplateSpec struct {
 
 var defaultMacroRE = regexp.MustCompile(`\$\$([^$]+)\$\$`)
 
+// eject is declared as a REPEATED-element array (one element spec), not a
+// fixed two-element tuple, matching TS's `Optional([One(String, RegExp)])`
+// in cmp/Fragment.ts. The tuple form broke under shape v0.5.0, which no
+// longer suppresses element validation when an Optional array is absent:
+// a spec with no eject reported both tuple slots missing. The repeated
+// form yields an empty slice when absent, still rejects a non-string
+// element, and closes a divergence -- a one-element eject is now accepted
+// by the schema and then not applied, which is what TS does (util/basic.ts
+// requires BOTH markers non-nil before it ejects).
 var templateSpecSchema = shape.MustShape(map[string]any{
 	"replace": shape.Optional(map[string]any{}),
-	"eject":   shape.Optional([]any{shape.String, shape.String}),
+	"eject":   shape.Optional([]any{shape.String}),
 })
 
 // ParseTemplateSpec validates and builds a TemplateSpec from a raw map.

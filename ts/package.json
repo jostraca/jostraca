@@ -42,7 +42,6 @@
     "typescript": "7.0.2"
   },
   "peerDependencies": {
-    "shape": ">=10"
-  },
-  "dependencies": {}
+    "shape": ">=11"
+  }
 }
