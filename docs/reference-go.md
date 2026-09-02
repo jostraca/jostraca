@@ -11,7 +11,7 @@ go get github.com/jostraca/jostraca/go
 ```
 
 TypeScript is the source of truth. When the two disagree, TypeScript
-wins and Go is the one that changes — see the
+wins and Go is the one that changes—see the
 [explanation](explanation.md#two-implementations) for why that rule and
 not a better-looking one.
 
@@ -84,7 +84,7 @@ more than one prop, a `…P` variant taking a props struct.
 | method | props struct | fields |
 |---|---|---|
 | `Project(ProjectProps, body)` | `ProjectProps` | `Name`, `Folder` |
-| `Folder(name, body)` | — | — |
+| `Folder(name, body)` |—|—|
 | `File(name, body)` / `FileP(FileProps, body)` | `FileProps` | `Name`, `Exclude any`, `Mode fs.FileMode` |
 | `Content(src)` / `ContentP(ContentProps)` | `ContentProps` | `Src`, `Name`, `Indent any`, `Replace map[string]any`, `Extra map[string]any` |
 | `Line(src)` / `LineP(ContentProps)` | as `Content` | |
@@ -93,13 +93,13 @@ more than one prop, a `…P` variant taking a props struct.
 | `Inject(name, body)` / `InjectP(InjectProps, body)` | `InjectProps` | `Name`, `Markers`, `Exclude` |
 | `Copy(CopyProps)` | `CopyProps` | `From`, `To`, `Exclude`, `Replace` |
 | `List(items, body)` / `ListP(ListProps, body)` | `ListProps` | `Item`, `Indent`, `NoLine` |
-| `Cmp(name, fn)` | — | a user component |
+| `Cmp(name, fn)` |—| a user component |
 
 `List`'s body signature is `func(j *J, it ListItemProps)`, mirroring the
 `{item, indent, replace}` object TypeScript hands each child.
 `ListItemProps` carries `Item any`, `Indent any` and
 `Replace map[string]any`. The last two are meant to be passed straight
-through — neither does anything on its own:
+through—neither does anything on its own:
 
 <!-- test: skip a Go sample; the body signature is pinned by go/list_item_test.go and the list_item_macro parity snapshot -->
 ```go
@@ -161,7 +161,7 @@ Three rules, all shared with TypeScript:
 - **An explicit provider beats both.** `WithFS(mem)` wins over `WithMem()`,
   as `opts.fs` wins there.
 - **A global `Mem` is reused across `Generate` calls**, so a second run
-  regenerates over the first run's output — unless that call passes its own
+  regenerates over the first run's output—unless that call passes its own
   `Vol`, which seeds a fresh volume.
 
 An explicit provider is still the right choice when a test wants to seed
@@ -190,8 +190,8 @@ no `WithCmp`. Verified with a `Copy` and an ignore pattern:
 
 | where the ignore list was set | what was copied |
 |---|---|
-| `Generate(Options{Cmp: …})` | `keep.txt` **and** `skip.log` — ignored |
-| a global option on `New` | `keep.txt` only — honoured |
+| `Generate(Options{Cmp: …})` | `keep.txt` **and** `skip.log`—ignored |
+| a global option on `New` | `keep.txt` only—honoured |
 
 So the only route to `Options.Cmp.Copy.Ignore` today is a hand-written
 option closure passed to `New`:
@@ -240,8 +240,8 @@ type Files struct {
 `Audit` is `[]AuditEntry`, each `{Tag string; Data map[string]any}`.
 
 `Vol` snapshots the volume: every file's content, plus a **nil** entry for
-every empty directory. A directory appears only while it is empty —
-otherwise its children stand for it — mirroring TypeScript's
+every empty directory. A directory appears only while it is empty—otherwise
+its children stand for it—mirroring TypeScript's
 `vol.toJSON()`, which records one as `null`. An empty *file* is a non-nil
 zero-length slice, so a caller that wants files alone should test
 `v != nil` rather than `len(v) > 0`.
@@ -281,7 +281,7 @@ consequence of the language.
 
 `go/README.md` carries the same set for a reader who is already in the
 repository. The two lists are not line-for-line: this one groups a few
-items that one keeps separate, and covers others in the sections above
+items that one keeps separate, and covers others in the preceding sections
 rather than as bullets. Neither omits anything the other has.
 
 **Shape of the API**
@@ -303,7 +303,7 @@ is no sort-by-property in Go.
 
 **Language limits**
 
-- Go's `regexp` is RE2 and has no lookbehind, so a user-supplied regex
+- Go's `regexp` is RE2 and has no lookbehind, so a user-supplied regular expression
   key containing `(?<=…)` is rejected at compile time.
 - A template value that is an integer wider than 2^53 keeps its exact
   value in Go and loses precision in TypeScript, where every number is a
@@ -319,19 +319,19 @@ is no sort-by-property in Go.
   skips `undefined`, while a `nil` map value or slice element
   overwrites, as TypeScript's `null` does. Only `[]any` merges by index;
   a typed slice such as `[]string` takes the right-wins path, as does
-  any value carrying a type of its own — which is TypeScript's
+  any value carrying a type of its own—which is TypeScript's
   custom-constructor rule.
 - **The option merge drops per-call `Cmp` and `Name`**, so
-  `cmp.Copy.ignore` has to be set on `New`. Described above, with what to
+  `cmp.Copy.ignore` has to be set on `New`. Described earlier, with what to
   do instead, and in `go/README.md`'s deviations list too.
-- A user component that *wraps* a `Slot` is broken in TypeScript — the
-  slot name is never collected and the marker survives verbatim — and Go
+- A user component that *wraps* a `Slot` is broken in TypeScript—the
+  slot name is never collected and the marker survives verbatim—and Go
   matches it. `J.Cmp` allocates a `kind: 'none'` node and passes through
   the Fragment filter, as TypeScript's `cmp()` does, so a user component
   used as a direct `Fragment` child behaves identically on both sides: the
   filter rejects it on the scan, an unnamed `<[SLOT]>` marker accepts it
   once, and without such a marker the build fails on both. Until v0.35.0
-  Go ran the body inline with no node, so the filter never saw it — three
+  Go ran the body inline with no node, so the filter never saw it—three
   runs against TypeScript's zero, and a silent body wrote the file where
   TypeScript aborted. See #29.
 - A **binary** single-file `Copy` nested inside a `File` splices its raw
@@ -343,8 +343,8 @@ is no sort-by-property in Go.
   identically on both sides, and the copy itself is written intact either
   way.
 - A template macro resolving to a **`[]byte`** renders as Go's
-  `[104 105]`, and to a **pointer** as `&{1 x}`. Every other composite —
-  maps, slices, arrays and structs, of any element type — JSONifies with
+  `[104 105]`, and to a **pointer** as `&{1 x}`. Every other composite—maps,
+  slices, arrays and structs, of any element type—JSONifies with
   keys sorted at every depth, matching TypeScript. Neither exception has
   an obvious right answer: `encoding/json` renders a byte slice as base64
   while TypeScript renders a `Buffer` through its `toJSON` as
@@ -385,8 +385,9 @@ is no sort-by-property in Go.
   `Object.keys()` with a stable sort. A Go map has no declaration order to
   reproduce. The two agree whenever declaration order is alphabetical.
 - An eject marker given as a slash-wrapped string (`"/START.*/"`) is
-  compiled as a regex here and matched literally by TypeScript. Passing a
-  real regex value behaves the same on both sides. TypeScript is
+  compiled as a regular expression here and matched literally by
+  TypeScript. Passing a
+  real regular-expression value behaves the same on both sides. TypeScript is
   canonical, so Go is the side to change.
 
 ## Concurrency
@@ -411,7 +412,7 @@ one.
 
 Beyond that, `go/testdata/parity/` holds whole-scenario fixtures
 generated from canonical TypeScript, and CI regenerates them and fails
-on any diff — so a TypeScript change cannot leave the Go expectations
+on any diff—so a TypeScript change cannot leave the Go expectations
 stale.
 
 Design background is in

@@ -6,8 +6,8 @@ order: 20
 
 # Extract part of a template
 
-Sometimes the file you want to borrow from is a working file — one that
-compiles, or runs, or that somebody maintains for its own sake — and you
+Sometimes the file you want to borrow from is a working file—one that
+compiles, or runs, or that somebody maintains for its own sake—and you
 want one region of it. `eject` takes the region between two markers and
 discards everything else, markers included.
 
@@ -58,7 +58,7 @@ export function handler(req) {
 The markers themselves are removed, so the extracted region needs no
 cleaning up afterwards.
 
-`eject` is forgiving in one direction only, and quietly: if either
+`eject` is forgiving in one direction only, and silently: if either
 marker is missing from the file, or the end marker comes before the
 start, or you pass a one-element array, the **whole** source is used
 instead. There is no error. Check the output the first time, and pin it

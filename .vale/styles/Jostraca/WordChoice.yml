@@ -1,0 +1,22 @@
+# The parts of Google.WordListCase that are right for this project,
+# carried as our own rule so they can sit at error level.
+#
+# Google.WordListCase itself is a WARNING here (see .vale.ini): it maps
+# `touch` to `tap`, which is a mobile-UI rule and wrong nine times over
+# in docs that discuss touching a file. These three substitutions have
+# no such collision.
+extends: substitution
+message: "Use '%s' instead of '%s'."
+link: 'https://developers.google.com/style/word-list'
+level: error
+ignorecase: true
+action:
+  name: replace
+swap:
+  # "above" and "below" assume the reader sees a visual layout; a screen
+  # reader does not. Google's accessibility guidance, and it is right.
+  (?:the )?above: preceding
+  regexes: regular expressions
+  regex: regular expression
+  file name: filename
+  file names: filenames

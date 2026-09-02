@@ -40,7 +40,7 @@ Alice: admin
 Bob: user
 ```
 
-Two things in that call are easy to get wrong, and both fail quietly.
+Two things in that call are easy to get wrong, and both fail silently.
 
 **`replace` must be threaded through the props form.** The `{item.…}`
 substitution arrives in the `replace` object the child is handed, and
@@ -50,7 +50,7 @@ marker text verbatim. Use `Content({src: …, replace})`.
 
 **`line: false` turns off the trailing newline.** By default `List`
 emits one after the whole list, and only the exact value `false`
-disables it — `line: 0` still emits.
+disables it—`line: 0` still emits.
 
 `{item.path}` resolves with the same path grammar as `getx`, so
 `{item.a.b}` works. It cannot address a `$`-suffixed key, though, so

@@ -37,8 +37,8 @@ Jostraca Options: Validation failed for object "{folder:/out,bogus:1}" because t
 | `log` | `Log` | a console logger | Receives `log.debug` warnings, and nothing else. |
 | `debug` | `string` | `'.'` | Must be a string; a boolean throws. Truthy makes `cmp()` stamp a callsite on each node. |
 | `build` | `boolean` | `true` | Run the build phase. `false` runs define only and writes nothing. |
-| `mem` | `boolean` | — | Generate onto an in-memory filesystem. |
-| `vol` | `object` | — | Seed for the in-memory filesystem. Does nothing without `mem`. |
+| `mem` | `boolean` |—| Generate onto an in-memory filesystem. |
+| `vol` | `object` |—| Seed for the in-memory filesystem. Does nothing without `mem`. |
 | `existing` | `{txt, bin}` | see below | What to do with a file that already exists. |
 | `control` | `{dryrun, duplicate, version}` | see below | See [Control](#control). |
 | `cmp.Copy.ignore` | `RegExp[]` | `[/~$/]` | Extra names for `Copy` to skip. |
@@ -59,12 +59,13 @@ rather than the whole of `node:fs`. Six methods are required:
 `existsSync` is the one checked at runtime: a provider without it is
 rejected outright. The four on the right are tested with `typeof`
 before each call, so a partial provider is legitimate. Everything is
-synchronous, and `node:fs` satisfies the contract, so passing it
-directly still works.
+synchronous, and `node:fs` satisfies the contract—but it is the
+FACTORY that is the option, so pass `fs: () => nodeFs` rather than
+`fs: nodeFs`. The bare module fails options validation.
 
 `debug` is worth a note. Its shape declares `'info'` as an example
 value, not as a default, so nothing sets it when you omit it and the
-fallback is the string `'.'` — which is truthy. Debug callsite stamping
+fallback is the string `'.'`—which is truthy. Debug callsite stamping
 is therefore **on** by default.
 
 ### Options that exist and do nothing
@@ -95,9 +96,9 @@ is a table rather than a sentence:
 | `model` | per-call **replaces** wholesale | yes, replaced rather than merged |
 | `existing.txt` / `existing.bin` | deep merge, per key | yes |
 | `cmp` | deep merge over the built-in default | yes |
-| `build` | — | **no. The global value is silently ignored.** |
-| `control.*` | — | **no. The global value is silently ignored.** |
-| `exclude` | — | **no. The global value is silently ignored.** |
+| `build` |—| **no. The global value is silently ignored.** |
+| `control.*` |—| **no. The global value is silently ignored.** |
+| `exclude` |—| **no. The global value is silently ignored.** |
 
 The cause is one asymmetry in the shape. Keys declared as optional are
 simply absent when you omit them, so the `null ==` test that falls back
@@ -131,7 +132,7 @@ Set `build`, `control` and `exclude` on the `generate()` call.
 `when` is the *start* stamp, not the end.
 
 Paths in `files` are folder-prefixed and forward-slashed, exactly as
-they were passed to the writer — not relative to the output folder. A
+they were passed to the writer—not relative to the output folder. A
 relative `folder` keeps them relative.
 
 `files.unchanged` means byte-identical and therefore not rewritten. A
@@ -176,10 +177,10 @@ guessable:
 1. A file that **does not exist** is always written, whatever the flags
    say.
 2. The existing content is read, and checked for `JOSTRACA_PROTECT`.
-3. `preserve` — take the `.old` backup, unless protected.
-4. `write` **else if** `present` — so **`present` does nothing unless
+3. `preserve`—take the `.old` backup, unless protected.
+4. `write` **else if** `present`—so **`present` does nothing unless
    `write: false`.**
-5. `diff` **else if** `merge` — so **`diff` wins; they never both
+5. `diff` **else if** `merge`—so **`diff` wins; they never both
    run.** `diff` also forces the write off.
 6. Write, or record that the content was unchanged.
 7. Refresh the merge baseline under `.jostraca/generated/`, in every
@@ -306,7 +307,7 @@ A diffed file whose content differs is always reported in
 `files.conflicted` as well as `files.diffed`.
 
 **`merge: true`** performs a three-way merge against the previous
-generate. Where both sides changed the same region, markers go in —
+generate. Where both sides changed the same region, markers go in—
 **generated side first, with a `=======` separator**, which is the
 opposite arrangement from the two-way diff:
 
@@ -356,11 +357,11 @@ TypeScript rewrites the identical bytes and lists the file under
 `merged`, with no conflict; Go does not write at all and records the
 file as skipped.
 
-### Merge needs a baseline, and degrades quietly without one
+### Merge needs a baseline, and degrades silently without one
 
 The merge ancestor is the copy under `.jostraca/generated/`. Where
 there is no such copy the merge cannot run, and the file is
-**overwritten** instead — no error, no warning. That happens when:
+**overwritten** instead—no error, no warning. That happens when:
 
 - `control.duplicate` is `false`, so no baseline is ever written;
 - the file is new, so there is no previous generate;
@@ -377,8 +378,8 @@ The suffix goes before the extension: `a.txt` becomes `a.old.txt`, and
 ## `JOSTRACA_PROTECT`
 
 The literal string `JOSTRACA_PROTECT`, appearing **anywhere** in the
-file that is already on disk. Not a line, not a comment, not anchored —
-a substring. The generated content is never checked, only the existing
+file that is already on disk. Not a line, not a comment, not anchored—a
+substring. The generated content is never checked, only the existing
 file.
 
 A protected file is never overwritten. `preserve` takes no backup,
@@ -390,8 +391,8 @@ baseline is still refreshed.
 `write` arm, and the `present` arm does not repeat it. So with
 `{write: false, present: true}` a protected file keeps its bytes and
 still gets a `.new` sidecar, and is reported in `files.presented`. That
-is arguably the useful behaviour — the reader can see what they are
-declining — but it is not what "skipped under every mode" would lead
+is arguably the useful behaviour—the reader can see what they are
+declining—but it is not what "skipped under every mode" would lead
 you to expect.
 
 ## Control
@@ -404,12 +405,12 @@ Set these on the `generate()` call; a global `control` is ignored.
 
 **`dryrun`** guards every mutation while letting everything else run.
 The decision tree, the audit and the `files` arrays all report what
-*would* have happened, and nothing is created — not even the
+*would* have happened, and nothing is created—not even the
 `.jostraca` folder.
 
 **`duplicate`** writes a copy of each generated file to
 `.jostraca/generated/<relative path>` after every save. That copy is
-the merge ancestor, so turning this off disables `merge` (see above).
+the merge ancestor, so turning this off disables `merge` (see earlier).
 It is skipped for a path that resolves outside the output folder.
 
 **`version`** does exactly one thing: when `false`, `.jostraca/.gitignore`
@@ -544,7 +545,7 @@ bypasses the audited writer.
 
 `exclude: true` on the `generate()` call skips any output file that
 exists and whose mtime is later than the previous build's completion
-stamp — a "do not touch what the user has been editing" switch. An
+stamp—a "do not touch what the user has been editing" switch. An
 excluded file appears in **none** of the `files` arrays.
 
 Two limits: the global form is ignored (see the override table), and

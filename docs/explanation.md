@@ -1,7 +1,7 @@
 # Explanation: why Jostraca is shaped this way
 
 This page argues the design. It is not the place to look up a prop or
-follow a recipe — the [component reference](reference-components.md) and
+follow a recipe—the [component reference](reference-components.md) and
 the [how-to guides](how-to/README.md) do those jobs. Read this to build
 a model of why the pieces sit where they do, and what the arrangement
 costs.
@@ -11,7 +11,7 @@ costs.
 Code generation has an easy first run and a hard second one. The first
 run writes into an empty directory and everybody is pleased. The second
 run arrives weeks later, after the generated code has been checked in,
-read, debugged and edited by hand. A generator that treats the output
+read, debugged, and edited by hand. A generator that treats the output
 directory as scratch space deletes that work, silently, with a zero exit
 code.
 
@@ -36,12 +36,12 @@ The order matters more than it looks. Because the entire intended output
 exists before the first byte is written, the build phase can ask
 questions a streaming generator cannot answer:
 
-- Does this file already exist, and does its content differ from what I
-  am about to write?
-- Is it the same as what I wrote last time, so there is nothing to do?
-- Does it carry a marker saying it has been taken out of my hands?
-- If it has changed since my last run, which of the changes are mine and
-  which are the user's?
+- Does this file already exist, and does its content differ from what is
+  about to be written?
+- Is it the same as the last run wrote, so there is nothing to do?
+- Does it carry a marker saying the generator no longer owns it?
+- If it has changed since the last run, which of the changes are the
+  generator's and which are the user's?
 
 A generator that opens a stream and writes as it goes has already
 committed to the first file before it knows the tenth exists. Two phases
@@ -94,37 +94,74 @@ interoperate.
 And a component called outside `generate()` has no context, so it
 throws. The error says so in as many words rather than failing with an
 undefined property read, because "cannot read properties of undefined"
-tells a caller nothing about the actual mistake.
+carries nothing about the actual mistake.
 
-## Components, not a template dialect
+## No template syntax to learn
 
-The alternative design is a template language: files of text with
-interpolation markers, driven by a data model. It starts smaller than
-this one and it grows in a predictable direction. First an
-interpolation. Then a conditional, because one project needs a section
-the others do not. Then a loop. Then partials, because the templates
-repeat. Then an escape hatch to call real code, because the dialect
-cannot express the thing you actually need. Every step is locally
-reasonable and the destination is a second programming language with
-worse tooling than the one you started in.
+There is no template language in Jostraca. There are two ways to produce
+a file, and neither one asks you to learn a dialect.
 
-Jostraca's components are function calls, so iteration, branching,
-parameters and extraction are whatever your language already does. You
-also get its debugger, its type checker and its test runner, none of
-which a dialect can offer without building them.
+**Write code.** Components are function calls in the language you are
+already in. Iteration is `for`. Branching is `if`. Reuse is a function.
+Parameters are parameters. You get the debugger, the type checker, the
+formatter and the test runner you already have, none of which a dialect
+can offer without rebuilding them.
 
-The template syntax that remains is deliberately unable to grow:
-`$$path$$` substitutes a value from the model, and does nothing else. No
-conditionals, no loops, no expressions. Anything harder lives in the
-surrounding code, where it can be tested.
+**Or fill in a file that is still valid source.** When a file's shape
+reads better as a file than as a tree of calls, keep it as a file.
+`Fragment` reads it and `Slot` fills the regions you marked. The point
+is where the marker goes: it is allowed to sit inside the target
+language's own comment syntax, so the template stays a legal file of its
+own type.
+
+<!-- test: skip an illustration of marker placement; the executable version is the slots scenario in how-to/fill-a-template-slot.md -->
+```html
+<!doctype html>
+<html>
+  <head>
+    <!-- <[SLOT:head]> -->
+  </head>
+</html>
+```
+
+That is valid HTML. A browser renders it, a formatter formats it, a
+linter reads it, and an editor highlights it, because nothing in it is
+foreign to HTML. The same marker works behind `//`, `/* */`, `#` and
+`--`, which covers most of what anyone generates. Value substitution
+follows the same rule: `$$service.port$$` sits inside a string literal
+or a comment, where the host language already expects arbitrary text.
+
+The alternative design is the one to compare against. A template
+language starts smaller than this and grows in a predictable direction.
+First an interpolation. Then a conditional, because one project needs a
+section the others do not. Then a loop. Then partials, because the
+templates repeat. Then an escape hatch to call real code, because the
+dialect cannot express the thing you actually need. Every step is
+locally reasonable, and the destination is a second programming language
+with worse tooling than the one you started in.
+
+The tooling cost arrives before the language does. A file containing
+`{% for item in items %}` is not valid HTML and not valid Python: it is
+a third thing, and every tool that reads it has to be taught what it is.
+Syntax highlighting gives up or needs a plugin. The formatter cannot
+parse it. The linter cannot check it. "Go to definition" has nowhere to
+go. The file cannot be opened, run, or tested on its own, so the only
+way to know what it produces is to render it.
+
+The substitution syntax that Jostraca does have is deliberately unable
+to grow. `$$path$$` reads a value from the model and does nothing else:
+no conditionals, no loops, no expressions, no filters, no partials.
+Anything harder lives in the surrounding code, where it can be tested.
+The syntax cannot acquire a second feature without becoming the thing
+this section argues against.
 
 **What this costs.** A template file can be opened and read; a component
 tree cannot. Somebody reviewing a generator has to run it to see its
 output, and the shape of a generated file is spread across function
 calls rather than sitting in one readable artifact. `Fragment` and
-`Slot` give some of that back — an external template file with named
-regions the generator fills — and that is exactly why they exist. They
-do not give all of it back.
+`Slot` give some of that back, and that is exactly why they exist. They
+do not give all of it back: a generator that builds most of its output
+from components still has most of its output spread across code.
 
 ## Existing files, and the merge base
 
@@ -148,8 +185,8 @@ lines, conflict markers go in and the file is reported in
 stopping.
 
 Choosing the previous generate rather than, say, an empty file is what
-makes hand edits survivable. It also means the guarantee is narrower
-than people expect, and the narrowness is deliberate:
+makes hand edits survivable. It also means the promise is narrower
+than readers expect, and the narrowness is deliberate:
 
 <!-- test: scenario merge-drops -->
 
@@ -194,7 +231,7 @@ one would have to overrule the user to do it.
 A file containing the string `JOSTRACA_PROTECT` sits outside all of
 this. It is never overwritten, whatever the modes say. Under `write`,
 `preserve`, `diff` and `merge` it is skipped outright and appears in
-none of the result lists — not written, not preserved, not even
+none of the result lists—not written, not preserved, not even
 reported as unchanged. Under `present` the protection stops the
 overwrite but not the run: the new version still lands in the `.new.`
 sidecar and the file is reported as presented, which is the useful
@@ -231,7 +268,7 @@ with no code change, and an unknown case is a hard failure on both sides
 rather than a silent skip on one.
 
 The rule for disagreements is that TypeScript wins and Go is the one
-that changes — including on the occasions when the Go code is the more
+that changes—including on the occasions when the Go code is the more
 correct of the two. That sounds perverse and it is the only rule that
 converges. A parity project with two sources of truth has none, and
 "whichever looks better today" is not a rule anybody can apply twice the

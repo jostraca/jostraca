@@ -1,21 +1,30 @@
 # Jostraca documentation
 
 Jostraca is a code and project generator. You describe an output file
-tree with components — `Project`, `Folder`, `File`, `Content` and the
-rest — inside a callback, and Jostraca writes the tree to disk. The
+tree with components—`Project`, `Folder`, `File`, `Content` and the
+rest—inside a callback, and Jostraca writes the tree to disk. The
 callback runs first and touches nothing: it records an in-memory node
 tree. Only then does the build phase write files. That split is why a
 second run over code somebody has edited by hand has choices rather
 than a single destructive default.
 
+**There is no template syntax to learn.** You write code, in the
+language you are already in: iteration is `for`, branching is `if`,
+reuse is a function. Where a file reads better as a file, you keep it as
+one and mark the regions to fill—and the marker is allowed to sit inside
+that language's own comment syntax, so the template is still valid
+HTML, or Go, or SQL. It opens, highlights, formats, and lints like any
+other file of its type. No file that is valid in neither language, and
+no editor that needs a plugin to read it. See
+[no template syntax to learn](explanation.md#no-template-syntax-to-learn).
+
 This repository ships **two implementations kept in parity**:
 
 - **TypeScript** in
-  [`ts/`](https://github.com/jostraca/jostraca/tree/HEAD/ts) — the
+  [`ts/`](https://github.com/jostraca/jostraca/tree/HEAD/ts), the
   canonical implementation, published to npm as
   [`jostraca`](https://www.npmjs.com/package/jostraca).
-- **Go** in [`go/`](https://github.com/jostraca/jostraca/tree/HEAD/go)
-  — a port (`github.com/jostraca/jostraca/go`) that aims at
+- **Go** in [`go/`](https://github.com/jostraca/jostraca/tree/HEAD/go). A port (`github.com/jostraca/jostraca/go`) that aims at
   byte-identical output for the same logical input.
 
 Both are checked against one language-neutral corpus in
@@ -74,17 +83,14 @@ See [generate in memory](how-to/generate-in-memory.md).
 
 ## For contributors
 
-- [The style guide](STYLE-GUIDE.md) — how these pages are written:
+- [The style guide](STYLE-GUIDE.md). How these pages are written:
   Diátaxis placement, the voice, the banned-phrase list, and the
   snippet directives under which every example runs.
-- [`CLAUDE.md`](https://github.com/jostraca/jostraca/blob/HEAD/CLAUDE.md)
-  — the contributor guide: layout, build and test commands, and the
+- [`CLAUDE.md`](https://github.com/jostraca/jostraca/blob/HEAD/CLAUDE.md). The contributor guide: layout, build and test commands, and the
   rule that TypeScript is the source of truth.
-- [`test/spec/`](https://github.com/jostraca/jostraca/tree/HEAD/test/spec)
-  — the shared corpus. A change to any pure helper adds a row there
+- [`test/spec/`](https://github.com/jostraca/jostraca/tree/HEAD/test/spec). The shared corpus. A change to any pure helper adds a row there
   rather than a case in one stack's suite.
-- [`go/PORT_PLAN.md`](https://github.com/jostraca/jostraca/blob/HEAD/go/PORT_PLAN.md)
-  — how the Go port was built and what it decided.
+- [`go/PORT_PLAN.md`](https://github.com/jostraca/jostraca/blob/HEAD/go/PORT_PLAN.md). How the Go port was built and what it decided.
 
 If a page here is wrong, it is wrong in this repository. Fix it here;
 [jostraca.org](https://jostraca.org) renders these files rather than

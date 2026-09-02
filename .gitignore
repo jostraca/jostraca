@@ -82,3 +82,15 @@ go/jostraca.go.tmp
 # one machine's tool permissions, tracked by accident, and it carried local
 # filesystem paths into a public repo.
 .claude/
+
+# Vale's downloaded style packages. `vale sync` fetches Google from the
+# package registry into .vale/styles/Google/, which is third-party content
+# with its own release cadence -- pinned in .vale.ini and CI, not vendored.
+#
+# Ignore ONLY what sync downloads, by name. An earlier version of this
+# ignored .vale/styles/* and re-included config/ alone, which silently
+# dropped .vale/styles/Jostraca/ -- our own rules -- from the commit. It
+# passed locally, where the file is on disk, and failed in CI with
+# "style 'Jostraca' does not exist on StylesPath". Name the downloads;
+# do not blanket-ignore a directory we also author into.
+.vale/styles/Google/

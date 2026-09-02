@@ -1,7 +1,7 @@
 # Tutorial: generate a service, then generate it again
 
-A generator earns its keep on the second run. The first one is easy —
-any script that writes files can do it. The second one arrives after
+A generator earns its keep on the second run. The first one is easy—any
+script that writes files can do it. The second one arrives after
 somebody has edited the output, and that is where most generators go
 wrong.
 
@@ -10,8 +10,13 @@ file, a config file, one module per route, and an index page from a
 template. Then we will edit the output by hand and run the generator
 again, which is the step this whole design exists for.
 
+There is no template syntax to learn on the way. Everything here is
+ordinary JavaScript: the loop that writes one module per route is a
+`for`, and the one template file we do use stays valid HTML, because
+its marker sits inside an HTML comment.
+
 Each step below is a complete file. Copy any one of them into `gen.mjs`
-and run it — you do not have to have followed the previous step. Every
+and run it—you do not have to have followed the previous step. Every
 snippet on this page is executed by the test suite, and every listing
 below it is what the generator actually wrote.
 
@@ -125,10 +130,10 @@ substitution puts the value in as text and the surrounding JSON was
 already quoted the way it wanted to be.
 
 Two things are worth pinning down here. Substitution happens **inside
-content**, not in names: the project folder above is
+content**, not in names: the project folder shown earlier is
 `model.service.name`, an ordinary JavaScript expression, because a
 component call is a function call and you already have a language for
-that. And `$$path$$` has no conditionals, no loops and no expressions
+that. And `$$path$$` has no conditionals, no loops, and no expressions
 of its own. Anything harder belongs in the code around it.
 
 ## 4. One file per item
@@ -169,7 +174,7 @@ acme-api/routes/health.js
 acme-api/routes/login.js
 ```
 
-`each` is a convenience, not a requirement — a plain `for` loop or
+`each` is a convenience, not a requirement—a plain `for` loop or
 `routes.map()` works exactly as well. It earns its place when the
 subject might be an object rather than an array, or when you want the
 items sorted, because it handles both without a branch at the call
@@ -223,8 +228,8 @@ export function health() {
 }
 ```
 
-`Handler` never mentions a file, a folder or a path. It emits content,
-and where that content lands is decided by whoever called it — which is
+`Handler` never mentions a file, a folder, or a path. It emits content,
+and where that content lands is decided by whoever called it—which is
 what makes it reusable. A component receives its props as the first
 argument, always with `ctx$` added, so `props.ctx$.model` reaches the
 model from inside a component that was not handed it.
@@ -294,7 +299,7 @@ Two details to take away. `<[SLOT:head]>` was filled by the `Slot`
 named `head`, and the bare `<[SLOT]>` was filled by everything else
 inside the `Fragment`. And a marker is replaced whole, so the
 replacement starts at column zero rather than inheriting the marker's
-indentation — pass `indent` to `Content` when that matters.
+indentation—pass `indent` to `Content` when that matters.
 
 The path in `from` is relative to the **output folder**, not to your
 script. That is why `../tpl/index.html` reaches a template beside
@@ -339,7 +344,7 @@ HOST=localhost
 
 `PORT` moved, which is what the second run was for. `DEBUG=1` is gone,
 which nobody asked for. That is the default, `write`, and it is the
-right default for output nobody edits — but it is not what you want
+right default for output nobody edits—but it is not what you want
 here.
 
 Add one option. `merge` performs a three-way merge, using the previous
@@ -384,8 +389,8 @@ guessing, and reports the file in `result.files.conflicted`.
 
 `merge` is one of five modes. `preserve` overwrites but leaves the old
 bytes in `config.old.sh`. `diff` writes an annotated two-way diff.
-`present` leaves the file alone and writes `config.new.sh` beside it —
-and it is the one mode with a trap in it, because `write` is checked
+`present` leaves the file alone and writes `config.new.sh` beside it—and
+it is the one mode with a trap in it, because `write` is checked
 first and defaults to `true`. Turning `present` on without turning
 `write` off overwrites the file you meant to protect:
 
@@ -426,7 +431,7 @@ DEBUG=1
 ```
 
 Finally, a file containing the string `JOSTRACA_PROTECT` is never
-overwritten, under any mode — that is how a user takes a file away from
+overwritten, under any mode—that is how a user takes a file away from
 your generator without asking you first. Protection stops the
 overwrite, not the run: under `present` the new version still appears
 in the `.new.` sidecar and the file is reported in
@@ -436,8 +441,8 @@ in none of the result lists.
 
 ## Where to go next
 
-- The [how-to guides](how-to/README.md) are one page per task —
-  copying directories, injecting into files that already exist,
+- The [how-to guides](how-to/README.md) are one page per task—copying
+  directories, injecting into files that already exist,
   generating in memory for tests, driving Jostraca from your own tool.
 - The [component reference](reference-components.md) lists every
   component and every prop, and the [options

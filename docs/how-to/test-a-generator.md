@@ -59,7 +59,7 @@ Three habits make this work well:
 - **Filter out `.jostraca/`** before asserting on the file set, or pin
   it deliberately. It is bookkeeping, and it will change when the
   bookkeeping changes.
-- **Pin `now`** if anything you assert on carries a timestamp — a merge
+- **Pin `now`** if anything you assert on carries a timestamp—a merge
   or diff marker does.
 
 To test a second run over an edited file, write into the volume between

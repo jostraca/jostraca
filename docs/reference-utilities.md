@@ -27,7 +27,7 @@ each(subject?, spec?, apply?) => any[]
 ```
 
 Iterates an array or an object and always returns an array. Anything
-else — a number, a string, `null` — gives `[]`. A string is not
+else—a number, a string, `null`—gives `[]`. A string is not
 iterated.
 
 | spec field | default | effect |
@@ -50,7 +50,7 @@ the source objects, not onto copies. Scalars are wrapped in new objects,
 so those are left alone.
 
 The apply signature differs by subject. For an array it is
-`(item, index, all)` — it is `Array.prototype.map`. For an object it is
+`(item, index, all)`—it is `Array.prototype.map`. For an object it is
 `(value, key, index, entries)`, where `entries` is the array of
 `[key, value]` pairs.
 
@@ -59,8 +59,8 @@ Two sharp edges:
 - `sort: 'prop'` works for an **array** subject and does nothing for an
   object one. The object branch tests the sort value against the
   literal string `"string"` rather than against its type, so an object
-  subject re-sorts by `key$` — which the unconditional key sort already
-  did — unless your property is literally named `string`.
+  subject re-sorts by `key$`—which the unconditional key sort already
+  did—unless your property is literally named `string`.
 - `sort: true` on an array sorts the **raw** values before wrapping;
   `sort: 'prop'` sorts the wrapped ones. Numbers therefore sort as
   strings: `[10, 9, 1]` becomes `[1, 10, 9]`.
@@ -89,8 +89,8 @@ console.log(JSON.stringify(each([1], (x) => 2 * x.val$)))
 [2]
 ```
 
-The Go port takes `EachSpec{NoMark, Raw, Sort, Args}` — the inverted
-forms of `mark` and `oval` — has no `call`, and its `sort` is a boolean
+The Go port takes `EachSpec{NoMark, Raw, Sort, Args}`—the inverted
+forms of `mark` and `oval`—has no `call`, and its `sort` is a boolean
 only.
 
 ## `get`
@@ -174,8 +174,8 @@ pattern.
 `?` filters the children of the current node, keeping those for which
 the trailing sub-path resolves, and mirrors the input shape: an array
 node gives an array, an object node gives an object keyed as before.
-Its end-of-filter detection is heuristic — the filter ends at the first
-pair of adjacent word tokens — so `'a?c:e=1'` works where `'a?c.e=1'`
+Its end-of-filter detection is heuristic—the filter ends at the first
+pair of adjacent word tokens—so `'a?c:e=1'` works where `'a?c.e=1'`
 does not. The `?` filter also **mutates the source**, leaving `each`'s
 markers on the children that did not match.
 
@@ -231,8 +231,8 @@ The splitting rules, in order:
 3. Drop empty parts.
 4. Re-attach a lone capital to the lowercase tail after it.
 
-Two consequences catch people out. **Only `-`, `_` and space split** —
-not `.`, not `/`, not a tab. And **digits never split**: `foo2bar` is
+Two consequences catch people out. **Only `-`, `_` and space split**—not
+`.`, not `/`, not a tab. And **digits never split**: `foo2bar` is
 one part, while `foo2Bar` splits at the capital.
 
 Round trips are not guaranteed. `kebabify(camelify('a-b-c'))` is
@@ -348,7 +348,7 @@ console.log(JSON.stringify(cmap(src, { x: cmap.FILTER((v) => [1 < v, v]) })))
 {"a":{"x":1}}
 ```
 
-Neither function has a dedicated test suite. Treat the behaviour above
+Neither function has a dedicated test suite. Treat the preceding behaviour
 as the specification and add a case when you rely on something else.
 
 ## `deep`
@@ -362,7 +362,7 @@ Right-most wins. **Mutates and returns the first argument.**
 Two values merge key by key only when both are objects (or functions),
 the overriding value is not a function, the overriding value has no
 custom constructor, and both are arrays or both are not. Otherwise the
-overriding value replaces — with three exceptions: `undefined` and the
+overriding value replaces—with three exceptions: `undefined` and the
 `SKIP` sentinel leave the base alone, and a plain object is deep-cloned
 rather than taken by reference.
 
@@ -373,7 +373,7 @@ index 0 of the default rather than appending to it.
 The custom-constructor rule is the one to remember: a `Date`, a
 `RegExp` or a class instance replaces the value under its key instead
 of being walked into. Walking two `RegExp`s would copy the enumerable
-properties of one into the other — a `RegExp` has none — and so discard
+properties of one into the other—a `RegExp` has none—and so discard
 the override entirely. That was a real bug, and it was a real
 divergence from the Go port, which never had it.
 
@@ -483,7 +483,7 @@ isbincontent(content) => boolean
 ```
 
 `isbinext` tests the lower-cased final extension against a fixed set of
-around 250 names — `png`, `jpg`, `pdf`, `zip`, `exe`, `so`, `woff2`,
+around 250 names—`png`, `jpg`, `pdf`, `zip`, `exe`, `so`, `woff2`,
 `docx` and the rest. Only the last dot segment counts.
 
 `isbincontent` looks for a NUL byte in the first 8192 bytes.
@@ -517,7 +517,7 @@ template(src, model, spec?) => string
 
 The substitution engine behind `Content`, `Fragment` and `Copy`.
 `$$path$$` resolves against the model with `getx`, so the full path
-grammar above is available. An unresolved path is **left in place**,
+grammar described earlier is available. An unresolved path is **left in place**,
 which is deliberate: a typo shows up in the output rather than
 vanishing.
 
@@ -603,7 +603,7 @@ result and `false` on every `same` one, so it repeats the outcome
 rather than reporting that anything genuinely clashes. Only `merge`
 sets it from real conflicting edits.
 
-The two marker layouts differ, and the difference is not cosmetic — see
+The two marker layouts differ, and the difference is not cosmetic—see
 [the options reference](reference-options.md#each-mode) for both,
 generated from real runs.
 

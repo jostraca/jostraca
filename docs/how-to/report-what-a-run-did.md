@@ -73,14 +73,14 @@ carries markers and does not compile; a wrapper that reports success
 over it has told the user something false. Conflicts are commoner than
 they look, because a merge works on regions rather than lines: an edit
 next to a line the generator changed lands in the same region and
-conflicts, as it did above.
+conflicts, as it did earlier.
 
 Two paths are absent from every array: a file skipped because it
 carries `JOSTRACA_PROTECT`, and a file skipped by the `exclude` option.
 An empty report therefore does not always mean "nothing to do".
 
 For the whole decision trail, call `audit()`. It returns
-`[tag, data]` pairs — the filesystem calls, and one record per file
+`[tag, data]` pairs—the filesystem calls, and one record per file
 carrying its metadata and a `why` breadcrumb naming each branch the
 decision took. That is the tool for "why did it do that", not for
 routine reporting.

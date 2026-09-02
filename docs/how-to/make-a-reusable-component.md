@@ -44,13 +44,13 @@ The generated `a.js`:
 export const a = 1
 ```
 
-`Banner` never mentions a file, a folder or a path. It emits content,
+`Banner` never mentions a file, a folder, or a path. It emits content,
 and its caller decides where that content lands. That is what makes it
 reusable, and it is the discipline to keep: a component that calls
 `File` is a section of a generator, not a building block.
 
 Name the function you pass to `cmp()`. The wrapper keeps the name, and
-`Fragment` uses it to recognise `Slot` children — an anonymous
+`Fragment` uses it to recognise `Slot` children—an anonymous
 component is harder to debug and, inside a `Fragment`, behaves
 differently.
 

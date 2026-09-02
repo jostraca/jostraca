@@ -22,8 +22,8 @@ at the call site instead of substituting a no-op component.
 
 `cmp()` wraps a function into a component. Each call:
 
-1. reads the ambient context from an `AsyncLocalStorage` on `global` —
-   with no context, it throws (see [Errors](#errors));
+1. reads the ambient context from an `AsyncLocalStorage` on `global`—with
+   no context, it throws (see [Errors](#errors));
 2. normalises its arguments (below);
 3. sets `props.ctx$` on the props object you passed, mutating it;
 4. appends a node to the current parent and makes that node current for
@@ -60,7 +60,7 @@ Present on every component's props:
 | key | value |
 |---|---|
 | `model` | the data model for this generate |
-| `fs` | `() => FS` — call it for the filesystem provider |
+| `fs` | `() => FS`—call it for the filesystem provider |
 | `now` | `() => number` |
 | `folder` | the resolved base output folder |
 | `meta` | global `meta` merged with generate `meta` |
@@ -78,7 +78,7 @@ Children run inline during the define phase, in source order. Build
 then walks the tree depth-first: `before(node)`, each child in order,
 `after(node)`.
 
-Bare top-level siblings all render — each generate seeds a synthetic
+Bare top-level siblings all render—each generate seeds a synthetic
 root node, so the first component does not become the root and orphan
 the rest. Two top-level `Project` calls both produce output.
 
@@ -118,7 +118,7 @@ Project(props, children)
 | prop | type | default | effect |
 |---|---|---|---|
 | `folder` | `string` | `'.'` | The only prop that changes the output path. An absolute value is used as-is; a relative one joins onto the base output folder. Backslashes become `/`, a trailing `/` is stripped. |
-| `name` | `string` | — | Adds **no** path segment. It joins the component path that `File.exclude` matches against, and nothing else. |
+| `name` | `string` |—| Adds **no** path segment. It joins the component path that `File.exclude` matches against, and nothing else. |
 
 Project is the only container that passes its props to its children:
 each child function is called with `props` as its argument.
@@ -176,7 +176,7 @@ Folder(props, children)
 
 | prop | type | default | effect |
 |---|---|---|---|
-| `name` | `string` | — | Appended to the current folder path. Omitted or empty adds no segment, which makes `Folder({})` a pure grouping container. |
+| `name` | `string` |—| Appended to the current folder path. Omitted or empty adds no segment, which makes `Folder({})` a pure grouping container. |
 
 Children are called with no arguments.
 
@@ -202,20 +202,20 @@ File(props, children)
 
 | prop | type | default | effect |
 |---|---|---|---|
-| `name` | `string` | — | The file name. Slashes create nested directories. A `..` segment throws. Omitted, the file is literally called `undefined`. |
-| `exclude` | `boolean \| string \| (string\|RegExp)[]` | — | Skip the file, but **only when it already exists**. See below. |
+| `name` | `string` |—| The filename. Slashes create nested directories. A `..` segment throws. Omitted, the file is literally called `undefined`. |
+| `exclude` | `boolean \| string \| (string\|RegExp)[]` |—| Skip the file, but **only when it already exists**. See below. |
 | `mode` | `number` | platform default | POSIX permission bits, re-applied after the atomic write-then-rename. |
 
-Children are called with no arguments. A string child produces nothing
-— only functions are called — so `File({name: 'a.txt'}, 'hello')`
+Children are called with no arguments. A string child produces nothing—only
+functions are called—so `File({name: 'a.txt'}, 'hello')`
 writes an empty file.
 
 ### `exclude`
 
 Consulted only when the target exists; a file that is not there yet is
 always written. `exclude: true` skips it. A string or array of strings
-is compared against the **component path** — the `name` props of the
-ancestors joined with `/` — not the filesystem path. Since
+is compared against the **component path**—the `name` props of the
+ancestors joined with `/`—not the filesystem path. Since
 `Project({folder: …})` contributes no name and `Project({name: …})`
 does, the two behave differently:
 
@@ -275,13 +275,13 @@ Content(props, text)
 
 | prop | type | default | effect |
 |---|---|---|---|
-| `arg` | any | — | Source text. Highest precedence; also the positional form. |
-| `src` | any | — | Source text, used when `arg` is absent. |
-| (string child) | `string` | — | Source text, used when both are absent. |
-| `indent` | `string \| number` | — | A number is that many spaces; a string is a literal prefix. Applied to every line. |
+| `arg` | any |—| Source text. Highest precedence; also the positional form. |
+| `src` | any |—| Source text, used when `arg` is absent. |
+| (string child) | `string` |—| Source text, used when both are absent. |
+| `indent` | `string \| number` |—| A number is that many spaces; a string is a literal prefix. Applied to every line. |
 | `extra` | `object` | `{}` | Merged over the model for this call only. |
-| `replace` | `Record<string, any>` | — | Custom replacements. See the [utilities reference](reference-utilities.md). |
-| `name` | `string` | — | Joins the component path. No output effect. |
+| `replace` | `Record<string, any>` |—| Custom replacements. See the [utilities reference](reference-utilities.md). |
+| `name` | `string` |—| Joins the component path. No output effect. |
 
 `Content` adds **no** newline. Use `Line` for that.
 
@@ -290,7 +290,7 @@ single easiest mistake to make with this component:
 
 | call | result |
 |---|---|
-| `Content('N=$$n$$', {extra: {n: 1}})` | `N=$$n$$` — `extra` never arrives |
+| `Content('N=$$n$$', {extra: {n: 1}})` | `N=$$n$$`, because `extra` never arrives |
 | `Content({src: 'N=$$n$$', extra: {n: 1}})` | `N=1` |
 
 An unresolved `$$path$$` is left in place rather than blanked, so a
@@ -371,12 +371,12 @@ Props are a **closed** shape: an unknown prop throws.
 
 | prop | type | default | effect |
 |---|---|---|---|
-| `from` | `string`, required | — | The template file. Absolute is used as-is; **relative resolves against the generate output folder**, not the enclosing Project or Folder and not the process working directory. The file must exist when the component is called, in the define phase. |
-| `indent` | `string \| number` | — | Applied to the whole assembled fragment. |
+| `from` | `string`, required |—| The template file. Absolute is used as-is; **relative resolves against the generate output folder**, not the enclosing Project or Folder and not the process working directory. The file must exist when the component is called, in the define phase. |
+| `indent` | `string \| number` |—| Applied to the whole assembled fragment. |
 | `replace` | `Record<string, any>` | `{}` | Custom replacements. The `Slot` machinery adds its own entries to this same object. |
-| `eject` | `[start, end]` of `string \| RegExp` | — | Keep only the region between the two markers. |
-| `exclude` | — | — | Validated and then never read. It has no effect. |
-| `name` | — | — | Not allowed; throws. |
+| `eject` | `[start, end]` of `string \| RegExp` |—| Keep only the region between the two markers. |
+| `exclude` |—|—| Validated and then never read. It has no effect. |
+| `name` |—|—| Not allowed; throws. |
 
 The `from` resolution catches people out, so it is worth stating twice:
 with `generate({folder: './out'})`, a template at `tpl/page.html` is
@@ -405,7 +405,7 @@ An unnamed `<[SLOT]>` marker receives the fragment's non-`Slot`
 children. A named `<[SLOT:name]>` marker receives the matching `Slot`.
 
 Markers may be wrapped in comment decoration: any run of `- < ! / # *`
-before, and any run of `- > / # *` after, with optional spaces or tabs.
+before, and any run of `- > / # *` after, with optional spaces, or tabs.
 So all of these work, and the list is not exhaustive:
 
 ```
@@ -419,7 +419,7 @@ So all of these work, and the list is not exhaustive:
 ```
 
 The marker's newline is not consumed, and the replacement is not
-indented to match the marker — it starts at the column the marker's
+indented to match the marker—it starts at the column the marker's
 decoration started. Pass `indent` where that matters.
 
 Dispatch rules, all of which are quiet rather than fatal:
@@ -495,14 +495,14 @@ Inject(props, children)
 
 | prop | type | default | effect |
 |---|---|---|---|
-| `name` | `string` | — | The target file, relative to the current folder path. A `..` segment throws. |
+| `name` | `string` |—| The target file, relative to the current folder path. A `..` segment throws. |
 | `markers` | `[string, string]` | `['#--START--#\n', '\n#--END--#']` | The delimiters. |
-| `exclude` | `boolean` | — | Truthy skips the whole injection. |
+| `exclude` | `boolean` |—| Truthy skips the whole injection. |
 
 Children build the replacement body exactly as they would inside a
 `File`.
 
-Both markers are matched literally: regex metacharacters in a marker
+Both markers are matched literally: regular-expression metacharacters
 are escaped rather than interpreted. **Every** matching pair in the
 file is replaced, not only the first. The body is inserted verbatim, so
 `$&`, `$1` and `$$` in generated content survive.
@@ -567,16 +567,16 @@ called.
 
 | prop | type | default | effect |
 |---|---|---|---|
-| `from` | `string`, required | — | Source file or directory. It is stat'd in the define phase and must exist. A relative `from` resolves against the **process working directory** — unlike `Fragment`, it is not joined to the output folder. |
+| `from` | `string`, required |—| Source file or directory. It is stat'd in the define phase and must exist. A relative `from` resolves against the **process working directory**—unlike `Fragment`, it is not joined to the output folder. |
 | `to` | non-empty `string` | source basename | For a file, the output name; for a directory, an output subfolder. May contain `/`. A `..` segment throws. |
-| `exclude` | `boolean \| string \| RegExp \| (string\|RegExp)[]` | — | Paths relative to the copied source root. A boolean is accepted and does nothing. |
-| `replace` | `Record<string, any>` | — | Custom replacements, applied to text files. |
+| `exclude` | `boolean \| string \| RegExp \| (string\|RegExp)[]` |—| Paths relative to the copied source root. A boolean is accepted and does nothing. |
+| `replace` | `Record<string, any>` |—| Custom replacements, applied to text files. |
 
 ### Text or binary
 
 Text files pass through the template system; binaries are copied byte
 for byte. The extension decides first, by membership of a fixed list
-(`png`, `jpg`, `zip`, `pdf`, `woff2` and around 250 more — see
+(`png`, `jpg`, `zip`, `pdf`, `woff2` and around 250 more—see
 [`isbinext`](reference-utilities.md#isbinext-and-isbincontent)); a listed extension is
 binary whatever the bytes look like. Because no such list is complete,
 the content is then sniffed: a NUL byte in the first 8192 promotes an
@@ -666,10 +666,10 @@ List(props, children)
 
 | prop | type | default | effect |
 |---|---|---|---|
-| `item` | array or object | — | Iterated with [`each`](reference-utilities.md#each): object entries in sorted key order, scalars wrapped as `{val$: …}`, every entry marked with `index$` or `key$`. |
+| `item` | array or object |—| Iterated with [`each`](reference-utilities.md#each): object entries in sorted key order, scalars wrapped as `{val$: …}`, every entry marked with `index$` or `key$`. |
 | `line` | `boolean` | `true` | Unless **strictly** `false`, one trailing newline is emitted after the whole list. `line: 0` still emits it. |
-| `indent` | `string \| number` | — | Passed to each child as `args.indent`. The child must apply it. On its own it indents nothing. |
-| `replace` | — | — | Accepted and never used. The `replace` handed to children is built fresh. |
+| `indent` | `string \| number` |—| Passed to each child as `args.indent`. The child must apply it. On its own it indents nothing. |
+| `replace` |—|—| Accepted and never used. The `replace` handed to children is built fresh. |
 
 Each child is called once per item with one object argument:
 `{item, indent, replace}`. Children iterate *inside* the item loop, so two
@@ -683,7 +683,7 @@ mix freely in one list.
 
 The `replace` a *function* child receives implements `{item.path}`
 substitution, and it has to be threaded into a component that takes a
-`replace` prop — which means the props-object call form. `Content(text, {replace})` passes
+`replace` prop—which means the props-object call form. `Content(text, {replace})` passes
 `{replace}` as *children* and substitutes nothing:
 
 | call inside the child | output |
@@ -743,7 +743,7 @@ The wrapper keeps the wrapped function's `name`, which is not
 cosmetic: `Fragment` identifies its `Slot` children by name.
 
 A component emits content, and where that content lands is decided by
-its caller — which is what makes it reusable. It may also emit
+its caller—which is what makes it reusable. It may also emit
 containers: a component that calls `File` or `Folder` works, and the
 `root` callback passed to `generate()` may itself be a component.
 

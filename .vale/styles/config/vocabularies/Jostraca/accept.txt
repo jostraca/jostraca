@@ -1,0 +1,77 @@
+# Terms Vale's dictionary does not know. Entries are REGEXES, so
+# [Jj]ostraca accepts both casings without Vale.Terms then enforcing one
+# of them over the other -- listing both plain forms is what turns this
+# file into a capitalisation rule by accident.
+[Jj]ostraca
+
+# British spellings. Google style is US English; the house voice is not,
+# and the precedence in .vale.ini puts the house voice first.
+#
+# LISTED, not matched by suffix. An earlier version had `\w+ise` and
+# friends, which accept any word ending in those letters -- `madeupise`
+# included -- and so punched a hole straight through the error-level
+# spelling gate this file exists to make usable. Add the stem when a new
+# one is needed; the cost of doing that is the point.
+capitalisation
+capitalised
+capitalises?
+materialised?
+normalised?
+normalises
+organised?
+organises
+recognise[ds]?
+recognises
+summarise[ds]?
+summarises
+tokenise[ds]?
+tokenises
+
+# Domain and API surface.
+accessors
+basename
+[Bb]oolean
+callsite
+chmod
+cmp
+config
+dedupe
+dereferencing
+dotfile
+erroring
+extensionless
+gitignored
+globals
+inode
+interoperate
+JSONifies
+jsonic
+lookbehind
+metacharacters?
+misconfigure
+mtime
+namespace
+npm
+setuid
+stat
+storages
+stringif(?:y|ies|ied)
+stringified
+subfolder
+substring
+subtree
+templated
+tokenizer
+[Tt]ruthy
+
+# People and algorithms cited in the reference pages.
+Hirschberg
+
+# Documentation and prose-gate vocabulary.
+READMEs
+validator
+declaratives
+[Ff]rontmatter
+declaratively
+repo
+[Mm]akefile

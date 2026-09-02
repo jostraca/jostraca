@@ -8,7 +8,7 @@ order: 40
 
 The Go port is the same generator with a Go-shaped surface. Components
 are methods on `*J` rather than free functions, and each callback
-receives a `*J` bound to the node it is inside — that shadowing is what
+receives a `*J` bound to the node it is inside—that shadowing is what
 replaces the ambient context the TypeScript components use.
 
 <!-- test: skip a Go sample; the API is pinned by go/builder_test.go -->
@@ -59,13 +59,13 @@ One option does not do what its name promises: a per-call `Cmp` is
 dropped by the option merge, so `cmp.Copy.ignore` has to be set on `New`.
 It is in the [Go reference](../reference-go.md#options).
 
-`WithMem()` and `WithVol()` work as their names suggest — `Mem` switches
+`WithMem()` and `WithVol()` work as their names suggest—`Mem` switches
 an in-memory filesystem on, `Vol` seeds it, and the result carries `Vol`
 and `FS`. They were inert before v0.35.0, writing real files while
 returning `nil` for both handles.
 
-Concurrent `Generate` calls are isolated — the builder state hangs off
-the `*J` the callback receives rather than off a process-global — so
+Concurrent `Generate` calls are isolated—the builder state hangs off
+the `*J` the callback receives rather than off a process-global—so
 two generates can run at once without seeing each other's trees. That
 is one place the Go design is plainly better than the TypeScript one.
 

@@ -1,11 +1,19 @@
 # jostraca
 
 A code and project generator. You describe an output file tree with
-components — `Project`, `Folder`, `File`, `Content` and the rest — inside a
+components—`Project`, `Folder`, `File`, `Content` and the rest—inside a
 callback, and Jostraca writes the tree to disk. The callback runs first and
 touches nothing; only then does the build phase write files. That split is why
 a second run over code somebody has edited by hand can preserve, present, diff
 or merge instead of overwriting.
+
+**No template syntax to learn.** Either write code—iteration is `for`,
+branching is `if`, reuse is a function—or mark up a file that is still valid
+source, with the marker inside the target language's own comment syntax, so
+`<!-- <[SLOT:head]> -->` stays valid HTML and `// <[SLOT:head]>` stays valid
+Go. The template opens, highlights, formats, and lints like any other file
+of its type. `$$path$$` substitutes a model value and does nothing else: no
+conditionals, no loops, no expressions.
 
 This is the canonical TypeScript implementation, published to npm as
 [`jostraca`](https://www.npmjs.com/package/jostraca). A feature-parity Go port
@@ -57,16 +65,13 @@ The documentation set lives in
 repository root, and is rendered at [jostraca.org](https://jostraca.org). It
 follows [Diátaxis](https://diataxis.fr):
 
-- **[Tutorial](https://github.com/jostraca/jostraca/blob/HEAD/docs/tutorial.md)**
-  — build a generator from nothing, then run it again over hand-edited output.
-- **[How-to guides](https://github.com/jostraca/jostraca/blob/HEAD/docs/how-to/README.md)**
-  — one page per task.
-- **Reference** —
+- **[Tutorial](https://github.com/jostraca/jostraca/blob/HEAD/docs/tutorial.md)**. Build a generator from nothing, then run it again over hand-edited output.
+- **[How-to guides](https://github.com/jostraca/jostraca/blob/HEAD/docs/how-to/README.md)**. One page per task.
+- **Reference**—
   [components](https://github.com/jostraca/jostraca/blob/HEAD/docs/reference-components.md),
   [options](https://github.com/jostraca/jostraca/blob/HEAD/docs/reference-options.md),
   [utilities](https://github.com/jostraca/jostraca/blob/HEAD/docs/reference-utilities.md).
-- **[Explanation](https://github.com/jostraca/jostraca/blob/HEAD/docs/explanation.md)**
-  — the two-phase model, and what it costs.
+- **[Explanation](https://github.com/jostraca/jostraca/blob/HEAD/docs/explanation.md)**. The two-phase model, and what it costs.
 
 Every example in those pages is executed by `ts/test/docs.test.ts`, which runs
 each snippet in a temp directory and compares the tree it wrote.

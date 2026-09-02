@@ -76,9 +76,9 @@ The generated `h.js`:
 /* acme */
 ```
 
-`ctx$` also carries `meta`, the filesystem provider and the resolved
+`ctx$` also carries `meta`, the filesystem provider, and the resolved
 output folder. Use `meta` for data that is about the run rather than
-about the output — Jostraca never reads it.
+about the output—Jostraca never reads it.
 
 One caution: `cmp()` sets `ctx$` on the props object you passed, rather
 than on a copy. Do not reuse one props object across two component
