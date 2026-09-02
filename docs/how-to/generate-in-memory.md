@@ -84,13 +84,16 @@ Three rules about the pairing, because they are not symmetrical:
 The in-memory filesystem is part of jostraca. Nothing is installed for
 it, and it is not a filesystem you can pass around outside a run.
 
-**This page is TypeScript only.** The Go port's `WithMem()` and
-`WithVol()` are inert: a generator configured with them runs against the
-real filesystem and returns a result whose `Vol` and `FS` are `nil`,
-with no error. Use `WithFS(NewMemFS())` instead, and seed it by writing
-into the provider before generating. The [Go
-reference](../reference-go.md#withmem-and-withvol-do-nothing) shows
-both.
+The Go port takes the same pair: `WithMem()` switches the in-memory
+filesystem on and `WithVol()` seeds it, and the result carries `Vol` and
+`FS`. `WithFS(NewMemFS())` is still available when you want to seed the
+provider by writing into it. The [Go
+reference](../reference-go.md#withmem-and-withvol) shows both, along with
+the three rules they share with TypeScript.
+
+Before v0.35.0 both Go options were inert — a generator configured with
+them wrote to the real filesystem and returned `nil` for `Vol` and `FS`,
+with no error.
 
 ## See also
 

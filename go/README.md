@@ -331,34 +331,18 @@ same logical input:
   for longer than that claim was true.)
 - The `Point*` orchestration utility is not ported (deferred to a future
   sub-package).
-- **`Options.Mem` and `Options.Vol` are inert.** Nothing constructs a
-  `MemFS` from them, so `WithMem()` runs against the real filesystem and
-  returns a `Result` whose `Vol` and `FS` are `nil`, with no error. The
-  in-memory route is `WithFS(NewMemFS())`, seeded by writing into the
-  provider before `Generate`. In TypeScript `{mem: true}` is the documented
-  harness and `vol` seeds it, so a test translated across by keeping those
-  two options passes while writing to the working directory.
 - **`mergeOptions` drops per-call `Cmp` and `Name`.** It copies `Folder`,
   `Meta`, `FS`, `Now`, `Log`, `Debug`, `Model`, `Build`, `Mem`, `Vol`,
   `Existing`, `Control` and `Exclude`, and there is no `WithCmp`, so the
   only route to `Options.Cmp.Copy.Ignore` is a hand-written option closure
   passed to `New`. TypeScript has no equivalent hole.
-- `J.Cmp` runs its body inline without allocating a node, where TS's
-  `cmp()` allocates one and routes it through the Fragment filter. A user
-  component used as a direct Fragment child is therefore filtered out in
-  TS and runs in Go, once per replay pass -- so its side effects happen N
-  times against TS's zero. What follows depends on whether that body emits
-  anything: with content, Go's output lands on the fragment node and trips
-  the same "non-`Slot` child with no unnamed `<[SLOT]>` marker" error TS
-  raises, so both fail; with a silent body, TS still errors and Go
-  completes and writes the file. That second shape is an OUTPUT
-  divergence, not only a side-effect count. (This bullet used to say the
-  error fires in TS and not in Go, which is true of the silent shape and
-  wrong about the other.) A user component that *wraps* a `Slot` is
-  already broken in TS today (the slot name is never collected and the
-  marker survives verbatim); Go handles it. Not reconciled: aligning it
-  means giving `Cmp` a node, which changes the shape of every Go component
-  tree.
+- A user component that *wraps* a `Slot` is broken in TS today (the slot
+  name is never collected and the marker survives verbatim), and Go matches
+  it: `J.Cmp` allocates a node and passes through the Fragment filter as
+  TS's `cmp()` does, so a user component used as a direct `Fragment` child
+  behaves identically on both sides. Until v0.35.0 Go ran the body inline
+  with no node, so the filter never saw it -- three runs against TS's zero,
+  and a silent body wrote the file where TS aborted.
 - A **binary** single-file `Copy` nested inside a `File` splices its raw
   bytes into the enclosing file here; TS contributes nothing and logs it.
   A Go string is a byte string, so the bytes survive; TS's copy content is

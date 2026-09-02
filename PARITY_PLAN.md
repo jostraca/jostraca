@@ -46,9 +46,9 @@ the commit that made it is still in the log.
 | — | `Copy.exclude` (#28) | fixed, closed | **not re-probed** — closed before this pass, and nothing here touches it |
 | — | `List` string child (TS) (#44) | **fixed, holds** | `"n=p\nn=q\n\n"` |
 | — | txt/bin classification (#27) | **fixed in code, issue still open** | the two stacks now **agree**; see §3 |
-| — | Fragment filter on non-Slot children (#29) | **live, and worse than filed** | side effects 0 vs 3 — plus an *output* divergence the issue does not record |
+| — | Fragment filter on non-Slot children (#29) | **fixed** | `Cmp` allocates a node and goes through the filter; body runs 0 vs 0, and the output divergence is gone |
 | — | binary compared against a string (#30) | **fixed** | `sameContent` compares bytes; pinned by `binary_copy_identical_no_backup` |
-| — | `WithMem`/`WithVol` inert (#37) | **live** | writes to the real filesystem, `Vol` nil, no error |
+| — | `WithMem`/`WithVol` inert (#37) | **fixed** | `Mem` builds a MemFS, `Vol` seeds it, and a global one persists across calls |
 | — | Windows blind spot (#22) | **closed in CI, issue still open** | the matrix runs `go test -race` on `windows-latest` |
 | — | corpus cannot express binary (#24) | **closed in code, issue still open** | b64 escape hatch; 1043 b64 values in the committed corpora |
 
@@ -114,7 +114,7 @@ rather than taken:
 | | `List` string child (#44) | resolved |
 | | top-level siblings dropped (#21) | resolved |
 | | `Project` folder leaks (#26) | **live** (shared) |
-| | Fragment filter, non-Slot children (#29) | **live** |
+| | Fragment filter, non-Slot children (#29) | resolved |
 | | Fragment error path leaves different trees | **live** (new) |
 | FileHandler + modes | `exclude` timing in Go (§1.2) | resolved |
 | | txt/bin classification (#27) | resolved |
@@ -123,7 +123,7 @@ rather than taken:
 | | `File{Mode: 0}` | **live** (deviation) |
 | options surface | global `control` discarded (§1.1) | resolved |
 | | TS mutates the caller's options object | resolved |
-| | `WithMem`/`WithVol` inert (#37) | **live** (deviation + open decision) |
+| | `WithMem`/`WithVol` inert (#37) | resolved |
 | | `Copy.exclude`, single-file (#32) | **live** (shared) |
 | | `mergeOptions` drops `Cmp`/`Name` | **live** (deviation) |
 | | per-call `Control` cannot clear a global | **live** (deviation) |
@@ -136,24 +136,35 @@ rather than taken:
 
 | surface | tracked | resolved | live |
 |---|---|---|---|
-| components + op walker | 9 | 6 | 3 |
-| options surface | 6 | 2 | 4 |
+| components + op walker | 9 | 7 | 2 |
+| options surface | 6 | 3 | 3 |
 | parity machinery + docs | 6 | 5 | 0 (+1 structural) |
 | FileHandler + modes | 5 | 4 | 1 |
 | diff/merge + fs | 3 | 3 | 0 |
 | template + getx + utils | 3 | 2 | 1 |
-| **total** | **32** | **22** | **9** (+1 structural) |
+| **total** | **32** | **24** | **7** (+1 structural) |
 
-Of the 9 live: **5 are recorded deviations** rather than defects, **2 are bugs
-both stacks share** (so not parity breaks at all), and **2 are real
-divergences** — #29, and the partial-tree difference on the Fragment error path
-found while implementing §2.1.
+Of the 7 live: **4 are recorded deviations** rather than defects, **2 are bugs
+both stacks share** (so not parity breaks at all), and **1 is a real
+divergence** — the partial-tree difference on the Fragment error path, found
+while implementing §2.1.
 
-Five of the six divergences the re-score listed have since been fixed:
+Every divergence this document has listed is now closed except that one.
 `Hunks` copies its suffixes, `generate` validates a copy of the caller's
 options, `sameContent` compares binary by bytes, §2.1's runners compare the
-tree on error rows, and §4's documentation defects are corrected. Each landed
-with a pin, because a fix with no pin is how this list refills.
+tree on error rows, §4's documentation defects are corrected, `Cmp` allocates
+a node and goes through the Fragment filter (#29), and `WithMem`/`WithVol`
+build a real in-memory filesystem (#37). Each landed with a pin, because a fix
+with no pin is how this list refills.
+
+**The one that is left has a different root cause than the issue it came in
+under.** When both stacks reject a Fragment with a non-Slot child, Go leaves
+the project folder behind and TS leaves nothing — because TS renders the
+fragment during the DEFINE phase and throws before any build runs, while Go
+renders in `fragmentAfter`, by which time folders exist. It is render timing,
+not the `Cmp` node question it was found next to, and closing it means moving
+Go's fragment render into the define phase. Worth deciding on its own
+evidence.
 
 Four verdicts moved under re-probing, and one of those was this document's own
 first answer:
@@ -647,33 +658,55 @@ fails exactly where it matters most (§1.1).
 
 ## 6. Sequence
 
-Steps 1, 2 and 4-6 of the previous list are done, each with a pin, because a
-fix with no pin is how this document refills. What is left is short, and two of
-the three are decisions rather than work.
+Everything this document set out is done except one item, and that one is a
+decision rather than a backlog entry.
 
-1. **Close #22, #24, #27 and #30, and re-file #29.** All five are wrong on the
-   tracker: four are fixed in the tree and open, and #29's title understates it
-   as a side-effect count when the empty-body shape diverges in OUTPUT. The
-   measured matrix is in §3 and in both deviation lists.
+1. **The Fragment error-path divergence.** Both stacks reject a Fragment with
+   a non-Slot child; Go leaves the project folder behind, TS leaves nothing.
+   TS renders the fragment in the DEFINE phase and throws before the build
+   starts; Go renders in `fragmentAfter`, after folders are made. Closing it
+   means moving Go's fragment render into the define phase, which changes when
+   the model is resolved for every Fragment — so it wants measuring before it
+   is attempted, not a quick alignment.
 
-2. **The Fragment error-path divergence** found while building §2.1's gate:
-   both stacks reject a `Fragment` with a non-Slot child and no unnamed
-   marker, and Go leaves `/out/app` behind where TS leaves nothing. Small
-   enough to fix, but it is the same question as #29 seen from the error path,
-   so decide them together rather than twice.
+   Note what it is NOT: it was found next to #29 and looks like a facet of it,
+   but #29 was about which children run, and this is about when the render
+   happens. Fixing #29 did not touch it.
 
-3. **#29 itself.** Aligning Go means giving `Cmp` a node, which changes the
-   shape of every Go component tree. That is a decision for the maintainer,
-   not a defect to be cleared, and it is why both deviation lists describe it
-   rather than promise it.
+2. **#26 and #32 stay open on purpose.** Both stacks behave identically, so
+   neither is a parity break (§2.4), and the corpus records #32's behaviour as
+   expected output. They are semantic warts to fix against the docs, on their
+   own schedule.
 
-Not on this list, deliberately: #26 and #32 are bugs both stacks share (§2.4),
-and `File{Mode:0}`, per-call `Control`, `mergeOptions` and the eject marker are
-recorded deviations. #37 stays where it is until someone decides whether
-`WithMem` should work or fail loudly; it is documented either way, which was
-the part that mattered.
+That is the whole of it. The tracker is down to those, the four recorded
+deviations, and nothing else.
 
-The one thing worth protecting: §2.1's gate is now live and found a divergence
-the same afternoon it was built. The next pin will do the same. That is the
-argument this document has been making since it was written, and it is the
-reason to keep building them rather than working the list of findings.
+---
+
+## 7. What this exercise actually taught
+
+Worth keeping, because it is the part that generalises.
+
+**The gate found something the day it was built.** §2.1's runners had compared
+the tree on error rows for about an hour when the Fragment error path turned
+up — a real divergence, in the exact class the section was written to catch,
+that nobody had gone looking for.
+
+**A probe is evidence of what it exercised, and nothing else.** Three times on
+this branch a check passed against code it was meant to catch:
+
+- `Hunks` was marked fixed on inputs sharing a first and last line, which
+  leave the trailing flush empty and alias nothing.
+- The caller-options test passed a `cmp.Copy` that already carried `ignore`,
+  so shape's injection had nothing to add.
+- The re-score's own "one level of copying is enough" came from measuring two
+  option subtrees and generalising.
+
+Each was caught by running the PRE-FIX code against the new test, and by an
+adversarial reader asking which inputs reach the path. Neither step is
+optional; the first is cheap and mechanical, and it is the one that keeps
+being worth its cost.
+
+**A fix with no pin is how this list refills.** #30 changed no existing corpus
+row — that is why it survived so long, and why the fix shipped with a new row
+rather than on its own.
