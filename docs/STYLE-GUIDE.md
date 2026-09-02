@@ -215,6 +215,7 @@ matter is a gate people learn to switch off.
 | `surface` | `the option surface` is how the reference describes an API. |
 | `hold`, `carry`, `hands` | A slice holds bytes, a node carries meta, a function hands back a `Result`. |
 | `lives` | `the normative statement lives in the reference` is this guide, one section up. |
+| `decision record` | `audit()` emits one per file. The internal-document gate matches the citation shape (`as the decision record explains`), never the bare noun, for exactly this reason. |
 
 The rule behind the list: ban the phrase that adds nothing, never the
 word that names a thing.

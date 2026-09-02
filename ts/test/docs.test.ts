@@ -167,6 +167,25 @@ function stylePaths(): { file: string, abs: string }[] {
 }
 
 
+// A document named by DESCRIPTION rather than by filename needs the shape
+// of a citation, not the bare noun. "One decision record per file" is
+// `audit()`'s own vocabulary in reference-options.md, and "check the
+// build log" is ordinary advice -- neither sends a reader anywhere. Both
+// of these fire only when the phrase is being leaned on as a source:
+//
+//   As the decision record explains, this is settled.   caught
+//   The build log records the implementation.           caught
+//   ...and one decision record per file, tagged ...     not a citation
+//
+// The bare-noun version was tried first and failed on reference-options.md
+// within a run, which is why it is written this way.
+const CITED = '(?:decision|design) records?|build log'
+const SAYS = 'explains?|notes?|records?|says?|argues?|states?|covers?'
+
+const CITES_ONE = new RegExp(`\\b(?:see|per|as) the (?:${CITED})\\b`, 'gi')
+const ONE_SAYS = new RegExp(`\\bthe (?:${CITED}) (?:${SAYS})\\b`, 'gi')
+
+
 // Internal working documents: plans, decision records, build logs, review
 // notes, and the files that instruct contributors and agents. See
 // docs/STYLE-GUIDE.md, "Documentation does not cite internal documents".
@@ -176,15 +195,17 @@ function stylePaths(): { file: string, abs: string }[] {
 // without leaving the documentation, and the document it points at is
 // working material that moves with the code.
 const INTERNAL_DOCS: [RegExp, string][] = [
-  [/\bADRs?\b/, 'ADR'],
-  [/architecture decision record/i, 'architecture decision record'],
-  [/(?:^|[^\w.-])adr\//, 'adr/'],
-  [/\b[A-Z][A-Z0-9_]*_PLAN\.md\b/, 'a plan file'],
-  [/\b(?:parity|dependency|port|design) plan\b/i, 'a plan'],
-  [/\bBUILD_LOG\.md\b/, 'BUILD_LOG.md'],
-  [/\bCODE_REVIEW\.md\b/, 'CODE_REVIEW.md'],
-  [/\bCLAUDE\.md\b/, 'CLAUDE.md'],
-  [/\bAGENTS\.md\b/, 'AGENTS.md'],
+  [/\bADRs?\b/g, 'ADR'],
+  [/architecture decision record/gi, 'architecture decision record'],
+  [/(?:^|[^\w.-])adr\//g, 'adr/'],
+  [/\b[A-Z][A-Z0-9_]*_PLAN\.md\b/g, 'a plan file'],
+  [/\b(?:parity|dependency|port|design) plan\b/gi, 'a plan'],
+  [/\bBUILD_LOG\.md\b/g, 'BUILD_LOG.md'],
+  [/\bCODE_REVIEW\.md\b/g, 'CODE_REVIEW.md'],
+  [/\bCLAUDE\.md\b/g, 'CLAUDE.md'],
+  [/\bAGENTS\.md\b/g, 'AGENTS.md'],
+  [CITES_ONE, 'an internal document, cited'],
+  [ONE_SAYS, 'an internal document, cited'],
 ]
 
 
@@ -212,13 +233,114 @@ function readerPaths(): { file: string, abs: string }[] {
 }
 
 
-// Fenced blocks blanked rather than dropped, so a reported line number
-// still matches the file. Inline code spans are KEPT: `CLAUDE.md` in a
+// CommonMark fence opener: up to three spaces of indent, then three or
+// more backticks or tildes, then an optional info string. A block opened
+// with ~~~ or with four backticks is an ordinary fence, and a stripper
+// that cannot see one reports a citation inside a code block -- failing a
+// page that the fence exemption says is fine.
+//
+// extract() and the prose helpers share this, because a file holding two
+// notions of what a fence is will eventually disagree with itself.
+const FENCE_OPEN = /^(\s{0,3})(`{3,}|~{3,})[ \t]*([^`\s]*)[^`]*$/
+
+
+// The closer is the same character, at least as long as the opener, per
+// CommonMark -- so a four-backtick block may contain three.
+function fenceCloser(fence: string): RegExp {
+  return new RegExp(
+    '^\\s{0,3}' + fence[0] + '{' + fence.length + ',}[ \\t]*$')
+}
+
+
+// Fenced blocks BLANKED rather than dropped, so a reported line number
+// still matches the file. Inline code spans are kept: `CLAUDE.md` in a
 // sentence is the citation being banned, not an incidental token.
 function fenceless(md: string): string {
-  return lf(md).replace(
-    /^```[a-zA-Z0-9_-]*[ \t]*$[\s\S]*?^```[ \t]*$/gm,
-    (block) => block.replace(/[^\n]/g, ''))
+  const lines = lf(md).split('\n')
+  const out = [...lines]
+
+  for (let i = 0; i < lines.length; i++) {
+    const fm = lines[i].match(FENCE_OPEN)
+    if (!fm) {
+      continue
+    }
+    const closer = fenceCloser(fm[2])
+    out[i] = ''
+    let j = i + 1
+    for (; j < lines.length && !closer.test(lines[j]); j++) {
+      out[j] = ''
+    }
+    if (j < lines.length) {
+      out[j] = ''
+    }
+    i = j
+  }
+
+  return out.join('\n')
+}
+
+
+// A paragraph, joined for matching, with each piece's physical line kept.
+type Logical = {
+  text: string
+  starts: number[]
+  lines: number[]
+  pieces: string[]
+}
+
+
+// Markdown treats a newline inside a paragraph as whitespace, and these
+// pages are hard-wrapped near 72 columns -- so "as the parity\nplan
+// records" is the ORDINARY shape of a multiword phrase here, not an
+// exotic one. A gate matching physical lines would miss most of them,
+// which makes wrapping a way through it.
+//
+// Lines are trimmed, whitespace-collapsed and joined per paragraph;
+// `starts` maps a match offset back to the physical line, so a hit still
+// names a line the reader can open.
+function logical(text: string): Logical[] {
+  const out: Logical[] = []
+  let pieces: string[] = []
+  let starts: number[] = []
+  let lines: number[] = []
+  let at = 0
+
+  const flush = () => {
+    if (0 < pieces.length) {
+      out.push({ text: pieces.join(' '), starts, lines, pieces })
+      pieces = []
+      starts = []
+      lines = []
+      at = 0
+    }
+  }
+
+  text.split('\n').forEach((line, i) => {
+    if ('' === line.trim()) {
+      flush()
+      return
+    }
+    const piece = line.trim().replace(/\s+/g, ' ')
+    starts.push(at)
+    lines.push(i + 1)
+    pieces.push(piece)
+    at += piece.length + 1
+  })
+  flush()
+
+  return out
+}
+
+
+// Which physical line a match offset fell on.
+function at(para: Logical, index: number): { line: number, text: string } {
+  let k = 0
+  for (let n = 0; n < para.starts.length; n++) {
+    if (para.starts[n] <= index) {
+      k = n
+    }
+  }
+  return { line: para.lines[k], text: para.pieces[k] }
 }
 
 
@@ -302,19 +424,14 @@ function extract(file: string, md: string): Item[] {
       continue
     }
 
-    // CommonMark fences, not just three backticks. A block opened with
-    // ~~~ or with four backticks is a perfectly ordinary fence, and an
-    // extractor that could not see one would let a tagged snippet slip
-    // past the accounting layer without executing or owning a skip —
-    // which is the guarantee this whole file exists to make.
-    const fm = line.match(/^(\s{0,3})(`{3,}|~{3,})[ \t]*([^`\s]*)[^`]*$/)
+    // CommonMark fences, not just three backticks. See FENCE_OPEN.
+    const fm = line.match(FENCE_OPEN)
     if (!fm) {
       continue
     }
 
     const fence = fm[2]
-    const closer = new RegExp(
-      '^\\s{0,3}' + fence[0] + '{' + fence.length + ',}[ \\t]*$')
+    const closer = fenceCloser(fence)
     const lang = fm[3] || ''
     const body: string[] = []
     let j = i + 1
@@ -897,9 +1014,8 @@ const BANNED: [RegExp, string][] = loadBanned()
 // Strip frontmatter, fenced blocks and inline code spans; what remains
 // is prose.
 function prose(md: string): string {
-  return lf(md)
+  return fenceless(md)
     .replace(/^---\n[\s\S]*?\n---\n/, '')
-    .replace(/^```[a-zA-Z0-9_-]*[ \t]*$[\s\S]*?^```[ \t]*$/gm, '')
     .replace(/`[^`\n]*`/g, '')
 }
 
@@ -1020,15 +1136,23 @@ describe('docs-style', () => {
   test('no-internal-doc-references', () => {
     const hits: string[] = []
     for (const { file, abs } of readerPaths()) {
-      fenceless(Fs.readFileSync(abs, 'utf8'))
-        .split('\n')
-        .forEach((line, i) => {
-          for (const [re, name] of INTERNAL_DOCS) {
-            if (re.test(line)) {
-              hits.push(`${file}:${i + 1} "${name}": ${line.trim()}`)
+      for (const para of logical(fenceless(Fs.readFileSync(abs, 'utf8')))) {
+        for (const [re, name] of INTERNAL_DOCS) {
+          // matchAll, not match: a paragraph can carry more than one
+          // citation, and reporting only the first hides the rest behind
+          // a fix for the one named.
+          for (const m of para.text.matchAll(re)) {
+            if (null == m.index) {
+              continue
+            }
+            const { line, text } = at(para, m.index)
+            const hit = `${file}:${line} "${name}": ${text}`
+            if (!hits.includes(hit)) {
+              hits.push(hit)
             }
           }
-        })
+        }
+      }
     }
     Assert.deepEqual(hits, [],
       'documentation cites an internal working document ' +
