@@ -1,7 +1,8 @@
 # Documentation style guide
 
 How the Jostraca documentation is written. This guide is normative for
-`docs/*.md`, `docs/how-to/*.md`, the package READMEs, and the prose on
+`docs/*.md`, `docs/how-to/*.md`, `adr/*.md`, the package READMEs, and the
+prose on
 [jostraca.org](https://jostraca.org) (whose authored pages cite this file
 from `jostraca/web`'s AGENTS.md). It exists so that a page written next
 year sounds like a page written this year, and so that a reviewer can
@@ -29,7 +30,7 @@ Two gates check it, and both run in CI:
 
 | Gate | Runs | Checks |
 |---|---|---|
-| `vale docs` | `.github/workflows/docs.yml` | Google's rules plus the banned list, at the levels set in `.vale.ini` |
+| `vale docs adr README.md ts/README.md` | `.github/workflows/docs.yml` | Google's rules plus the banned list, at the levels set in `.vale.ini` |
 | `ts/test/docs.test.ts` | `npm test` | the banned list, the em-dash ration, no emoji, and that every code snippet executes |
 
 The banned list is read from one file by both, so they cannot drift.

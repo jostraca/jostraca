@@ -138,6 +138,35 @@ function stylePages(): string[] {
 }
 
 
+// The STYLE checks cover more than docs/. docs/STYLE-GUIDE.md is
+// normative for `adr/*.md` too, and the Vale gate lints that directory —
+// but Vale is NOT the whole gate here. `.vale.ini` switches Google.We and
+// Google.FirstPerson off precisely BECAUSE these tests carry the stricter
+// house rule, so widening the guide's scope without widening this function
+// left first person and emoji in an ADR passing both gates. Proven by
+// putting "I think we should" and an emoji in adr/README.md and watching
+// `vale` and `npm test` both stay green.
+//
+// Returns repo-relative labels with absolute paths, because these files no
+// longer share one base directory.
+function stylePaths(): { file: string, abs: string }[] {
+  const docs = stylePages()
+    .map((f) => ({ file: `docs/${f}`, abs: Path.join(DOCS_DIR, f) }))
+
+  // DOCS_PAGES narrows to named pages under docs/; it does not name ADRs,
+  // so a narrowed run skips them rather than reporting on all of them.
+  const adrDir = Path.join(REPO, 'adr')
+  const adr = (null == narrowed() && Fs.existsSync(adrDir))
+    ? Fs.readdirSync(adrDir)
+      .filter((f) => f.endsWith('.md'))
+      .sort()
+      .map((f) => ({ file: `adr/${f}`, abs: Path.join(adrDir, f) }))
+    : []
+
+  return [...docs, ...adr]
+}
+
+
 // LINE ENDINGS ARE THE CHECKOUT'S BUSINESS, not this file's. git on
 // Windows checks out with CRLF by default and every pattern below
 // anchors on "\n", so without this the extractor would match zero
@@ -824,9 +853,8 @@ describe('docs-style', () => {
 
   test('no-banned-phrases-in-prose', () => {
     const hits: string[] = []
-    for (const file of stylePages()) {
-      const text = prose(
-        Fs.readFileSync(Path.join(DOCS_DIR, file), 'utf8'))
+    for (const { file, abs } of stylePaths()) {
+      const text = prose(Fs.readFileSync(abs, 'utf8'))
       text.split('\n').forEach((line, i) => {
         for (const [re, name] of BANNED) {
           if (re.test(line)) {
@@ -846,8 +874,8 @@ describe('docs-style', () => {
   // stacking the ration exists to stop.
   test('em-dashes-are-rationed', () => {
     const hits: string[] = []
-    for (const file of stylePages()) {
-      prose(Fs.readFileSync(Path.join(DOCS_DIR, file), 'utf8'))
+    for (const { file, abs } of stylePaths()) {
+      prose(Fs.readFileSync(abs, 'utf8'))
         .split('\n')
         .forEach((line, i) => {
           const n = (line.match(/—/g) || []).length
@@ -871,15 +899,16 @@ describe('docs-style', () => {
   // STYLE-GUIDE.md voice rule 7: talk to the reader as "you". "We"
   // appears only in tutorials, walking through code together. "I"
   // appears nowhere.
-  const TUTORIAL_PAGES = ['tutorial.md']
+  // Labels from stylePaths() are repo-relative.
+  const TUTORIAL_PAGES = ['docs/tutorial.md']
 
   test('we-appears-only-in-tutorials', () => {
     const hits: string[] = []
-    for (const file of stylePages()) {
+    for (const { file, abs } of stylePaths()) {
       if (TUTORIAL_PAGES.includes(file)) {
         continue
       }
-      prose(Fs.readFileSync(Path.join(DOCS_DIR, file), 'utf8'))
+      prose(Fs.readFileSync(abs, 'utf8'))
         .split('\n')
         .forEach((line, i) => {
           const m = line.match(/\b(we|we'(?:ll|ve|re|d)|us|our|ours|let's)\b/i)
@@ -898,8 +927,8 @@ describe('docs-style', () => {
   // I/O is a word, not a pronoun; the negative lookahead keeps it.
   test('first-person-singular-appears-nowhere', () => {
     const hits: string[] = []
-    for (const file of stylePages()) {
-      prose(Fs.readFileSync(Path.join(DOCS_DIR, file), 'utf8'))
+    for (const { file, abs } of stylePaths()) {
+      prose(Fs.readFileSync(abs, 'utf8'))
         .split('\n')
         .forEach((line, i) => {
           const m = line.match(
@@ -917,8 +946,8 @@ describe('docs-style', () => {
 
   test('no-emoji', () => {
     const hits: string[] = []
-    for (const file of stylePages()) {
-      lf(Fs.readFileSync(Path.join(DOCS_DIR, file), 'utf8'))
+    for (const { file, abs } of stylePaths()) {
+      lf(Fs.readFileSync(abs, 'utf8'))
         .split('\n')
         .forEach((line, i) => {
           if (/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(line)) {

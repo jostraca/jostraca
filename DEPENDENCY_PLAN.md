@@ -16,16 +16,25 @@ Two packages stand between jostraca and a dependency-free published artifact:
 `shape` and `memfs`, both TypeScript peer dependencies. The Go module carries
 one more, `github.com/rjrodger/shape/go`, for a single schema.
 
-The recommendation is to reimplement all three rather than vendor any of them,
+The recommendation was to reimplement all three rather than vendor any of them,
 because that is what the used subsets are worth and because it is what this
 project has already done twice.
+
+**Two of the three are done. The third was decided the other way.**
+[ADR 0002](adr/0002-shape.md) accepts `shape` as a production dependency,
+because it is published by the same author and maintainer account as this
+project, so removing it would buy independence from a party this project is
+already identical to. Read the `shape` sections below as the analysis that
+decision was made against, not as work outstanding: §5's sandbox is the
+rehearsed exit if the premise ever fails, and §3 is what the exit would cost on
+the TypeScript side.
 
 | target | today | action | size | status |
 |---|---|---|---|---|
 | `ts/` memfs | 20 packages, 68,557 JS LOC | reimplement | 469 LOC | **done** |
 | `ts/gen/readme.js` | phantom `oxc-parser`, never installed | delete | — | **done** |
-| `go/` shape | 1 module, 3813 LOC, one 4-line schema | reimplement | ~40 LOC | open |
-| `ts/` shape | 1 package, 356K, 5 schemas in 4 files | reimplement | ~200-300 LOC | open |
+| `go/` shape | 1 module, 7,182 LOC at v0.5.0, one 3-line schema | **keep** ([ADR 0002](adr/0002-shape.md)) | — | **decided** |
+| `ts/` shape | 1 package, 583K at 11.3.0, schemas in 4 files | **keep** ([ADR 0002](adr/0002-shape.md)) | — | **decided** |
 | `typescript`, `@types/node` | dev only, not shipped | keep | — | — |
 
 Two steps have landed on this branch. The consumer-facing tree is down from
