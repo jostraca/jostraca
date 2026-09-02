@@ -36,12 +36,12 @@ The order matters more than it looks. Because the entire intended output
 exists before the first byte is written, the build phase can ask
 questions a streaming generator cannot answer:
 
-- Does this file already exist, and does its content differ from what I
-  am about to write?
-- Is it the same as what I wrote last time, so there is nothing to do?
-- Does it carry a marker saying it has been taken out of my hands?
-- If it has changed since my last run, which of the changes are mine and
-  which are the user's?
+- Does this file already exist, and does its content differ from what is
+  about to be written?
+- Is it the same as the last run wrote, so there is nothing to do?
+- Does it carry a marker saying the generator no longer owns it?
+- If it has changed since the last run, which of the changes are the
+  generator's and which are the user's?
 
 A generator that opens a stream and writes as it goes has already
 committed to the first file before it knows the tenth exists. Two phases

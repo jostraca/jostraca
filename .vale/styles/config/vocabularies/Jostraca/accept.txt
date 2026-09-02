@@ -6,14 +6,26 @@
 
 # British spellings. Google style is US English; the house voice is not,
 # and the precedence in .vale.ini puts the house voice first.
-\w+ise
-\w+ised
-\w+ises
-\w+ising
-\w+isation
+#
+# LISTED, not matched by suffix. An earlier version had `\w+ise` and
+# friends, which accept any word ending in those letters -- `madeupise`
+# included -- and so punched a hole straight through the error-level
+# spelling gate this file exists to make usable. Add the stem when a new
+# one is needed; the cost of doing that is the point.
+capitalisation
+capitalised
+capitalises?
+materialised?
+normalised?
+normalises
+organised?
+organises
 recognise[ds]?
-organise[ds]?
+recognises
+summarise[ds]?
+summarises
 tokenise[ds]?
+tokenises
 
 # Domain and API surface.
 accessors
