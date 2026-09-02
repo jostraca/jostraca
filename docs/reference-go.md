@@ -321,9 +321,9 @@ is no sort-by-property in Go.
   a typed slice such as `[]string` takes the right-wins path, as does
   any value carrying a type of its own — which is TypeScript's
   custom-constructor rule.
-- **`WithMem` and `WithVol` are inert**, and the option merge drops
-  per-call `Cmp` and `Name`. Both are described above, with what to do
-  instead, and both are in `go/README.md`'s deviations list too.
+- **The option merge drops per-call `Cmp` and `Name`**, so
+  `cmp.Copy.ignore` has to be set on `New`. Described above, with what to
+  do instead, and in `go/README.md`'s deviations list too.
 - A user component that *wraps* a `Slot` is broken in TypeScript — the
   slot name is never collected and the marker survives verbatim — and Go
   matches it. `J.Cmp` allocates a `kind: 'none'` node and passes through

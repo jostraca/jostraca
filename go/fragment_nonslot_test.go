@@ -105,3 +105,67 @@ func TestCmpChildOfFragmentGoesThroughTheFilter(t *testing.T) {
 		t.Errorf("component body ran %d times, want 0", runs)
 	}
 }
+
+// A List as a direct Fragment child, and a Content whose replace callback
+// has a side effect.
+//
+// Both used to escape the filter for different reasons: List allocated no
+// node at all, so only the Content it emitted was ever filtered -- and an
+// EMPTY list with NoLine set emitted nothing, so a Fragment with no unnamed
+// marker succeeded here while TS raised the non-Slot-child error. Content
+// rendered its template BEFORE consulting the filter, so a user ReplaceFunc
+// ran on the scan pass TS never runs, and again on the replay that accepts
+// it. See #29.
+func TestListAndContentGoThroughTheFragmentFilter(t *testing.T) {
+	// An empty List with NoLine is invisible in its output, so the error is
+	// the only way to observe that the component itself was seen.
+	mem := NewMemFS()
+	_ = mem.WriteFile("/tpl/f.txt", []byte("A<[SLOT:s0]>B\n"))
+	j := New(WithFS(mem), WithFolder("/out"), WithNow(func() int64 { return 1 }))
+	_, err := j.Generate(Options{}, func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("a.txt", func(j *J) {
+				j.FragmentP(FragmentProps{From: "/tpl/f.txt"}, func(j *J) {
+					j.ListP(ListProps{Item: []any{}, NoLine: true},
+						func(j *J, it ListItemProps) {})
+					j.SlotP(SlotProps{Name: "s0"}, func(j *J) { j.Content("S0") })
+				})
+			})
+		})
+	})
+	if err == nil {
+		t.Error("an empty List with NoLine is still a non-Slot child; expected an error")
+	}
+
+	// A Content replace callback must fire once, on the replay that accepts
+	// it -- not on the scan pass as well.
+	calls := 0
+	mem2 := NewMemFS()
+	_ = mem2.WriteFile("/tpl/g.txt", []byte("A<[SLOT]>B\n"))
+	j2 := New(WithFS(mem2), WithFolder("/out"), WithNow(func() int64 { return 1 }))
+	if _, err := j2.Generate(Options{}, func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("a.txt", func(j *J) {
+				j.FragmentP(FragmentProps{From: "/tpl/g.txt"}, func(j *J) {
+					j.ContentP(ContentProps{
+						Src: "{x}",
+						Replace: map[string]any{
+							"{x}": ReplaceFunc(func(_ map[string]string, _ string) string {
+								calls++
+								return "X"
+							}),
+						},
+					})
+				})
+			})
+		})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Errorf("replace callback ran %d times, want 1", calls)
+	}
+	if got := string(mem2.Vol()["/out/app/a.txt"]); got != "AXB\n" {
+		t.Errorf("got %q, want %q", got, "AXB\n")
+	}
+}

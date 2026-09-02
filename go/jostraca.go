@@ -72,7 +72,7 @@ func newJstateFromOptions(o Options) *jstate {
 	// whose Vol and FS were nil, with no error at all. A test translated
 	// from TS by keeping those two options passed while writing into the
 	// working directory. See #37.
-	if st.fs == nil && o.Mem {
+	if st.fs == nil && o.Mem != nil && *o.Mem {
 		st.fs = newSeededMemFS(o.Vol)
 	}
 
@@ -125,7 +125,6 @@ func (j *J) Generate(opts Options, root func(*J)) (Result, error) {
 		return Result{}, ErrNilRoot
 	}
 	merged := mergeOptions(j.st.opts, opts)
-	st := newJstateFromOptions(merged)
 
 	// A GLOBAL in-memory filesystem is reused across Generate calls, so a
 	// second run sees what the first wrote -- unless this call supplies its
@@ -134,11 +133,18 @@ func (j *J) Generate(opts Options, root func(*J)) (Result, error) {
 	// this, `Jostraca({mem: true})` would hand every call a blank volume and
 	// no regenerate-over-existing-output scenario could be written against
 	// it. See #37.
-	if merged.FS == nil && merged.Mem && opts.Vol == nil {
+	//
+	// Decided BEFORE the state is built: newJstateFromOptions would
+	// otherwise allocate a MemFS and copy every byte of the global seed into
+	// it, only for the next line to throw that away. On a builder holding a
+	// large template volume that is a full copy of it per call.
+	if merged.FS == nil && merged.Mem != nil && *merged.Mem && opts.Vol == nil {
 		if gmem, ok := j.st.fs.(*MemFS); ok {
-			st.fs = gmem
+			merged.FS = gmem
 		}
 	}
+
+	st := newJstateFromOptions(merged)
 
 	// Synthetic top-level node so the user's first component has a parent
 	// to append to. Path is empty; Kind=KindNone makes the root op a noop.
@@ -168,6 +174,16 @@ func (j *J) Generate(opts Options, root func(*J)) (Result, error) {
 		When:  st.now(),
 		Audit: func() Audit { return nil },
 	}
+
+	// The in-memory handles are attached whether or not the build phase
+	// runs, as they are in TS. A define-only run still has a filesystem --
+	// the seeded one -- and a caller inspecting it was handed nil.
+	if mfs, ok := st.fs.(*MemFS); ok {
+		fsRef := st.fs
+		res.Vol = func() map[string][]byte { return mfs.Vol() }
+		res.FS = func() FS { return fsRef }
+	}
+
 	if !doBuild {
 		return res, nil
 	}
@@ -182,11 +198,6 @@ func (j *J) Generate(opts Options, root func(*J)) (Result, error) {
 		if b.fh != nil {
 			res.Files = b.fh.files
 		}
-	}
-	if mfs, ok := st.fs.(*MemFS); ok {
-		fsRef := st.fs
-		res.Vol = func() map[string][]byte { return mfs.Vol() }
-		res.FS = func() FS { return fsRef }
 	}
 	return res, nil
 }

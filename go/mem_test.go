@@ -154,3 +154,87 @@ func TestExplicitFSBeatsMem(t *testing.T) {
 		t.Error("Result.FS is not the filesystem the caller supplied")
 	}
 }
+
+// A per-call Vol MERGES over the global seed rather than replacing it,
+// which is TS's `deep({}, gVol, opts.vol)`. Replacing it dropped the global
+// template sources a call was relying on.
+func TestPerCallVolMergesOverTheGlobalSeed(t *testing.T) {
+	j := New(WithMem(), WithFolder("/out"), WithNow(func() int64 { return 1 }),
+		WithVol(map[string][]byte{
+			"/tpl/global.txt": []byte("G"),
+			"/tpl/both.txt":   []byte("global"),
+		}))
+
+	res, err := j.Generate(
+		Options{Vol: map[string][]byte{
+			"/tpl/call.txt": []byte("C"),
+			"/tpl/both.txt": []byte("call"),
+		}},
+		memTree("a.txt", "A"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	vol := res.Vol()
+	if string(vol["/tpl/global.txt"]) != "G" {
+		t.Error("the global seed was dropped by a per-call Vol")
+	}
+	if string(vol["/tpl/call.txt"]) != "C" {
+		t.Error("the per-call seed is missing")
+	}
+	if got := string(vol["/tpl/both.txt"]); got != "call" {
+		t.Errorf("per-call value should win: got %q, want %q", got, "call")
+	}
+}
+
+// Mem is tri-state, so a call can turn OFF a builder's memory mode. TS
+// distinguishes the same three cases: `null == opts.mem ? gUseMemFs :
+// !!opts.mem`. With a plain bool a call could switch it on and never off.
+func TestPerCallMemFalseDisablesGlobalMem(t *testing.T) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmp := t.TempDir()
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(cwd)
+
+	off := false
+	res, err := New(WithMem(), WithFolder("out"), WithNow(func() int64 { return 1 })).
+		Generate(Options{Mem: &off}, memTree("a.txt", "A"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res.Vol != nil {
+		t.Error("Mem:false should fall back to the real filesystem")
+	}
+	if _, err := os.Stat(filepath.Join(tmp, "out", "p", "a.txt")); err != nil {
+		t.Errorf("nothing was written to the real filesystem: %v", err)
+	}
+}
+
+// The in-memory handles are attached whether or not the build phase runs,
+// as they are in TS. A define-only run still has a filesystem -- the seeded
+// one -- and returning nil left a caller unable to inspect even that.
+func TestMemHandlesPresentWhenBuildIsDisabled(t *testing.T) {
+	build := false
+	res, err := New(WithMem(), WithFolder("/out"), WithNow(func() int64 { return 1 }),
+		WithVol(map[string][]byte{"/seed.txt": []byte("S")})).
+		Generate(Options{Build: &build}, memTree("a.txt", "A"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res.Vol == nil || res.FS == nil {
+		t.Fatal("Result.Vol/FS are nil on a define-only run")
+	}
+	if string(res.Vol()["/seed.txt"]) != "S" {
+		t.Error("the seeded volume is not reachable")
+	}
+	if _, built := res.Vol()["/out/p/a.txt"]; built {
+		t.Error("Build:false should not have written anything")
+	}
+}

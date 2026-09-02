@@ -108,6 +108,16 @@ func (j *J) ContentP(p ContentProps) {
 	if j.st.err != nil {
 		return
 	}
+
+	// Reject BEFORE rendering. `Template` runs user-supplied ReplaceFunc
+	// callbacks, and a Fragment's scan pass rejects every child -- so
+	// rendering first fired those callbacks on a pass TS never runs at all,
+	// and fired them again on the replay that accepts the child. A callback
+	// carrying state saw two calls where TS makes one.
+	if j.filteredKind(KindContent, p.Name) {
+		return
+	}
+
 	model := mergeModel(j.st.model, p.Extra)
 	rendered := p.Src
 	if rendered != "" {
@@ -128,9 +138,6 @@ func (j *J) ContentP(p ContentProps) {
 		Path:    childPath(j.cur, p.Name),
 		Meta:    map[string]any{},
 		Content: []string{rendered},
-	}
-	if j.filtered(n) {
-		return
 	}
 	if j.cur != nil {
 		j.cur.Children = append(j.cur.Children, n)
@@ -495,16 +502,34 @@ func (j *J) ListP(p ListProps, body func(j *J, it ListItemProps)) {
 	if j.st.err != nil || body == nil {
 		return
 	}
-	for _, item := range Each(p.Item, EachSpec{Raw: true}, nil) {
-		body(j, ListItemProps{
-			Item:    item,
-			Indent:  p.Indent,
-			Replace: listItemReplace(item),
-		})
+
+	// List allocates a node for the same reason Cmp does: TS wraps it in
+	// `cmp()`, so the enclosing Fragment's filter sees the LIST, not just
+	// whatever it emits. Without one the per-item bodies ran during a
+	// Fragment's scan pass, and an empty list with NoLine set emitted
+	// nothing at all -- so a Fragment with no unnamed marker succeeded here
+	// and raised the non-Slot-child error in TS. KindNone carries no op and
+	// the content walk goes through it, so the nesting changes no output.
+	n := &Node{
+		Kind: KindNone,
+		Meta: map[string]any{},
 	}
-	if !p.NoLine {
-		j.Line("")
+	if j.cur != nil {
+		n.Path = append([]string(nil), j.cur.Path...)
 	}
+
+	j.attachAndDescend(n, func(j *J) {
+		for _, item := range Each(p.Item, EachSpec{Raw: true}, nil) {
+			body(j, ListItemProps{
+				Item:    item,
+				Indent:  p.Indent,
+				Replace: listItemReplace(item),
+			})
+		}
+		if !p.NoLine {
+			j.Line("")
+		}
+	})
 }
 
 // attachAndDescend is the shared 5-step body: append the node, set root
@@ -520,8 +545,16 @@ func (j *J) ListP(p ListProps, body func(j *J, it ListItemProps)) {
 // through attachAndDescend if it takes a body, directly if it does not. See
 // #29.
 func (j *J) filtered(n *Node) bool {
-	return j.cur != nil && j.cur.Filter != nil &&
-		!j.cur.Filter(kindName(n.Kind), n.Name)
+	return j.filteredKind(n.Kind, n.Name)
+}
+
+// filteredKind asks the same question before a node exists, which matters
+// for any component that does work while building one. TS rejects at
+// `cmp()`, BEFORE the component's function body runs, so anything the body
+// would have done -- rendering a template, running a user ReplaceFunc --
+// must not happen on a pass that rejects it.
+func (j *J) filteredKind(k Kind, name string) bool {
+	return j.cur != nil && j.cur.Filter != nil && !j.cur.Filter(kindName(k), name)
 }
 
 func (j *J) attachAndDescend(n *Node, body func(*J)) {
