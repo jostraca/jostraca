@@ -61,7 +61,7 @@ Three things the syntax does not do, all deliberate:
 - **No blanking on a miss.** An unresolved `$$nope$$` is left in the
   output verbatim, so a typo is visible instead of silently gone.
 
-For one value that is not in the model, pass `extra` — remembering that
+For one value that is not in the model, pass `extra`—remembering that
 `Content`'s second positional argument is children, so this needs the
 props form:
 

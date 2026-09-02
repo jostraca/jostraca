@@ -80,7 +80,7 @@ carries `JOSTRACA_PROTECT`, and a file skipped by the `exclude` option.
 An empty report therefore does not always mean "nothing to do".
 
 For the whole decision trail, call `audit()`. It returns
-`[tag, data]` pairs — the filesystem calls, and one record per file
+`[tag, data]` pairs—the filesystem calls, and one record per file
 carrying its metadata and a `why` breadcrumb naming each branch the
 decision took. That is the tool for "why did it do that", not for
 routine reporting.

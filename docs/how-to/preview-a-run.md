@@ -8,7 +8,7 @@ order: 60
 
 `control.dryrun` guards every write while letting everything else
 happen. The decision tree runs, the result arrays fill in, the audit is
-recorded — and the filesystem is not touched, not even to create the
+recorded—and the filesystem is not touched, not even to create the
 `.jostraca` folder.
 
 Set it on the `generate()` call. A global `control` is ignored, which

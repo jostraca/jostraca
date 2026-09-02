@@ -40,7 +40,7 @@ acme-api/src/routes/health.js
 ```
 
 Only two props move the path: `Project`'s `folder` and `Folder`'s
-`name`. `Project`'s `name` adds nothing to it — it is there for
+`name`. `Project`'s `name` adds nothing to it—it is there for
 `File.exclude` matching, and using it where you meant `folder` produces
 a flat tree with no error.
 

@@ -6,8 +6,8 @@ order: 20
 
 # Extract part of a template
 
-Sometimes the file you want to borrow from is a working file — one that
-compiles, or runs, or that somebody maintains for its own sake — and you
+Sometimes the file you want to borrow from is a working file—one that
+compiles, or runs, or that somebody maintains for its own sake—and you
 want one region of it. `eject` takes the region between two markers and
 discards everything else, markers included.
 

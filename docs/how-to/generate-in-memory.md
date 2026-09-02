@@ -91,7 +91,7 @@ provider by writing into it. The [Go
 reference](../reference-go.md#withmem-and-withvol) shows both, along with
 the three rules they share with TypeScript.
 
-Before v0.35.0 both Go options were inert — a generator configured with
+Before v0.35.0 both Go options were inert—a generator configured with
 them wrote to the real filesystem and returned `nil` for `Vol` and `FS`,
 with no error.
 

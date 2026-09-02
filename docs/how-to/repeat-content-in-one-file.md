@@ -50,7 +50,7 @@ marker text verbatim. Use `Content({src: …, replace})`.
 
 **`line: false` turns off the trailing newline.** By default `List`
 emits one after the whole list, and only the exact value `false`
-disables it — `line: 0` still emits.
+disables it—`line: 0` still emits.
 
 `{item.path}` resolves with the same path grammar as `getx`, so
 `{item.a.b}` works. It cannot address a `$`-suffixed key, though, so

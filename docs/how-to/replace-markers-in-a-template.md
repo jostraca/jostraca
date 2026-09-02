@@ -6,8 +6,8 @@ order: 30
 
 # Replace markers in a template
 
-`$$path$$` covers values that live in the model. For everything else —
-a name computed at generate time, a whole block of generated code — pass
+`$$path$$` covers values that live in the model. For everything else—a
+name computed at generate time, a whole block of generated code—pass
 a `replace` map. It works on `Fragment`, `Content` and `Copy`.
 
 <!-- test: scenario replace -->
@@ -65,8 +65,8 @@ function value receives the named capture groups, the whole match under
 One asymmetry to know before you rely on it. A replacement that **emits
 a component** lands in the right place inside a `Fragment`, which
 streams its output, but is appended after the whole string inside a
-`Content`, which joins first. Where position matters, use `Fragment` —
-or return a string.
+`Content`, which joins first. Where position matters, use `Fragment`—or
+return a string.
 
 ## See also
 

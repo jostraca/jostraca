@@ -82,3 +82,10 @@ go/jostraca.go.tmp
 # one machine's tool permissions, tracked by accident, and it carried local
 # filesystem paths into a public repo.
 .claude/
+
+# Vale's downloaded style packages. `vale sync` fetches Google from the
+# package registry into .vale/styles/Google/, which is third-party content
+# with its own release cadence -- pinned in .vale.ini and CI, not vendored.
+# The vocabularies under styles/config/ ARE ours and stay tracked.
+.vale/styles/*
+!.vale/styles/config/

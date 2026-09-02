@@ -57,7 +57,7 @@ overwrite with no error:
 If merge silently overwrote something, that list is where to look.
 
 A merge honours a deletion. If the user removed a region your generator
-did not touch, the region stays gone — the deletion is the only intent
+did not touch, the region stays gone—the deletion is the only intent
 anybody expressed about those lines. "Every generated line survives" is
 not a promise Jostraca makes, and the
 [explanation](../explanation.md#existing-files-and-the-merge-base) says

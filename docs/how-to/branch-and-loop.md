@@ -47,7 +47,7 @@ acme/tsconfig.json
 ```
 
 To skip a component, do not call it. There is no no-op component to
-substitute — `None` exists internally and is not exported — so the
+substitute—`None` exists internally and is not exported—so the
 branch is the mechanism.
 
 `each` is available when you want its extras: it takes an object as

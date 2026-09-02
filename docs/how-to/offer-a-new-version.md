@@ -60,7 +60,7 @@ command can list them and tell the user what is waiting.
 
 `present` is also the one mode that still acts on a file the user has
 taken over with `JOSTRACA_PROTECT`: the protected file keeps its bytes,
-and the `.new` sidecar is still written. That is deliberate — somebody
+and the `.new` sidecar is still written. That is deliberate—somebody
 who has taken a file over may still want to see what they are
 declining.
 
