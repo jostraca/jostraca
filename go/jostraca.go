@@ -61,7 +61,32 @@ func newJstateFromOptions(o Options) *jstate {
 	st.meta = o.Meta
 	st.debug = o.Debug
 	st.fs = o.FS
+
+	// Mem switches an in-memory filesystem on and Vol seeds it, which is
+	// what TS's `{mem: true}` and `vol` pair does. An explicit FS still
+	// wins, exactly as in TS, where `opts.fs ||` comes first in the chain
+	// that picks the filesystem.
+	//
+	// These two options used to be INERT here: nothing read them, so
+	// `WithMem()` ran against the real filesystem and returned a Result
+	// whose Vol and FS were nil, with no error at all. A test translated
+	// from TS by keeping those two options passed while writing into the
+	// working directory. See #37.
+	if st.fs == nil && o.Mem {
+		st.fs = newSeededMemFS(o.Vol)
+	}
+
 	return st
+}
+
+// newSeededMemFS builds an in-memory filesystem pre-populated from a Vol
+// map. Mirrors TS's `MemFs(vol)`.
+func newSeededMemFS(vol map[string][]byte) *MemFS {
+	mem := NewMemFS()
+	for path, body := range vol {
+		_ = mem.WriteFile(path, body)
+	}
+	return mem
 }
 
 // Result is what Generate returns after both define and build phases.
@@ -101,6 +126,19 @@ func (j *J) Generate(opts Options, root func(*J)) (Result, error) {
 	}
 	merged := mergeOptions(j.st.opts, opts)
 	st := newJstateFromOptions(merged)
+
+	// A GLOBAL in-memory filesystem is reused across Generate calls, so a
+	// second run sees what the first wrote -- unless this call supplies its
+	// own Vol, which seeds a fresh one. TS makes the same distinction:
+	// `null == opts.vol && null != gMemFs ? gMemFs : MemFs(vol)`. Without
+	// this, `Jostraca({mem: true})` would hand every call a blank volume and
+	// no regenerate-over-existing-output scenario could be written against
+	// it. See #37.
+	if merged.FS == nil && merged.Mem && opts.Vol == nil {
+		if gmem, ok := j.st.fs.(*MemFS); ok {
+			st.fs = gmem
+		}
+	}
 
 	// Synthetic top-level node so the user's first component has a parent
 	// to append to. Path is empty; Kind=KindNone makes the root op a noop.
