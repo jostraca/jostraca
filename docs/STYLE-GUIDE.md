@@ -7,16 +7,35 @@ from `jostraca/web`'s AGENTS.md). It exists so that a page written next
 year sounds like a page written this year, and so that a reviewer can
 point at a rule instead of arguing taste.
 
-Three sources feed it, in priority order:
+Three sources feed it, in a fixed priority order. The same order is
+encoded in `.vale.ini`, and every rule switched off there names the
+reason:
 
-1. **This file.** Where it rules, it rules.
+    house voice  ->  Google  ->  Vale defaults
+
+1. **This file.** Where it rules, it rules. The house voice is Richard
+   Rodger's blog register, and the places it wins are listed with their
+   reasons rather than left as silent exceptions: first-person plural in
+   tutorials, British spellings, quotation punctuation outside the
+   quotes, and the parenthesis ration.
 2. The [Google developer documentation style
    guide](https://developers.google.com/style) for everything this file
    does not cover: second person, present tense, active voice,
    sentence-style capitalisation in headings, serial commas, one idea
-   per sentence.
-3. The register table below decides the fights between the two voices
-   the docs blend: Google's plainness and the house voice.
+   per sentence, dash spacing.
+3. [Vale](https://vale.sh) defaults, which mostly means spelling.
+
+Two gates check it, and both run in CI:
+
+| Gate | Runs | Checks |
+|---|---|---|
+| `vale docs` | `.github/workflows/docs.yml` | Google's rules plus the banned list, at the levels set in `.vale.ini` |
+| `ts/test/docs.test.ts` | `npm test` | the banned list, the em-dash ration, no emoji, and that every code snippet executes |
+
+The banned list is read from one file by both, so they cannot drift.
+A Google rule sitting at `warning` rather than `error` was tried at
+error level first and found wrong for these pages; `.vale.ini` records
+what it produced and why it was demoted.
 
 ## The structure: Diátaxis, enforced by placement
 
@@ -78,28 +97,86 @@ genuine payoff.
 ## Banned phrases and patterns
 
 These read as generated filler. Do not use them, in any document,
-including commit messages that quote the docs. The enforced subset
-lives in `ts/test/docs.test.ts` (the `docs-style` block) and fails the
-build; the full list is normative here.
+including commit messages that quote the docs.
 
-**Words and phrases**: worth noting · it's important to note · at its
-core · when it comes to · let's break it down · here's where it gets
-interesting · delve · dive into · robust · seamless · comprehensive ·
-holistic · leverage · harness (verb) · foster · navigate (figurative) ·
-landscape (figurative) · realm · testament to · pivotal ·
-transformative · game-changing · cutting-edge · groundbreaking ·
-underscore (verb) · shed light on · pave the way · unpack · surface
-(verb, for insights) · lean into · load-bearing · doing the heavy
-lifting · the right way/answer/tool/question · at the end of the day ·
-paradigm shift · north star · key takeaways · best practices (name the
-practice instead) · the whole game · that's the tell · sit with · worth
-exploring · worth considering.
+**The list itself lives in
+`.vale/styles/config/vocabularies/Jostraca/reject.txt`**, one regular
+expression per line. That file is the single source of truth: Vale
+reads it in CI, and `ts/test/docs.test.ts` (the `docs-style` block)
+reads the same file rather than keeping a second copy, so the two
+gates cannot disagree about what is banned. Add a phrase there and both
+pick it up. What follows is a reader's summary of it, not a second
+list; every phrase is shown as code so that quoting a banned phrase in
+this guide does not fail the gate.
 
-**Patterns**:
+It draws on two sources: the original house list, and
+[claudisms.ai](https://claudisms.ai/), a catalogue of the patterns that
+mark machine-written prose.
 
-- The contrast frame "not just X, it's Y" / "It's not about X, it's
-  about Y", and its cousin "not X—it is Y". One per page at most;
-  zero is better. Say what the thing is.
+**Filler and false emphasis**: `worth noting` · `important to note` ·
+`it cannot be overstated` · `at its core` · `when it comes to` ·
+`let's break it down` · `here's where it gets interesting` ·
+`the point is` · `because it matters`.
+
+**Inflated vocabulary**: `delve` · `dive into` · `robust` · `seamless` ·
+`comprehensive` · `holistic` · `intricate` · `leverage` · `foster` ·
+`shed light on` · `pave the way` · `pivotal` · `transformative` ·
+`game-changing` · `cutting-edge` · `groundbreaking` · `testament to` ·
+`paradigm shift` · `realm` · `landscape of` · `underscores the` ·
+`lean into` · `throughline` · `double-click on` · `mature setup`.
+
+**Consultant register**: `north star` · `key takeaways` ·
+`best practices` (name the practice instead) · `at the end of the day` ·
+`pressure-test` · `right-size` · `strategic imperative` ·
+`three things to know` · `dispatches from` · `best operators` ·
+`lessons learned`.
+
+**Metaphor inflation**: `load-bearing` · `heavy lifting` ·
+`is doing the work` · `different physics` · `hits hardest` ·
+`quietly` (say `silently`, which is the term of art for a failure that
+reports nothing).
+
+**The contrast frame and its cousins**: `not just` · `not only X but Y` ·
+`it's not about` · `the whole game` · `the entire point` ·
+`the only thing that matters`. Say what the thing is.
+
+**False singularity**: `the right way/answer/tool/question` ·
+`the best thing you can do` · `if I had to pick` · `what struck me` ·
+`stuck with me` · `struck a chord` · `hit a nerve` ·
+`we've seen this movie before`.
+
+**Reflective pose**: `sit with` · `worth exploring/considering/asking` ·
+`keeps coming back to` · `that's the tell` · `the honest version is` ·
+`where I landed`.
+
+**Invented observation about people**: `most people` ·
+`everyone I've worked with` · `a lot of folks` · `nobody I know`. If it
+did not happen, do not claim to have noticed it.
+
+**Signposting**: `let's explore` · `now let's turn to` · `moving on to` ·
+`in today's rapidly evolving` · `reflecting a broader trend` ·
+`great question`.
+
+### What is not banned, and why
+
+Several entries on claudisms.ai are deliberately absent, because they
+name things this project documents. A gate that fires on the subject
+matter is a gate people learn to switch off.
+
+| Not banned | Because |
+|---|---|
+| `real` | `real filesystem` is the distinction the in-memory mode exists to draw. |
+| `shape` | The options validator is a package called `shape`. |
+| `engine` | There is a diff engine and a template engine. |
+| `surface` | `the option surface` is how the reference describes an API. |
+| `hold`, `carry`, `hands` | A slice holds bytes, a node carries meta, a function hands back a `Result`. |
+| `lives` | `the normative statement lives in the reference` is this guide, one section up. |
+
+The rule behind the list: ban the phrase that adds nothing, never the
+word that names a thing.
+
+**Patterns** (not mechanically checkable, enforced at review):
+
 - Announcing structure before delivering it ("There are three things to
   understand").
 - Restating the question before answering it.
@@ -107,20 +184,29 @@ exploring · worth considering.
 - Stacked short declaratives (four or more in a row).
 - Superlative self-ranking ("the most important thing", "the part that
   matters most").
-- Invented observation about people ("most teams find", "everyone I've
-  worked with").
+- A list of `**Bold term**: explanation` pairs, which is the single most
+  recognisable machine-written list. Write sentences, or a table.
 
 **Punctuation rulings**:
 
-- Em dashes are allowed—the house voice uses them—but rationed to
-  **one aside per sentence**: either a single dash before a trailing
+- Em dashes are allowed, and take **no space on either side**:
+  `a dash—like this`. That is Google's ruling
+  ([dashes](https://developers.google.com/style/dashes)) and
+  `Google.EmDash` fails the build on a spaced one. They stay **rationed
+  to one aside per sentence**: either a single dash before a trailing
   clause, or one matched pair around a parenthetical, never both and
-  never two asides. Prefer a comma or parentheses when the aside is
-  mild. (A source that banned them outright also banned the voice this
-  guide adopts; the phrases above are the part of that list this
-  project takes.)
+  never two asides. `docs.test.ts` enforces the ration, Vale enforces
+  the spacing. Prefer a comma or parentheses when the aside is mild.
+  (claudisms.ai bans the em dash outright. This project keeps it, because
+  the voice it also asks for uses it; the spacing follows Google and the
+  ration is ours.)
+- In a link list, separate the link from its gloss with a full stop, not
+  a dash: `- [Copy a directory](how-to/copy-a-directory.md). Copies a tree...`.
 - No emoji in documentation.
 - Sentence-style capitalisation in headings (Google style).
+- British spellings (`-ise`, `-isation`). Google style is US English;
+  this is one of the places the house voice wins, and
+  `accept.txt` carries them.
 
 ## Terminology
 
@@ -229,6 +315,16 @@ trade-off admitted. May quote history when the history is the argument.
 
 Change it the way behaviour changes: in the same commit as the first
 page that follows the new rule, with the reasoning in the commit
-message. The enforced phrase list in `docs.test.ts` and this file must
-agree; the test names this file, so a drift is a build failure with a
-pointer.
+message.
+
+To ban a phrase, add the regular expression to
+`.vale/styles/config/vocabularies/Jostraca/reject.txt` and summarise it in
+the preceding list. Both gates pick it up from that one file; there is no second
+list to update, and `docs.test.ts` names this file, so a drift is a
+build failure with a pointer.
+
+To change a Google rule's level, edit `.vale.ini` and write down what
+the rule produced on a clean run. "It was noisy" is not a reason; "it
+maps `touch` to `tap`, and 9 of its 22 hits were docs about touching a
+file" is. A rule demoted without that note reads later as an oversight,
+and gets re-promoted by someone repeating the work.

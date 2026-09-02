@@ -54,3 +54,9 @@ tokenizer
 
 # People and algorithms cited in the reference pages.
 Hirschberg
+
+# Documentation and prose-gate vocabulary.
+READMEs
+validator
+declaratives
+[Ff]rontmatter
