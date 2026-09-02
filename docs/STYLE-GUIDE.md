@@ -220,6 +220,13 @@ matter is a gate people learn to switch off.
 The rule behind the list: ban the phrase that adds nothing, never the
 word that names a thing.
 
+**Matching spans a line wrap.** These pages wrap near 72 columns and most
+of the list is multi-word, so the gate joins each paragraph before
+matching: `worth\nnoting` fails exactly as `worth noting` does. It was
+not always so, and the day the gate started reading paragraphs it found
+two phrases that had been passing since it was written, each saved only
+by where its line happened to break.
+
 **Patterns** (not mechanically checkable, enforced at review):
 
 - Announcing structure before delivering it ("There are three things to

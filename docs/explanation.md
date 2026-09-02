@@ -109,10 +109,9 @@ can offer without rebuilding them.
 
 **Or fill in a file that is still valid source.** When a file's shape
 reads better as a file than as a tree of calls, keep it as a file.
-`Fragment` reads it and `Slot` fills the regions you marked. The point
-is where the marker goes: it is allowed to sit inside the target
-language's own comment syntax, so the template stays a legal file of its
-own type.
+`Fragment` reads it and `Slot` fills the regions you marked. The marker
+is allowed to sit inside the target language's own comment syntax, so
+the template stays a legal file of its own type.
 
 <!-- test: skip an illustration of marker placement; the executable version is the slots scenario in how-to/fill-a-template-slot.md -->
 ```html

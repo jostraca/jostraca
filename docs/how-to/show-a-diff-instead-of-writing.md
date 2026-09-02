@@ -48,8 +48,8 @@ PORT=9090
 HOST=localhost
 ```
 
-Two details that differ from the merge markers, and from what most
-people expect:
+Two details that differ from the merge markers, and from the git
+convention they resemble:
 
 - **The existing side comes first**, and there is **no `=======`
   separator**. Each side gets its own opening and closing marker.

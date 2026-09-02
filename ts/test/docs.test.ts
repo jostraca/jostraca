@@ -1005,7 +1005,9 @@ function loadBanned(): [RegExp, string][] {
     .split('\n')
     .map((line) => line.trim())
     .filter((line) => '' !== line && !line.startsWith('#'))
-    .map((pat) => [new RegExp(`\\b(?:${pat})\\b`, 'i'), pat])
+    // Global, because the gate scans with matchAll: a paragraph can
+    // carry two banned phrases and both should be reported.
+    .map((pat) => [new RegExp(`\\b(?:${pat})\\b`, 'gi'), pat])
 }
 
 const BANNED: [RegExp, string][] = loadBanned()
@@ -1022,17 +1024,34 @@ function prose(md: string): string {
 
 describe('docs-style', () => {
 
+  // Logical lines, for the reason in logical(): the list is mostly
+  // MULTIWORD, the pages wrap near 72 columns, and a physical-line scan
+  // therefore missed any phrase a wrap happened to split. That was not
+  // hypothetical -- switching this on found two live ones, "The point\nis
+  // where the marker goes" in explanation.md and "what most\npeople
+  // expect" in a how-to, both of which had been passing CI since the gate
+  // was written.
+  //
+  // The tests below stay on physical lines on purpose: `we` and `I` are
+  // single tokens that no wrap can split, and the em-dash ration is
+  // defined per line rather than per paragraph.
   test('no-banned-phrases-in-prose', () => {
     const hits: string[] = []
     for (const { file, abs } of stylePaths()) {
-      const text = prose(Fs.readFileSync(abs, 'utf8'))
-      text.split('\n').forEach((line, i) => {
+      for (const para of logical(prose(Fs.readFileSync(abs, 'utf8')))) {
         for (const [re, name] of BANNED) {
-          if (re.test(line)) {
-            hits.push(`${file}:${i + 1} "${name}": ${line.trim()}`)
+          for (const m of para.text.matchAll(re)) {
+            if (null == m.index) {
+              continue
+            }
+            const { line, text } = at(para, m.index)
+            const hit = `${file}:${line} "${name}": ${text}`
+            if (!hits.includes(hit)) {
+              hits.push(hit)
+            }
           }
         }
-      })
+      }
     }
     Assert.deepEqual(hits, [],
       `banned phrases (docs/STYLE-GUIDE.md):\n${hits.join('\n')}`)
