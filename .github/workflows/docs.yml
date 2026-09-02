@@ -1,0 +1,66 @@
+# The prose gate. Vale over docs/, at the levels set in .vale.ini.
+#
+# Separate from test.yml because it is neither a platform check nor a
+# Node check: one runner, one job, no matrix. It runs on doc and config
+# changes only, so a code-only pull request does not wait on it.
+name: Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - '.vale.ini'
+      - '.vale/**'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - '.vale.ini'
+      - '.vale/**'
+      - '.github/workflows/docs.yml'
+
+jobs:
+  prose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Pinned. Vale ships new rules in the Google package as well as in
+      # the binary, and an unpinned gate turns someone else's release
+      # into a red build on a pull request that touched one word.
+      - name: Install Vale
+        env:
+          VALE_VERSION: '3.14.0'
+        run: |
+          curl -sSfL -o vale.tar.gz \
+            "https://github.com/errata-ai/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz"
+          tar xzf vale.tar.gz vale
+          sudo mv vale /usr/local/bin/
+          vale --version
+
+      # Downloads the Google package into .vale/styles/, which is
+      # gitignored -- the vocabularies under .vale/styles/config/ are
+      # ours and are committed.
+      - name: Sync Vale packages
+        run: vale sync
+
+      # Fails on any error-level finding. Warnings and suggestions are
+      # reported for the author to read, and do not block: see the
+      # demotion notes in .vale.ini for what sits at which level and why.
+      - name: Prose gate
+        run: vale --minAlertLevel=error docs
+
+      - name: Full report (advisory)
+        if: always()
+        run: |
+          {
+            echo '## Prose report'
+            echo
+            echo 'Errors block the build. Warnings and suggestions do not.'
+            echo
+            echo '```'
+            vale --minAlertLevel=suggestion docs 2>&1 | tail -40 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
