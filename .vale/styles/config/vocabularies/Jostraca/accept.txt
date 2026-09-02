@@ -60,3 +60,6 @@ READMEs
 validator
 declaratives
 [Ff]rontmatter
+declaratively
+repo
+[Mm]akefile

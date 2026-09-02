@@ -8,6 +8,16 @@ tree. Only then does the build phase write files. That split is why a
 second run over code somebody has edited by hand has choices rather
 than a single destructive default.
 
+**There is no template syntax to learn.** You write code, in the
+language you are already in: iteration is `for`, branching is `if`,
+reuse is a function. Where a file reads better as a file, you keep it as
+one and mark the regions to fill—and the marker is allowed to sit inside
+that language's own comment syntax, so the template is still valid
+HTML, or Go, or SQL. It opens, highlights, formats, and lints like any
+other file of its type. No file that is valid in neither language, and
+no editor that needs a plugin to read it. See
+[no template syntax to learn](explanation.md#no-template-syntax-to-learn).
+
 This repository ships **two implementations kept in parity**:
 
 - **TypeScript** in

@@ -10,6 +10,11 @@ file, a config file, one module per route, and an index page from a
 template. Then we will edit the output by hand and run the generator
 again, which is the step this whole design exists for.
 
+There is no template syntax to learn on the way. Everything here is
+ordinary JavaScript: the loop that writes one module per route is a
+`for`, and the one template file we do use stays valid HTML, because
+its marker sits inside an HTML comment.
+
 Each step below is a complete file. Copy any one of them into `gen.mjs`
 and run it—you do not have to have followed the previous step. Every
 snippet on this page is executed by the test suite, and every listing

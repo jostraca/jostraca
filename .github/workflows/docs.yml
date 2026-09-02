@@ -10,6 +10,8 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
+      - 'README.md'
+      - 'ts/README.md'
       - '.vale.ini'
       - '.vale/**'
       - '.github/workflows/docs.yml'
@@ -17,6 +19,8 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
+      - 'README.md'
+      - 'ts/README.md'
       - '.vale.ini'
       - '.vale/**'
       - '.github/workflows/docs.yml'
@@ -50,7 +54,7 @@ jobs:
       # reported for the author to read, and do not block: see the
       # demotion notes in .vale.ini for what sits at which level and why.
       - name: Prose gate
-        run: vale --minAlertLevel=error docs
+        run: vale --minAlertLevel=error docs README.md ts/README.md
 
       - name: Full report (advisory)
         if: always()
@@ -61,6 +65,6 @@ jobs:
             echo 'Errors block the build. Warnings and suggestions do not.'
             echo
             echo '```'
-            vale --minAlertLevel=suggestion docs 2>&1 | tail -40 || true
+            vale --minAlertLevel=suggestion docs README.md ts/README.md 2>&1 | tail -40 || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
