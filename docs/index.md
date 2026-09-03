@@ -87,9 +87,9 @@ TypeScript is the source of truth. A behaviour change lands in `ts/src/`
 first and Go follows it; `make all` from the repository root builds and
 tests both stacks.
 
-- [The style guide](STYLE-GUIDE.md). How these pages are written:
-  Diátaxis placement, the voice, the banned-phrase list, and the
-  snippet directives under which every example runs.
+- [The style guide](STYLE-GUIDE.md). How these pages are written: which
+  kind of page a fact belongs on, the voice, the banned-phrase list, and
+  the snippet directives under which every example runs.
 - [`test/spec/`](https://github.com/jostraca/jostraca/tree/HEAD/test/spec). The shared corpus. A change to any pure helper adds a row there
   rather than a case in one stack's suite.
 

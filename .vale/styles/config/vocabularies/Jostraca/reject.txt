@@ -115,6 +115,19 @@ nobody I know
 # this line, which is visible in review.
 honest(y|ly)?
 
+# The framework the four kinds come from. A fact about how these pages
+# were planned, not one a reader needs in order to read them: naming it
+# sends somebody looking for how to write a file tree off to learn a
+# taxonomy first. Say tutorial, how-to, reference, explanation. The
+# style guide and the contributor guides may name it; documentation may
+# not, which is why this entry exists.
+#
+# The middle is `[aá].?` because the accented spelling in these files is
+# DECOMPOSED -- a plus a combining acute -- so a pattern written for the
+# single-codepoint form silently matches nothing. Found the hard way:
+# two greps came back clean over files that plainly contained the word.
+di[aá].?taxis
+
 # --- Signposting -------------------------------------------------------
 let'?s explore
 now let'?s turn to
