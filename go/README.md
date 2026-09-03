@@ -18,8 +18,7 @@ go get github.com/jostraca/jostraca/go
 
 ---
 
-This README is organised along the four [Diátaxis](https://diataxis.fr)
-documentation modes:
+This README is organised in four kinds of material:
 
 - **[Tutorial](#tutorial)** — learning-oriented. Your first generator.
 - **[How-to guides](#how-to-guides)** — task-oriented. Specific recipes.

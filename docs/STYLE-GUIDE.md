@@ -38,7 +38,7 @@ A Google rule sitting at `warning` rather than `error` was tried at
 error level first and found wrong for these pages; `.vale.ini` records
 what it produced and why it was demoted.
 
-## The structure: Diátaxis, enforced by placement
+## The structure: four kinds, enforced by placement
 
 Every page is exactly one of four kinds, and the kind decides what the
 page may do:
@@ -57,6 +57,15 @@ everything else links to it.
 
 `index.md` is the doorway and belongs to no kind: it routes, and states
 no fact of its own that a page below it does not also state.
+
+**Documentation never names the framework.** The four kinds come from
+`Diátaxis`, and that is a fact about how these pages were planned, not
+one a reader needs in order to read them. Naming it asks somebody looking
+for how to write a file tree to go and learn a taxonomy first. Say
+**tutorial**, **how-to**, **reference** and **explanation**, which are
+ordinary words that describe themselves, and let the structure do the
+explaining. This guide and the contributor guides are where the name
+belongs, because there it answers a question somebody is actually asking.
 
 ## Documentation does not cite internal documents
 
@@ -83,7 +92,7 @@ act on the sentence without leaving the documentation.
 State the fact instead. "TypeScript is the source of truth; change it
 first, then bring Go into parity" is what a reader needs, and a link to
 the guide that also says so adds nothing to it. Where the fact belongs in
-the documentation and is missing, write it into the Diátaxis page that
+the documentation and is missing, write it into the page that
 owns it rather than pointing outside.
 
 The rule runs one way. Internal documents cite each other and cite the
@@ -296,7 +305,7 @@ by where its line happened to break.
 
 ## Code snippets: every one is tested
 
-A fenced snippet in a Diátaxis page is either executed by
+A fenced snippet in a documentation page is either executed by
 `ts/test/docs.test.ts` or carries a visible, reasoned skip. The
 directive vocabulary—an HTML comment on its own line immediately
 before the fence:

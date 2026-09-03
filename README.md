@@ -57,10 +57,9 @@ documented behaviour means the same thing in either language.
 
 ## Documentation
 
-The documentation set lives in [`docs/`](./docs/) and follows the
-[Diátaxis](https://diataxis.fr) framework—four kinds of material, each
-answering a different need. Start with the one that matches what you are
-doing:
+The documentation set lives in [`docs/`](./docs/), in four kinds of
+material, each answering a different need. Start with the one that matches
+what you are doing:
 
 - **[Tutorial](./docs/tutorial.md)**—build a generator from nothing, then
   run it a second time over hand-edited output.
