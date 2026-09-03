@@ -65,8 +65,8 @@ nothing arrives behind it:
 
 | | version | size | transitive |
 |---|---|---|---|
-| TypeScript, peer `>=11` | 11.3.0 | 12 files, 583 KB unpacked | none |
-| Go | v0.5.0 | 21 files, 7,182 non-test lines | none |
+| TypeScript, peer `>=11` | 11.3.1 | 12 files, 698 KB unpacked | none |
+| Go | v0.5.1 | 23 files, 8,500 non-test lines | none |
 
 Four TypeScript files import it (`jostraca.ts`, `cmp/Fragment.ts`,
 `cmp/Copy.ts`, `util/point.ts`); Go uses one three-line schema in
@@ -106,3 +106,11 @@ must track `shape` releases together, because a divergence in what each side
 pins is a parity risk of its own—the v0.1.3 to v0.5.0 jump in 0.36.0 changed
 how an absent `Optional` array validates and forced the eject schema to be
 rewritten.
+
+Sizes are re-measured on each bump rather than carried forward, and the
+0.5.0 to 0.5.1 patch is why that is worth doing: measured the same way
+before and after, the npm tarball went from 583 KB to 698 KB unpacked and
+the Go source from 7,182 to 8,500 non-test lines. No behaviour this project
+relies on changed, and 460 TypeScript tests, `go vet`, `go test` and
+`go test -race` all pass unaltered, so the bump was taken. A patch that adds
+a fifth of a package is still worth noticing.
