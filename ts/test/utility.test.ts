@@ -542,7 +542,7 @@ describe('util', () => {
 // cleanup only ever reached the survivors. That pollution is observable in
 // generated files, since Content shallow-copies the model and nested objects
 // are shared for the whole run. Go rebuilds instead of stamping, so TS was the
-// side that was wrong. See PARITY_PLAN.md 2.3.
+// side that was wrong. See docs/design/PARITY_PLAN.md 2.3.
 describe('caller-state', () => {
 
   test('getx-filter-does-not-mutate-the-model', () => {

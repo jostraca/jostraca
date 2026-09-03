@@ -244,7 +244,7 @@ func TestScenarioCorpusMatchesTS(t *testing.T) {
 			// it wrote before it stopped, and two stacks that throw at
 			// DIFFERENT points leave different partial trees. Skipping the
 			// comparison bought an assertion that both sides failed and
-			// nothing about what they left behind. See PARITY_PLAN.md 2.1.
+			// nothing about what they left behind. See docs/design/PARITY_PLAN.md 2.1.
 		} else if gerr != nil {
 			errmismatch++
 			if errmismatch <= 10 {

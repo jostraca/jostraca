@@ -14,7 +14,7 @@ import (
 // Measured before the fix: 20 processes, 19 "xPLUSx" and 1 "xPAIRx".
 //
 // The slice is now built with sortedKeys, so ties resolve alphabetically and
-// the result is fixed. See issue #42 and PARITY_PLAN.md.
+// the result is fixed. See issue #42 and docs/design/PARITY_PLAN.md.
 //
 // NOTE ON PARITY. This does NOT make Go match TS in every ordering. TS sorts
 // Object.keys() with a stable sort, and Object.keys() is insertion order, so

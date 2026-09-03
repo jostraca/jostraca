@@ -163,7 +163,13 @@ function stylePaths(): { file: string, abs: string }[] {
       .map((f) => ({ file: `adr/${f}`, abs: Path.join(adrDir, f) }))
     : []
 
-  return [...docs, ...adr]
+  const readmes = (null == narrowed())
+    ? ['README.md', 'ts/README.md', 'go/README.md']
+      .map((f) => ({ file: f, abs: Path.join(REPO, f) }))
+      .filter(({ abs }) => Fs.existsSync(abs))
+    : []
+
+  return [...docs, ...adr, ...readmes]
 }
 
 
@@ -198,6 +204,7 @@ const INTERNAL_DOCS: [RegExp, string][] = [
   [/\bADRs?\b/g, 'ADR'],
   [/architecture decision record/gi, 'architecture decision record'],
   [/(?:^|[^\w.-])adr\//g, 'adr/'],
+  [/\bdocs\/design\//g, 'docs/design/'],
   [/\b[A-Z][A-Z0-9_]*_PLAN\.md\b/g, 'a plan file'],
   [/\b(?:parity|dependency|port|design) plan\b/gi, 'a plan'],
   [/\bBUILD_LOG\.md\b/g, 'BUILD_LOG.md'],

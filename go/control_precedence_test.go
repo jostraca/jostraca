@@ -15,7 +15,7 @@ import (
 //
 // These tests pin the Go side of that agreement so a future change to
 // mergeOptions cannot drift back. Mirrors the `global-control-precedence`
-// block in ts/test/control.test.ts. See PARITY_PLAN.md 1.1.
+// block in ts/test/control.test.ts. See docs/design/PARITY_PLAN.md 1.1.
 
 func controlVolKeys(m *MemFS) []string {
 	out := []string{}

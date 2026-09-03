@@ -17,6 +17,14 @@
 # while working perfectly in the GitHub blob view, which is exactly the kind
 # of breakage that goes unnoticed.
 
+# docs/design/ is working material -- plans and the review log -- and this
+# directory is the Pages SITE ROOT, so without this line Jekyll would
+# render 3,169 lines of internal analysis as public pages at
+# /design/PARITY_PLAN.html and friends. They live here for one-directory
+# tidiness, not to be published.
+exclude:
+  - design
+
 title: Jostraca documentation
 
 # Two lengths, because the theme uses them for different jobs: `tagline`

@@ -846,7 +846,7 @@ func fragmentAfter(n *Node, st *jstate, b *buildCtx) error {
 		// source containing an unnamed <[SLOT]> marker -- panicked and killed
 		// the caller's goroutine. TS renders the marker as empty in that case
 		// (each over null children is a no-op, ts/src/cmp/Fragment.ts), so an
-		// empty replay is the matching answer. See PARITY_PLAN.md 3.
+		// empty replay is the matching answer. See docs/design/PARITY_PLAN.md 3.
 		if body == nil {
 			return ""
 		}

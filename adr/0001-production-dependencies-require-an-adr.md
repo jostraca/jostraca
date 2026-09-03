@@ -21,7 +21,7 @@ The published surface is currently one runtime dependency on each side:
 `go.sum` has two lines. `npm ls --omit=dev` is one entry deep. That is not an
 accident, and it did not stay that way on its own: `jsonic` and `memfs` were
 both removed after the fact, and `oxc-parser` was a phantom that shipped in a
-script nobody ran. `DEPENDENCY_PLAN.md` §2 has the measurements. Removing
+script nobody ran. `docs/design/DEPENDENCY_PLAN.md` §2 has the measurements. Removing
 `memfs` cost 469 lines of in-repo code and took 20 packages and 68,557 lines of
 JavaScript out of every consumer's tree.
 

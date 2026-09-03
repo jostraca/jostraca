@@ -15,7 +15,7 @@ import (
 // filter, so a rejected child kept the stamp and the pollution could reach
 // generated files. Go rebuilds instead of stamping, so it was already correct.
 // These pin that, so Go cannot drift into the mutating shape while the corpus
-// stays silent. See PARITY_PLAN.md 2.3.
+// stays silent. See docs/design/PARITY_PLAN.md 2.3.
 
 func callerStateJSON(t *testing.T, v any) string {
 	t.Helper()
@@ -84,7 +84,7 @@ func TestGetXLeavesNoStampOnRejectedChildren(t *testing.T) {
 // is why one probe missed it: inputs sharing a first and last line leave
 // the trailing flush empty and nothing aliases. Every shape that reaches
 // it is covered here. Canonical TS copies (`generated.slice(gi)`), so this
-// pins Go to the behaviour TS always had. See PARITY_PLAN.md 2.3.
+// pins Go to the behaviour TS always had. See docs/design/PARITY_PLAN.md 2.3.
 func TestHunksDoesNotAliasCallerSlices(t *testing.T) {
 	cases := []struct {
 		name      string
@@ -133,7 +133,7 @@ func TestHunksDoesNotAliasCallerSlices(t *testing.T) {
 // into an `existing` they supplied. Go passes Options by VALUE, so the
 // struct itself cannot be touched; what could still leak is the maps it
 // carries, which are reference types. Nothing in Generate should write to
-// the caller's Meta, Model or Vol. See PARITY_PLAN.md 2.3.
+// the caller's Meta, Model or Vol. See docs/design/PARITY_PLAN.md 2.3.
 func TestGenerateDoesNotMutateCallerOptions(t *testing.T) {
 	mem := NewMemFS()
 

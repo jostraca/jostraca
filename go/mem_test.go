@@ -11,7 +11,7 @@ import (
 // filesystem from them, so `WithMem()` ran against the REAL filesystem and
 // returned a Result whose Vol and FS were nil, with no error to say so. A
 // test translated from TS by keeping those two options passed while writing
-// into the working directory. See #37 and PARITY_PLAN.md.
+// into the working directory. See #37 and docs/design/PARITY_PLAN.md.
 //
 // TS's rules, mirrored here: `mem` is the switch and `vol` is the seed; an
 // explicit filesystem beats both; and a GLOBAL mem is reused across

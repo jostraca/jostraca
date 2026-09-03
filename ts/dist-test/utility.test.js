@@ -457,7 +457,7 @@ const __1 = require("../");
 // cleanup only ever reached the survivors. That pollution is observable in
 // generated files, since Content shallow-copies the model and nested objects
 // are shared for the whole run. Go rebuilds instead of stamping, so TS was the
-// side that was wrong. See PARITY_PLAN.md 2.3.
+// side that was wrong. See docs/design/PARITY_PLAN.md 2.3.
 (0, node_test_1.describe)('caller-state', () => {
     (0, node_test_1.test)('getx-filter-does-not-mutate-the-model', () => {
         const model = { a: { x: { v: 1 }, y: { v: 2 } } };

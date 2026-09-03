@@ -47,7 +47,7 @@ func newBuildMeta(fh *fileHandler) *buildMeta {
 			// Stamping it at construction put it BEFORE every generated file's
 			// mtime, so the Options.Exclude window (`mtime > last`, build.go)
 			// then skipped the files this build had just written. See
-			// PARITY_PLAN.md 1.2. Mirrors ts/src/build/BuildMeta.ts done().
+			// docs/design/PARITY_PLAN.md 1.2. Mirrors ts/src/build/BuildMeta.ts done().
 			byPath: map[string]*metaEntry{},
 		},
 	}

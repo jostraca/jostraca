@@ -66,7 +66,7 @@ type parityCase struct {
 	Prepopulate map[string]corpusBytes `json:"prepopulate"`
 	// Error records whether the TS run threw. Asserted bidirectionally below,
 	// so a scenario that fails in one stack and completes in the other is a
-	// parity failure like any output difference. See PARITY_PLAN.md 2.1.
+	// parity failure like any output difference. See docs/design/PARITY_PLAN.md 2.1.
 	Error bool                   `json:"error"`
 	Vol   map[string]corpusBytes `json:"vol"`
 }
@@ -76,7 +76,7 @@ type parityCase struct {
 // byte-equal parity assertion is meaningful.
 var scenarioRunners = map[string]func(j *J){
 	// Fragment eject: the source is trimmed to the region between the markers.
-	// See PARITY_PLAN.md 3.
+	// See docs/design/PARITY_PLAN.md 3.
 	"fragment_eject": func(j *J) {
 		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
 			j.File("part.txt", func(j *J) {
@@ -89,7 +89,7 @@ var scenarioRunners = map[string]func(j *J){
 	},
 	// Fails in BOTH stacks, which is the point: it exercises the `error` field
 	// end to end. TS rejects `from` through the shape Check, Go at
-	// builder.go. See PARITY_PLAN.md 2.1.
+	// builder.go. See docs/design/PARITY_PLAN.md 2.1.
 	"fragment_missing_from_errors": func(j *J) {
 		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
 			j.File("index.html", func(j *J) {
@@ -105,7 +105,7 @@ var scenarioRunners = map[string]func(j *J){
 	// The Copy fails before anything is written; the Inject fails in its
 	// after-hook, by which time the project folder exists. That second row
 	// is the one that pins a NON-EMPTY tree on an error path.
-	// See PARITY_PLAN.md 2.1.
+	// See docs/design/PARITY_PLAN.md 2.1.
 	"copy_missing_source_errors": func(j *J) {
 		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
 			j.Copy(CopyProps{From: "/src/does-not-exist.txt", To: "a.txt"})
@@ -119,7 +119,7 @@ var scenarioRunners = map[string]func(j *J){
 	// Issue #30: a binary Copy onto a byte-identical target with
 	// bin.preserve must write no backup. Go has always compared with
 	// bytes.Equal; TS compared a Buffer against a string and backed up
-	// every time. See PARITY_PLAN.md 3.
+	// every time. See docs/design/PARITY_PLAN.md 3.
 	"binary_copy_identical_no_backup": func(j *J) {
 		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
 			j.Copy(CopyProps{From: "/src/mod.wasm", To: "mod.wasm"})

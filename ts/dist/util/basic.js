@@ -221,7 +221,7 @@ function getx(root, path) {
             // reached the survivors, so a child the filter REJECTED kept the stamp
             // and the caller's model was left polluted -- observable in generated
             // output, because Content shallow-copies the model and every nested
-            // object is shared across the run. See PARITY_PLAN.md 2.3. Go does not
+            // object is shared across the run. See docs/design/PARITY_PLAN.md 2.3. Go does not
             // mutate here (it rebuilds), so TS was the side that was wrong.
             const stamped = each(node);
             out = stamped
