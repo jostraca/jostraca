@@ -15,8 +15,8 @@ go get github.com/jostraca/jostraca/go
 ```
 
 The package it declares is called `jostraca`, not `go`, so a plain
-import already gives you `jostraca.New`. Writing the alias out, as the
-example below does, spares the next reader the same double-take. The
+import already gives you `jostraca.New`. Writing the alias out, as
+`main.go` does, spares the next reader the same double-take. The
 module needs Go 1.22 or newer, and brings `shape/go` with it.
 
 ## The version you get

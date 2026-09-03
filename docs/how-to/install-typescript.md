@@ -90,4 +90,4 @@ Set `"skipLibCheck": true`, which most projects already carry. A strict
 - [Tutorial](../tutorial.md) to build a generator from here.
 - [Install Jostraca for Go](install-go.md) for the other implementation.
 - [Component reference](../reference-components.md) for every component
-  the example above uses.
+  that example uses.
