@@ -7,8 +7,15 @@ reference for depth. Every example is executed by
 the tree the generator actually wrote.
 
 <!-- Generated from the guides' own frontmatter. Order follows each
-     guide's `order` field, and the groups are the six that
+     guide's `order` field, and the groups are the seven that
      ts/test/docs.test.ts enforces on that frontmatter. -->
+
+## Install
+
+Getting Jostraca into a project, in either implementation.
+
+- [Install Jostraca for TypeScript](install-typescript.md). Add the jostraca package to a Node project, and run a generator to check the install.
+- [Install Jostraca for Go](install-go.md). Add the Go port to a module, and run a generator to check the install.
 
 ## Compose the output tree
 
