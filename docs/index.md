@@ -40,13 +40,14 @@ open it. Reach for the part that matches your need:
 
 | If you want to… | Read |
 |---|---|
+| **Install** it, in either implementation | [TypeScript](how-to/install-typescript.md) · [Go](how-to/install-go.md) |
 | **Learn** Jostraca from zero by building a generator, step by step | [Tutorial](tutorial.md) |
 | **Accomplish a specific task** you already have in mind | [How-to guides](how-to/README.md) |
 | **Look up** a component, a prop, an option or a utility | [Components](reference-components.md) · [Options](reference-options.md) · [Utilities](reference-utilities.md) · [Go](reference-go.md) |
 | **Understand** how and why Jostraca works the way it does | [Explanation](explanation.md) |
 
-The how-to guides are one page per task, grouped six ways: composing
-the output tree; templates and fragments; reusable components;
+The how-to guides are one page per task, grouped seven ways: installing;
+composing the output tree; templates and fragments; reusable components;
 regenerating over existing files; files, copying and permissions; and
 embedding Jostraca in your own tool.
 

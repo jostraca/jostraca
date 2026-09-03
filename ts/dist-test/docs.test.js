@@ -92,6 +92,7 @@ const WINDOWS = 'win32' === (process.env.DOCS_PLATFORM || process.platform);
 // fails; the site repository renders the same slugs, so an addition is
 // two edits and both are visible.
 const GROUPS = [
+    'install',
     'compose',
     'templates',
     'reuse',
@@ -819,6 +820,26 @@ function rewriteSpecifier(source, url) {
             const h1 = prose(text).split('\n').filter((l) => /^# /.test(l));
             Assert.equal(h1.length, 1, `how-to/${guide} should have exactly one H1, found ${h1.length}`);
         }
+    });
+    // Layer 4b': the hand-maintained index lists every guide. The header
+    // comment on how-to/README.md says it follows the frontmatter, which is
+    // true of how it was written and says nothing about whether it still
+    // does. Adding a guide and forgetting the index passed every other gate
+    // here: the page existed, its frontmatter was complete, its links
+    // resolved, and the only way in was a URL nothing linked to.
+    (0, node_test_1.test)('how-to-index-lists-every-guide', () => {
+        const dir = Path.join(DOCS_DIR, 'how-to');
+        const index = Path.join(dir, 'README.md');
+        if (!Fs.existsSync(index)) {
+            return;
+        }
+        const text = lf(Fs.readFileSync(index, 'utf8'));
+        const linked = new Set([...text.matchAll(/\]\(([^)#\s]+\.md)\)/g)].map((m) => m[1]));
+        const missing = Fs.readdirSync(dir)
+            .filter((f) => f.endsWith('.md') && 'README.md' !== f)
+            .filter((f) => !linked.has(f))
+            .sort();
+        Assert.deepEqual(missing, [], `how-to guides missing from how-to/README.md:\n${missing.join('\n')}`);
     });
     // Layer 4c: every relative link resolves to a file that exists, AND
     // every fragment names a heading in it. The site sync is a link checker
