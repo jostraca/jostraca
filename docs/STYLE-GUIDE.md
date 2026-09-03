@@ -1,7 +1,7 @@
 # Documentation style guide
 
 How the Jostraca documentation is written. This guide is normative for
-`docs/*.md`, `docs/how-to/*.md`, `adr/*.md`, the package READMEs, and the
+`docs/*.md`, `docs/how-to/*.md`, `docs/ADR.md`, the package READMEs, and the
 prose on
 [jostraca.org](https://jostraca.org) (whose authored pages cite this file
 from `jostraca/web`'s AGENTS.md). It exists so that a page written next
@@ -30,7 +30,7 @@ Two gates check it, and both run in CI:
 
 | Gate | Runs | Checks |
 |---|---|---|
-| `vale docs adr README.md ts/README.md` | `.github/workflows/docs.yml` | Google's rules plus the banned list, at the levels set in `.vale.ini` |
+| `vale --glob='!docs/design/**' docs README.md ts/README.md` | `.github/workflows/docs.yml` | Google's rules plus the banned list, at the levels set in `.vale.ini` |
 | `ts/test/docs.test.ts` | `npm test` | the banned list, the em-dash ration, the first-person rules, no emoji, no internal-document citations, and that every code snippet executes |
 
 The banned list is read from one file by both, so they cannot drift.
@@ -71,7 +71,7 @@ The internal set, by name:
 
 | Document | What it is |
 |---|---|
-| `adr/*.md` | decision records: what was decided, and the reasoning available at the time |
+| `docs/ADR.md` | decision records: what was decided, and the reasoning available at the time |
 | `docs/design/` (the plans and `CODE_REVIEW.md`), plus `go/PORT_PLAN.md` | analysis and recommendations, revised as the code moves |
 | `go/BUILD_LOG.md` | per-phase notes from building the Go port |
 | `CLAUDE.md`, `AGENTS.md` | instructions to contributors and agents working in the repository |
@@ -97,8 +97,8 @@ internal documents in order to ban them. **The other READMEs** are
 documentation themselves.
 
 `ts/test/docs.test.ts` enforces this over `docs/`, `docs/how-to/` and the
-three READMEs. Vale does not, because the set it lints includes `adr/`,
-where the citations are correct.
+three READMEs. Vale does not, because the set it lints includes
+`docs/ADR.md`, where the citations are correct.
 
 ## The voice
 

@@ -16,8 +16,8 @@ The one exception, and the reasoning, is in AGENTS.md.
 
 ## Prose follows docs/STYLE-GUIDE.md
 
-[`docs/STYLE-GUIDE.md`](docs/STYLE-GUIDE.md) is normative for `docs/`, `adr/`
-and all three package READMEs: the voice, the banned-phrase list, the em-dash
+[`docs/STYLE-GUIDE.md`](docs/STYLE-GUIDE.md) is normative for `docs/` and all
+three package READMEs: the voice, the banned-phrase list, the em-dash
 ration, and the rule that documentation never cites an internal working
 document. Two gates enforce it, `vale` and `ts/test/docs.test.ts`, and both
 run in CI. Read it before writing a sentence that ships.

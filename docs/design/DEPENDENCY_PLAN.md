@@ -21,7 +21,7 @@ because that is what the used subsets are worth and because it is what this
 project has already done twice.
 
 **Two of the three are done. The third was decided the other way.**
-[ADR 0002](adr/0002-shape.md) accepts `shape` as a production dependency,
+[ADR 0002](../ADR.md) accepts `shape` as a production dependency,
 because it is published by the same author and maintainer account as this
 project, so removing it would buy independence from a party this project is
 already identical to. Read the `shape` sections below as the analysis that
@@ -33,8 +33,8 @@ the TypeScript side.
 |---|---|---|---|---|
 | `ts/` memfs | 20 packages, 68,557 JS LOC | reimplement | 469 LOC | **done** |
 | `ts/gen/readme.js` | phantom `oxc-parser`, never installed | delete | — | **done** |
-| `go/` shape | 1 module, 7,182 LOC at v0.5.0, one 3-line schema | **keep** ([ADR 0002](adr/0002-shape.md)) | — | **decided** |
-| `ts/` shape | 1 package, 583K at 11.3.0, schemas in 4 files | **keep** ([ADR 0002](adr/0002-shape.md)) | — | **decided** |
+| `go/` shape | 1 module, 7,182 LOC at v0.5.0, one 3-line schema | **keep** ([ADR 0002](../ADR.md)) | — | **decided** |
+| `ts/` shape | 1 package, 583K at 11.3.0, schemas in 4 files | **keep** ([ADR 0002](../ADR.md)) | — | **decided** |
 | `typescript`, `@types/node` | dev only, not shipped | keep | — | — |
 
 Two steps have landed on this branch. The consumer-facing tree is down from
