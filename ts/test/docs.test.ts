@@ -225,7 +225,14 @@ const INTERNAL_DOCS: [RegExp, string][] = [
 // names the internal documents in order to ban them, the same exemption it
 // already holds for the banned phrases.
 function readerPaths(): { file: string, abs: string }[] {
+  // ADR.md is filtered EXPLICITLY, not left out by accident. In a full run
+  // stylePages() never returns it -- stylePaths() adds it separately -- so
+  // the exemption looked automatic. Under DOCS_PAGES=ADR.md it is not:
+  // narrowed() short-circuits stylePages() to exactly the named page, and
+  // the gate then failed on the file's own title, "Architecture decision
+  // records", and on the design-plan citations a record is supposed to make.
   const docs = stylePages()
+    .filter((f) => 'ADR.md' !== f)
     .map((f) => ({ file: `docs/${f}`, abs: Path.join(DOCS_DIR, f) }))
 
   // DOCS_PAGES narrows to pages under docs/, so a narrowed run leaves the
