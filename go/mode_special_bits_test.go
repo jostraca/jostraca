@@ -12,7 +12,7 @@ import (
 // It compared fi.Mode.Perm() against mode.Perm() -- 9 bits -- while os.Chmod
 // also honours setuid, setgid and sticky. A file whose content did not change
 // and whose mode went from 0755 to 0755|ModeSetuid therefore compared equal and
-// never received the bit. See PARITY_PLAN.md 3.
+// never received the bit. See docs/design/PARITY_PLAN.md 3.
 //
 // Worth recording what this is NOT. The parity audit reported that Go "silently
 // discards setuid" because FileProps{Mode: 0o4755} lands as 755 on disk. That

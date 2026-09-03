@@ -12,7 +12,7 @@ import "testing"
 // The panic is why this class matters beyond the single bug. A panic cannot be
 // recorded by any corpus in the repo -- the scenario runner asserts errors
 // bidirectionally, but a panic unwinds the test binary rather than returning
-// one. See PARITY_PLAN.md 2.1 and 3.
+// one. See docs/design/PARITY_PLAN.md 2.1 and 3.
 
 func fragNilBodyGen(t *testing.T, src string, body func(*J)) (string, error) {
 	t.Helper()

@@ -714,7 +714,7 @@ func (fh *fileHandler) chmodUnchanged(p string, mode fs.FileMode) bool {
 	// bits, while os.Chmod also honours setuid, setgid and sticky, so a file
 	// whose content is unchanged and whose mode went from 0755 to
 	// 0755|ModeSetuid compared equal and never got the bit. See
-	// PARITY_PLAN.md 3.
+	// docs/design/PARITY_PLAN.md 3.
 	if fi, err := fh.fs.Stat(p); err == nil && fi.Mode&chmodBits == mode&chmodBits {
 		return false
 	}

@@ -39,7 +39,7 @@ var templateSpecSchema = shape.MustShape(map[string]any{
 ```
 
 The complication is that **removal was already shown to work on the Go
-side.** `DEPENDENCY_PLAN.md` §5 records a sandbox where the import, the schema
+side.** `docs/design/DEPENDENCY_PLAN.md` §5 records a sandbox where the import, the schema
 and the `require` were deleted and `ParseTemplateSpec` was replaced with a
 hand-written key switch. With zero test files touched, `gofmt`, `go build`, `go
 vet`, `go test` and `go test -race` all passed, and `diff -rq` reported three
@@ -79,7 +79,7 @@ the control question answered, that trade favours the dependency.
 ## Consequences
 
 The consumer-facing tree stays at one package. It does not go to zero, so
-"dependency-free" is not a claim this project can make, and `DEPENDENCY_PLAN.md`
+"dependency-free" is not a claim this project can make, and `docs/design/DEPENDENCY_PLAN.md`
 should be read as analysis of a question now settled rather than as a plan
 awaiting execution.
 
@@ -95,13 +95,13 @@ validates and forced the eject schema to be rewritten.
 
 **This decision is void the moment its premise is.** If `shape` changes hands,
 gains a dependency, or is published by an account this project does not
-control, the justification is gone and the sandbox in `DEPENDENCY_PLAN.md` §5
+control, the justification is gone and the sandbox in `docs/design/DEPENDENCY_PLAN.md` §5
 is the exit. That exit is cheap and has been rehearsed once, which is what makes
 accepting the dependency reasonable rather than merely convenient.
 
 ## Alternatives considered
 
-**Reimplement on both sides**, as `DEPENDENCY_PLAN.md` recommends. Verified
+**Reimplement on both sides**, as `docs/design/DEPENDENCY_PLAN.md` recommends. Verified
 achievable for Go and estimated for TypeScript. Rejected because it buys
 independence from a party this project is already identical to, at the cost of
 about 300 lines of validation code to own in two languages, plus the parity
@@ -109,7 +109,7 @@ surface between them. It would remove the dependency without removing any risk.
 
 **Reimplement in Go only**, since that side is one schema and already proven.
 Rejected for a worse reason than it first appears: it would leave the two
-stacks validating by different mechanisms, and `DEPENDENCY_PLAN.md` §3.4 already
+stacks validating by different mechanisms, and `docs/design/DEPENDENCY_PLAN.md` §3.4 already
 records `shape` as a source of TypeScript/Go divergence. Removing it from one
 side widens that gap rather than closing it.
 

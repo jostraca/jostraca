@@ -157,7 +157,7 @@ const OptionsShape = (0, shape_1.Shape)({
     // empty one, and the merge below would then let that injected default beat a
     // global setting -- which silently disabled a global `dryrun: true` and wrote
     // the user's files. Defaults are applied once, after the merge, from
-    // CONTROL_DEFAULTS. See PARITY_PLAN.md 1.1.
+    // CONTROL_DEFAULTS. See docs/design/PARITY_PLAN.md 1.1.
     control: {
         // Do not modify any files or folders.
         dryrun: (0, shape_1.Skip)(Boolean),
@@ -260,11 +260,11 @@ function Jostraca(gopts_in) {
         // reuses one options object across two `generate` calls was not passing
         // what they thought on the second.
         //
-        // The injection itself stays: DEPENDENCY_PLAN.md 3.2 and PARITY_PLAN.md
+        // The injection itself stays: docs/design/DEPENDENCY_PLAN.md 3.2 and docs/design/PARITY_PLAN.md
         // 1.3 are explicit that a validator which checks without injecting
         // crashes on `existing` and silently produces a wrong output tree on
         // `control`. Change where it lands, not whether it happens. Go has never
-        // had this: its Options is a value struct. See PARITY_PLAN.md 2.3.
+        // had this: its Options is a value struct. See docs/design/PARITY_PLAN.md 2.3.
         const opts = OptionsShape(copyOptions(opts_in));
         // Parameters to `generate` override any global options.
         const useMemFS = null == opts.mem ? gUseMemFs : !!opts.mem;

@@ -317,7 +317,7 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 	// It used to be declared on FragmentProps and read by nothing at all, so
 	// a Fragment that trims to a region in TS emitted its whole source file
 	// here. Mirrors ts/src/cmp/Fragment.ts, which passes props.eject straight
-	// into template(). See PARITY_PLAN.md 3.
+	// into template(). See docs/design/PARITY_PLAN.md 3.
 	if p.Eject != nil {
 		n.Meta["fragmentEject"] = p.Eject
 	}

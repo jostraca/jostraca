@@ -18,7 +18,7 @@ import (
 // them. `exclude: true` therefore meant "stop regenerating anything after the
 // first build", the exact inverse of its purpose. TS stamps at the end of the
 // build (ts/src/build/BuildMeta.ts done()) and was correct. See
-// PARITY_PLAN.md 1.2.
+// docs/design/PARITY_PLAN.md 1.2.
 //
 // This has to run against a real filesystem with a real clock: MemFS stamps
 // mtimes from wall-clock time (fs.go) while `last` comes from Options.Now, so

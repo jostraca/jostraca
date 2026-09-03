@@ -102,7 +102,7 @@ describe('control', () => {
   // every per-call options object -- including an empty one -- and the merge
   // `deep({}, gOpts.control, opts.control)` then let the injected default beat
   // the global. A global `dryrun: true` therefore wrote the user's files, byte
-  // for byte identical to no dry run at all. See PARITY_PLAN.md 1.1.
+  // for byte identical to no dry run at all. See docs/design/PARITY_PLAN.md 1.1.
   describe('global-control-precedence', () => {
 
     const root = () => Project({}, () => {

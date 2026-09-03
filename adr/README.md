@@ -3,8 +3,8 @@
 Decisions that would otherwise be re-argued from scratch, with the reasoning
 that produced them and the evidence that was available at the time.
 
-An ADR is not a plan and not documentation. `DEPENDENCY_PLAN.md` and
-`PARITY_PLAN.md` are analysis: they measure, compare and recommend, and they
+An ADR is not a plan and not documentation. `docs/design/DEPENDENCY_PLAN.md` and
+`docs/design/PARITY_PLAN.md` are analysis: they measure, compare and recommend, and they
 change as the code does. `docs/` teaches a reader how to use the generator. An
 ADR records what was **decided**, once, and stays as written. When a plan and
 an ADR disagree, the ADR is the decision and the plan is the working that led

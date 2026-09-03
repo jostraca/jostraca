@@ -72,9 +72,8 @@ The internal set, by name:
 | Document | What it is |
 |---|---|
 | `adr/*.md` | decision records: what was decided, and the reasoning available at the time |
-| `PARITY_PLAN.md`, `DEPENDENCY_PLAN.md`, `go/PORT_PLAN.md` | analysis and recommendations, revised as the code moves |
+| `docs/design/` (the plans and `CODE_REVIEW.md`), plus `go/PORT_PLAN.md` | analysis and recommendations, revised as the code moves |
 | `go/BUILD_LOG.md` | per-phase notes from building the Go port |
-| `CODE_REVIEW.md` | review findings |
 | `CLAUDE.md`, `AGENTS.md` | instructions to contributors and agents working in the repository |
 
 The ban covers the name as much as the link. "As the parity plan
@@ -205,9 +204,14 @@ The word is fine English; it is on the list because it had become a tic
 across both repositories, where it flattered a sentence rather than said
 anything the sentence did not already say: `the honest word`, `the honest
 complication`, `the corpus that keeps them honest`. In each of those the
-word came out and nothing was lost. **A use of it needs the author's
-approval, one at a time.** Not a standing exemption, and not a line added
-to the table below.
+word came out and nothing was lost.
+
+**The gate is absolute, and the lack of an inline exemption is the
+point.** There is no `allow` comment and no suppression the second gate
+would honour, because an escape hatch that exists is an escape hatch that
+gets used, and this is a word that is easy to reach for. A use the author
+wants kept is approved by changing `reject.txt`: one line, in one file,
+visible in review, which is where an approval belongs.
 
 ### What is not banned, and why
 

@@ -56,7 +56,12 @@ jobs:
       # reported for the author to read, and do not block: see the
       # demotion notes in .vale.ini for what sits at which level and why.
       - name: Prose gate
-        run: vale --minAlertLevel=error docs adr README.md ts/README.md
+        # docs/design/ holds plans and the review log -- working documents
+        # for maintainers, not documentation. They live under docs/ so one
+        # directory holds everything written about this project, and `docs`
+        # is passed here as a whole, so the exclusion is a glob rather than
+        # a narrower argument list that would silently miss a new page.
+        run: vale --glob='!docs/design/**' --minAlertLevel=error docs adr README.md ts/README.md
 
       - name: Full report (advisory)
         if: always()
@@ -67,6 +72,6 @@ jobs:
             echo 'Errors block the build. Warnings and suggestions do not.'
             echo
             echo '```'
-            vale --minAlertLevel=suggestion docs adr README.md ts/README.md 2>&1 | tail -40 || true
+            vale --glob='!docs/design/**' --minAlertLevel=suggestion docs adr README.md ts/README.md 2>&1 | tail -40 || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"

@@ -598,7 +598,7 @@ func Hunks(generated, existing []string) []Hunk {
 	// into its own input. Canonical TS has always copied here
 	// (`generated.slice(gi)` in ts/src/diff.ts), so this was a port defect
 	// rather than a decision. `Hunks` is exported, which is what made it
-	// reachable on this side and not the other. See PARITY_PLAN.md 2.3.
+	// reachable on this side and not the other. See docs/design/PARITY_PLAN.md 2.3.
 	flush(slices.Clone(generated[gi:]), slices.Clone(existing[ei:]))
 
 	return out
