@@ -190,8 +190,7 @@ reports nothing).
 `we've seen this movie before`.
 
 **Reflective pose**: `sit with` · `worth exploring/considering/asking` ·
-`keeps coming back to` · `that's the tell` · `the honest version is` ·
-`where I landed`.
+`keeps coming back to` · `that's the tell` · `where I landed`.
 
 **Invented observation about people**: `most people` ·
 `everyone I've worked with` · `a lot of folks` · `nobody I know`. If it
@@ -200,6 +199,15 @@ did not happen, do not claim to have noticed it.
 **Signposting**: `let's explore` · `now let's turn to` · `moving on to` ·
 `in today's rapidly evolving` · `reflecting a broader trend` ·
 `great question`.
+
+**`honest`, and every form of it**, is banned differently from the rest.
+The word is fine English; it is on the list because it had become a tic
+across both repositories, where it flattered a sentence rather than said
+anything the sentence did not already say: `the honest word`, `the honest
+complication`, `the corpus that keeps them honest`. In each of those the
+word came out and nothing was lost. **A use of it needs the author's
+approval, one at a time.** Not a standing exemption, and not a line added
+to the table below.
 
 ### What is not banned, and why
 
@@ -280,7 +288,7 @@ by where its line happened to break.
   merge in general.
 - **protected file**—one carrying `JOSTRACA_PROTECT`. Jostraca
   *skips* it; it does not "ignore" it.
-- Say **overwrite** for what `write: true` does. It is the honest word.
+- Say **overwrite** for what `write: true` does. It names what happens.
 
 ## Code snippets: every one is tested
 

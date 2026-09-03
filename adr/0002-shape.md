@@ -38,7 +38,7 @@ var templateSpecSchema = shape.MustShape(map[string]any{
 })
 ```
 
-The honest complication is that **removal was already shown to work on the Go
+The complication is that **removal was already shown to work on the Go
 side.** `DEPENDENCY_PLAN.md` §5 records a sandbox where the import, the schema
 and the `require` were deleted and `ParseTemplateSpec` was replaced with a
 hand-written key switch. With zero test files touched, `gofmt`, `go build`, `go

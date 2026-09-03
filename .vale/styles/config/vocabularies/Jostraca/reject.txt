@@ -93,7 +93,6 @@ sit with
 worth (?:exploring|considering|a look|asking|talking about)
 keeps? coming back to
 that'?s the tell
-the honest version is
 where I landed
 
 # --- Invented observation about people ---------------------------------
@@ -101,6 +100,17 @@ most people
 everyone I'?ve worked with
 a lot of folks
 nobody I know
+
+# --- Requires approval per use -----------------------------------------
+#
+# Not filler in the way the rest of this list is: the word is fine in
+# ordinary English. It is here because it had become a verbal tic across
+# both repositories -- "the honest word", "the honest complication", "the
+# corpus that keeps them honest" -- where it was doing no work that the
+# surrounding sentence was not already doing. Four uses were removed the
+# day this line was added. A use that earns its place is approved one at a
+# time by the author, not by a standing exemption.
+honest(y|ly)?
 
 # --- Signposting -------------------------------------------------------
 let'?s explore
