@@ -155,28 +155,28 @@ function stylePages() {
         .filter((f, i, a) => a.indexOf(f) === i)
         .filter((f) => Fs.existsSync(Path.join(DOCS_DIR, f)));
 }
-// The STYLE checks cover more than docs/. docs/STYLE-GUIDE.md is
-// normative for `adr/*.md` too, and the Vale gate lints that directory —
-// but Vale is NOT the whole gate here. `.vale.ini` switches Google.We and
-// Google.FirstPerson off precisely BECAUSE these tests carry the stricter
-// house rule, so widening the guide's scope without widening this function
-// left first person and emoji in an ADR passing both gates. Proven by
-// putting "I think we should" and an emoji in adr/README.md and watching
-// `vale` and `npm test` both stay green.
+// The STYLE checks cover more than the Diátaxis pages. docs/ADR.md is held
+// to the same guide — but Vale is NOT the whole gate here. `.vale.ini`
+// switches Google.We and Google.FirstPerson off precisely BECAUSE these
+// tests carry the stricter house rule, so widening the guide's scope without
+// widening this function left first person and emoji in a decision record
+// passing both gates. Proven, when the records were still a directory, by
+// putting "I think we should" and an emoji in one and watching `vale` and
+// `npm test` both stay green.
+//
+// ADR.md is here and NOT in readerPaths(): the internal-document gate would
+// flag every "ADR" in the file it is named after.
 //
 // Returns repo-relative labels with absolute paths, because these files no
 // longer share one base directory.
 function stylePaths() {
     const docs = stylePages()
         .map((f) => ({ file: `docs/${f}`, abs: Path.join(DOCS_DIR, f) }));
-    // DOCS_PAGES narrows to named pages under docs/; it does not name ADRs,
-    // so a narrowed run skips them rather than reporting on all of them.
-    const adrDir = Path.join(REPO, 'adr');
-    const adr = (null == narrowed() && Fs.existsSync(adrDir))
-        ? Fs.readdirSync(adrDir)
-            .filter((f) => f.endsWith('.md'))
-            .sort()
-            .map((f) => ({ file: `adr/${f}`, abs: Path.join(adrDir, f) }))
+    // DOCS_PAGES narrows to named pages; it does not name ADR.md, so a
+    // narrowed run skips it rather than reporting on it.
+    const adrPath = Path.join(DOCS_DIR, 'ADR.md');
+    const adr = (null == narrowed() && Fs.existsSync(adrPath))
+        ? [{ file: 'docs/ADR.md', abs: adrPath }]
         : [];
     const readmes = (null == narrowed())
         ? ['README.md', 'ts/README.md', 'go/README.md']
@@ -212,7 +212,7 @@ const ONE_SAYS = new RegExp(`\\bthe (?:${CITED}) (?:${SAYS})\\b`, 'gi');
 const INTERNAL_DOCS = [
     [/\bADRs?\b/g, 'ADR'],
     [/architecture decision record/gi, 'architecture decision record'],
-    [/(?:^|[^\w.-])adr\//g, 'adr/'],
+    [/\bdocs\/ADR\.md\b/g, 'docs/ADR.md'],
     [/\bdocs\/design\//g, 'docs/design/'],
     [/\b[A-Z][A-Z0-9_]*_PLAN\.md\b/g, 'a plan file'],
     [/\b(?:parity|dependency|port|design) plan\b/gi, 'a plan'],
@@ -226,9 +226,9 @@ const INTERNAL_DOCS = [
 // The reader-facing set: every page the site renders, plus the three
 // READMEs that land on GitHub, npm and pkg.go.dev.
 //
-// Deliberately NOT stylePaths(). adr/ is excluded because a decision record
-// citing the analysis it came from is doing its job -- the rule runs one
-// way, out of documentation only. STYLE-GUIDE.md is excluded because it
+// Deliberately NOT stylePaths(). docs/ADR.md is excluded because a decision
+// record citing the analysis it came from is doing its job -- the rule runs
+// one way, out of documentation only. STYLE-GUIDE.md is excluded because it
 // names the internal documents in order to ban them, the same exemption it
 // already holds for the banned phrases.
 function readerPaths() {
@@ -824,7 +824,7 @@ function rewriteSpecifier(source, url) {
     // check alone approves that link forever.
     (0, node_test_1.test)('relative-links-resolve', () => {
         const broken = [];
-        const files = [...stylePages(), 'STYLE-GUIDE.md']
+        const files = [...stylePages(), 'STYLE-GUIDE.md', 'ADR.md']
             .filter((f, i, a) => a.indexOf(f) === i)
             .filter((f) => Fs.existsSync(Path.join(DOCS_DIR, f)));
         for (const file of files) {

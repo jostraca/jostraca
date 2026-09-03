@@ -85,7 +85,7 @@ so a case can never be silently ignored by one side.
 ## Prose follows docs/STYLE-GUIDE.md
 
 [`docs/STYLE-GUIDE.md`](docs/STYLE-GUIDE.md) is normative for `docs/`,
-`docs/how-to/`, `adr/` and all three package READMEs. It carries the voice, the
+`docs/how-to/`, `docs/ADR.md` and all three package READMEs. It carries the voice, the
 Diátaxis placement rules, the banned-phrase list, the em-dash ration, and the
 rule that documentation never cites an internal working document. Read it
 before writing a sentence that ships; it is short, and every rule in it was
@@ -118,8 +118,9 @@ keeping a copy, so there is one statement of the house style for both.
 `ts/package.json`, and any non-test `require` in `go/go.mod`. Peer and optional
 both count: npm installs them into the consumer's tree either way.
 
-The rule and its reasoning are [adr/0001](adr/0001-production-dependencies-require-an-adr.md);
-the one accepted dependency, `shape`, is [adr/0002](adr/0002-shape.md). Write
+The rule and its reasoning are record 0001 in
+[`docs/ADR.md`](docs/ADR.md); the one accepted dependency, `shape`, is 0002.
+Write
 the record before the change, not after: it exists to make the case at the
 moment the decision is still cheap to reverse.
 

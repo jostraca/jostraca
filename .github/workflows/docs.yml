@@ -10,7 +10,6 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
-      - 'adr/**'
       - 'README.md'
       - 'ts/README.md'
       - '.vale.ini'
@@ -20,7 +19,6 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
-      - 'adr/**'
       - 'README.md'
       - 'ts/README.md'
       - '.vale.ini'
@@ -61,7 +59,7 @@ jobs:
         # directory holds everything written about this project, and `docs`
         # is passed here as a whole, so the exclusion is a glob rather than
         # a narrower argument list that would silently miss a new page.
-        run: vale --glob='!docs/design/**' --minAlertLevel=error docs adr README.md ts/README.md
+        run: vale --glob='!docs/design/**' --minAlertLevel=error docs README.md ts/README.md
 
       - name: Full report (advisory)
         if: always()
@@ -72,6 +70,6 @@ jobs:
             echo 'Errors block the build. Warnings and suggestions do not.'
             echo
             echo '```'
-            vale --glob='!docs/design/**' --minAlertLevel=suggestion docs adr README.md ts/README.md 2>&1 | tail -40 || true
+            vale --glob='!docs/design/**' --minAlertLevel=suggestion docs README.md ts/README.md 2>&1 | tail -40 || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
