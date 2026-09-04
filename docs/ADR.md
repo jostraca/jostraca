@@ -65,8 +65,8 @@ nothing arrives behind it:
 
 | | version | size | transitive |
 |---|---|---|---|
-| TypeScript, peer `>=11` | 11.3.1 | 12 files, 698 KB unpacked | none |
-| Go | v0.5.1 | 23 files, 8,500 non-test lines | none |
+| TypeScript, peer `>=11` | 11.4.1 | 12 files, 709 KB unpacked | none |
+| Go | v0.5.3 | 23 files, 8,814 non-test lines | none |
 
 Four TypeScript files import it (`jostraca.ts`, `cmp/Fragment.ts`,
 `cmp/Copy.ts`, `util/point.ts`); Go uses one three-line schema in
@@ -81,7 +81,7 @@ a size one. The risk 0001 is written against is a package this project does
 not control changing under it: an owner transfer, a compromised publish, a
 version that adds a dependency of its own. For `shape`, "who controls it" has
 the same answer as for the generator, and compromising one is compromising the
-other. The remaining trade is 583 KB and one install entry against roughly 300
+other. The remaining trade is 709 KB and one install entry against roughly 300
 lines to own, test and keep in parity across two stacks.
 
 This is not a decision made because removal looked hard. `docs/design/DEPENDENCY_PLAN.md`
@@ -114,3 +114,11 @@ the Go source from 7,182 to 8,500 non-test lines. No behaviour this project
 relies on changed, and 460 TypeScript tests, `go vet`, `go test` and
 `go test -race` all pass unaltered, so the bump was taken. A patch that adds
 a fifth of a package is still worth noticing.
+
+The v0.5.1 to v0.5.3 bump in 0.36.5 is the smaller kind, and this record's
+table carries its measurement: 698 to 709 KB unpacked on npm across the
+11.3.1 to 11.4.1 range the loose peer floats over, and 8,500 to 8,814
+non-test lines in Go. The file counts and the transitive column are
+unchanged, which is the part that matters to 0001. That release also
+lowered `engines.node` from `>=24` to `>=20`, which is what let the website
+track a current generator again.
