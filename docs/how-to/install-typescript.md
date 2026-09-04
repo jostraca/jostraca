@@ -22,8 +22,8 @@ command.
 
 `jostraca` sets no engine floor of its own. `shape` sets `>=20` from 11.4.0,
 so a fresh install on a current Node prints nothing. The peer range is
-`shape >=11` and 11.0 through 11.3 set `>=24`, so a project whose lockfile
-already holds one of those still gets an `npm warn EBADENGINE` on Node 20
+`shape >=11` and 11.0 through 11.3 set `>=24`, so a project already
+resolving one of those still gets an `npm warn EBADENGINE` on Node 20
 through 23. Either way the install completes: npm treats an unmet engine as
 advice rather than a refusal.
 
