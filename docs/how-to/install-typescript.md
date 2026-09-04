@@ -20,21 +20,13 @@ command.
 
 ## Which Node version
 
-`jostraca` sets no engine floor of its own. `shape` sets Node 24, so npm
-prints a warning under it:
+`jostraca` sets no engine floor of its own, and `shape` sets `>=20`, so a
+current Node installs both without complaint. Anything earlier than 20
+installs too, after an `npm warn EBADENGINE` naming `shape`: npm treats an
+unmet engine as advice rather than a refusal.
 
-<!-- test: skip quoted npm output; there is nothing here to run -->
-```text
-npm warn EBADENGINE Unsupported engine {
-npm warn EBADENGINE   package: 'shape@11.3.1',
-npm warn EBADENGINE   required: { node: '>=24' },
-npm warn EBADENGINE   current: { node: 'v22.22.2', npm: '10.9.7' }
-npm warn EBADENGINE }
-```
-
-npm warns and installs anyway, and a generator does run on Node 22. Node
-24 and current are the two versions the test suite runs on, so those are
-the two to rely on.
+Node 24 and current are the two versions the test suite runs on, so those
+are the two to rely on.
 
 ## Check it works
 
