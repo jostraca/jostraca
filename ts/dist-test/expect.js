@@ -33,6 +33,21 @@ exports.POSIX_MODES = 'win32' !== process.platform;
 // Verified against the native implementation before replacing it -- the
 // whole suite passes identically with each, and a deliberately broken
 // expectation fails under both.
+function typeName(v) {
+    if (null === v)
+        return 'null';
+    if (Array.isArray(v))
+        return 'Array';
+    if (v instanceof Date)
+        return 'Date';
+    if (v instanceof RegExp)
+        return 'RegExp';
+    if (v instanceof Map)
+        return 'Map';
+    if (v instanceof Set)
+        return 'Set';
+    return typeof v;
+}
 function partial(actual, expected, path) {
     if (Object.is(actual, expected)) {
         return null;
@@ -40,35 +55,68 @@ function partial(actual, expected, path) {
     if (null === expected || 'object' !== typeof expected) {
         return `${path}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`;
     }
-    if (expected instanceof Date || expected instanceof RegExp) {
+    // A built-in must be met by the same built-in. Comparing string forms
+    // alone let a string '/x/' satisfy an expected /x/.
+    const kind = typeName(expected);
+    if (kind !== typeName(actual)) {
+        return `${path}: expected ${kind}, got ${typeName(actual)}`;
+    }
+    if (expected instanceof Date) {
+        return actual.getTime() === expected.getTime() ? null :
+            `${path}: expected ${expected.toISOString()}, got ${actual.toISOString()}`;
+    }
+    if (expected instanceof RegExp) {
         return String(actual) === String(expected) ? null :
             `${path}: expected ${expected}, got ${actual}`;
     }
+    // ORDER IS PART OF THE ASSERTION. Expected entries must appear in actual
+    // in the same relative order, gaps allowed -- a subsequence, not a
+    // set. Matching any-order made a reordered `files.written` pass, and the
+    // order of that list is exactly what several tests are pinning.
     if (Array.isArray(expected)) {
-        if (!Array.isArray(actual)) {
-            return `${path}: expected an array, got ${JSON.stringify(actual)}`;
-        }
-        // Each expected entry must claim a distinct actual entry, which is how
-        // the native one treats an array: a subset, not a whole.
-        const taken = new Set();
+        let from = 0;
         for (let i = 0; i < expected.length; i++) {
             let found = -1;
-            for (let j = 0; j < actual.length; j++) {
-                if (!taken.has(j) && null === partial(actual[j], expected[i], `${path}[${i}]`)) {
+            for (let j = from; j < actual.length; j++) {
+                if (null === partial(actual[j], expected[i], `${path}[${i}]`)) {
                     found = j;
                     break;
                 }
             }
             if (-1 === found) {
-                return `${path}[${i}]: no match for ${JSON.stringify(expected[i])} in ` +
-                    JSON.stringify(actual);
+                return `${path}[${i}]: no match for ${JSON.stringify(expected[i])} ` +
+                    `at or after index ${from} in ${JSON.stringify(actual)}`;
             }
-            taken.add(found);
+            from = found + 1;
         }
         return null;
     }
-    if (null === actual || 'object' !== typeof actual) {
-        return `${path}: expected an object, got ${JSON.stringify(actual)}`;
+    if (expected instanceof Set) {
+        for (const want of expected) {
+            let hit = false;
+            for (const got of actual) {
+                if (null === partial(got, want, `${path}{}`)) {
+                    hit = true;
+                    break;
+                }
+            }
+            if (!hit) {
+                return `${path}: no member matching ${JSON.stringify(want)}`;
+            }
+        }
+        return null;
+    }
+    if (expected instanceof Map) {
+        for (const [key, want] of expected) {
+            if (!actual.has(key)) {
+                return `${path}: no entry for key ${JSON.stringify(key)}`;
+            }
+            const fail = partial(actual.get(key), want, `${path}(${String(key)})`);
+            if (null !== fail) {
+                return fail;
+            }
+        }
+        return null;
     }
     for (const key of Object.keys(expected)) {
         if (!(key in actual)) {

@@ -19,7 +19,7 @@ declared as a peer dependency and resolved by npm without a further
 command.
 
 Jostraca needs Node 20 or newer, which is what `engines.node` declares.
-The test suite runs on Node 20, 24, and current.
+The test suite passes on Node 20, 24, and current.
 
 ## Check it works
 
@@ -58,10 +58,9 @@ The package is CommonJS and ships its own declarations, so `import` from
 an ES module and `require` from a CommonJS one both work, and TypeScript
 finds the types without a separate `@types` package.
 
-One `tsconfig.json` setting is not optional: `"skipLibCheck": true`,
-which most projects already carry. A strict `nodenext` project then
-checks clean. The reason, and what it looks like when it is missing, is
-under [Troubleshooting](#troubleshooting).
+A project that type-checks its dependencies needs Node's own types for
+this package to check clean: `npm i --save-dev @types/node`. What it looks
+like without them is under [Troubleshooting](#troubleshooting).
 
 ## Troubleshooting
 
@@ -96,8 +95,16 @@ node_modules/jostraca/dist/build/FileHandler.d.ts(44,57): error TS2580: Cannot f
 
 The shipped declarations name `Buffer` without pulling in Node's own
 types, so a project that type-checks its dependencies reports the error
-there rather than in your code. Set `"skipLibCheck": true`. Adding
-`@types/node` alone does not clear it.
+there rather than in your code.
+
+Install Node's types: `npm i --save-dev @types/node`. That defines the
+global `Buffer` and clears it. Measured against this release with
+`skipLibCheck` off: five errors without them, none with. A project that
+restricts `compilerOptions.types` needs `node` in that list too.
+
+`"skipLibCheck": true` also silences it, and many projects already carry
+it, but it turns off declaration checking for every dependency rather than
+supplying the one type that is missing.
 
 ## See also
 

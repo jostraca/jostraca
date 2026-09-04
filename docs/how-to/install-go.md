@@ -20,9 +20,9 @@ import already gives you `jostraca.New`. Writing the alias out, as
 module needs Go 1.22 or newer, and brings `shape/go` with it.
 
 `go get` without a version gets the newest release the Go module has,
-which is what most projects want. Asking for a specific one has a
-wrinkle, because the two implementations are tagged apart: see
-[two implementations, two release trains](../two-implementations.md).
+which is what most projects want. Asking for a specific one has a wrinkle,
+because the two implementations are tagged apart: see
+[two implementations](../explanation.md#two-implementations).
 
 ## Check it works
 
@@ -76,7 +76,7 @@ TypeScript one throws, and component methods stop once an error is set.
 - [Call Jostraca from Go](call-jostraca-from-go.md) for the rest of the
   differences from the TypeScript API.
 - [Go reference](../reference-go.md) for the full surface.
-- [Two implementations, two release trains](../two-implementations.md) for
-  how the Go module is versioned against the npm package.
+- [Two implementations](../explanation.md#two-implementations) for how the
+  Go module is versioned and tagged against the npm package.
 - [Install Jostraca for TypeScript](install-typescript.md) for the other
   implementation.
