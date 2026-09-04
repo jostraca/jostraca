@@ -149,9 +149,11 @@ pinned Vale binary never reach a consumer.
   `composite: true`. Do not remove either: without them `make reset` fails
   outright, and only `make reset` shows it, because `dist/` is committed and
   every other path starts from a populated one.
-- **`shape` engine warning.** `shape` may emit `EBADENGINE` on Node < 24; the
-  build and tests still pass on Node 22. The peer range is intentionally
-  loose (`shape >=11`).
+- **`shape` engine floor.** `shape` sets `engines.node` to `>=20` from 11.4.0;
+  11.0 through 11.3 set `>=24`, so an older resolution can still emit
+  `EBADENGINE`. It is a warning rather than a refusal, and the build and
+  tests pass on Node 22. The peer range is intentionally loose
+  (`shape >=11`).
 - **`memfs` is in-repo, not imported.** `src/util/memfs.ts` is a port of
   `go/fs.go`'s MemFS wearing `node:fs` sync signatures. It replaced the
   `memfs` package, which cost 20 transitive packages for six required
