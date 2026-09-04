@@ -133,6 +133,7 @@ function docPages() {
         'reference-options.md',
         'reference-utilities.md',
         'reference-go.md',
+        'two-implementations.md',
     ].filter((f) => Fs.existsSync(Path.join(DOCS_DIR, f)));
     const howtoDir = Path.join(DOCS_DIR, 'how-to');
     const howto = Fs.existsSync(howtoDir)

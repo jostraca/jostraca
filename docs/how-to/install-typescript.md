@@ -18,17 +18,8 @@ Two packages arrive. The second is `shape`, the options validator,
 declared as a peer dependency and resolved by npm without a further
 command.
 
-## Which Node version
-
-`jostraca` sets no engine floor of its own. `shape` sets `>=20` from 11.4.0,
-so a fresh install on a current Node prints nothing. The peer range is
-`shape >=11` and 11.0 through 11.3 set `>=24`, so a project already
-resolving one of those still gets an `npm warn EBADENGINE` on Node 20
-through 23. That is a warning and the install completes, unless the project
-sets `engine-strict=true`, where npm refuses and the install fails.
-
-Node 24 and current are the two versions the test suite runs on, so those
-are the two to rely on.
+Jostraca needs Node 20 or newer, which is what `engines.node` declares.
+The test suite runs on Node 20, 24, and current.
 
 ## Check it works
 
@@ -67,17 +58,46 @@ The package is CommonJS and ships its own declarations, so `import` from
 an ES module and `require` from a CommonJS one both work, and TypeScript
 finds the types without a separate `@types` package.
 
-One `tsconfig.json` setting is not optional. The shipped declarations
-name `Buffer` without pulling in Node's own types, so a project that
-checks them reports errors inside `jostraca` rather than in your code:
+One `tsconfig.json` setting is not optional: `"skipLibCheck": true`,
+which most projects already carry. A strict `nodenext` project then
+checks clean. The reason, and what it looks like when it is missing, is
+under [Troubleshooting](#troubleshooting).
+
+## Troubleshooting
+
+### npm warns that the Node version is unsupported
+
+<!-- test: skip quoted npm output; there is nothing here to run -->
+```text
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'jostraca@0.36.6',
+npm warn EBADENGINE   required: { node: '>=20' },
+npm warn EBADENGINE   current: { node: 'v18.20.8', npm: '10.8.2' }
+npm warn EBADENGINE }
+```
+
+The install is running on a Node older than 20. npm prints this and
+installs anyway, so it is a warning rather than a failure—unless the
+project sets `engine-strict=true`, where npm refuses and the install
+fails instead.
+
+The same warning can name `shape`, the peer dependency. Its range is
+`>=11`, and 11.0 through 11.3 asked for Node 24 before 11.4.0 lowered it
+to 20. A project still resolving one of those older releases gets the
+warning on Node 20 through 23, even though `jostraca` is satisfied.
+Updating `shape` clears it.
+
+### TypeScript reports errors inside node_modules/jostraca
 
 <!-- test: skip quoted tsc output; there is nothing here to run -->
 ```text
 node_modules/jostraca/dist/build/FileHandler.d.ts(44,57): error TS2580: Cannot find name 'Buffer'.
 ```
 
-Set `"skipLibCheck": true`, which most projects already carry. A strict
-`nodenext` project then checks clean.
+The shipped declarations name `Buffer` without pulling in Node's own
+types, so a project that type-checks its dependencies reports the error
+there rather than in your code. Set `"skipLibCheck": true`. Adding
+`@types/node` alone does not clear it.
 
 ## See also
 

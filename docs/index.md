@@ -45,6 +45,7 @@ open it. Reach for the part that matches your need:
 | **Accomplish a specific task** you already have in mind | [How-to guides](how-to/README.md) |
 | **Look up** a component, a prop, an option or a utility | [Components](reference-components.md) · [Options](reference-options.md) · [Utilities](reference-utilities.md) · [Go](reference-go.md) |
 | **Understand** how and why Jostraca works the way it does | [Explanation](explanation.md) |
+| **Work out** which version each implementation is on | [Two implementations](two-implementations.md) |
 
 The how-to guides are one page per task, grouped seven ways: installing;
 composing the output tree; templates and fragments; reusable components;

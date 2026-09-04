@@ -17,6 +17,83 @@ export const POSIX_MODES = 'win32' !== process.platform
 
 type Matcher = RegExp | Error | ((err: unknown) => boolean)
 
+
+// `assert.partialDeepStrictEqual` landed in Node 22 and does not exist on
+// Node 20, which the package now declares as its floor (`engines.node`).
+// Calling it there fails every `include` assertion with "not a function" --
+// 18 of them -- so the suite could not run on the version the package
+// promises to support.
+//
+// This is the check itself rather than a fallback used only where the
+// native one is missing: one behaviour on every Node version is worth more
+// than a suite that asserts something subtly different depending on where
+// it runs. Semantics follow Node's: `expected` is a pattern, and every part
+// of it must appear in `actual`, which may carry more.
+//
+// Verified against the native implementation before replacing it -- the
+// whole suite passes identically with each, and a deliberately broken
+// expectation fails under both.
+function partial(actual: any, expected: any, path: string): string | null {
+  if (Object.is(actual, expected)) {
+    return null
+  }
+
+  if (null === expected || 'object' !== typeof expected) {
+    return `${path}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`
+  }
+
+  if (expected instanceof Date || expected instanceof RegExp) {
+    return String(actual) === String(expected) ? null :
+      `${path}: expected ${expected}, got ${actual}`
+  }
+
+  if (Array.isArray(expected)) {
+    if (!Array.isArray(actual)) {
+      return `${path}: expected an array, got ${JSON.stringify(actual)}`
+    }
+    // Each expected entry must claim a distinct actual entry, which is how
+    // the native one treats an array: a subset, not a whole.
+    const taken = new Set<number>()
+    for (let i = 0; i < expected.length; i++) {
+      let found = -1
+      for (let j = 0; j < actual.length; j++) {
+        if (!taken.has(j) && null === partial(actual[j], expected[i], `${path}[${i}]`)) {
+          found = j
+          break
+        }
+      }
+      if (-1 === found) {
+        return `${path}[${i}]: no match for ${JSON.stringify(expected[i])} in ` +
+          JSON.stringify(actual)
+      }
+      taken.add(found)
+    }
+    return null
+  }
+
+  if (null === actual || 'object' !== typeof actual) {
+    return `${path}: expected an object, got ${JSON.stringify(actual)}`
+  }
+
+  for (const key of Object.keys(expected)) {
+    if (!(key in actual)) {
+      return `${path}.${key}: missing`
+    }
+    const fail = partial(actual[key], expected[key], `${path}.${key}`)
+    if (null !== fail) {
+      return fail
+    }
+  }
+
+  return null
+}
+
+
+function partialEqual(actual: unknown, expected: unknown) {
+  const fail = partial(actual, expected, 'value')
+  assert.ok(null === fail, fail as string)
+}
+
 type Asserter = {
   equal: (expected: unknown) => void
   equals: (expected: unknown) => void
@@ -34,8 +111,8 @@ export function expect(actual: any): Asserter {
     equal: (expected) => assert.deepStrictEqual(actual, expected),
     equals: (expected) => assert.deepStrictEqual(actual, expected),
     exist: () => assert.ok(actual !== null && actual !== undefined),
-    include: (expected) => assert.partialDeepStrictEqual(actual, expected),
-    includes: (expected) => assert.partialDeepStrictEqual(actual, expected),
+    include: (expected) => partialEqual(actual, expected),
+    includes: (expected) => partialEqual(actual, expected),
     throws: (matcher) => assert.throws(actual, matcher as any),
     rejects: (matcher) => assert.rejects(actual, matcher as any),
     true: () => assert.strictEqual(actual, true),
