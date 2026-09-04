@@ -24,8 +24,8 @@ command.
 so a fresh install on a current Node prints nothing. The peer range is
 `shape >=11` and 11.0 through 11.3 set `>=24`, so a project already
 resolving one of those still gets an `npm warn EBADENGINE` on Node 20
-through 23. Either way the install completes: npm treats an unmet engine as
-advice rather than a refusal.
+through 23. That is a warning and the install completes, unless the project
+sets `engine-strict=true`, where npm refuses and the install fails.
 
 Node 24 and current are the two versions the test suite runs on, so those
 are the two to rely on.
