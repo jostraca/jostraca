@@ -1,10 +1,13 @@
 {
   "name": "jostraca",
-  "version": "0.36.5",
+  "version": "0.36.6",
   "main": "dist/jostraca.js",
   "type": "commonjs",
   "types": "dist/jostraca.d.ts",
   "description": "Jostraca template generator.",
+  "engines": {
+    "node": ">=20"
+  },
   "homepage": "https://github.com/jostraca/jostraca",
   "keywords": [
     "jostraca",
@@ -18,7 +21,7 @@
     "directory": "ts"
   },
   "scripts": {
-    "test": "node --enable-source-maps --test dist-test/**/*.test.js",
+    "test": "node --enable-source-maps --test dist-test/*.test.js",
     "test-some": "node --enable-source-maps --test-name-pattern=\"$npm_config_pattern\" --test dist-test/**/*.test.js",
     "watch": "tsc --build src test -w",
     "build": "tsc --build src test",

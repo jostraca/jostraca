@@ -19,22 +19,10 @@ import already gives you `jostraca.New`. Writing the alias out, as
 `main.go` does, spares the next reader the same double-take. The
 module needs Go 1.22 or newer, and brings `shape/go` with it.
 
-## The version you get
-
-`go get` without a version gets the newest Go release, which is not
-always the newest npm release. The two stacks are tagged apart: npm
-publishes from `vX.Y.Z` and the Go module from `go/vX.Y.Z`, so a release
-that changed only TypeScript has no Go tag at all. Ask for one and Go
-reports:
-
-<!-- test: skip quoted go output; there is nothing here to run -->
-```text
-go: module github.com/jostraca/jostraca@v0.36.2 found, but does not contain package github.com/jostraca/jostraca/go
-```
-
-The message names the root module rather than the one you asked for,
-which reads like a missing package and is a missing tag. Pin a version
-that has one, or leave the version off.
+`go get` without a version gets the newest release the Go module has,
+which is what most projects want. Asking for a specific one has a wrinkle,
+because the two implementations are tagged apart: see
+[two implementations](../explanation.md#two-implementations).
 
 ## Check it works
 
@@ -88,5 +76,7 @@ TypeScript one throws, and component methods stop once an error is set.
 - [Call Jostraca from Go](call-jostraca-from-go.md) for the rest of the
   differences from the TypeScript API.
 - [Go reference](../reference-go.md) for the full surface.
+- [Two implementations](../explanation.md#two-implementations) for how the
+  Go module is versioned and tagged against the npm package.
 - [Install Jostraca for TypeScript](install-typescript.md) for the other
   implementation.

@@ -277,6 +277,26 @@ happened to `deep`: the port never copied one custom-constructor value's
 properties into another, canonical TypeScript did, and the correction
 landed in TypeScript with the Go behaviour as the target.
 
+The two are released apart, and that catches people out. Both live in one
+repository, but npm publishes from a `vX.Y.Z` tag and the Go module ships
+from a `go/vX.Y.Z` one, which the module proxy serves straight from the tag.
+So a release that changed only TypeScript gets a `vX.Y.Z` tag and no
+`go/vX.Y.Z` at all, because there was no Go change to ship: the version
+numbers are shared, the releases are not, and a version number is not a
+promise that both implementations have it.
+
+Asking Go for a version only npm has produces a message worth recognising,
+because it names the *root* module rather than the one you asked for and so
+reads like a missing package:
+
+<!-- test: skip quoted go output; there is nothing here to run -->
+```text
+go: module github.com/jostraca/jostraca@v0.36.2 found, but does not contain package github.com/jostraca/jostraca/go
+```
+
+It is a missing tag. Pin a version that has one, or leave the version off
+and take the newest the Go module has.
+
 One more parity constraint shows up in a place nobody expects. `omap`,
 `each`, `cmap` and `vmap` visit object entries in **sorted key order**,
 not insertion order. A Go map has no insertion order to reproduce, so
