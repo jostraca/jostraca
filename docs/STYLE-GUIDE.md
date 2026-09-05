@@ -17,7 +17,7 @@ reason:
 1. **This file.** Where it rules, it rules. The house voice is Richard
    Rodger's blog register, and the places it wins are listed with their
    reasons rather than left as silent exceptions: first-person plural in
-   tutorials, British spellings, quotation punctuation outside the
+   tutorials, Hiberno-English spellings, quotation punctuation outside the
    quotes, and the parenthesis ration.
 2. The [Google developer documentation style
    guide](https://developers.google.com/style) for everything this file
