@@ -1,5 +1,5 @@
 ---
-description: Swap named placeholders in a template for strings, computed values or generated components.
+description: Swap named placeholders in a template for strings, computed values, or generated components.
 group: templates
 order: 30
 ---

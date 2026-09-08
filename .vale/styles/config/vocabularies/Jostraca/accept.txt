@@ -80,3 +80,24 @@ repo
 [Rr]eimplement(?:s|ed|ing|ation)?
 allowlist
 else's
+
+# Website framework and the original project's credited contributors.
+Astro
+Jython
+Rebol
+Morten
+Orla
+Shanaghy
+Conniffe
+Grammel
+Buchalka
+Perdue
+Eoin
+Feeney
+Alaister
+Moull
+Conor
+Wyse
+tabnas
+middleware
+prerendered
