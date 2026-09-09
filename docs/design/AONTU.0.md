@@ -145,7 +145,7 @@ aontu model.aon | node tools/cmptree-gen.js --at out --folder ./build
 ```
 
 [verified] against the aontu worked example, which writes
-`build/src/planet.ts` holding the five expected lines. `--at` takes one
+`build/src/planet-body.ts` holding the five expected lines. `--at` takes one
 top-level key, because aontu prints the whole document and the tree is
 usually one field of it; `--dryrun` reports without writing.
 
