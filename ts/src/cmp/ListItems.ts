@@ -4,7 +4,7 @@ import type { Node } from '../jostraca'
 import { cmp, each, template, getx, Content, Line } from '../jostraca'
 
 
-const List = cmp(function List(props: any, children: any) {
+const ListItems = cmp(function ListItems(props: any, children: any) {
   const node: Node = props.ctx$.node
   node.kind = 'content'
   const indent = node.indent = props.indent
@@ -21,7 +21,7 @@ const List = cmp(function List(props: any, children: any) {
   // `src` used to be missing from that Content call, so the string was
   // captured by the typeof test and then dropped on the floor: the wrapper
   // rendered an empty Content and a whole string child emitted nothing at
-  // all. `List({item: [...]}, 'n={item.n}\n')` produced just the trailing
+  // all. `ListItems({item: [...]}, 'n={item.n}\n')` produced just the trailing
   // newline. Nothing caught it because no fixture, test or doc example
   // passes a string child - the component reference documents only the
   // function form. See #44.
@@ -49,7 +49,16 @@ const List = cmp(function List(props: any, children: any) {
 
 
 
+// `List` is the name this component shipped under, kept as a
+// DEPRECATED ALIAS for the reason CopyFiles keeps `Copy`. `ListItems`
+// says what it does -- it renders its children once per element of
+// `item` -- and matches the aontu function that drives it, where plain
+// `list` was already taken by the list container kind.
+const List = ListItems
+
+
 export {
-  List
+  ListItems,
+  List,
 }
 
