@@ -56,13 +56,13 @@ import * as DiffUtil from './diff'
 import { Content } from './cmp/Content'
 import { Line } from './cmp/Line'
 import { Slot } from './cmp/Slot'
-import { Copy } from './cmp/Copy'
+import { CopyFiles, Copy } from './cmp/CopyFiles'
 import { File } from './cmp/File'
 import { Inject } from './cmp/Inject'
 import { Fragment } from './cmp/Fragment'
 import { Folder } from './cmp/Folder'
 import { Project } from './cmp/Project'
-import { List } from './cmp/List'
+import { ListItems, List } from './cmp/ListItems'
 
 import { CopyOp } from './op/CopyOp'
 import { ProjectOp } from './op/ProjectOp'
@@ -634,9 +634,15 @@ export {
   Inject,
   Fragment,
   Folder,
-  Copy,
   Line,
   Slot,
+
+  CopyFiles,
+  ListItems,
+
+  // Deprecated aliases: the names these two shipped under. Same
+  // function objects, kept so no consumer breaks.
+  Copy,
   List,
 
   PointUtil,

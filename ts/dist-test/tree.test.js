@@ -40,6 +40,7 @@ const Path = __importStar(require("node:path"));
 const expect_1 = require("./expect");
 const memfs_1 = require("../dist/util/memfs");
 const __1 = require("../");
+const tree_1 = require("../dist/tree");
 // 2025-01-01T00:00:00.000Z
 const START_TIME = 1735689600000;
 const clock = () => {
@@ -162,6 +163,23 @@ const gen = async (tree, opts, seed) => {
         });
         Assert.equal(vol['/top/a.ts'], 'class X {\n  y = 1\n}\n');
     });
+    // THE NAMES TWO COMPONENTS SHIPPED UNDER still resolve, so a tree
+    // written against `Copy` or `List` keeps working.
+    (0, node_test_1.test)('deprecated-names-still-resolve', async () => {
+        Assert.deepEqual(Object.keys(tree_1.TREE_CMP_DEPRECATED).sort(), ['Copy', 'List']);
+        Assert.equal(tree_1.TREE_CMP_DEPRECATED.Copy, __1.TREE_CMP.CopyFiles);
+        Assert.equal(tree_1.TREE_CMP_DEPRECATED.List, __1.TREE_CMP.ListItems);
+        const { vol } = await gen({
+            cmp: 'File',
+            props: { name: 'l.txt' },
+            children: [{
+                    cmp: 'List',
+                    props: { item: [{ n: 1 }, { n: 2 }] },
+                    children: [{ cmp: 'Content', props: { src: 'n={item.n}\n' } }],
+                }],
+        });
+        Assert.equal(vol['/top/l.txt'], 'n=1\nn=2\n\n');
+    });
     // A caller may add their own component, or override one.
     (0, node_test_1.test)('custom-components', async () => {
         const Twice = (0, __1.cmp)(function Twice(props) {
@@ -263,7 +281,7 @@ const gen = async (tree, opts, seed) => {
             cmp: 'File',
             props: { name: 'l.txt' },
             children: [{
-                    cmp: 'List',
+                    cmp: 'ListItems',
                     props: { item: [{ n: 1 }, { n: 2 }] },
                     children: [{ cmp: 'Content', props: { src: 'n={item.n}\n' } }],
                 }],

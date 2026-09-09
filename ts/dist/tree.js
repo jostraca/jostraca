@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TREE_CMP = void 0;
+exports.TREE_CMP_DEPRECATED = exports.TREE_CMP = void 0;
 exports.cmpTree = cmpTree;
 // THE DATA-DRIVEN DEFINE PHASE -- SPIKE (docs/design/AONTU.0.md).
 //
@@ -68,13 +68,13 @@ const node_path_1 = __importDefault(require("node:path"));
 const Content_1 = require("./cmp/Content");
 const Line_1 = require("./cmp/Line");
 const Slot_1 = require("./cmp/Slot");
-const Copy_1 = require("./cmp/Copy");
+const CopyFiles_1 = require("./cmp/CopyFiles");
 const File_1 = require("./cmp/File");
 const Inject_1 = require("./cmp/Inject");
 const Fragment_1 = require("./cmp/Fragment");
 const Folder_1 = require("./cmp/Folder");
 const Project_1 = require("./cmp/Project");
-const List_1 = require("./cmp/List");
+const ListItems_1 = require("./cmp/ListItems");
 // The components a tree may name. The exported set, keyed by the name
 // each is exported under -- which is also the name aontu spells the
 // function with, because both sides took jostraca's capitalisation.
@@ -92,12 +92,22 @@ const TREE_CMP = {
     Content: Content_1.Content,
     Fragment: Fragment_1.Fragment,
     Inject: Inject_1.Inject,
-    Copy: Copy_1.Copy,
     Line: Line_1.Line,
     Slot: Slot_1.Slot,
-    List: List_1.List,
+    CopyFiles: CopyFiles_1.CopyFiles,
+    ListItems: ListItems_1.ListItems,
 };
 exports.TREE_CMP = TREE_CMP;
+// THE NAMES TWO COMPONENTS SHIPPED UNDER, kept working for a tree
+// written against them. Separate from TREE_CMP rather than merged into
+// it so the drift guard stays meaningful: that check compares TREE_CMP
+// against `src/cmp/` file for file, and folding two extra keys in would
+// have meant loosening it to a subset test.
+const TREE_CMP_DEPRECATED = {
+    Copy: CopyFiles_1.CopyFiles,
+    List: ListItems_1.ListItems,
+};
+exports.TREE_CMP_DEPRECATED = TREE_CMP_DEPRECATED;
 const ON = 'cmpTree:';
 function nodeErr(msg, path) {
     return new Error(ON + ' ' + msg + ' (at ' + (path || '<root>') + ')');
@@ -174,7 +184,9 @@ function nodeThunk(node, cmps, path) {
     // object, and the call then ran `Object.prototype.toString` as a
     // component -- no node, no output, no error (rule (2) above).
     const component = Object.prototype.hasOwnProperty.call(cmps, name) ?
-        cmps[name] : undefined;
+        cmps[name] :
+        Object.prototype.hasOwnProperty.call(TREE_CMP_DEPRECATED, name) ?
+            TREE_CMP_DEPRECATED[name] : undefined;
     if ('function' !== typeof component) {
         throw nodeErr('unknown component: ' + name, path);
     }

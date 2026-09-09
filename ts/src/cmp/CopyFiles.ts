@@ -8,7 +8,7 @@ import { Shape, One, Optional, Check } from 'shape'
 
 const From = (from: any, _: any, s: any) => s.ctx.meta.fs().statSync(from)
 
-const CopyShape = Shape({
+const CopyFilesShape = Shape({
   ctx$: Object,
 
   // The From path is independent of the project folder.
@@ -26,12 +26,12 @@ const CopyShape = Shape({
   // Boolean-or-Array-only spelling made the scalar arm of `state.excludes`
   // in CopyOp unreachable.
   exclude: Optional(One(Boolean, String, RegExp, [One(String, RegExp)])) as unknown as any
-}, { name: 'Copy' })
+}, { name: 'CopyFiles' })
 
 
-type CopyProps = ReturnType<typeof CopyShape>
+type CopyFilesProps = ReturnType<typeof CopyFilesShape>
 
-const Copy = cmp(function Copy(props: CopyProps, _children: any) {
+const CopyFiles = cmp(function CopyFiles(props: CopyFilesProps, _children: any) {
   const ctx = props.ctx$
   const node: Node = ctx.node
 
@@ -42,7 +42,7 @@ const Copy = cmp(function Copy(props: CopyProps, _children: any) {
     .filter((n: string) => !n.includes('/jostraca/'))
   const suffix = '[' + (suffixLines[1] || '').trim() + ']'
 
-  props = CopyShape(props, {
+  props = CopyFilesShape(props, {
     prefix: `(${ctx.model.name}: ${node.path.join('/')})`,
     meta: { fs: props.ctx$.fs },
     suffix,
@@ -60,7 +60,18 @@ const Copy = cmp(function Copy(props: CopyProps, _children: any) {
 })
 
 
+// `Copy` is the name this component shipped under. It stays exported as
+// a DEPRECATED ALIAS -- the same function object, so `===` still holds
+// and a `component.name` check sees `CopyFiles` either way -- because
+// renaming an exported component is not worth breaking every consumer
+// over. The name changed to match jostraca's other verb+noun components
+// and the aontu functions that drive them (`copyfiles`), where plain
+// `copy` was already taken by the builtin that copies a VALUE.
+const Copy = CopyFiles
+
+
 export {
-  Copy
+  CopyFiles,
+  Copy,
 }
 

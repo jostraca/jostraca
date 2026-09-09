@@ -416,13 +416,16 @@ same logical input:
   escapes (`ts/src/util/basic.ts` `getCachedEjectRE`). A real
   `*regexp.Regexp` / `RegExp` value behaves the same on both sides.
   Untested on either stack; TS is canonical, so Go is the side to change.
-- `cmpTree` -- the data-driven define phase, which turns a component tree
-  given as plain data into a define-phase callback (`ts/src/tree.ts`) --
-  is not ported. It is a spike, TypeScript-only on purpose, and nothing
-  pins the two sides because there is only one side. The components it
-  drives are the ported ones, so a Go twin is a walk over the same node
-  shape calling `J.Folder`/`J.File`/..., and should port directly if the
-  spike is kept.
+- `CmpTree` -- the data-driven define phase -- takes its inherited props
+  as an explicit parameter and returns `(func(*J), error)`. TypeScript
+  calls a child with the parent's arguments and merges them there; a Go
+  component body is `func(*J)`, which carries nothing, so the inherited
+  map is a parameter of the internal thunk type. The merge rule is the
+  same on both sides: context first, the node's own props last. Extra
+  components arrive as `CmpTreeOptions{Cmp: ...}` rather than a bare
+  object. The TypeScript side additionally refuses a `cmp` naming an
+  inherited property (`toString`, `constructor`); a Go map answers only
+  for keys it holds, so there is nothing here to guard against.
 
 ### Status
 

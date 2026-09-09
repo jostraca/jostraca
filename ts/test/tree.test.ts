@@ -13,6 +13,7 @@ import {
   TREE_CMP,
   cmp,
 } from '../'
+import { TREE_CMP_DEPRECATED } from '../dist/tree'
 
 
 // 2025-01-01T00:00:00.000Z
@@ -160,6 +161,26 @@ describe('tree', () => {
   })
 
 
+  // THE NAMES TWO COMPONENTS SHIPPED UNDER still resolve, so a tree
+  // written against `Copy` or `List` keeps working.
+  test('deprecated-names-still-resolve', async () => {
+    Assert.deepEqual(Object.keys(TREE_CMP_DEPRECATED).sort(), ['Copy', 'List'])
+    Assert.equal(TREE_CMP_DEPRECATED.Copy, TREE_CMP.CopyFiles)
+    Assert.equal(TREE_CMP_DEPRECATED.List, TREE_CMP.ListItems)
+
+    const { vol } = await gen({
+      cmp: 'File',
+      props: { name: 'l.txt' },
+      children: [{
+        cmp: 'List',
+        props: { item: [{ n: 1 }, { n: 2 }] },
+        children: [{ cmp: 'Content', props: { src: 'n={item.n}\n' } }],
+      }],
+    })
+    Assert.equal(vol['/top/l.txt'], 'n=1\nn=2\n\n')
+  })
+
+
   // A caller may add their own component, or override one.
   test('custom-components', async () => {
     const Twice = cmp(function Twice(props: any) {
@@ -286,7 +307,7 @@ describe('tree', () => {
       cmp: 'File',
       props: { name: 'l.txt' },
       children: [{
-        cmp: 'List',
+        cmp: 'ListItems',
         props: { item: [{ n: 1 }, { n: 2 }] },
         children: [{ cmp: 'Content', props: { src: 'n={item.n}\n' } }],
       }],

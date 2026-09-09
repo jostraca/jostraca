@@ -66,13 +66,13 @@ import type { Component } from './types'
 import { Content } from './cmp/Content'
 import { Line } from './cmp/Line'
 import { Slot } from './cmp/Slot'
-import { Copy } from './cmp/Copy'
+import { CopyFiles } from './cmp/CopyFiles'
 import { File } from './cmp/File'
 import { Inject } from './cmp/Inject'
 import { Fragment } from './cmp/Fragment'
 import { Folder } from './cmp/Folder'
 import { Project } from './cmp/Project'
-import { List } from './cmp/List'
+import { ListItems } from './cmp/ListItems'
 
 
 // One node of the tree. `cmp` is required; the other two are not,
@@ -108,10 +108,21 @@ const TREE_CMP: Record<string, Component> = {
   Content,
   Fragment,
   Inject,
-  Copy,
   Line,
   Slot,
-  List,
+  CopyFiles,
+  ListItems,
+}
+
+
+// THE NAMES TWO COMPONENTS SHIPPED UNDER, kept working for a tree
+// written against them. Separate from TREE_CMP rather than merged into
+// it so the drift guard stays meaningful: that check compares TREE_CMP
+// against `src/cmp/` file for file, and folding two extra keys in would
+// have meant loosening it to a subset test.
+const TREE_CMP_DEPRECATED: Record<string, Component> = {
+  Copy: CopyFiles,
+  List: ListItems,
 }
 
 
@@ -205,7 +216,9 @@ function nodeThunk(
   // object, and the call then ran `Object.prototype.toString` as a
   // component -- no node, no output, no error (rule (2) above).
   const component = Object.prototype.hasOwnProperty.call(cmps, name) ?
-    cmps[name] : undefined
+    cmps[name] :
+    Object.prototype.hasOwnProperty.call(TREE_CMP_DEPRECATED, name) ?
+      TREE_CMP_DEPRECATED[name] : undefined
   if ('function' !== typeof component) {
     throw nodeErr('unknown component: ' + name, path)
   }
@@ -285,5 +298,6 @@ export type {
 
 export {
   TREE_CMP,
+  TREE_CMP_DEPRECATED,
   cmpTree,
 }

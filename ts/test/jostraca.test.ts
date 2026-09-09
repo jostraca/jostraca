@@ -101,6 +101,33 @@ describe('jostraca', () => {
   })
 
 
+  // A `Line` RENDERS LIKE A `Content`, which it did not: it passed the
+  // model alone, so `replace` and `extra` were dropped and a Line
+  // inside a List emitted `{item.n}` verbatim where a Content in the
+  // same position substituted. The Go port was already right --
+  // `LineP` delegates to `ContentP` -- so this pins the TS side to it.
+  test('line-renders-like-content', async () => {
+    const { fs, vol } = memfs({})
+
+    await Jostraca().generate(
+      { fs: () => fs, folder: '/top' },
+      () => {
+        File({ name: 'a.txt' }, () => {
+          List({ item: [{ n: 1 }, { n: 2 }], line: false }, [
+            ({ item, replace }: any) => Line({ src: 'n={item.n}', replace }),
+          ])
+        })
+        File({ name: 'b.txt' }, () => {
+          Line({ src: 'x=$$x$$', extra: { x: 'X' } })
+        })
+      })
+
+    const voljson: any = vol.toJSON()
+    expect(voljson['/top/a.txt']).equal('n=1\nn=2\n')
+    expect(voljson['/top/b.txt']).equal('x=X\n')
+  })
+
+
   test('content', async () => {
     let nowI = 0
     const now = () => START_TIME + (++nowI * (60 * 1000))

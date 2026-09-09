@@ -57,6 +57,27 @@ const START_TIME = 1735689600000;
             '/top/sdk/go/zed.go': '// custom-zed\n'
         });
     });
+    // A `Line` RENDERS LIKE A `Content`, which it did not: it passed the
+    // model alone, so `replace` and `extra` were dropped and a Line
+    // inside a List emitted `{item.n}` verbatim where a Content in the
+    // same position substituted. The Go port was already right --
+    // `LineP` delegates to `ContentP` -- so this pins the TS side to it.
+    (0, node_test_1.test)('line-renders-like-content', async () => {
+        const { fs, vol } = (0, memfs_1.memfs)({});
+        await (0, __1.Jostraca)().generate({ fs: () => fs, folder: '/top' }, () => {
+            (0, __1.File)({ name: 'a.txt' }, () => {
+                (0, __1.List)({ item: [{ n: 1 }, { n: 2 }], line: false }, [
+                    ({ item, replace }) => (0, __1.Line)({ src: 'n={item.n}', replace }),
+                ]);
+            });
+            (0, __1.File)({ name: 'b.txt' }, () => {
+                (0, __1.Line)({ src: 'x=$$x$$', extra: { x: 'X' } });
+            });
+        });
+        const voljson = vol.toJSON();
+        (0, expect_1.expect)(voljson['/top/a.txt']).equal('n=1\nn=2\n');
+        (0, expect_1.expect)(voljson['/top/b.txt']).equal('x=X\n');
+    });
     (0, node_test_1.test)('content', async () => {
         let nowI = 0;
         const now = () => START_TIME + (++nowI * (60 * 1000));

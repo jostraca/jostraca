@@ -371,8 +371,8 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 	n.Meta["slotNames"] = names
 }
 
-// CopyProps configures Copy.
-type CopyProps struct {
+// CopyFilesProps configures Copy.
+type CopyFilesProps struct {
 	From    string
 	To      string
 	Replace map[string]any
@@ -380,9 +380,10 @@ type CopyProps struct {
 	Indent  any
 }
 
-// Copy is a leaf component: at define time it just records source/dest;
-// the heavy lifting (read, template, walk, write) happens in CopyOp.
-func (j *J) Copy(p CopyProps) {
+// CopyFiles is a leaf component: at define time it just records
+// source/dest; the heavy lifting (read, template, walk, write) happens
+// in CopyOp. `From` may name a single file or a whole directory tree.
+func (j *J) CopyFiles(p CopyFilesProps) {
 	if j.st.err != nil {
 		return
 	}
@@ -417,7 +418,7 @@ func (j *J) Copy(p CopyProps) {
 	}
 }
 
-// ListProps configures List. Mirrors TS List behaviour:
+// ListItemsProps configures List. Mirrors TS List behaviour:
 // after iterating all items a trailing empty Line is emitted unless
 // NoLine is true. NoLine inverts TS's `props.line === false` opt-out
 // so Go's zero value matches TS's default.
@@ -425,14 +426,14 @@ func (j *J) Copy(p CopyProps) {
 // There is no Replace field, matching TS, where List's own `replace` prop
 // is accepted and never used - the one handed to the body is built fresh
 // per item.
-type ListProps struct {
+type ListItemsProps struct {
 	Item   any
 	NoLine bool
 	Indent any
 }
 
 // listItemMacro is the replace key List hands to its body. Byte-identical
-// to the one TS builds in ts/src/cmp/List.ts, so a template written for
+// to the one TS builds in ts/src/cmp/ListItems.ts, so a template written for
 // one stack resolves on the other. `(?<path>...)` is the JS spelling of a
 // named group; renameUserGroups in template.go accepts it alongside Go's
 // own `(?P<path>...)`.
@@ -444,7 +445,7 @@ const listItemMacro = `/{item(\.(?<path>[^}]+))?}/`
 // Indent and Replace are meant to be passed straight through to the
 // components inside the body - neither does anything on its own:
 //
-//	j.ListP(ListProps{Item: items, Indent: "  "}, func(j *J, it ListItemProps) {
+//	j.ListP(ListItemsProps{Item: items, Indent: "  "}, func(j *J, it ListItemProps) {
 //		j.ContentP(ContentProps{
 //			Src:     "{item.name}: {item.role}\n",
 //			Indent:  it.Indent,
@@ -491,14 +492,19 @@ func listItemReplace(item any) map[string]any {
 	}
 }
 
-// List iterates a slice or map and calls body once per item. The body
-// receives the same *J (children attach to the surrounding parent).
-// After the iteration a trailing empty line is emitted (TS parity).
-func (j *J) List(items any, body func(j *J, it ListItemProps)) {
-	j.ListP(ListProps{Item: items}, body)
+// ListItems iterates a slice or map and calls body once per item. The
+// body receives the same *J (children attach to the surrounding
+// parent). After the iteration a trailing empty line is emitted (TS
+// parity).
+//
+// NOTE the two struct names, one letter apart and deliberately so:
+// ListItemsProps is this component's OPTIONS, ListItemProps is what one
+// ITEM hands the body.
+func (j *J) ListItems(items any, body func(j *J, it ListItemProps)) {
+	j.ListItemsP(ListItemsProps{Item: items}, body)
 }
 
-func (j *J) ListP(p ListProps, body func(j *J, it ListItemProps)) {
+func (j *J) ListItemsP(p ListItemsProps, body func(j *J, it ListItemProps)) {
 	if j.st.err != nil || body == nil {
 		return
 	}
@@ -594,4 +600,30 @@ func mergeModel(base, extra map[string]any) map[string]any {
 
 func strEndsWithNewline(s string) bool {
 	return len(s) > 0 && s[len(s)-1] == '\n'
+}
+
+
+// THE NAMES TWO COMPONENTS SHIPPED UNDER, kept as DEPRECATED ALIASES so
+// no consumer breaks. `CopyFiles` and `ListItems` are the canonical
+// spellings: they match jostraca's other verb+noun components and the
+// aontu functions that drive them, where plain `copy` and `list` were
+// already builtins with unrelated meanings.
+
+// Deprecated: use CopyFilesProps.
+type CopyProps = CopyFilesProps
+
+// Deprecated: use ListItemsProps.
+type ListProps = ListItemsProps
+
+// Deprecated: use J.CopyFiles.
+func (j *J) Copy(p CopyFilesProps) { j.CopyFiles(p) }
+
+// Deprecated: use J.ListItems.
+func (j *J) List(items any, body func(j *J, it ListItemProps)) {
+	j.ListItems(items, body)
+}
+
+// Deprecated: use J.ListItemsP.
+func (j *J) ListP(p ListItemsProps, body func(j *J, it ListItemProps)) {
+	j.ListItemsP(p, body)
 }

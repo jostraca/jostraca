@@ -6,13 +6,13 @@ import * as DiffUtil from './diff';
 import { Content } from './cmp/Content';
 import { Line } from './cmp/Line';
 import { Slot } from './cmp/Slot';
-import { Copy } from './cmp/Copy';
+import { CopyFiles, Copy } from './cmp/CopyFiles';
 import { File } from './cmp/File';
 import { Inject } from './cmp/Inject';
 import { Fragment } from './cmp/Fragment';
 import { Folder } from './cmp/Folder';
 import { Project } from './cmp/Project';
-import { List } from './cmp/List';
+import { ListItems, List } from './cmp/ListItems';
 import { cmpTree, TREE_CMP } from './tree';
 import type { CmpTreeNode, CmpTreeOptions } from './tree';
 declare const OptionsShape: {
@@ -310,4 +310,4 @@ declare function Jostraca(gopts_in?: JostracaOptions | {}): {
 };
 declare function cmp(component: Function): Component;
 export type { JostracaResult, JostracaOptions, Component, Node, Existing, CmpTreeNode, CmpTreeOptions, };
-export { Jostraca, BuildContext, cmp, each, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, isbincontent, isbinext, partify, lcf, ucf, deep, omap, Project, Content, File, Inject, Fragment, Folder, Copy, Line, Slot, List, PointUtil, DiffUtil, cmpTree, TREE_CMP, };
+export { Jostraca, BuildContext, cmp, each, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, isbincontent, isbinext, partify, lcf, ucf, deep, omap, Project, Content, File, Inject, Fragment, Folder, Line, Slot, CopyFiles, ListItems, Copy, List, PointUtil, DiffUtil, cmpTree, TREE_CMP, };
