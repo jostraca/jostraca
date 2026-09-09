@@ -91,6 +91,51 @@ offending node by path (`[0]/Folder[0]/File[0]`). [verified]
 inside the parent's own context — not a node, and not a node already
 built.
 
+## 3a. What the data path exposed
+
+Nothing in the engine had to change -- no component, no op, no build
+phase, no file handler. But a tree that arrives as JSON is not a tree a
+developer wrote at the call site, and five things turned on that
+difference. All five were found by review on the pull request, and all
+five were reproduced before they were fixed; each has a case in
+`test/tree.test.ts`.
+
+Two are properties of jostraca that only the data path makes reachable:
+
+- **`Project.folder` has no traversal check.** `validName` refuses a
+  `..` segment in a `File` or `Folder` name; `ProjectOp` takes `folder`
+  as given -- an absolute path unchanged, a relative one joined to the
+  base. That is right when a developer wrote the call and wrong when
+  the tree is input: `cmptree-gen --folder ./build` would write
+  wherever the JSON said. [verified] both spellings escaped. `cmpTree`
+  now refuses an absolute or upward `folder`; the operator picks the
+  root, the tree fills it.
+- **`Fragment` writes into `props.replace`.** It assigns its slot
+  markers into the map it is handed, so an outer-object copy was not
+  enough: a tree carrying a `replace` came back with extra keys,
+  accumulated them on a second generate, and threw outright if the map
+  was frozen. [verified]. The bridge now copies plain objects and
+  arrays to any depth, passing functions, RegExps and class instances
+  by reference because those are values a component is meant to
+  receive.
+
+Three are the bridge's own:
+
+- **A parent's invocation arguments were dropped.** `List` walks its
+  children once per item with `{item, indent, replace}`, which a
+  hand-written child takes as its parameter. A data child has no
+  parameter list, so `n={item.n}` was emitted verbatim, twice
+  [verified]. The thunk now merges those arguments UNDER the node's own
+  props: context first, the author's own statement last.
+- **An inherited name resolved to a component.** `cmps['toString']`
+  answers on any ordinary object, so `{cmp: "toString"}` passed
+  validation and ran `Object.prototype.toString` as a component -- no
+  node, no output, no error [verified]. The lookup requires an own
+  property.
+- **The CLI read an option as a value.** `--folder --dryrun` consumed
+  `--dryrun` as the directory and wrote into a folder of that name with
+  dry-run off [verified].
+
 ## 4. The pipeline
 
 `tools/cmptree-gen.js` is the end of it:
@@ -158,6 +203,14 @@ on both sides of the seam.
 **Go.** No twin. The Go port has the same components and the same
 define/build split, so the same file should port directly, but it has
 not been written and nothing pins the two.
+
+**Whether the registry should derive itself.** `TREE_CMP` is written
+out, because `tree.ts` is imported BY the barrel and reading the barrel
+back at module init is a cycle. What keeps it honest is a drift guard:
+the suite reads `src/cmp/` and fails if a component file has no entry,
+so a new component is one line from reachable and cannot land
+unreachable quietly. Deriving it properly needs a marker on what `cmp()`
+returns, which is a change to the component machinery for one consumer.
 
 **Whether `cmpTree` belongs in the package at all.** It is exported from
 `jostraca` today because that is the cheapest thing that could work. A

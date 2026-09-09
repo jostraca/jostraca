@@ -35,6 +35,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const node_test_1 = require("node:test");
 const Assert = __importStar(require("node:assert"));
+const Fs = __importStar(require("node:fs"));
+const Path = __importStar(require("node:path"));
 const expect_1 = require("./expect");
 const memfs_1 = require("../dist/util/memfs");
 const __1 = require("../");
@@ -45,8 +47,9 @@ const clock = () => {
     return () => START_TIME + (++nowI * (60 * 1000));
 };
 // Generate a component tree given as data, into an in-memory volume.
-const gen = async (tree, opts) => {
-    const { fs, vol } = (0, memfs_1.memfs)({});
+// `seed` pre-populates that volume, for the components that READ a file.
+const gen = async (tree, opts, seed) => {
+    const { fs, vol } = (0, memfs_1.memfs)(seed || {});
     const jostraca = (0, __1.Jostraca)({ now: clock() });
     const info = await jostraca.generate({ fs: () => fs, folder: '/top' }, (0, __1.cmpTree)(tree, opts));
     return { info, vol: vol.toJSON() };
@@ -112,13 +115,22 @@ const gen = async (tree, opts) => {
         Assert.equal(vol['/top/empty'], null);
     });
     // NOTHING HERE IS LIMITED TO THE THREE PRIMITIVES aontu serves so
-    // far: `cmp` names an exported component, so one this file has never
-    // heard of works the moment it is exported.
+    // far: `cmp` names a registered component, so one this file has never
+    // heard of works as soon as it has an entry.
+    //
+    // THE DRIFT GUARD is the second half of that claim, and it reads
+    // `src/cmp/` rather than restating a list: a component file with no
+    // entry in TREE_CMP is a component a data tree cannot reach, and
+    // nothing else would say so. `None` is internal -- `generate` uses it
+    // for the synthetic root node and no tree may name it.
     (0, node_test_1.test)('every-exported-component-is-reachable', async () => {
-        Assert.deepEqual(Object.keys(__1.TREE_CMP).sort(), [
-            'Content', 'Copy', 'File', 'Folder', 'Fragment',
-            'Inject', 'Line', 'List', 'Project', 'Slot',
-        ]);
+        const cmpdir = Path.join(__dirname, '..', 'src', 'cmp');
+        const onDisk = Fs.readdirSync(cmpdir)
+            .filter((f) => f.endsWith('.ts'))
+            .map((f) => f.replace(/\.ts$/, ''))
+            .filter((n) => 'None' !== n)
+            .sort();
+        Assert.deepEqual(Object.keys(__1.TREE_CMP).sort(), onDisk, 'src/cmp/ and TREE_CMP disagree: a component landed unreachable');
         const { info, vol } = await gen({
             cmp: 'Project',
             props: { folder: 'sdk' },
@@ -202,6 +214,89 @@ const gen = async (tree, opts) => {
         Assert.match(bad({ cmp: 'File', children: {} }), /children is not an array/);
         // The path names the offending node.
         Assert.match(bad({ cmp: 'Folder', children: [{ cmp: 'File', children: [{}] }] }), /node has no cmp name \(at \[0\]\/Folder\[0\]\/File\[0\]\)/);
+        // A NAME INHERITED FROM Object.prototype IS NOT A COMPONENT.
+        // `cmps['toString']` answers on any ordinary object, and the call
+        // then ran `Object.prototype.toString` as a component: no node, no
+        // output, and no error to say so.
+        Assert.match(bad({ cmp: 'toString' }), /unknown component: toString/);
+        Assert.match(bad({ cmp: 'constructor' }), /unknown component: constructor/);
+    });
+    // THE TREE MAY NOT CHOOSE THE OUTPUT ROOT. `ProjectOp` takes `folder`
+    // as given -- an absolute path unchanged, a relative one joined to the
+    // base -- which is right when a developer wrote the call and wrong
+    // when the tree arrived as JSON: `cmptree-gen --folder ./build` would
+    // otherwise write wherever the input said. `File` and `Folder` names
+    // are already refused a `..` segment by `validName`; `folder` had no
+    // such check because nothing could reach it from data.
+    (0, node_test_1.test)('a-tree-cannot-escape-the-output-folder', async () => {
+        const bad = (folder) => {
+            try {
+                (0, __1.cmpTree)({ cmp: 'Project', props: { folder } });
+            }
+            catch (err) {
+                return err.message;
+            }
+            return undefined;
+        };
+        Assert.match(bad('/escaped'), /folder must not be absolute/);
+        Assert.match(bad('../../escaped'), /folder must not contain a "\.\." segment/);
+        Assert.match(bad('a/../../b'), /folder must not contain a "\.\." segment/);
+        Assert.match(bad(1), /folder is not a string/);
+        // A folder BELOW the root is what the prop is for, and still works.
+        const { info } = await gen({
+            cmp: 'Project',
+            props: { folder: 'sdk' },
+            children: [{
+                    cmp: 'File', props: { name: 'x.txt' },
+                    children: [{ cmp: 'Content', props: { src: 'a' } }],
+                }],
+        });
+        (0, expect_1.expect)(info.files.written).equal(['/top/sdk/x.txt']);
+    });
+    // THE PARENT'S ARGUMENTS REACH THE CHILD. `List` walks its children
+    // once per item with `{item, indent, replace}`, and the `{item.n}`
+    // macro means nothing without them -- a hand-written child takes them
+    // as its parameter, and a data child has no parameter list, so the
+    // thunk merges them under the node's own props.
+    (0, node_test_1.test)('list-items-reach-their-children', async () => {
+        const { vol } = await gen({
+            cmp: 'File',
+            props: { name: 'l.txt' },
+            children: [{
+                    cmp: 'List',
+                    props: { item: [{ n: 1 }, { n: 2 }] },
+                    children: [{ cmp: 'Content', props: { src: 'n={item.n}\n' } }],
+                }],
+        });
+        Assert.equal(vol['/top/l.txt'], 'n=1\nn=2\n\n');
+    });
+    // THE COPY IS DEEP ENOUGH THAT NO COMPONENT CAN REACH THE TREE. A
+    // spread of the outer props was not: `Fragment` writes its slot
+    // markers into `props.replace`, so a tree carrying one came back with
+    // extra keys, accumulated them on a second generate, and threw
+    // outright if the map was frozen.
+    (0, node_test_1.test)('nested-props-are-not-scribbled-on', async () => {
+        const from = '/frag.txt';
+        const seed = { [from]: 'HEADER\n<[SLOT]>\nFOOTER\n' };
+        const replace = {};
+        const tree = {
+            cmp: 'File',
+            props: { name: 'f.txt' },
+            children: [{
+                    cmp: 'Fragment',
+                    props: { from, replace },
+                    children: [{ cmp: 'Content', props: { src: 'BODY\n' } }],
+                }],
+        };
+        const first = await gen(tree, undefined, seed);
+        Assert.equal(first.vol['/top/f.txt'], 'HEADER\nBODY\n\nFOOTER\n');
+        // The caller's own map is untouched ...
+        Assert.deepEqual(Object.keys(replace), []);
+        // ... so a frozen one generates rather than throwing, and the same
+        // tree generates the same bytes a second time.
+        Object.freeze(replace);
+        const second = await gen(tree, undefined, seed);
+        Assert.equal(second.vol['/top/f.txt'], 'HEADER\nBODY\n\nFOOTER\n');
     });
 });
 //# sourceMappingURL=tree.test.js.map

@@ -34,6 +34,19 @@ function usage(msg) {
 }
 
 
+// The value of an option, refusing another option in its place.
+// `--folder --dryrun` used to consume `--dryrun` as the directory: the
+// command then wrote into a folder called `--dryrun` with dry-run off,
+// which is the opposite of what was asked for.
+function optValue(argv, i, opt, what) {
+  const v = argv[i]
+  if (null == v || ('-' === v[0] && 1 < v.length)) {
+    usage(opt + ' needs ' + what)
+  }
+  return v
+}
+
+
 function parseArgs(argv) {
   const opts = { folder: '.', at: null, dryrun: false, file: null }
   for (let i = 0; i < argv.length; i++) {
@@ -42,12 +55,10 @@ function parseArgs(argv) {
       usage()
     }
     else if ('--folder' === a) {
-      opts.folder = argv[++i]
-      if (null == opts.folder) usage('--folder needs a directory')
+      opts.folder = optValue(argv, ++i, '--folder', 'a directory')
     }
     else if ('--at' === a) {
-      opts.at = argv[++i]
-      if (null == opts.at) usage('--at needs a key')
+      opts.at = optValue(argv, ++i, '--at', 'a key')
     }
     else if ('--dryrun' === a) {
       opts.dryrun = true
