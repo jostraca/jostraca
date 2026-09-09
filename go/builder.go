@@ -602,7 +602,6 @@ func strEndsWithNewline(s string) bool {
 	return len(s) > 0 && s[len(s)-1] == '\n'
 }
 
-
 // THE NAMES TWO COMPONENTS SHIPPED UNDER, kept as DEPRECATED ALIASES so
 // no consumer breaks. `CopyFiles` and `ListItems` are the canonical
 // spellings: they match jostraca's other verb+noun components and the
