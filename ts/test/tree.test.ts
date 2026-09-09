@@ -129,6 +129,24 @@ describe('tree', () => {
   })
 
 
+  // A PROP THE BRIDGE KNOWS NOTHING ABOUT reaches the component, which
+  // is what makes the vocabulary need no entry per component. `indent`
+  // is the one an aontu generator wants first: a span's own depth is
+  // expressible without a new primitive.
+  test('props-reach-the-component', async () => {
+    const { vol } = await gen({
+      cmp: 'File',
+      props: { name: 'a.ts' },
+      children: [
+        { cmp: 'Content', props: { src: 'class X {\n' } },
+        { cmp: 'Content', props: { src: 'y = 1\n', indent: 2 } },
+        { cmp: 'Content', props: { src: '}\n' } },
+      ],
+    })
+    Assert.equal(vol['/top/a.ts'], 'class X {\n  y = 1\n}\n')
+  })
+
+
   // A caller may add their own component, or override one.
   test('custom-components', async () => {
     const Twice = cmp(function Twice(props: any) {
