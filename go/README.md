@@ -416,6 +416,13 @@ same logical input:
   escapes (`ts/src/util/basic.ts` `getCachedEjectRE`). A real
   `*regexp.Regexp` / `RegExp` value behaves the same on both sides.
   Untested on either stack; TS is canonical, so Go is the side to change.
+- `cmpTree` -- the data-driven define phase, which turns a component tree
+  given as plain data into a define-phase callback (`ts/src/tree.ts`) --
+  is not ported. It is a spike, TypeScript-only on purpose, and nothing
+  pins the two sides because there is only one side. The components it
+  drives are the ported ones, so a Go twin is a walk over the same node
+  shape calling `J.Folder`/`J.File`/..., and should port directly if the
+  spike is kept.
 
 ### Status
 

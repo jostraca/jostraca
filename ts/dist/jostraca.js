@@ -34,7 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DiffUtil = exports.PointUtil = exports.List = exports.Slot = exports.Line = exports.Copy = exports.Folder = exports.Fragment = exports.Inject = exports.File = exports.Content = exports.Project = exports.omap = exports.deep = exports.ucf = exports.lcf = exports.partify = exports.isbinext = exports.isbincontent = exports.indent = exports.escre = exports.template = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.each = exports.BuildContext = void 0;
+exports.TREE_CMP = exports.cmpTree = exports.DiffUtil = exports.PointUtil = exports.List = exports.Slot = exports.Line = exports.Copy = exports.Folder = exports.Fragment = exports.Inject = exports.File = exports.Content = exports.Project = exports.omap = exports.deep = exports.ucf = exports.lcf = exports.partify = exports.isbinext = exports.isbincontent = exports.indent = exports.escre = exports.template = exports.names = exports.vmap = exports.cmap = exports.kebabify = exports.snakify = exports.camelify = exports.getx = exports.get = exports.each = exports.BuildContext = void 0;
 exports.Jostraca = Jostraca;
 exports.cmp = cmp;
 // TODO:
@@ -99,6 +99,9 @@ const InjectOp_1 = require("./op/InjectOp");
 const FragmentOp_1 = require("./op/FragmentOp");
 const ContentOp_1 = require("./op/ContentOp");
 const NoneOp_1 = require("./op/NoneOp");
+const tree_1 = require("./tree");
+Object.defineProperty(exports, "cmpTree", { enumerable: true, get: function () { return tree_1.cmpTree; } });
+Object.defineProperty(exports, "TREE_CMP", { enumerable: true, get: function () { return tree_1.TREE_CMP; } });
 const GLOBAL = global;
 const KONSOLE = GLOBAL['con' + 'sole'];
 // One AsyncLocalStorage, created once and shared.
