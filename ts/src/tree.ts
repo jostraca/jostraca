@@ -55,9 +55,11 @@
 // the resulting call ran `Object.prototype.toString` as a component:
 // no node, no output, no error.
 //
-// SPIKE SCOPE. TypeScript only; the Go port has no twin yet. aontu
-// serves three primitives so far (Folder, File, Content), but nothing
-// here is limited to those.
+// SPIKE SCOPE. Both ports carry this, the Go twin being go/tree.go,
+// and aontu serves all ten components as lower-case functions
+// (aontu-lang/aontu#185: project, folder, file, content, line,
+// fragment, slot, inject, copyfiles, listitems). Nothing here is
+// limited to those.
 
 import Path from 'node:path'
 
