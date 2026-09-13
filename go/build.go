@@ -264,6 +264,44 @@ func fileBefore(n *Node, st *jstate, b *buildCtx) error {
 	// into a clean /top/sdk/code/js path.
 	n.FullPath = path.Clean(fwd(raw))
 	_ = st
+
+	// TWO FILES AT ONE PATH IS REFUSED, not resolved. See claimFile.
+	if err := b.claimFile(n.FullPath, strings.Join(n.Path, "/")); err != nil {
+		return err
+	}
+	return nil
+}
+
+// claimFile refuses a second File at an output path a File already
+// claimed this run. The second silently won and the first was never
+// written -- output missing, no error, and nothing to say which
+// component lost. The same guard `aontu render` holds over its unit
+// paths, on the side that owns files.
+//
+// HERE RATHER THAN IN CmpTree, deliberately. CmpTree is where a data
+// tree asked for it, and the path is not known there: a File name is
+// composed with whatever Project and Folder nesting encloses it, and
+// under ListItems the same node is invoked once per item. Deciding it
+// from the tree would mean a second implementation of path composition,
+// which is the one thing CmpTree is built not to have. The build phase
+// is where the path is final, so the guard is one implementation and
+// covers every road in.
+//
+// IT IS THE File NODES ONLY. Inject writes to a path too, and
+// legitimately writes to one a File in the same run created; this sees
+// the two statements that cannot both be true.
+func (b *buildCtx) claimFile(fullpath, where string) error {
+	if first, taken := b.filepaths[fullpath]; taken {
+		if first == "" {
+			first = "<root>"
+		}
+		if where == "" {
+			where = "<root>"
+		}
+		return fmt.Errorf("%w, path=%s, first=%s, second=%s",
+			ErrDuplicateFilePath, fullpath, first, where)
+	}
+	b.filepaths[fullpath] = where
 	return nil
 }
 

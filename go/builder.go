@@ -90,12 +90,24 @@ func (j *J) FileP(p FileProps, body func(*J)) {
 }
 
 // ContentProps configures Content.
+//
+// Raw hands the bytes through untouched: no Template, so no model
+// substitution and no Replace. Templating is the default, because a
+// generator that writes its content at the call site wants the model in
+// scope -- that is what Content is for. Raw is for the caller holding
+// final bytes from somewhere else, where a `$$...$$` sequence in a
+// shell script, a makefile, a doc comment or a regex would otherwise be
+// substituted with no diagnostic. An empty model is NOT the same guard:
+// `$$"quoted"$$` renders its own literal and `$$__JOSTRACA_REPLACE__$$`
+// renders the matcher, neither of them from the model. Indent is
+// placement rather than substitution and applies either way.
 type ContentProps struct {
 	Src     string
 	Name    string
 	Indent  any
 	Replace map[string]any
 	Extra   map[string]any
+	Raw     bool
 }
 
 // Content emits a string of text into the surrounding File. Templates
@@ -118,9 +130,9 @@ func (j *J) ContentP(p ContentProps) {
 		return
 	}
 
-	model := mergeModel(j.st.model, p.Extra)
 	rendered := p.Src
-	if rendered != "" {
+	if !p.Raw && rendered != "" {
+		model := mergeModel(j.st.model, p.Extra)
 		out, err := Template(rendered, model, &TemplateSpec{Replace: p.Replace})
 		if err != nil {
 			j.st.err = err
@@ -372,12 +384,23 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 }
 
 // CopyFilesProps configures Copy.
+// CopyFilesProps configures CopyFiles.
+//
+// NO Indent. The field was here, was assigned to the node, and was
+// never read by the copy build step -- so the only thing it did was
+// accept a prop the TypeScript side REFUSES outright (CopyFilesShape
+// validates a closed set, and `indent` is not in it). A data tree
+// carrying `{"cmp":"CopyFiles","props":{"indent":"  "}}` therefore
+// generated in Go and threw in TypeScript, which is a parity break in
+// the surface rather than in the output. TypeScript is canonical and is
+// also right here -- nothing on either side indents a copy -- so the
+// field goes. Indenting a spliced copy is a feature, and would arrive
+// with an implementation on both sides.
 type CopyFilesProps struct {
 	From    string
 	To      string
 	Replace map[string]any
 	Exclude any
-	Indent  any
 }
 
 // CopyFiles is a leaf component: at define time it just records
@@ -403,7 +426,6 @@ func (j *J) CopyFiles(p CopyFilesProps) {
 		Name:    p.To,
 		Replace: p.Replace,
 		Exclude: p.Exclude,
-		Indent:  p.Indent,
 		Path:    childPath(j.cur, p.To),
 		Meta:    map[string]any{},
 	}

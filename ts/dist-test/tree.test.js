@@ -180,6 +180,141 @@ const gen = async (tree, opts, seed) => {
         });
         Assert.equal(vol['/top/l.txt'], 'n=1\nn=2\n\n');
     });
+    // RULE (3): THE BYTES IN A DATA TREE ARE ALREADY FINAL, usually.
+    // `Content` and `Line` template what they are handed, so once a tree
+    // is a generator's only output road EVERY byte it produces passes
+    // through that render -- and a `$$` in a shell script, a makefile, a
+    // doc comment or a regex is substituted from the generate model with
+    // no diagnostic and exit 0.
+    //
+    // `raw` per node, `{raw: true}` for the whole tree, and the same tree
+    // WITHOUT either as the control.
+    (0, node_test_1.test)('raw-hands-the-bytes-through-untouched', async () => {
+        const payload = [
+            '#!/bin/sh',
+            'sed -i "s/$$path$$/x/" f',
+            'echo $$"quoted"$$',
+            'echo $$__JOSTRACA_REPLACE__$$',
+            "awk '{print $$1}'",
+            'make: $$(VAR)$$',
+        ].join('\n') + '\n';
+        const tree = (props) => ({
+            cmp: 'File',
+            props: { name: 'a.sh' },
+            children: [
+                { cmp: 'Content', props: { src: payload, ...props } },
+                { cmp: 'Line', props: { src: 'L $$path$$', ...props } },
+            ],
+        });
+        const model = { path: 'ZZZ' };
+        const run = async (t, opts) => {
+            const { fs, vol } = (0, memfs_1.memfs)({});
+            await (0, __1.Jostraca)({ now: clock() }).generate({ fs: () => fs, folder: '/top', model }, (0, __1.cmpTree)(t, opts));
+            return vol.toJSON()['/top/a.sh'];
+        };
+        const through = payload + 'L $$path$$\n';
+        // The prop, per node ...
+        Assert.equal(await run(tree({ raw: true })), through);
+        // ... and the option, for every node in the tree.
+        Assert.equal(await run(tree({}), { raw: true }), through);
+        // THE CONTROL, unchanged: without either, three of those lines are
+        // rewritten and two of the three do not need a model to be.
+        const substituted = [
+            '#!/bin/sh',
+            'sed -i "s/ZZZ/x/" f',
+            'echo quoted',
+            'echo /(?<J_O>\\$\\$)(?<J_R>[^$]+)(?<J_C>\\$\\$)/',
+            "awk '{print $$1}'",
+            'make: $$(VAR)$$',
+        ].join('\n') + '\nL ZZZ\n';
+        Assert.equal(await run(tree({})), substituted);
+        Assert.equal(await run(tree({ raw: false }), { raw: true }), substituted);
+    });
+    // THE OPTION IS A DEFAULT, NOT A STATEMENT, so it sits beneath both
+    // of the more specific ones: a node's own props, and the bindings a
+    // parent makes for this invocation. `ListItems` is where the second
+    // one bites -- its `{item.n}` macro is a `replace` entry, so a child
+    // rendered raw emits the macro verbatim, and that is the cost of the
+    // whole-tree option rather than a defect in it.
+    (0, node_test_1.test)('raw-is-outranked-by-the-node-and-by-the-parent', async () => {
+        const listtree = (props) => ({
+            cmp: 'File',
+            props: { name: 'l.txt' },
+            children: [{
+                    cmp: 'ListItems',
+                    props: { item: [{ n: 1 }, { n: 2 }] },
+                    children: [{ cmp: 'Content', props: { src: 'n={item.n}\n', ...props } }],
+                }],
+        });
+        const run = async (t, opts) => {
+            const { fs, vol } = (0, memfs_1.memfs)({});
+            await (0, __1.Jostraca)({ now: clock() }).generate({ fs: () => fs, folder: '/top' }, (0, __1.cmpTree)(t, opts));
+            return vol.toJSON()['/top/l.txt'];
+        };
+        // Under a whole-tree `raw`, the macro is bytes like any other.
+        Assert.equal(await run(listtree({}), { raw: true }), 'n={item.n}\nn={item.n}\n\n');
+        // The node outranks the option ...
+        Assert.equal(await run(listtree({ raw: false }), { raw: true }), 'n=1\nn=2\n\n');
+        // ... and with no option at all nothing changed.
+        Assert.equal(await run(listtree({})), 'n=1\nn=2\n\n');
+    });
+    // THE WHOLE-TREE OPTION MUST BE SAFE ON A WHOLE TREE, and it was not.
+    // `Fragment` and `CopyFiles` validate a CLOSED prop set, so setting
+    // `raw` on every node -- the first spelling of the option -- made
+    // either component refuse the run outright: "the property raw is not
+    // allowed". A whole-tree option that cannot be used on a tree holding
+    // two of the ten components is not a whole-tree option.
+    //
+    // So the option reaches TREE_RAW_CMP, and this generates every
+    // registered component under it: a component that would refuse `raw`
+    // fails here rather than in a consumer's pipeline.
+    (0, node_test_1.test)('raw-option-is-safe-on-every-component', async () => {
+        Assert.deepEqual(tree_1.TREE_RAW_CMP, [__1.TREE_CMP.Content, __1.TREE_CMP.Line], 'TREE_RAW_CMP is the components that render text they were handed');
+        const from = '/frag.txt';
+        const seed = {
+            [from]: 'HEADER\n<[SLOT]>\nFOOTER\n',
+            '/src/copied.txt': 'COPIED\n',
+            '/top/sdk/inject.txt': 'A\n#--START--#\n\n#--END--#\nB\n',
+        };
+        // One node per component, each in a place its op accepts.
+        const tree = [
+            {
+                cmp: 'Project', props: { folder: 'sdk' },
+                children: [{
+                        cmp: 'Folder', props: { name: 'f' },
+                        children: [{
+                                cmp: 'File', props: { name: 'x.txt' },
+                                children: [
+                                    { cmp: 'Content', props: { src: 'c' } },
+                                    { cmp: 'Line', props: { src: 'l' } },
+                                    {
+                                        cmp: 'Fragment', props: { from },
+                                        children: [{ cmp: 'Slot', props: { name: 's' } }],
+                                    },
+                                    {
+                                        cmp: 'ListItems', props: { item: [{ n: 1 }] },
+                                        children: [{ cmp: 'Content', props: { src: 'i' } }],
+                                    },
+                                    { cmp: 'CopyFiles', props: { from: '/src/copied.txt', to: 'c.txt' } },
+                                ],
+                            }],
+                    }],
+            },
+            {
+                cmp: 'Inject', props: { name: 'inject.txt' },
+                children: [{ cmp: 'Content', props: { src: 'INJECTED\n' } }],
+            },
+        ];
+        // Every component of the registry is exercised above; a new one
+        // landing unreachable is the drift guard's business, and a new one
+        // landing REFUSING the option is this test's.
+        Assert.deepEqual(Object.keys(__1.TREE_CMP).sort(), ['Content', 'CopyFiles', 'File', 'Folder', 'Fragment', 'Inject',
+            'Line', 'ListItems', 'Project', 'Slot'], 'a component joined the registry: give it a node above');
+        const { vol } = await gen(tree, { raw: true }, seed);
+        // The run completed, and `raw` reached the two that render text.
+        Assert.equal(vol['/top/sdk/f/x.txt'], 'cl\nHEADER\n\nFOOTER\ni\nCOPIED\n');
+        Assert.equal(vol['/top/sdk/inject.txt'], 'A\n#--START--#\nINJECTED\n\n#--END--#\nB\n');
+    });
     // A caller may add their own component, or override one.
     (0, node_test_1.test)('custom-components', async () => {
         const Twice = (0, __1.cmp)(function Twice(props) {
@@ -210,6 +345,89 @@ const gen = async (tree, opts, seed) => {
         // ... and generating the same tree again is the same generation.
         const { vol } = await gen(tree);
         Assert.equal(vol['/top/x.txt'], 'a');
+    });
+    // TWO FILES AT ONE PATH IS REFUSED. `aontu render` refuses an
+    // absolute path, a `..` segment and a DUPLICATE over its unit list;
+    // the first two were already here (`validFolder` above, and
+    // `validName` for a File or Folder name) and the third was the gap.
+    // After the retirement there is no other holder for it.
+    //
+    // The guard is at the BUILD PHASE rather than in `cmpTree`, where
+    // this was asked for, because that is where the path is final: a
+    // `File` name composes with whatever `Project` and `Folder` nesting
+    // encloses it, so deciding it from the tree would mean a second
+    // implementation of path composition -- the one thing `cmpTree` is
+    // built not to have. One implementation, every road in.
+    (0, node_test_1.test)('two-files-at-one-path-are-refused', async () => {
+        const refused = async (tree) => {
+            try {
+                await gen(tree);
+            }
+            catch (err) {
+                return err.message;
+            }
+            return undefined;
+        };
+        // The plain case: two siblings, one name.
+        Assert.match(await refused([
+            { cmp: 'File', props: { name: 'a.txt' } },
+            { cmp: 'File', props: { name: 'a.txt' } },
+        ]), /two File components resolve to the same output path, path=\/top\/a\.txt/);
+        // COMPOSED PATHS, which is what makes this the build phase's
+        // business: two different statements of nesting arriving at one
+        // file. Neither node's own name is a duplicate of the other's.
+        Assert.match(await refused([
+            {
+                cmp: 'Folder', props: { name: 'x' },
+                children: [{ cmp: 'File', props: { name: 'a.txt' } }],
+            },
+            { cmp: 'File', props: { name: 'x/a.txt' } },
+        ]), /path=\/top\/x\/a\.txt/);
+        // The message names BOTH nodes, because "a duplicate" is useless
+        // without the pair.
+        Assert.match(await refused([
+            { cmp: 'Folder', props: { name: 'x' }, children: [{ cmp: 'File', props: { name: 'a.txt' } }] },
+            { cmp: 'Folder', props: { name: 'x' }, children: [{ cmp: 'File', props: { name: 'a.txt' } }] },
+        ]), /first=x\/a\.txt, second=x\/a\.txt/);
+        // A FILE UNDER `ListItems` is the case a static check over the tree
+        // could never see: one node, two invocations, one path.
+        //
+        // AND IN A DATA TREE IT IS ALWAYS THAT. A `File` name is NOT
+        // templated -- `File` assigns `props.name` to the node and `FileOp`
+        // composes it as given -- so `f{item.n}.txt` is a filename
+        // containing braces, not two filenames. A hand-written generator
+        // varies the name by computing it in the host language, which a
+        // data child has no way to do; a document that wants N files states
+        // N `File` nodes. See `list-items-cannot-vary-a-file-name`.
+        Assert.match(await refused({
+            cmp: 'ListItems',
+            props: { item: [{ n: 1 }, { n: 2 }] },
+            children: [{ cmp: 'File', props: { name: 'same.txt' } }],
+        }), /path=\/top\/same\.txt/);
+    });
+    // The half of the rule above that is about `File` rather than about
+    // duplicates: a data tree cannot interpolate a file name, so the
+    // macro is refused as the duplicate it is rather than silently
+    // writing one file called `f{item.n}.txt`.
+    (0, node_test_1.test)('list-items-cannot-vary-a-file-name', async () => {
+        let msg = '';
+        try {
+            await gen({
+                cmp: 'ListItems',
+                props: { item: [{ n: 1 }, { n: 2 }], line: false },
+                children: [{ cmp: 'File', props: { name: 'f{item.n}.txt' } }],
+            });
+        }
+        catch (err) {
+            msg = err.message;
+        }
+        Assert.match(msg, /path=\/top\/f\{item\.n\}\.txt/);
+        // One `File` node per file is the form that works.
+        const { info } = await gen([
+            { cmp: 'File', props: { name: 'f1.txt' } },
+            { cmp: 'File', props: { name: 'f2.txt' } },
+        ]);
+        (0, expect_1.expect)(info.files.written).equal(['/top/f1.txt', '/top/f2.txt']);
     });
     // A MALFORMED TREE IS REFUSED BY THE CALL THAT READS IT, before the
     // define phase has made a folder.
@@ -287,6 +505,102 @@ const gen = async (tree, opts, seed) => {
                 }],
         });
         Assert.equal(vol['/top/l.txt'], 'n=1\nn=2\n\n');
+    });
+    // A PARENT'S BINDINGS REACH THE CHILD; A PARENT'S OWN PROPS DO NOT.
+    // `Project` passes `args: props` -- the very object it was handed --
+    // so its `name` and `folder` arrived in every direct child's props.
+    // For eight components that is invisible; for the two that validate a
+    // CLOSED prop set it was fatal, and `project([copyfiles(...)])` was
+    // refused with `the properties "name, folder" are not allowed`.
+    //
+    // Only the DATA path could reach it: a hand-written child is an arrow
+    // that ignores its parameter and writes its own props. THE GO PORT
+    // WAS ALREADY RIGHT -- its `Project` builder passes a nil inherit map
+    // -- so this is the `Line` case again, and the fix went into
+    // TypeScript.
+    (0, node_test_1.test)('a-parents-own-props-do-not-reach-a-data-child', async () => {
+        const seed = { '/src/a.txt': 'A\n', '/src/f.txt': 'F\n' };
+        // The two with a closed prop set, directly under a Project.
+        const copied = await gen({
+            cmp: 'Project', props: { name: 'p', folder: 'sdk' },
+            children: [{ cmp: 'CopyFiles', props: { from: '/src/a.txt', to: 'a.txt' } }],
+        }, undefined, seed);
+        Assert.equal(copied.vol['/top/sdk/a.txt'], 'A\n');
+        const fragmented = await gen({
+            cmp: 'Project', props: { name: 'p', folder: 'sdk' },
+            children: [{
+                    cmp: 'File', props: { name: 'f.txt' },
+                    children: [{ cmp: 'Fragment', props: { from: '/src/f.txt' } }],
+                }],
+        }, undefined, seed);
+        Assert.equal(fragmented.vol['/top/sdk/f.txt'], 'F\n');
+        // AND THE ONE THAT IS NOT A PARENT'S PROPS still arrives:
+        // `ListItems` binds `{item, indent, replace}` for each invocation,
+        // which is what makes `{item.n}` mean anything.
+        const listed = await gen({
+            cmp: 'File', props: { name: 'l.txt' },
+            children: [{
+                    cmp: 'ListItems', props: { item: [{ n: 1 }, { n: 2 }] },
+                    children: [{ cmp: 'Content', props: { src: 'n={item.n}\n' } }],
+                }],
+        });
+        Assert.equal(listed.vol['/top/l.txt'], 'n=1\nn=2\n\n');
+        // A `Content` under a `Project` no longer takes the project's name
+        // as its own, which is the same fix seen from the other end.
+        const named = await gen({
+            cmp: 'Project', props: { name: 'p', folder: 'sdk' },
+            children: [{
+                    cmp: 'File', props: { name: 'c.txt' },
+                    children: [{ cmp: 'Content', props: { src: 'C' } }],
+                }],
+        });
+        (0, expect_1.expect)(named.info.files.written).equal(['/top/sdk/c.txt']);
+    });
+    // A CLOSED PROP SET HAS TO ADMIT THE ENGINE'S OWN BINDINGS.
+    // `ListItems` binds `item`, `indent` and `replace` for each
+    // invocation of its children, and a data child -- having no parameter
+    // list to take them as -- receives all three merged under its own
+    // props. `Fragment` and `CopyFiles` validate a CLOSED set, met an
+    // `item` they had never heard of, and refused: a Fragment repeated
+    // once per entity is an ordinary generator and it could not be
+    // written as a tree at all. THE GO PORT WAS ALREADY RIGHT -- its
+    // props are a struct, so an unknown key in the map is never looked at.
+    (0, node_test_1.test)('a-closed-prop-set-admits-the-engines-bindings', async () => {
+        const seed = { '/src/a.txt': 'A\n', '/src/f.txt': 'F {item.n}\n' };
+        // A fragment per item, with the macro resolving from the binding.
+        const fragmented = await gen({
+            cmp: 'File', props: { name: 'x.txt' },
+            children: [{
+                    cmp: 'ListItems', props: { item: [{ n: 1 }, { n: 2 }] },
+                    children: [{ cmp: 'Fragment', props: { from: '/src/f.txt' } }],
+                }],
+        }, undefined, seed);
+        Assert.equal(fragmented.vol['/top/x.txt'], 'F 1\nF 2\n\n');
+        // And a copy per item, which reaches the same merge.
+        const copied = await gen({
+            cmp: 'File', props: { name: 'y.txt' },
+            children: [{
+                    cmp: 'ListItems', props: { item: [{ n: 1 }] },
+                    children: [{
+                            cmp: 'CopyFiles', props: { from: '/src/a.txt', to: 'a.txt' },
+                        }],
+                }],
+        }, undefined, seed);
+        Assert.equal(copied.vol['/top/a.txt'], 'A\n');
+        // The refusal it must NOT have cost: a prop neither the component
+        // nor the engine names is still refused, which is the whole value
+        // of a closed set.
+        let msg = '';
+        try {
+            await gen({
+                cmp: 'File', props: { name: 'z.txt' },
+                children: [{ cmp: 'Fragment', props: { from: '/src/f.txt', nosuchprop: 1 } }],
+            }, undefined, seed);
+        }
+        catch (err) {
+            msg = err.message;
+        }
+        Assert.match(msg, /nosuchprop/);
     });
     // THE COPY IS DEEP ENOUGH THAT NO COMPONENT CAN REACH THE TREE. A
     // spread of the outer props was not: `Fragment` writes its slot

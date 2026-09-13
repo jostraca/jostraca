@@ -3,11 +3,17 @@ import type { Node } from '../jostraca'
 
 import { cmp } from '../jostraca'
 
-import { Shape, One, Optional, Check } from 'shape'
+import { Shape, One, Optional, Check, Skip } from 'shape'
 
 
 const From = (from: any, _: any, s: any) => s.ctx.meta.fs().statSync(from)
 
+// A CLOSED PROP SET HAS TO ADMIT THE ENGINE'S OWN BINDINGS -- see the
+// same note in Fragment.ts. `ListItems` binds `item`, `indent` and
+// `replace` for each invocation of its children, and a data child
+// receives all three merged under its own props. `replace` this
+// component reads; `item` and `indent` it does not, and refusing them
+// refused a whole legitimate tree.
 const CopyFilesShape = Shape({
   ctx$: Object,
 
@@ -25,7 +31,13 @@ const CopyFilesShape = Shape({
   // File (which shape-validates nothing) and the Go port. The
   // Boolean-or-Array-only spelling made the scalar arm of `state.excludes`
   // in CopyOp unreachable.
-  exclude: Optional(One(Boolean, String, RegExp, [One(String, RegExp)])) as unknown as any
+  exclude: Optional(One(Boolean, String, RegExp, [One(String, RegExp)])) as unknown as any,
+
+  // Bindings, accepted and not read. NOT a copy-time indent: nothing on
+  // either side indents a copied file, and the Go port's vestigial
+  // `Indent` field was removed rather than kept as a promise.
+  item: Skip() as any,
+  indent: Skip() as any,
 }, { name: 'CopyFiles' })
 
 

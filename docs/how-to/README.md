@@ -70,6 +70,7 @@ Driving the generator from your own tool, in memory, or on disk.
 - [Report what a run did](report-what-a-run-did.md). Read the result arrays and the audit trail to tell a user what a generate changed.
 - [Test a generator](test-a-generator.md). Assert on a generator's output without a temp directory, using in-memory generation.
 - [Call Jostraca from Go](call-jostraca-from-go.md). Drive the Go port from your own program, and know where its surface differs.
+- [Generate from a tree given as data](generate-from-a-tree.md). Generate from a component tree given as data, so a tool in another language can drive Jostraca through a pipe.
 
 If none of these is your task, the
 [component reference](../reference-components.md) and the

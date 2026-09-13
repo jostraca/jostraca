@@ -26,14 +26,23 @@ const Line = cmp(function Line(props: any, children: any) {
   // which merges `Extra` and forwards `Replace`. So this is the case
   // AGENTS.md names -- the port pre-empting a latent TS bug -- and the
   // fix goes into TypeScript with Go left alone.
-  const model = {
-    ...props.ctx$.model,
-    ...(props.extra || {}),
+  //
+  // `raw` is part of that sameness. A line of final bytes is the same
+  // claim as a span of them, one terminator apart, and a `Line` that
+  // templated under an option that says otherwise would be the second
+  // undocumented difference all over again. See Content for what raw
+  // does and why it is not the default.
+  if (true !== props.raw) {
+    const model = {
+      ...props.ctx$.model,
+      ...(props.extra || {}),
+    }
+
+    src = template(src, model, {
+      replace: props.replace
+    })
   }
 
-  src = template(src, model, {
-    replace: props.replace
-  })
   node.content = src
   node.name = props.name
 })
@@ -43,4 +52,3 @@ const Line = cmp(function Line(props: any, children: any) {
 export {
   Line
 }
-

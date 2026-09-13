@@ -20,6 +20,13 @@ var (
 	// not exist. Inject rewrites a marked region of an existing file; it
 	// does not create one.
 	ErrInjectTargetMissing = errors.New("jostraca: inject target does not exist")
+
+	// ErrDuplicateFilePath is returned when two File components resolve
+	// to the same output path. The second used to win in silence, so the
+	// first was never written -- output missing, no error, and nothing
+	// to say which component lost.
+	ErrDuplicateFilePath = errors.New(
+		"jostraca: two File components resolve to the same output path")
 )
 
 // NodeError wraps any build-phase error with context about which step and

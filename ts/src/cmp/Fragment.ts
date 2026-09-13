@@ -5,18 +5,32 @@ import type { Node } from '../jostraca'
 
 import { cmp, template, each, escre, Content } from '../jostraca'
 
-import { Shape, One, Optional, Check, Empty } from 'shape'
+import { Shape, One, Optional, Check, Empty, Skip } from 'shape'
 
 
 const From = (from: any, _: any, s: any) => s.ctx.fs().statSync(from)
 
+// A CLOSED PROP SET HAS TO ADMIT THE ENGINE'S OWN BINDINGS. A parent
+// binds values for one invocation of its children -- `ListItems` binds
+// `item`, `indent` and `replace`, which is what makes `{item.path}`
+// mean anything -- and a HAND-WRITTEN child takes them as its parameter
+// and passes on whichever it wants. A DATA child has no parameter list,
+// so `cmpTree` merges them under the node's own props, and this shape
+// then met an `item` it had never heard of and refused a legitimate
+// tree: a Fragment repeated once per entity is an ordinary generator.
+//
+// `item` is accepted and not read. `indent` and `replace` were already
+// here and are read. The Go port never had the problem -- its props are
+// a struct, so an unknown key in the map is simply not looked at -- so
+// this is TypeScript catching up to it rather than the other way round.
 const FragmentShape = Shape({
   ctx$: Object,
   from: Check(From).String() as unknown as string,
   exclude: Optional(One(Boolean, [String])) as unknown as boolean | string[],
   indent: Optional(One(Empty(String), Number)),
   replace: {} as any,
-  eject: Optional([One(String, RegExp)]) as unknown as any[]
+  eject: Optional([One(String, RegExp)]) as unknown as any[],
+  item: Skip() as any,
 }, { name: 'Fragment' })
 
 
@@ -67,8 +81,12 @@ const Fragment = cmp(function Fragment(props: FragmentProps, children: any) {
   // condition and report it instead.
   let sawnonslot = false
 
-  node.filter = (({ props, component }) =>
-    (('Slot' === component.name ? slotnames[props.name] = true : (sawnonslot = true)), false))
+  // `sub` is the CHILD's props, not this component's. It was spelled
+  // `props` and shadowed the parameter, which reads as though a
+  // Fragment had a `name` prop of its own -- it has not, and any tool
+  // that reads this file to learn the prop surface was told it did.
+  node.filter = (({ props: sub, component }) =>
+    (('Slot' === component.name ? slotnames[sub.name] = true : (sawnonslot = true)), false))
   each(children, { call: true })
   node.filter = undefined
 
@@ -92,8 +110,8 @@ const Fragment = cmp(function Fragment(props: FragmentProps, children: any) {
       escre(slot.key$) +
       ']>[ \\t]*[->/#*]*[ \\t]*/'
     ] = () => {
-      node.filter = (({ props, component }) =>
-        'Slot' === component.name && slot.key$ === props.name)
+      node.filter = (({ props: sub, component }) =>
+        'Slot' === component.name && slot.key$ === sub.name)
       each(children, { call: true })
       node.filter = undefined
     }

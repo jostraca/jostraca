@@ -426,6 +426,16 @@ same logical input:
   object. The TypeScript side additionally refuses a `cmp` naming an
   inherited property (`toString`, `constructor`); a Go map answers only
   for keys it holds, so there is nothing here to guard against.
+- `CmpTree` refuses an unknown prop on `Fragment` and `CopyFiles`, whose
+  TypeScript twins validate a closed shape. Go's props are a struct, so
+  an unknown key in the decoded map was simply never read -- and a tree
+  that one port refuses and the other generates does not mean one thing,
+  which matters because the data path is the contract a generator in
+  another language writes against. `treeClosedCmp` in `tree.go` holds
+  the two sets, and `docs/cmp-surface.tsv` publishes them.
+- `CopyFilesProps` has no `Indent` field. It was set on the node and
+  never read by the copy build step, so the only thing it did was accept
+  a prop TypeScript refuses.
 
 ### Status
 

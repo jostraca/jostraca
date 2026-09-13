@@ -1,5 +1,6 @@
 
 import { test, describe } from 'node:test'
+import * as Assert from 'node:assert'
 import { expect } from './expect'
 
 import { memfs } from '../dist/util/memfs'
@@ -128,6 +129,99 @@ describe('jostraca', () => {
   })
 
 
+  // RAW HANDS THE BYTES THROUGH UNTOUCHED, and the control is the same
+  // payload without it. `Content` templates unconditionally, so every
+  // `$$...$$` sequence in content jostraca did not author is
+  // substituted from the generate model -- a shell script, a makefile,
+  // a doc comment or a regex carrying `$$` is corrupted with no
+  // diagnostic and exit 0.
+  //
+  // AN EMPTY MODEL IS NOT THE SAME GUARD. `$$"quoted"$$` renders its
+  // own literal and `$$__JOSTRACA_REPLACE__$$` renders the matcher,
+  // both with no model at all, so the two are pinned here beside the
+  // model-path case: a caller who reached for `model: {}` instead of
+  // `raw` still loses those two.
+  test('content-raw', async () => {
+    // Every $$ shape a generated file plausibly carries, in one payload.
+    const payload = [
+      '#!/bin/sh',
+      'sed -i "s/$$path$$/x/" f',   // a model path: substituted
+      'echo $$"quoted"$$',          // its own literal: substituted, model or not
+      'echo $$__JOSTRACA_REPLACE__$$', // the matcher: substituted, model or not
+      "awk '{print $$1}'",          // no closing pair: survives either way
+      'make: $$(VAR)$$',            // no such model path: left in place
+    ].join('\n') + '\n'
+
+    const gen = async (raw?: boolean) => {
+      const { fs, vol } = memfs({})
+      await Jostraca().generate(
+        { fs: () => fs, folder: '/top', model: { path: 'ZZZ' } },
+        () => {
+          File({ name: 'a.sh' }, () => {
+            Content({ src: payload, raw })
+          })
+          File({ name: 'b.sh' }, () => {
+            Line({ src: 'L $$path$$', raw })
+          })
+        })
+      const voljson: any = vol.toJSON()
+      return [voljson['/top/a.sh'], voljson['/top/b.sh']]
+    }
+
+    // WITH raw: byte-identical, the whole payload.
+    const [rawA, rawB] = await gen(true)
+    expect(rawA).equal(payload)
+    expect(rawB).equal('L $$path$$\n')
+
+    // WITHOUT raw, unchanged as a control: three of the six lines move.
+    const [subA, subB] = await gen(false)
+    expect(subA).equal([
+      '#!/bin/sh',
+      'sed -i "s/ZZZ/x/" f',
+      'echo quoted',
+      'echo /(?<J_O>\\$\\$)(?<J_R>[^$]+)(?<J_C>\\$\\$)/',
+      "awk '{print $$1}'",
+      'make: $$(VAR)$$',
+    ].join('\n') + '\n')
+    expect(subB).equal('L ZZZ\n')
+
+    // ... and an absent `raw` is the same as `raw: false`: templating
+    // is the default, and stays it.
+    const [defA, defB] = await gen(undefined)
+    expect(defA).equal(subA)
+    expect(defB).equal(subB)
+  })
+
+
+  // `raw` skips the RENDER, not the placement: `indent` is where the
+  // span sits in the file rather than what it says, and applies to raw
+  // content exactly as to templated content. `replace` and `extra` do
+  // go with it -- they are inputs to the render that is not happening.
+  test('content-raw-keeps-indent-and-drops-replace', async () => {
+    const { fs, vol } = memfs({})
+
+    await Jostraca().generate(
+      { fs: () => fs, folder: '/top' },
+      () => {
+        File({ name: 'a.txt' }, () => {
+          Content({ src: 'class X {\n' })
+          Content({
+            src: 'y = $$n$$ {tok}\n',
+            indent: 2,
+            raw: true,
+            replace: { '{tok}': 'TOK' },
+            extra: { n: 9 },
+          })
+          Content({ src: '}\n' })
+        })
+      })
+
+    const voljson: any = vol.toJSON()
+    expect(voljson['/top/a.txt']).equal(
+      'class X {\n  y = $$n$$ {tok}\n}\n')
+  })
+
+
   test('content', async () => {
     let nowI = 0
     const now = () => START_TIME + (++nowI * (60 * 1000))
@@ -190,6 +284,83 @@ describe('jostraca', () => {
     })
   })
 
+
+
+  // TWO FILES AT ONE PATH IS REFUSED, on every road in rather than only
+  // the one that asked for it. `aontu render` refuses an absolute path,
+  // a `..` segment and a DUPLICATE over its unit list; the first two
+  // were already here (`validName`, and `cmpTree`'s folder check) and
+  // the third was the gap. It is the build phase's business because
+  // that is where the path is final.
+  //
+  // FileHandler already noticed the same thing at `savedPaths` and
+  // could only warn, because `Inject` legitimately saves to a path a
+  // `File` in the same run created. This sees the two statements that
+  // cannot both be true.
+  test('two-files-at-one-path-are-refused', async () => {
+    const refused = async (root: Function) => {
+      const { fs } = memfs({})
+      try {
+        await Jostraca().generate({ fs: () => fs, folder: '/top' }, root)
+      }
+      catch (err: any) {
+        return err.message
+      }
+      return undefined
+    }
+
+    Assert.match(await refused(() => {
+      File({ name: 'a.txt' }, () => Content('one'))
+      File({ name: 'a.txt' }, () => Content('two'))
+    }) as string, /two File components resolve to the same output path/)
+
+    // Two different statements of nesting arriving at one file: neither
+    // name is a duplicate of the other.
+    Assert.match(await refused(() => {
+      Folder({ name: 'x' }, () => File({ name: 'a.txt' }, () => Content('one')))
+      File({ name: 'x/a.txt' }, () => Content('two'))
+    }) as string, /path=\/top\/x\/a\.txt/)
+
+    // A LIST OVER FILES IS THE NORMAL GENERATOR and must not break: the
+    // name is computed in the host language, so each pass names a
+    // different file.
+    const { fs, vol } = memfs({})
+    const info = await Jostraca().generate(
+      { fs: () => fs, folder: '/top' },
+      () => List({ item: [{ n: 1 }, { n: 2 }], line: false }, [
+        ({ item }: any) =>
+          File({ name: 'f' + item.n + '.txt' }, () => Content('n=' + item.n)),
+      ]))
+
+    expect(info.files.written).equal(['/top/f1.txt', '/top/f2.txt'])
+    const voljson: any = vol.toJSON()
+    expect(voljson['/top/f1.txt']).equal('n=1')
+    expect(voljson['/top/f2.txt']).equal('n=2')
+  })
+
+
+  // AN INJECT INTO A FILE THE SAME RUN CREATED IS NOT A DUPLICATE, and
+  // is why the guard counts `File` nodes rather than saves. Both reach
+  // `FileHandler.save` with the same path, and the second is the
+  // intended edit of the first.
+  test('inject-into-a-generated-file-is-not-a-duplicate', async () => {
+    const { fs, vol } = memfs({})
+
+    await Jostraca().generate(
+      { fs: () => fs, folder: '/top' },
+      () => {
+        File({ name: 'a.txt' }, () => {
+          Content('A\n#--START--#\n\n#--END--#\nB\n')
+        })
+        Inject({ name: 'a.txt' }, () => {
+          Content('INJECTED\n')
+        })
+      })
+
+    const voljson: any = vol.toJSON()
+    expect(voljson['/top/a.txt'])
+      .equal('A\n#--START--#\nINJECTED\n\n#--END--#\nB\n')
+  })
 
 
   test('basic-copy', async () => {

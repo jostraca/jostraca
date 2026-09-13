@@ -33,11 +33,26 @@ package jostraca
 //   - NO INHERITED-NAME HAZARD. `cmps[name]` on a Go map answers only
 //     for keys the map holds, so the `toString`/`constructor` refusal
 //     the TypeScript side needs has nothing to guard against here.
+//
+// RULE (3), AND IT IS NOT A LANGUAGE DIFFERENCE: THE BYTES IN A DATA
+// TREE ARE ALREADY FINAL, usually. Content and Line template what they
+// are handed, so a `$$...$$` sequence in a shell script, a makefile, a
+// doc comment or a regex is substituted from the generate model --
+// wrong output, no error. That is right for a generator written at the
+// call site, which wrote the `$$` deliberately, and wrong for a caller
+// that evaluated its own model to final text somewhere else.
+// CmpTreeOptions.Raw sets `raw` beneath each node's own props, on the
+// components that RENDER TEXT THEY WERE HANDED and only those
+// (treeRawCmp below). "Every node" was tried first and is wrong twice
+// over: Fragment and CopyFiles validate a CLOSED prop set, so a `raw`
+// they have no use for is refused outright, and `raw` would mean
+// nothing on File or Folder in any case.
 
 import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -49,8 +64,13 @@ type CmpTreeCmp func(j *J, props map[string]any, children []func(*J))
 // CmpTreeOptions carries extra components, by the name a node's `cmp`
 // uses. Merged over the built-in set, so a caller may add their own or
 // override one.
+//
+// Raw sets `raw` for every node, BENEATH the node's own props, so a
+// tree that does want the model in scope can still say so per node. See
+// rule (3) in the file header.
 type CmpTreeOptions struct {
 	Cmp map[string]CmpTreeCmp
+	Raw bool
 }
 
 // treeThunk is a child of some component. `inherit` carries the props a
@@ -71,6 +91,48 @@ var treeCmpDeprecated = map[string]string{
 	"List": "ListItems",
 }
 
+// treeClosedCmp is the components that REFUSE an unknown prop, and the
+// props each admits. Two of the ten: their TypeScript twins validate a
+// closed shape (FragmentShape, CopyFilesShape) and the other eight read
+// the props they know and drop the rest.
+//
+// THE PORTS HAVE TO AGREE ABOUT THIS, because the data path is the
+// contract a generator in another language writes against, and a tree
+// that is refused in TypeScript and generated in Go does not mean one
+// thing. Go's props are a struct, so an unknown key in the map was
+// simply never looked at; this restores the refusal rather than
+// dropping it from TypeScript, because a closed set is the stronger
+// guarantee and it is the one the published prop surface
+// (docs/cmp-surface.tsv) states.
+//
+// `item`, `indent` and `replace` are in both sets because they are the
+// ENGINE's bindings, which ListItems passes to every child -- see the
+// note on FragmentShape in the TypeScript port.
+var treeClosedCmp = map[string]map[string]bool{
+	"Fragment": {
+		"from": true, "exclude": true, "indent": true,
+		"replace": true, "eject": true, "item": true,
+	},
+	"CopyFiles": {
+		"from": true, "to": true, "replace": true,
+		"exclude": true, "item": true, "indent": true,
+	},
+}
+
+// treeRawCmp is the components CmpTreeOptions.Raw reaches. Named rather
+// than identified, because a Go dispatch entry is a closure with no
+// identity to compare -- the TypeScript twin holds the same two by
+// identity. A caller's own component, supplied through
+// CmpTreeOptions.Cmp, is not in it: jostraca cannot know whether it
+// honours `raw`.
+//
+// Held by TestCmpTreeRawIsSafeOnEveryComponent, which generates every
+// built-in under the option.
+var treeRawCmp = map[string]bool{
+	"Content": true,
+	"Line":    true,
+}
+
 func treeErr(msg, path string) error {
 	if path == "" {
 		path = "<root>"
@@ -80,11 +142,18 @@ func treeErr(msg, path string) error {
 
 // --- props readers -------------------------------------------------
 
-func propsMerge(props, inherit map[string]any) map[string]any {
-	if len(inherit) == 0 {
+// propsMerge layers the three statements about a node's props, least
+// specific first: `defaults` is set once for the whole tree, `inherit`
+// is what the parent bound for this invocation (ListItems' item, indent
+// and replace), and the node's own props are what its author wrote.
+func propsMerge(defaults, inherit, props map[string]any) map[string]any {
+	if len(defaults) == 0 && len(inherit) == 0 {
 		return props
 	}
-	out := make(map[string]any, len(inherit)+len(props))
+	out := make(map[string]any, len(defaults)+len(inherit)+len(props))
+	for k, v := range defaults {
+		out[k] = v
+	}
 	for k, v := range inherit {
 		out[k] = v
 	}
@@ -99,6 +168,11 @@ func propString(p map[string]any, key string) string {
 		return s
 	}
 	return ""
+}
+
+func propBool(p map[string]any, key string) bool {
+	b, _ := p[key].(bool)
+	return b
 }
 
 func propMap(p map[string]any, key string) map[string]any {
@@ -160,6 +234,29 @@ func validFolder(props map[string]any, path string) error {
 	return nil
 }
 
+// validClosedProps refuses an unknown prop on a component whose prop
+// set is closed. Eagerly, over the node's OWN props, which is where
+// CmpTree refuses everything else it refuses: a malformed tree is
+// answered by the call that reads it rather than half way through a
+// define phase that has already made folders.
+func validClosedProps(name string, props map[string]any, path string) error {
+	allowed, closed := treeClosedCmp[name]
+	if !closed {
+		return nil
+	}
+	bad := []string{}
+	for key := range props {
+		if !allowed[key] {
+			bad = append(bad, key)
+		}
+	}
+	if len(bad) == 0 {
+		return nil
+	}
+	sort.Strings(bad)
+	return treeErr(name+": prop not allowed: "+strings.Join(bad, ", "), path)
+}
+
 // --- the walk ------------------------------------------------------
 
 func runChildren(children []treeThunk, inherit map[string]any) func(*J) {
@@ -170,7 +267,12 @@ func runChildren(children []treeThunk, inherit map[string]any) func(*J) {
 	}
 }
 
-func nodeThunk(node any, cmps map[string]CmpTreeCmp, path string) (treeThunk, error) {
+func nodeThunk(
+	node any,
+	cmps map[string]CmpTreeCmp,
+	path string,
+	defaults map[string]any,
+) (treeThunk, error) {
 	obj, ok := node.(map[string]any)
 	if !ok {
 		return nil, treeErr("node is not an object", path)
@@ -194,6 +296,9 @@ func nodeThunk(node any, cmps map[string]CmpTreeCmp, path string) (treeThunk, er
 	if err := validFolder(props, path); err != nil {
 		return nil, err
 	}
+	if err := validClosedProps(name, props, path); err != nil {
+		return nil, err
+	}
 
 	var kids []any
 	if raw, present := obj["children"]; present && raw != nil {
@@ -206,7 +311,7 @@ func nodeThunk(node any, cmps map[string]CmpTreeCmp, path string) (treeThunk, er
 	children := make([]treeThunk, 0, len(kids))
 	for i, kid := range kids {
 		th, err := nodeThunk(kid, cmps,
-			fmt.Sprintf("%s/%s[%d]", path, name, i))
+			fmt.Sprintf("%s/%s[%d]", path, name, i), defaults)
 		if err != nil {
 			return nil, err
 		}
@@ -215,7 +320,7 @@ func nodeThunk(node any, cmps map[string]CmpTreeCmp, path string) (treeThunk, er
 
 	if custom, has := cmps[name]; has {
 		return func(j *J, inherit map[string]any) {
-			p := propsMerge(props, inherit)
+			p := propsMerge(nil, inherit, props)
 			plain := make([]func(*J), 0, len(children))
 			for _, ch := range children {
 				ch := ch
@@ -229,8 +334,12 @@ func nodeThunk(node any, cmps map[string]CmpTreeCmp, path string) (treeThunk, er
 	if build == nil {
 		return nil, treeErr("unknown component: "+name, path)
 	}
+	nodeDefaults := defaults
+	if !treeRawCmp[name] {
+		nodeDefaults = nil
+	}
 	return func(j *J, inherit map[string]any) {
-		build(j, propsMerge(props, inherit), children)
+		build(j, propsMerge(nodeDefaults, inherit, props), children)
 	}, nil
 }
 
@@ -287,7 +396,6 @@ func init() {
 				To:      propString(p, "to"),
 				Replace: propMap(p, "replace"),
 				Exclude: p["exclude"],
-				Indent:  p["indent"],
 			})
 		},
 		"ListItems": func(j *J, p map[string]any, c []treeThunk) {
@@ -324,6 +432,7 @@ func contentProps(p map[string]any) ContentProps {
 		Indent:  p["indent"],
 		Replace: propMap(p, "replace"),
 		Extra:   propMap(p, "extra"),
+		Raw:     propBool(p, "raw"),
 	}
 }
 
@@ -336,9 +445,16 @@ func contentProps(p map[string]any) ContentProps {
 // already made folders.
 func CmpTree(root any, opts ...CmpTreeOptions) (func(*J), error) {
 	cmps := map[string]CmpTreeCmp{}
+	// Only when asked for. An unconditional `raw: false` would be a
+	// statement rather than a default, and would then outrank the `raw`
+	// a parent binds for its children.
+	var defaults map[string]any
 	for _, o := range opts {
 		for k, v := range o.Cmp {
 			cmps[k] = v
+		}
+		if o.Raw {
+			defaults = map[string]any{"raw": true}
 		}
 	}
 
@@ -349,7 +465,7 @@ func CmpTree(root any, opts ...CmpTreeOptions) (func(*J), error) {
 
 	thunks := make([]treeThunk, 0, len(nodes))
 	for i, n := range nodes {
-		th, err := nodeThunk(n, cmps, fmt.Sprintf("[%d]", i))
+		th, err := nodeThunk(n, cmps, fmt.Sprintf("[%d]", i), defaults)
 		if err != nil {
 			return nil, err
 		}
