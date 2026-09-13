@@ -38,6 +38,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FileHandler = void 0;
 exports.annotatedPath = annotatedPath;
+exports.canonPath = canonPath;
 exports.validName = validName;
 exports.validPath = validPath;
 const node_path_1 = __importDefault(require("node:path"));
@@ -49,6 +50,20 @@ const CN = 'FileHandler:';
 // produce backslashes on Windows.
 function fwd(p) {
     return p.includes('\\') ? p.replace(/\\/g, '/') : p;
+}
+// THE ONE CANONICAL FORM OF AN OUTPUT PATH: separators collapsed, `.`
+// and `..` segments resolved, forward slashes.
+//
+// Exported because `save` is not the only place that has to agree about
+// what "the same file" means. `FileOp.before` composes a path from the
+// enclosing Project and Folder nesting and claims it against the
+// duplicate guard; `save` then normalised the same path and wrote it.
+// Two Files named `a.txt` and `./a.txt` therefore claimed two paths and
+// wrote one, so the second silently overwrote the first -- the very
+// case the guard exists to refuse. Go has never had it: `fileBefore`
+// does `path.Clean(fwd(raw))` BEFORE recording anything.
+function canonPath(path) {
+    return fwd(node_path_1.default.normalize(path));
 }
 const JOSTRACA_PROTECT = 'JOSTRACA_PROTECT';
 // Audit breadcrumb per merge outcome, so the `why` trail says which fast
@@ -242,7 +257,7 @@ class FileHandler {
             write = false;
         }
         whence = null == whence ? '' : whence;
-        path = fwd(node_path_1.default.normalize(path));
+        path = canonPath(path);
         // Which of `existing.txt` / `existing.bin` governs is decided by the
         // DESTINATION EXTENSION, with the caller able to promote a file the
         // list does not know about (`saveBinary`) — never to demote a listed

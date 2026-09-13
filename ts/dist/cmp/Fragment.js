@@ -8,13 +8,33 @@ const node_path_1 = __importDefault(require("node:path"));
 const jostraca_1 = require("../jostraca");
 const shape_1 = require("shape");
 const From = (from, _, s) => s.ctx.fs().statSync(from);
+// A CLOSED PROP SET HAS TO ADMIT THE ENGINE'S OWN BINDINGS. A parent
+// binds values for one invocation of its children -- `ListItems` binds
+// `item`, `indent` and `replace`, which is what makes `{item.path}`
+// mean anything -- and a HAND-WRITTEN child takes them as its parameter
+// and passes on whichever it wants. A DATA child has no parameter list,
+// so `cmpTree` merges them under the node's own props, and this shape
+// then met an `item` it had never heard of and refused a legitimate
+// tree: a Fragment repeated once per entity is an ordinary generator.
+//
+// `item` is accepted and not read, which is why it is here and not in
+// `FragmentProps`: a props type says what a CALLER writes, and nobody
+// writes a binding. `indent` and `replace` are both.
+//
+// NO `exclude`. It was declared here, validated, and read by nothing on
+// either side -- the component reference said so in as many words
+// ("Validated and then never read. It has no effect."). A prop the
+// types now promise has to be a prop the code keeps, so it goes rather
+// than becoming the one declaration that means nothing. A tree that
+// passes it is refused by name from here on, which is the diagnostic it
+// should have had all along.
 const FragmentShape = (0, shape_1.Shape)({
     ctx$: Object,
     from: (0, shape_1.Check)(From).String(),
-    exclude: (0, shape_1.Optional)((0, shape_1.One)(Boolean, [String])),
     indent: (0, shape_1.Optional)((0, shape_1.One)((0, shape_1.Empty)(String), Number)),
     replace: {},
-    eject: (0, shape_1.Optional)([(0, shape_1.One)(String, RegExp)])
+    eject: (0, shape_1.Optional)([(0, shape_1.One)(String, RegExp)]),
+    item: (0, shape_1.Skip)(),
 }, { name: 'Fragment' });
 const Fragment = (0, jostraca_1.cmp)(function Fragment(props, children) {
     // Resolve a relative `from` BEFORE validating.
@@ -49,7 +69,11 @@ const Fragment = (0, jostraca_1.cmp)(function Fragment(props, children) {
     // stack used to drop them without a word. Track both halves of that
     // condition and report it instead.
     let sawnonslot = false;
-    node.filter = (({ props, component }) => (('Slot' === component.name ? slotnames[props.name] = true : (sawnonslot = true)), false));
+    // `sub` is the CHILD's props, not this component's. It was spelled
+    // `props` and shadowed the parameter, which reads as though a
+    // Fragment had a `name` prop of its own -- it has not, and any tool
+    // that reads this file to learn the prop surface was told it did.
+    node.filter = (({ props: sub, component }) => (('Slot' === component.name ? slotnames[sub.name] = true : (sawnonslot = true)), false));
     (0, jostraca_1.each)(children, { call: true });
     node.filter = undefined;
     // Set from inside the replacement itself rather than by re-testing the
@@ -68,7 +92,7 @@ const Fragment = (0, jostraca_1.cmp)(function Fragment(props, children) {
         replace['/[ \\t]*[-<!/#*]*[ \\t]*<\\[SLOT:' +
             (0, jostraca_1.escre)(slot.key$) +
             ']>[ \\t]*[->/#*]*[ \\t]*/'] = () => {
-            node.filter = (({ props, component }) => 'Slot' === component.name && slot.key$ === props.name);
+            node.filter = (({ props: sub, component }) => 'Slot' === component.name && slot.key$ === sub.name);
             (0, jostraca_1.each)(children, { call: true });
             node.filter = undefined;
         };

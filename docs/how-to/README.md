@@ -52,6 +52,7 @@ Running the generator again over code a person has edited.
 - [Show a diff instead of writing](show-a-diff-instead-of-writing.md). Rewrite the target as an annotated two-way diff so a reviewer can see both versions.
 - [Let a user take a file over](let-a-user-take-a-file-over.md). Mark a generated file with JOSTRACA_PROTECT so no later run overwrites it.
 - [Preview a run without writing](preview-a-run.md). Run the whole generator with control.dryrun so it reports what it would do and writes nothing.
+- [Check committed output for drift](check-committed-output-for-drift.md). Fail a build when committed generated files stop matching what the generator produces.
 
 ## Files, copying and permissions
 
@@ -70,6 +71,7 @@ Driving the generator from your own tool, in memory, or on disk.
 - [Report what a run did](report-what-a-run-did.md). Read the result arrays and the audit trail to tell a user what a generate changed.
 - [Test a generator](test-a-generator.md). Assert on a generator's output without a temp directory, using in-memory generation.
 - [Call Jostraca from Go](call-jostraca-from-go.md). Drive the Go port from your own program, and know where its surface differs.
+- [Generate from a tree given as data](generate-from-a-tree.md). Generate from a component tree given as data, so a tool in another language can drive Jostraca through a pipe.
 
 If none of these is your task, the
 [component reference](../reference-components.md) and the

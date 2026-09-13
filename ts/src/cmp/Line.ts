@@ -1,10 +1,22 @@
 
 import type { Node } from '../jostraca'
+import type { ContentProps } from './Content'
 
 import { cmp, template } from '../jostraca'
 
 
-const Line = cmp(function Line(props: any, children: any) {
+/**
+ * The props `Line` reads: exactly `Content`'s.
+ *
+ * An alias rather than a copy, so the two cannot drift apart. The
+ * components are one terminator apart -- `Line` appends a newline and
+ * renders the same way -- and the Go port says the same thing by taking
+ * `ContentProps` in `LineP`.
+ */
+type LineProps = ContentProps
+
+
+const Line = cmp<LineProps, string, string>(function Line(props, children) {
   const node: Node = props.ctx$.node
   node.kind = 'content'
   node.indent = props.indent
@@ -26,14 +38,23 @@ const Line = cmp(function Line(props: any, children: any) {
   // which merges `Extra` and forwards `Replace`. So this is the case
   // AGENTS.md names -- the port pre-empting a latent TS bug -- and the
   // fix goes into TypeScript with Go left alone.
-  const model = {
-    ...props.ctx$.model,
-    ...(props.extra || {}),
+  //
+  // `raw` is part of that sameness. A line of final bytes is the same
+  // claim as a span of them, one terminator apart, and a `Line` that
+  // templated under an option that says otherwise would be the second
+  // undocumented difference all over again. See Content for what raw
+  // does and why it is not the default.
+  if (true !== props.raw) {
+    const model = {
+      ...props.ctx$.model,
+      ...(props.extra || {}),
+    }
+
+    src = template(src, model, {
+      replace: props.replace
+    })
   }
 
-  src = template(src, model, {
-    replace: props.replace
-  })
   node.content = src
   node.name = props.name
 })
@@ -44,3 +65,6 @@ export {
   Line
 }
 
+export type {
+  LineProps
+}

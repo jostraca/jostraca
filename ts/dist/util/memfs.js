@@ -46,14 +46,28 @@ function fserr(code, syscall, path, dest) {
 // no `.` or `..` segments. Relative paths resolve against process.cwd(), which
 // is what the `memfs` package does and what the corpus tools in ts/tools rely
 // on. Ported from memClean in go/fs.go, plus the cwd rule.
-function memClean(p) {
+// `cwd` is a parameter so the Windows branch can be asserted on any
+// host: the bug below only shows when the working directory is itself
+// drive-rooted, which no POSIX runner can produce.
+function memClean(p, cwd) {
     let s = String(p).replace(/\\/g, '/');
+    const isDrive = (v) => /^[A-Za-z]:\//.test(v);
     // Windows drive paths ('C:/x') are already absolute; everything else that
     // does not start with '/' is relative to the working directory.
-    const drive = /^[A-Za-z]:\//.test(s);
-    if (!drive && !s.startsWith('/')) {
-        s = String(process.cwd()).replace(/\\/g, '/') + '/' + s;
+    if (!isDrive(s) && !s.startsWith('/')) {
+        s = String(null == cwd ? process.cwd() : cwd).replace(/\\/g, '/') +
+            '/' + s;
     }
+    // TESTED AFTER THE PREPEND, because resolving a relative path against a
+    // drive-rooted working directory produces a drive-rooted path -- and
+    // testing first said otherwise. `a.txt` under `D:/w` came back as
+    // `/D:/w/a.txt` while `D:/w/a.txt` came back as itself, so one volume
+    // held two keys for one file and a caller mixing the two forms found
+    // nothing. Every suite here uses POSIX keys, so only a Windows runner
+    // could see it, and only a caller that mixes forms -- which `check`
+    // does, walking an absolute root over paths the writer composed from a
+    // relative `folder`.
+    const drive = isDrive(s);
     let prefix = '';
     if (drive) {
         prefix = s.slice(0, 2);
@@ -143,9 +157,33 @@ class MemVolume {
             }
         }
     }
+    // Record every prefix of `cp` as a directory, IN THE FORM memClean
+    // PRODUCES, because that is the form every lookup arrives in.
+    //
+    // The drive prefix is the whole reason this is not a plain split.
+    // memClean keeps `C:` outside the leading slash (`C:/Users/x`); this
+    // used to rebuild from `''` and so stored `/C:/Users/x`, one leading
+    // slash off. `mkdirSync` then reported success and `existsSync` said
+    // false for the same path, and the next write failed ENOENT on a
+    // parent that had just been created. Every suite here uses POSIX keys
+    // (`/top/...`), so nothing reached it until a caller put real OS
+    // paths into the volume on Windows.
+    //
+    // go/fs.go's markDirsLocked carries the same invariant for the
+    // leading slash, and has no drive branch to get wrong: memClean there
+    // does not special-case a drive, so the Go MemFS has never accepted
+    // one. This is a TypeScript-only concern.
     mkdirp(cp) {
-        const parts = cp.split('/').filter((p) => '' !== p);
-        let cur = '';
+        const drive = /^[A-Za-z]:\//.test(cp);
+        const prefix = drive ? cp.slice(0, 2) : '';
+        const parts = (drive ? cp.slice(2) : cp).split('/').filter((p) => '' !== p);
+        // The drive root is a directory too: parentOf('C:/Users') answers
+        // `C:`, and a write there would otherwise fail on a missing parent.
+        let cur = prefix;
+        if ('' !== cur && !this.dirs.has(cur)) {
+            this.dirs.set(cur, DEFAULT_DIR_MODE);
+            this.touch(cur);
+        }
         for (const part of parts) {
             cur = cur + '/' + part;
             if (!this.dirs.has(cur)) {
@@ -179,6 +217,14 @@ class MemVolume {
     // binary exactly as the `memfs` package is (0xFF becomes U+FFFD -- see
     // ts/tools/corpus-bytes.js, which routes around it deliberately). An
     // empty directory appears as null.
+    //
+    // IT WALKS FROM `/`, so a WINDOWS DRIVE PATH is not in the result: a
+    // `C:/...` key has no `/` ancestor to be reached from. Left as is
+    // deliberately -- the walk order below is contract, pinned by
+    // tools/memfs-differential.js and by 1583 lines of the Go parity
+    // corpus, and nothing needs a drive-rooted volume serialised. A caller
+    // holding real OS paths should walk from its own root with
+    // readdirSync, which keys off dirs and is not root-relative.
     toJSON() {
         // Depth-first from the root, taking each directory's children in the
         // order they were created. NOT a flat creation-order listing: a subtree

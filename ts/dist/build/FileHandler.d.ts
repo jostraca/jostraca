@@ -1,5 +1,6 @@
 import { BuildContext } from './BuildContext';
 import { FST, Audit } from '../types';
+declare function canonPath(path: string): string;
 declare class FileHandler {
     when: number;
     fs: () => FST;
@@ -64,4 +65,4 @@ declare class FileHandler {
 declare function annotatedPath(target: string, kind: string): string;
 declare function validName(name: any, kind: string, errmark: string): void;
 declare function validPath(path: string, maxdepth: number, errmark: string): void;
-export { annotatedPath, validName, validPath, FileHandler };
+export { annotatedPath, canonPath, validName, validPath, FileHandler };

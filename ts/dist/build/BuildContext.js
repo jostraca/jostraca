@@ -20,6 +20,8 @@ class BuildContext {
     folder;
     current;
     log;
+    // Output paths already claimed by a File this run. See claimFile.
+    filepaths;
     dfolder;
     constructor(folder, existing, control, fs, now) {
         this.fs = fs;
@@ -44,11 +46,45 @@ class BuildContext {
             content: undefined,
         };
         this.log = { exclude: [], last: -1 };
+        this.filepaths = new Map();
         this.fh = new FileHandler_1.FileHandler(this, existing, control);
         this.bmeta = new BuildMeta_1.BuildMeta(this.fh);
     }
     addmeta(file, meta) {
         this.bmeta.add(file, meta);
+    }
+    // TWO FILES AT ONE PATH IS REFUSED, not resolved. The second silently
+    // won and the first was never written -- output missing, exit 0, and
+    // nothing said which component lost. The same guard `aontu render`
+    // holds over its unit paths, on the side that owns files.
+    //
+    // HERE RATHER THAN IN cmpTree, deliberately. `cmpTree` is where a
+    // data tree asked for it, and the path is not known there: a `File`
+    // name is composed with whatever `Project` and `Folder` nesting
+    // encloses it, and under `ListItems` the same node is invoked once
+    // per item. Deciding it from the tree would mean a second
+    // implementation of path composition, which is the one thing
+    // `cmpTree` is built not to have. The build phase is where the path
+    // is final, so the guard is one implementation and covers every road
+    // in -- a hand-written generator, a data tree, and whatever comes
+    // next -- rather than only the road that asked.
+    //
+    // IT IS THE `File` NODES ONLY. `Inject` writes to a path too, and
+    // legitimately writes to one a `File` in the same run created:
+    // FileHandler's own `savedPaths` sees both and can only warn. This
+    // sees the two statements that cannot both be true.
+    //
+    // `where` is the tree path of the node, which is the only handle a
+    // data tree gives a reader.
+    claimFile(fullpath, where, errmark) {
+        const already = this.filepaths.get(fullpath);
+        if (undefined !== already) {
+            throw new Error('ERROR:' + errmark +
+                ' two File components resolve to the same output path, path=' +
+                fullpath + ', first=' + (already || '<root>') +
+                ', second=' + (where || '<root>'));
+        }
+        this.filepaths.set(fullpath, where);
     }
     // Folder path segments for the current build position, as a canonical
     // (forward-slash) prefix. When neither a Project nor a Folder has seeded

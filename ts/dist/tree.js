@@ -4,9 +4,22 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TREE_CMP_DEPRECATED = exports.TREE_CMP = void 0;
+exports.TREE_RAW_CMP = exports.TREE_CMP_DEPRECATED = exports.TREE_CMP = void 0;
 exports.cmpTree = cmpTree;
-// THE DATA-DRIVEN DEFINE PHASE -- SPIKE (docs/design/AONTU.0.md).
+// THE DATA-DRIVEN DEFINE PHASE. A SUPPORTED SURFACE: exported from the
+// package, documented in docs/reference-components.md (`cmpTree()`) and
+// docs/reference-go.md, held by test/tree.test.ts and go/tree_test.go
+// rather than by a fixture, and twinned in go/tree.go with byte-
+// identical output. It began as a spike, and the note that recorded the
+// spike is docs/design/AONTU.0.md.
+//
+// The spike ended by asking whether this belonged in the package at
+// all, on the grounds that it was a small surface with one known
+// consumer. That consumer is making it the only way it emits anything,
+// which is the argument the question wanted: a data tree is the only
+// door into jostraca for a generator written somewhere else, and the
+// alternative to this file is that generator reimplementing the build
+// phase.
 //
 // `Jostraca().generate(opts, root)` runs `root` to build the node
 // tree, and `root` is a function that calls components. That is the
@@ -37,11 +50,13 @@ exports.cmpTree = cmpTree;
 // property that makes the aontu side able to grow one primitive at a
 // time.
 //
-// NO DEPENDENCY IN EITHER DIRECTION. The contract between the two
-// projects is this JSON shape, not a package: jostraca does not
-// depend on aontu (see docs/ADR.md record 0001 -- a production
-// dependency needs its own record) and aontu does not depend on
-// jostraca. A pipe is the whole integration.
+// JOSTRACA DOES NOT DEPEND ON AONTU, and will not: a production
+// dependency needs its own record (docs/ADR.md 0001), and nothing here
+// needs one. The other direction is aontu's call, and this file is
+// written so that either answer works -- the contract is the JSON
+// shape, so a pipe is a whole integration, and a consumer that does
+// install the package gets the components and their props types as
+// well.
 //
 // A DATA TREE IS NOT A HAND-WRITTEN ONE, and two rules follow from
 // that difference rather than from the components.
@@ -61,11 +76,28 @@ exports.cmpTree = cmpTree;
 // the resulting call ran `Object.prototype.toString` as a component:
 // no node, no output, no error.
 //
-// SPIKE SCOPE. Both ports carry this, the Go twin being go/tree.go,
-// and aontu serves all ten components as lower-case functions
-// (aontu-lang/aontu#185: project, folder, file, content, line,
-// fragment, slot, inject, copyfiles, listitems). Nothing here is
-// limited to those.
+// (3) THE BYTES IN A DATA TREE ARE ALREADY FINAL, usually. `Content`
+// and `Line` template what they are handed, so a `$$...$$` sequence in
+// a shell script, a makefile, a doc comment or a regex is substituted
+// from the generate model -- wrong output, exit 0, no diagnostic. That
+// is right for a generator written at the call site, which wrote the
+// `$$` deliberately, and wrong for a caller who evaluated its own model
+// to final text somewhere else. `cmpTree(tree, {raw: true})` sets
+// `raw` BENEATH the node's own props, so a tree that does want the
+// model in scope can still say so per node.
+//
+// It sets it on the components that RENDER TEXT THEY WERE HANDED, and
+// only those (TREE_RAW_CMP below). "Every node" was tried first and is
+// wrong twice over: `Fragment` and `CopyFiles` validate a CLOSED prop
+// set, so a `raw` they have no use for is refused outright -- a
+// whole-tree option that cannot be used on a tree holding either
+// component is not a whole-tree option -- and `raw` would mean nothing
+// on `File` or `Folder` in any case.
+//
+// SCOPE. Both ports carry this, the Go twin being go/tree.go, and aontu
+// serves all ten components as lower-case functions (aontu-lang/aontu
+// #185: project, folder, file, content, line, fragment, slot, inject,
+// copyfiles, listitems). Nothing here is limited to those.
 const node_path_1 = __importDefault(require("node:path"));
 const Content_1 = require("./cmp/Content");
 const Line_1 = require("./cmp/Line");
@@ -110,6 +142,19 @@ const TREE_CMP_DEPRECATED = {
     List: ListItems_1.ListItems,
 };
 exports.TREE_CMP_DEPRECATED = TREE_CMP_DEPRECATED;
+// THE COMPONENTS `CmpTreeOptions.raw` REACHES: the ones that render
+// text the tree handed them, which is what the option is about. By
+// IDENTITY rather than by name, so the deprecated aliases and any
+// re-export resolve to the same answer, and a caller's own component
+// supplied through `opts.cmp` does not silently inherit a prop jostraca
+// cannot know it honours.
+//
+// Held by `raw-option-is-safe-on-every-component` in
+// test/tree.test.ts, which generates every entry of TREE_CMP under the
+// option: a component that would refuse `raw` fails there rather than
+// in a consumer's pipeline.
+const TREE_RAW_CMP = [Content_1.Content, Line_1.Line];
+exports.TREE_RAW_CMP = TREE_RAW_CMP;
 const ON = 'cmpTree:';
 function nodeErr(msg, path) {
     return new Error(ON + ' ' + msg + ' (at ' + (path || '<root>') + ')');
@@ -174,7 +219,7 @@ function validFolder(props, path) {
 // its children. Returns a thunk, because that is what a component
 // takes as a child: `each(children, {call: true})` calls each one
 // inside the parent's own context.
-function nodeThunk(node, cmps, path) {
+function nodeThunk(node, cmps, path, defaults) {
     if (null == node || 'object' !== typeof node || Array.isArray(node)) {
         throw nodeErr('node is not an object', path);
     }
@@ -201,8 +246,8 @@ function nodeThunk(node, cmps, path) {
     if (null != kids && !Array.isArray(kids)) {
         throw nodeErr('children is not an array', path);
     }
-    const children = (kids || []).map((kid, i) => nodeThunk(kid, cmps, path + '/' + name + '[' + i + ']'));
-    // THE PARENT'S ARGUMENTS REACH THE CHILD. A component walks its
+    const children = (kids || []).map((kid, i) => nodeThunk(kid, cmps, path + '/' + name + '[' + i + ']', defaults));
+    // THE PARENT'S BINDINGS REACH THE CHILD. A component walks its
     // children with `each(children, {call: true, args})`, and `List`
     // passes the per-item `item`, `indent` and `replace` that make
     // `{item.path}` mean anything -- a hand-written child takes them as
@@ -210,16 +255,48 @@ function nodeThunk(node, cmps, path) {
     // merged UNDER its own props: context first, the node's own
     // statement last, since that is the half the author wrote.
     //
+    // A BINDING, NOT A PARENT'S OWN PROPS, and the difference is
+    // load-bearing. `Project` passes `args: props` -- the very object it
+    // was handed -- so `Project`'s `name` and `folder` arrived in every
+    // direct child's props. For eight components that is invisible (they
+    // read the props they know and ignore the rest, and the child's own
+    // `name` outranks the parent's anyway); for the two that validate a
+    // CLOSED prop set it is fatal, and `{cmp:"Project", children:[
+    // {cmp:"CopyFiles"}]}` was refused outright with `the properties
+    // "name, folder" are not allowed`. Only the DATA path could reach it:
+    // a hand-written child is an arrow that ignores its parameter and
+    // writes its own props.
+    //
+    // `ctx$` tells the two apart, generically and with no list to keep:
+    // `cmp()` writes it into every props object it is handed, so an args
+    // object carrying it IS some component's props, while a binding built
+    // for children (`{item, indent, replace}`) is a fresh object without
+    // one.
+    //
+    // THE GO PORT WAS ALREADY RIGHT: its `Project` builder calls
+    // `runChildren(c, nil)` and only `ListItems` passes a non-nil
+    // inherit map, so the case never arose there. Same shape as the
+    // `Line` defect AGENTS.md names -- fix TypeScript, leave Go alone.
+    //
     // A COPY, every call, and deep enough (see copyProps). `cmp()` writes
     // `ctx$` into the props object it is handed and components write into
     // nested props, so passing the caller's own node would scribble on
     // their data -- and a tree generated twice would carry the first run
     // into the second. `generate` copies its options for the same reason.
     // Per CALL, not per node: `List` invokes each child once per item.
+    //
+    // `defaults` is the whole-tree layer (rule (3) above) and sits at the
+    // BOTTOM: a per-node prop outranks it, as does a binding the parent
+    // made for this invocation, because both are more specific statements
+    // than an option set once for the run.
+    const nodeDefaults = (null != defaults && TREE_RAW_CMP.includes(component)) ?
+        defaults : undefined;
     return (...args) => {
-        const invoked = (null != args[0] && 'object' === typeof args[0] &&
-            !Array.isArray(args[0])) ? args[0] : undefined;
-        return component({ ...invoked, ...copyProps(props || {}, new WeakMap()) }, children);
+        const arg0 = args[0];
+        const invoked = (null != arg0 && 'object' === typeof arg0 &&
+            !Array.isArray(arg0) &&
+            !Object.prototype.hasOwnProperty.call(arg0, 'ctx$')) ? arg0 : undefined;
+        return component({ ...nodeDefaults, ...invoked, ...copyProps(props || {}, new WeakMap()) }, children);
     };
 }
 // A define-phase callback for a component tree given as data.
@@ -230,11 +307,15 @@ function nodeThunk(node, cmps, path) {
 // siblings, which is what `generate`'s synthetic root node is for.
 function cmpTree(root, opts) {
     const cmps = null == opts?.cmp ? TREE_CMP : { ...TREE_CMP, ...opts.cmp };
+    // Only when asked for. An unconditional `{raw: false}` would be a
+    // statement rather than a default, and would then outrank the `raw`
+    // a parent binds for its children.
+    const defaults = null == opts?.raw ? undefined : { raw: !!opts.raw };
     const nodes = Array.isArray(root) ? root : [root];
     // Built EAGERLY, so a malformed tree is refused by the call that
     // reads it rather than half way through a define phase that has
     // already made folders.
-    const thunks = nodes.map((node, i) => nodeThunk(node, cmps, '[' + i + ']'));
+    const thunks = nodes.map((node, i) => nodeThunk(node, cmps, '[' + i + ']', defaults));
     return () => {
         for (const thunk of thunks) {
             thunk();

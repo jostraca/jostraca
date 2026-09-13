@@ -17,8 +17,14 @@ import type {
   Node,
   OpDef,
   Component,
+  CmpContext,
+  CmpProps,
+  CmpChild,
+  CmpChildren,
   Log,
   JostracaResult,
+  CheckDrift,
+  CheckResult,
 } from './types'
 
 import {
@@ -64,6 +70,22 @@ import { Folder } from './cmp/Folder'
 import { Project } from './cmp/Project'
 import { ListItems, List } from './cmp/ListItems'
 
+// THE PROP SURFACE, as types. Each component declares what it reads
+// beside the code that reads it, and the package re-exports the lot, so
+// a consumer -- a generator written here, or one driving jostraca from
+// another language through `cmpTree` -- pins its own schema against the
+// compiler rather than against a page of prose.
+import type { ContentProps } from './cmp/Content'
+import type { LineProps } from './cmp/Line'
+import type { SlotProps } from './cmp/Slot'
+import type { CopyFilesProps, CopyProps } from './cmp/CopyFiles'
+import type { FileProps } from './cmp/File'
+import type { InjectProps } from './cmp/Inject'
+import type { FragmentProps } from './cmp/Fragment'
+import type { FolderProps } from './cmp/Folder'
+import type { ProjectProps } from './cmp/Project'
+import type { ListItemsProps, ListItemProps, ListProps } from './cmp/ListItems'
+
 import { CopyOp } from './op/CopyOp'
 import { ProjectOp } from './op/ProjectOp'
 import { FolderOp } from './op/FolderOp'
@@ -76,6 +98,8 @@ import { NoneOp } from './op/NoneOp'
 
 import { cmpTree, TREE_CMP } from './tree'
 import type { CmpTreeNode, CmpTreeOptions } from './tree'
+
+import { checkRun } from './check'
 
 
 
@@ -500,13 +524,42 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
     none: NoneOp,
   }
 
+  // `check` is a GENERATION MODE, not a separate engine: it runs this
+  // same `generate` against a shadowed output folder and compares what
+  // came out with what is committed. See src/check.ts for what the
+  // shadow buys and what it costs.
+  async function check(
+    opts: JostracaOptions | {},
+    root: Function
+  ): Promise<CheckResult> {
+    return checkRun(generate, opts, root)
+  }
+
   return {
     generate,
+    check,
   }
 }
 
 
-function cmp(component: Function): Component {
+// Make a component from the function that defines a node.
+//
+// `P` is the props the component reads, and naming it is what gives the
+// BODY its types as well as the caller's: `props` inside is `P` plus the
+// ambient `ctx$`. `Arg` is the positional form -- `Content('text')`
+// lands in `props.arg` -- and `Child` is literal text in the children
+// position.
+//
+//   const Banner = cmp<{text: string}>(function Banner(props) {
+//     Content('// ' + props.text + '\n')
+//   })
+//
+// BOTH DEFAULT, so the untyped form a component outside this package is
+// written in -- `cmp(function My(props: any, children: any) {...})` --
+// types exactly as it did before there were any types to declare.
+function cmp<P = any, Arg = never, Child = never>(
+  component: (props: CmpProps<P>, children?: any) => any
+): Component<P, Arg, Child> {
   const cf = (props: any, children?: any) => {
     const ctx$ = GLOBAL.jostraca.getStore()
 
@@ -581,7 +634,7 @@ function cmp(component: Function): Component {
     }
   }
   Object.defineProperty(cf, 'name', { value: component.name })
-  return cf
+  return cf as Component<P, Arg, Child>
 }
 
 
@@ -594,11 +647,33 @@ function cmp(component: Function): Component {
 export type {
   JostracaResult,
   JostracaOptions,
+  CheckDrift,
+  CheckResult,
   Component,
+  CmpContext,
+  CmpProps,
+  CmpChild,
+  CmpChildren,
   Node,
   Existing,
   CmpTreeNode,
   CmpTreeOptions,
+
+  ProjectProps,
+  FolderProps,
+  FileProps,
+  ContentProps,
+  LineProps,
+  SlotProps,
+  InjectProps,
+  FragmentProps,
+  CopyFilesProps,
+  ListItemsProps,
+  ListItemProps,
+
+  // Deprecated aliases, matching the deprecated component names.
+  CopyProps,
+  ListProps,
 }
 
 

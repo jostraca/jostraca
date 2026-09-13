@@ -33,11 +33,27 @@ package jostraca
 //   - NO INHERITED-NAME HAZARD. `cmps[name]` on a Go map answers only
 //     for keys the map holds, so the `toString`/`constructor` refusal
 //     the TypeScript side needs has nothing to guard against here.
+//
+// RULE (3), AND IT IS NOT A LANGUAGE DIFFERENCE: THE BYTES IN A DATA
+// TREE ARE ALREADY FINAL, usually. Content and Line template what they
+// are handed, so a `$$...$$` sequence in a shell script, a makefile, a
+// doc comment or a regex is substituted from the generate model --
+// wrong output, no error. That is right for a generator written at the
+// call site, which wrote the `$$` deliberately, and wrong for a caller
+// that evaluated its own model to final text somewhere else.
+// CmpTreeOptions.Raw sets `raw` beneath each node's own props, on the
+// components that RENDER TEXT THEY WERE HANDED and only those
+// (treeRawCmp below). "Every node" was tried first and is wrong twice
+// over: Fragment and CopyFiles validate a CLOSED prop set, so a `raw`
+// they have no use for is refused outright, and `raw` would mean
+// nothing on File or Folder in any case.
 
 import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -49,8 +65,13 @@ type CmpTreeCmp func(j *J, props map[string]any, children []func(*J))
 // CmpTreeOptions carries extra components, by the name a node's `cmp`
 // uses. Merged over the built-in set, so a caller may add their own or
 // override one.
+//
+// Raw sets `raw` for every node, BENEATH the node's own props, so a
+// tree that does want the model in scope can still say so per node. See
+// rule (3) in the file header.
 type CmpTreeOptions struct {
 	Cmp map[string]CmpTreeCmp
+	Raw bool
 }
 
 // treeThunk is a child of some component. `inherit` carries the props a
@@ -71,6 +92,47 @@ var treeCmpDeprecated = map[string]string{
 	"List": "ListItems",
 }
 
+// treeClosedCmp is the components that REFUSE an unknown prop, and the
+// props each admits. Two of the ten: their TypeScript twins validate a
+// closed shape (FragmentShape, CopyFilesShape) and the other eight read
+// the props they know and drop the rest.
+//
+// THE PORTS HAVE TO AGREE ABOUT THIS, because the data path is the
+// contract a generator in another language writes against, and a tree
+// that is refused in TypeScript and generated in Go does not mean one
+// thing. Go's props are a struct, so an unknown key in the map was
+// simply never looked at; this restores the refusal rather than
+// dropping it from TypeScript, because a closed set is the stronger
+// guarantee and it is the one the published props types state.
+//
+// `item`, `indent` and `replace` are in both sets because they are the
+// ENGINE's bindings, which ListItems passes to every child -- see the
+// note on FragmentShape in the TypeScript port.
+var treeClosedCmp = map[string]map[string]bool{
+	"Fragment": {
+		"from": true, "indent": true,
+		"replace": true, "eject": true, "item": true,
+	},
+	"CopyFiles": {
+		"from": true, "to": true, "replace": true,
+		"exclude": true, "item": true, "indent": true,
+	},
+}
+
+// treeRawCmp is the components CmpTreeOptions.Raw reaches. Named rather
+// than identified, because a Go dispatch entry is a closure with no
+// identity to compare -- the TypeScript twin holds the same two by
+// identity. A caller's own component, supplied through
+// CmpTreeOptions.Cmp, is not in it: jostraca cannot know whether it
+// honours `raw`.
+//
+// Held by TestCmpTreeRawIsSafeOnEveryComponent, which generates every
+// built-in under the option.
+var treeRawCmp = map[string]bool{
+	"Content": true,
+	"Line":    true,
+}
+
 func treeErr(msg, path string) error {
 	if path == "" {
 		path = "<root>"
@@ -80,16 +142,59 @@ func treeErr(msg, path string) error {
 
 // --- props readers -------------------------------------------------
 
-func propsMerge(props, inherit map[string]any) map[string]any {
-	if len(inherit) == 0 {
-		return props
+// copyProps rebuilds a decoded-JSON value so that nothing a component
+// does can reach the caller's tree. Maps and slices are rebuilt to any
+// depth; everything else is a JSON scalar and is copied by value.
+//
+// PER INVOCATION, which is what makes it worth the allocation: a
+// component may write into the props it is handed -- a custom one
+// through CmpTreeOptions.Cmp most obviously -- and a tree generated
+// twice would otherwise carry the first run into the second. The
+// TypeScript twin's copyProps has the same job and the same rule, and
+// the component reference promises the tree comes back unchanged.
+//
+// NO CYCLE GUARD, unlike the TypeScript twin. A tree here is decoded
+// JSON, which cannot refer to itself, and `CmpTree` takes `any` rather
+// than a type a caller could build a cycle in. TypeScript's copyProps
+// carries a WeakMap because a hand-built object literal can.
+func copyProps(v any) any {
+	switch t := v.(type) {
+	case map[string]any:
+		out := make(map[string]any, len(t))
+		for k, val := range t {
+			out[k] = copyProps(val)
+		}
+		return out
+	case []any:
+		out := make([]any, 0, len(t))
+		for _, el := range t {
+			out = append(out, copyProps(el))
+		}
+		return out
+	default:
+		return v
 	}
-	out := make(map[string]any, len(inherit)+len(props))
+}
+
+// propsMerge layers the three statements about a node's props, least
+// specific first: `defaults` is set once for the whole tree, `inherit`
+// is what the parent bound for this invocation (ListItems' item, indent
+// and replace), and the node's own props are what its author wrote.
+//
+// The node's own props are DEEP-COPIED on the way in; the other two are
+// not, because `defaults` is this file's own literal and `inherit` is
+// the parent's per-invocation binding rather than anything the caller
+// holds.
+func propsMerge(defaults, inherit, props map[string]any) map[string]any {
+	out := make(map[string]any, len(defaults)+len(inherit)+len(props))
+	for k, v := range defaults {
+		out[k] = v
+	}
 	for k, v := range inherit {
 		out[k] = v
 	}
 	for k, v := range props {
-		out[k] = v
+		out[k] = copyProps(v)
 	}
 	return out
 }
@@ -99,6 +204,11 @@ func propString(p map[string]any, key string) string {
 		return s
 	}
 	return ""
+}
+
+func propBool(p map[string]any, key string) bool {
+	b, _ := p[key].(bool)
+	return b
 }
 
 func propMap(p map[string]any, key string) map[string]any {
@@ -160,6 +270,29 @@ func validFolder(props map[string]any, path string) error {
 	return nil
 }
 
+// validClosedProps refuses an unknown prop on a component whose prop
+// set is closed. Eagerly, over the node's OWN props, which is where
+// CmpTree refuses everything else it refuses: a malformed tree is
+// answered by the call that reads it rather than half way through a
+// define phase that has already made folders.
+func validClosedProps(name string, props map[string]any, path string) error {
+	allowed, closed := treeClosedCmp[name]
+	if !closed {
+		return nil
+	}
+	bad := []string{}
+	for key := range props {
+		if !allowed[key] {
+			bad = append(bad, key)
+		}
+	}
+	if len(bad) == 0 {
+		return nil
+	}
+	sort.Strings(bad)
+	return treeErr(name+": prop not allowed: "+strings.Join(bad, ", "), path)
+}
+
 // --- the walk ------------------------------------------------------
 
 func runChildren(children []treeThunk, inherit map[string]any) func(*J) {
@@ -170,7 +303,12 @@ func runChildren(children []treeThunk, inherit map[string]any) func(*J) {
 	}
 }
 
-func nodeThunk(node any, cmps map[string]CmpTreeCmp, path string) (treeThunk, error) {
+func nodeThunk(
+	node any,
+	cmps map[string]CmpTreeCmp,
+	path string,
+	defaults map[string]any,
+) (treeThunk, error) {
 	obj, ok := node.(map[string]any)
 	if !ok {
 		return nil, treeErr("node is not an object", path)
@@ -194,6 +332,17 @@ func nodeThunk(node any, cmps map[string]CmpTreeCmp, path string) (treeThunk, er
 	if err := validFolder(props, path); err != nil {
 		return nil, err
 	}
+	// The closed prop set is the BUILT-IN component's, so a caller who
+	// replaces that component through CmpTreeOptions.Cmp is not bound by
+	// it: their Fragment may take whatever props it likes. TypeScript
+	// gets this for free -- an override replaces the component, and
+	// FragmentShape goes with it -- and checking here regardless
+	// refused a tree TypeScript generates.
+	if _, overridden := cmps[name]; !overridden {
+		if err := validClosedProps(name, props, path); err != nil {
+			return nil, err
+		}
+	}
 
 	var kids []any
 	if raw, present := obj["children"]; present && raw != nil {
@@ -206,7 +355,7 @@ func nodeThunk(node any, cmps map[string]CmpTreeCmp, path string) (treeThunk, er
 	children := make([]treeThunk, 0, len(kids))
 	for i, kid := range kids {
 		th, err := nodeThunk(kid, cmps,
-			fmt.Sprintf("%s/%s[%d]", path, name, i))
+			fmt.Sprintf("%s/%s[%d]", path, name, i), defaults)
 		if err != nil {
 			return nil, err
 		}
@@ -215,7 +364,7 @@ func nodeThunk(node any, cmps map[string]CmpTreeCmp, path string) (treeThunk, er
 
 	if custom, has := cmps[name]; has {
 		return func(j *J, inherit map[string]any) {
-			p := propsMerge(props, inherit)
+			p := propsMerge(nil, inherit, props)
 			plain := make([]func(*J), 0, len(children))
 			for _, ch := range children {
 				ch := ch
@@ -229,8 +378,12 @@ func nodeThunk(node any, cmps map[string]CmpTreeCmp, path string) (treeThunk, er
 	if build == nil {
 		return nil, treeErr("unknown component: "+name, path)
 	}
+	nodeDefaults := defaults
+	if !treeRawCmp[name] {
+		nodeDefaults = nil
+	}
 	return func(j *J, inherit map[string]any) {
-		build(j, propsMerge(props, inherit), children)
+		build(j, propsMerge(nodeDefaults, inherit, props), children)
 	}, nil
 }
 
@@ -267,7 +420,6 @@ func init() {
 				From:    propString(p, "from"),
 				Indent:  p["indent"],
 				Replace: propMap(p, "replace"),
-				Exclude: p["exclude"],
 				Eject:   p["eject"],
 			}, runChildren(c, nil))
 		},
@@ -287,7 +439,6 @@ func init() {
 				To:      propString(p, "to"),
 				Replace: propMap(p, "replace"),
 				Exclude: p["exclude"],
-				Indent:  p["indent"],
 			})
 		},
 		"ListItems": func(j *J, p map[string]any, c []treeThunk) {
@@ -317,13 +468,71 @@ func init() {
 	}
 }
 
+// propSrc reads a Content or Line's source text: `arg` first, then
+// `src`, which is the precedence TypeScript's components apply and
+// ContentProps declares. `arg` is the positional form
+// (`Content('text')`), and a tree may state it as a key.
+//
+// A NON-STRING IS STRINGIFIED THE WAY TYPESCRIPT STRINGIFIES IT, since
+// both ports have to produce the same bytes from the same tree. The
+// component reference spells out the cases: a number writes its digits,
+// a boolean writes `true` or `false`, and an object writes
+// `[object Object]`. Only `arg` takes this route; `src` is declared a
+// string and a non-string there is not source text.
+func propSrc(p map[string]any) string {
+	if arg, present := p["arg"]; present && arg != nil {
+		return jsString(arg)
+	}
+	return propString(p, "src")
+}
+
+// jsString reproduces what JavaScript's `String(value)` gives for a
+// decoded JSON value, which is the conversion `Content` gets for free
+// when it concatenates a non-string `arg`. Arrays join their elements
+// with commas and any other object is `[object Object]`, both of which
+// are JavaScript's rules rather than anything chosen here.
+//
+// Written as String(value) rather than as the empty-string
+// concatenation on purpose. Two apostrophes in a row are the troff
+// convention for a closing quote, and gofmt's doc-comment formatter
+// rewrites them to a curly one: the lint gate then fails and the
+// sentence says something else than it did.
+func jsString(v any) string {
+	switch t := v.(type) {
+	case string:
+		return t
+	case bool:
+		if t {
+			return "true"
+		}
+		return "false"
+	case float64:
+		return strconv.FormatFloat(t, 'g', -1, 64)
+	case []any:
+		parts := make([]string, 0, len(t))
+		for _, el := range t {
+			if el == nil {
+				parts = append(parts, "")
+				continue
+			}
+			parts = append(parts, jsString(el))
+		}
+		return strings.Join(parts, ",")
+	case nil:
+		return ""
+	default:
+		return "[object Object]"
+	}
+}
+
 func contentProps(p map[string]any) ContentProps {
 	return ContentProps{
-		Src:     propString(p, "src"),
+		Src:     propSrc(p),
 		Name:    propString(p, "name"),
 		Indent:  p["indent"],
 		Replace: propMap(p, "replace"),
 		Extra:   propMap(p, "extra"),
+		Raw:     propBool(p, "raw"),
 	}
 }
 
@@ -336,9 +545,16 @@ func contentProps(p map[string]any) ContentProps {
 // already made folders.
 func CmpTree(root any, opts ...CmpTreeOptions) (func(*J), error) {
 	cmps := map[string]CmpTreeCmp{}
+	// Only when asked for. An unconditional `raw: false` would be a
+	// statement rather than a default, and would then outrank the `raw`
+	// a parent binds for its children.
+	var defaults map[string]any
 	for _, o := range opts {
 		for k, v := range o.Cmp {
 			cmps[k] = v
+		}
+		if o.Raw {
+			defaults = map[string]any{"raw": true}
 		}
 	}
 
@@ -349,7 +565,7 @@ func CmpTree(root any, opts ...CmpTreeOptions) (func(*J), error) {
 
 	thunks := make([]treeThunk, 0, len(nodes))
 	for i, n := range nodes {
-		th, err := nodeThunk(n, cmps, fmt.Sprintf("[%d]", i))
+		th, err := nodeThunk(n, cmps, fmt.Sprintf("[%d]", i), defaults)
 		if err != nil {
 			return nil, err
 		}

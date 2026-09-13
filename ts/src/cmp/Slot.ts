@@ -4,7 +4,18 @@ import type { Node } from '../jostraca'
 import { cmp, each } from '../jostraca'
 
 
-const Slot = cmp(function Slot(props: any, children: any) {
+/** The props `Slot` reads. */
+type SlotProps = {
+
+  /**
+   * Matches the `<[SLOT:name]>` marker in the enclosing Fragment. Absent
+   * means the unnamed `<[SLOT]>` marker.
+   */
+  name?: string
+}
+
+
+const Slot = cmp<SlotProps>(function Slot(props, children) {
   const node: Node = props.ctx$.node
   node.kind = 'slot'
   node.name = props.name
@@ -17,3 +28,6 @@ export {
   Slot
 }
 
+export type {
+  SlotProps
+}

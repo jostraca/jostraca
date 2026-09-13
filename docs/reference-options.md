@@ -8,14 +8,17 @@ Every example here is executed by `ts/test/docs.test.ts`. The examples
 that show diff or merge markers pin the clock with `now`, because the
 markers carry timestamps.
 
-## The two calls
+## The three calls
 
 ```
-Jostraca(options?) => { generate }
+Jostraca(options?) => { generate, check }
 generate(options, root) => Promise<JostracaResult>
+check(options, root)    => Promise<CheckResult>
 ```
 
-The factory returns `{ generate }` and nothing else.
+`generate` writes the tree. [`check`](#check) generates it into memory
+and compares it with a folder instead, which is the same run asking a
+different question.
 
 Both option objects are validated by the **same** shape. There is no
 separate global-options type and no separate per-call type. An unknown
@@ -511,6 +514,110 @@ stripped and the last digit dropped, as a number.
 An unreadable meta log is **not** fatal: a warning goes to `log.debug`
 and the run continues as though there were no previous build. Nothing
 is written at all when the root produced no components.
+
+## `check`
+
+```
+check(options, root) => Promise<CheckResult>
+```
+
+Holds a committed folder to what the generators produce. It takes the
+same options as `generate` and runs the same generate; `folder` is the
+folder it checks.
+
+```
+{
+  folder,     // string: the folder checked, as given
+  checked,    // string[]: every path compared, relative and sorted
+  drift,      // CheckDrift[]: sorted by path, empty when the folder matches
+  files,      // the run report of the generate that produced the comparison
+}
+```
+
+Each entry of `drift` carries the bytes rather than a rendered diff,
+because a build wants an exit code, a test wants an assertion and a
+reviewer wants hunks:
+
+| field | meaning |
+|---|---|
+| `path` | relative to `folder`, forward slashes |
+| `kind` | `missing`, `content` or `mode` |
+| `generated` | `Buffer`: what the generators produce. Always present |
+| `existing` | `Buffer`: what the folder holds. Absent when `kind` is `missing` |
+| `mode`, `existingMode` | the declared bits and the bits on disk, on `kind: 'mode'` only |
+
+[`hunks` and `lines`](reference-utilities.md) turn a `content` entry
+into a diff.
+
+This is the CI half of generating: a generator runs, its output is
+committed and reviewed, and every build after that asks whether the two
+still agree.
+
+<!-- test: scenario opt-check -->
+
+Say `app/a.txt` is committed, and holds what the generator writes:
+
+<!-- test: input app/a.txt -->
+```text
+class Planet
+end
+```
+
+The generator also emits `app/b.txt`, which nobody committed:
+
+<!-- test: run -->
+```js
+import { Jostraca, File, Content } from 'jostraca'
+
+const res = await Jostraca().check({ folder: './app' }, () => {
+  File({ name: 'a.txt' }, () => Content('class Planet\nend\n'))
+  File({ name: 'b.txt' }, () => Content('class Moon\nend\n'))
+})
+
+console.log('checked ' + res.checked.length)
+for (const d of res.drift) {
+  console.log(d.kind + ' ' + d.path)
+}
+```
+
+<!-- test: log -->
+```text
+checked 2
+missing b.txt
+```
+
+### What a check compares, and what it refuses to read
+
+**The bytes, and the permission bits where the tree stated them** with
+[`mode`](reference-components.md#mode). A file whose tree says nothing
+about mode is held to nothing, because a run would leave the bits it
+found. Windows has no bits to compare.
+
+**A file the generators do not claim is left alone.** A generator owns
+the files it emits, not the directory it emits them into: one generator
+of nine writes a handful of files into a whole application, and calling
+every unclaimed file drift would report the other eight generators'
+output as a failure. The cost is that a file which stops being
+generated lingers and is not reported—deleting it is the same review as
+adding it.
+
+**The folder cannot change the answer.** It is shadowed by an in-memory
+filesystem for the duration, so every file takes the same path through
+the writer whatever is already there: no existing-file mode fires, and
+no `exclude` skips a comparison. Without that a generator could exempt
+its own output from the gate meant to hold it.
+
+**A check writes nothing, anywhere**, including the run that reports
+drift and including the `.jostraca` folder. That folder is never
+compared either: it carries timestamps, so it can never be
+byte-stable.
+
+**Reads outside the folder fall through**, so a `Fragment` or
+`CopyFiles` source is read exactly as on a write run. The one component
+this cannot serve is `Inject`, which rewrites a file that already
+exists: the folder is not visible to the run, so an Inject into a file
+the same run does not also create is refused. That is the price of the
+shadow, and the shadow is what the gate is for.
 
 ## `audit()`
 

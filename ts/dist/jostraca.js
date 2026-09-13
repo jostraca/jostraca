@@ -104,6 +104,7 @@ const NoneOp_1 = require("./op/NoneOp");
 const tree_1 = require("./tree");
 Object.defineProperty(exports, "cmpTree", { enumerable: true, get: function () { return tree_1.cmpTree; } });
 Object.defineProperty(exports, "TREE_CMP", { enumerable: true, get: function () { return tree_1.TREE_CMP; } });
+const check_1 = require("./check");
 const GLOBAL = global;
 const KONSOLE = GLOBAL['con' + 'sole'];
 // One AsyncLocalStorage, created once and shared.
@@ -426,10 +427,33 @@ function Jostraca(gopts_in) {
         slot: SlotOp_1.SlotOp,
         none: NoneOp_1.NoneOp,
     };
+    // `check` is a GENERATION MODE, not a separate engine: it runs this
+    // same `generate` against a shadowed output folder and compares what
+    // came out with what is committed. See src/check.ts for what the
+    // shadow buys and what it costs.
+    async function check(opts, root) {
+        return (0, check_1.checkRun)(generate, opts, root);
+    }
     return {
         generate,
+        check,
     };
 }
+// Make a component from the function that defines a node.
+//
+// `P` is the props the component reads, and naming it is what gives the
+// BODY its types as well as the caller's: `props` inside is `P` plus the
+// ambient `ctx$`. `Arg` is the positional form -- `Content('text')`
+// lands in `props.arg` -- and `Child` is literal text in the children
+// position.
+//
+//   const Banner = cmp<{text: string}>(function Banner(props) {
+//     Content('// ' + props.text + '\n')
+//   })
+//
+// BOTH DEFAULT, so the untyped form a component outside this package is
+// written in -- `cmp(function My(props: any, children: any) {...})` --
+// types exactly as it did before there were any types to declare.
 function cmp(component) {
     const cf = (props, children) => {
         const ctx$ = GLOBAL.jostraca.getStore();

@@ -2,6 +2,7 @@ package jostraca
 
 import (
 	"encoding/json"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -225,5 +226,370 @@ func TestCmpTreePropsReachTheComponent(t *testing.T) {
 
 	if got := string(vol["/top/a.ts"]); got != "class X {\n  y = 1\n}\n" {
 		t.Fatalf("indent: %q", got)
+	}
+}
+
+// treeGenOpts is treeGen with a model in scope and CmpTree options, for
+// the raw cases: the hazard only shows with a model, and the whole-tree
+// option is an argument to CmpTree rather than to Generate.
+func treeGenOpts(
+	t *testing.T,
+	src string,
+	model map[string]any,
+	opts ...CmpTreeOptions,
+) map[string][]byte {
+	t.Helper()
+	var tree any
+	if err := json.Unmarshal([]byte(src), &tree); err != nil {
+		t.Fatal(err)
+	}
+	root, err := CmpTree(tree, opts...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := New(WithMem(), WithFolder("/top"), WithModel(model),
+		WithNow(func() int64 { return 1 })).Generate(Options{}, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return res.Vol()
+}
+
+// RULE (3): THE BYTES IN A DATA TREE ARE ALREADY FINAL, usually.
+// Content and Line template what they are handed, so once a tree is a
+// generator's only output road every byte it produces passes through
+// that render -- and a `$$` in a shell script, a makefile, a doc comment
+// or a regex is substituted from the generate model with no diagnostic.
+//
+// The payload, the prop, the whole-tree option, and the same tree
+// without either as the control. Twin of the TypeScript
+// `raw-hands-the-bytes-through-untouched`, and the bytes are the same
+// bytes on both sides.
+func TestCmpTreeRaw(t *testing.T) {
+	const payload = "#!/bin/sh\n" +
+		"sed -i \"s/$$path$$/x/\" f\n" +
+		"echo $$\"quoted\"$$\n" +
+		"echo $$__JOSTRACA_REPLACE__$$\n" +
+		"awk '{print $$1}'\n" +
+		"make: $$(VAR)$$\n"
+
+	// The same payload as a JSON string, so the tree below is what
+	// `aontu -c` would print for it.
+	enc, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tree := func(extra string) string {
+		return `{"cmp":"File","props":{"name":"a.sh"},"children":[
+		  {"cmp":"Content","props":{"src":` + string(enc) + extra + `}},
+		  {"cmp":"Line","props":{"src":"L $$path$$"` + extra + `}}
+		]}`
+	}
+
+	model := map[string]any{"path": "ZZZ"}
+	through := payload + "L $$path$$\n"
+
+	// The prop, per node ...
+	got := string(treeGenOpts(t, tree(`,"raw":true`), model)["/top/a.sh"])
+	if got != through {
+		t.Fatalf("raw prop: %q", got)
+	}
+
+	// ... and the option, for every node in the tree.
+	got = string(treeGenOpts(t, tree(""), model,
+		CmpTreeOptions{Raw: true})["/top/a.sh"])
+	if got != through {
+		t.Fatalf("raw option: %q", got)
+	}
+
+	// THE CONTROL, unchanged: without either, three of those lines are
+	// rewritten and two of the three do not need a model to be.
+	substituted := "#!/bin/sh\n" +
+		"sed -i \"s/ZZZ/x/\" f\n" +
+		"echo quoted\n" +
+		"echo /(?<J_O>\\$\\$)(?<J_R>[^$]+)(?<J_C>\\$\\$)/\n" +
+		"awk '{print $$1}'\n" +
+		"make: $$(VAR)$$\n" +
+		"L ZZZ\n"
+
+	got = string(treeGenOpts(t, tree(""), model)["/top/a.sh"])
+	if got != substituted {
+		t.Fatalf("control: %q", got)
+	}
+
+	// A node outranks the option, in both directions.
+	got = string(treeGenOpts(t, tree(`,"raw":false`), model,
+		CmpTreeOptions{Raw: true})["/top/a.sh"])
+	if got != substituted {
+		t.Fatalf("node outranks option: %q", got)
+	}
+}
+
+// THE OPTION IS A DEFAULT, NOT A STATEMENT, so a binding the parent
+// makes for this invocation outranks it. ListItems is where that bites:
+// its `{item.n}` macro is a Replace entry, so a child rendered raw
+// emits the macro verbatim. That is the cost of the whole-tree option
+// rather than a defect in it.
+func TestCmpTreeRawUnderListItems(t *testing.T) {
+	const src = `{"cmp":"File","props":{"name":"l.txt"},"children":[{
+	  "cmp":"ListItems","props":{"item":[{"n":1},{"n":2}]},
+	  "children":[{"cmp":"Content","props":{"src":"n={item.n}\n"%s}}]
+	}]}`
+
+	raw := strings.Replace(src, "%s", "", 1)
+	got := string(treeGenOpts(t, raw, nil,
+		CmpTreeOptions{Raw: true})["/top/l.txt"])
+	if got != "n={item.n}\nn={item.n}\n\n" {
+		t.Fatalf("raw list: %q", got)
+	}
+
+	// The node outranks the option ...
+	off := strings.Replace(src, "%s", `,"raw":false`, 1)
+	got = string(treeGenOpts(t, off, nil,
+		CmpTreeOptions{Raw: true})["/top/l.txt"])
+	if got != "n=1\nn=2\n\n" {
+		t.Fatalf("node outranks option: %q", got)
+	}
+
+	// ... and with no option at all nothing changed.
+	got = string(treeGenOpts(t, raw, nil)["/top/l.txt"])
+	if got != "n=1\nn=2\n\n" {
+		t.Fatalf("control: %q", got)
+	}
+}
+
+// `raw` skips the RENDER, not the placement: `indent` is where the span
+// sits in the file rather than what it says, and applies either way.
+// `replace` and `extra` do go with it -- they are inputs to the render
+// that is not happening.
+func TestCmpTreeRawKeepsIndent(t *testing.T) {
+	vol := treeGenOpts(t, `{"cmp":"File","props":{"name":"a.txt"},"children":[
+	  {"cmp":"Content","props":{"src":"class X {\n"}},
+	  {"cmp":"Content","props":{
+	     "src":"y = $$n$$ {tok}\n","indent":2,"raw":true,
+	     "replace":{"{tok}":"TOK"},"extra":{"n":9}}},
+	  {"cmp":"Content","props":{"src":"}\n"}}
+	]}`, nil)
+
+	if got := string(vol["/top/a.txt"]); got != "class X {\n  y = $$n$$ {tok}\n}\n" {
+		t.Fatalf("raw indent: %q", got)
+	}
+}
+
+// THE WHOLE-TREE OPTION MUST BE SAFE ON A WHOLE TREE, and it was not.
+// Fragment and CopyFiles validate a CLOSED prop set, so setting `raw`
+// on every node -- the first spelling of the option -- made either
+// component refuse the run outright. A whole-tree option that cannot be
+// used on a tree holding two of the ten components is not a whole-tree
+// option.
+//
+// So the option reaches treeRawCmp, and this generates every built-in
+// under it: a component that would refuse `raw` fails here rather than
+// in a consumer's pipeline. Twin of the TypeScript
+// `raw-option-is-safe-on-every-component`.
+func TestCmpTreeRawIsSafeOnEveryComponent(t *testing.T) {
+	// A new component landing UNREACHABLE is the drift guard's
+	// business; a new one landing REFUSING the option is this test's.
+	names := make([]string, 0, len(treeBuild))
+	for name := range treeBuild {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	want := []string{"Content", "CopyFiles", "File", "Folder", "Fragment",
+		"Inject", "Line", "ListItems", "Project", "Slot"}
+	if strings.Join(names, ",") != strings.Join(want, ",") {
+		t.Fatalf("a component joined the registry: give it a node below: %v", names)
+	}
+
+	// One node per component, each in a place its op accepts.
+	const src = `[
+	  {"cmp":"Project","props":{"folder":"sdk"},"children":[
+	    {"cmp":"Folder","props":{"name":"f"},"children":[
+	      {"cmp":"File","props":{"name":"x.txt"},"children":[
+	        {"cmp":"Content","props":{"src":"c"}},
+	        {"cmp":"Line","props":{"src":"l"}},
+	        {"cmp":"Fragment","props":{"from":"/frag.txt"},
+	         "children":[{"cmp":"Slot","props":{"name":"s"}}]},
+	        {"cmp":"ListItems","props":{"item":[{"n":1}]},
+	         "children":[{"cmp":"Content","props":{"src":"i"}}]},
+	        {"cmp":"CopyFiles","props":{"from":"/src/copied.txt","to":"c.txt"}}
+	      ]}
+	    ]}
+	  ]},
+	  {"cmp":"Inject","props":{"name":"inject.txt"},
+	   "children":[{"cmp":"Content","props":{"src":"INJECTED\n"}}]}
+	]`
+
+	var tree any
+	if err := json.Unmarshal([]byte(src), &tree); err != nil {
+		t.Fatal(err)
+	}
+	root, err := CmpTree(tree, CmpTreeOptions{Raw: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	seed := map[string][]byte{
+		"/frag.txt":           []byte("HEADER\n<[SLOT]>\nFOOTER\n"),
+		"/src/copied.txt":     []byte("COPIED\n"),
+		"/top/sdk/inject.txt": []byte("A\n#--START--#\n\n#--END--#\nB\n"),
+	}
+	res, err := New(WithMem(), WithVol(seed), WithFolder("/top"),
+		WithNow(func() int64 { return 1 })).Generate(Options{}, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	vol := res.Vol()
+
+	// The run completed, and `raw` reached the two that render text.
+	if got := string(vol["/top/sdk/f/x.txt"]); got != "cl\nHEADER\n\nFOOTER\ni\nCOPIED\n" {
+		t.Fatalf("x.txt: %q", got)
+	}
+	if got := string(vol["/top/sdk/inject.txt"]); got != "A\n#--START--#\nINJECTED\n\n#--END--#\nB\n" {
+		t.Fatalf("inject.txt: %q", got)
+	}
+}
+
+// `arg` IS THE POSITIONAL FORM, AND A TREE MAY STATE IT AS A KEY. It
+// outranks `src`, which is the precedence TypeScript's Content applies
+// and its ContentProps declares -- and this port read
+// only `src`, so a tree carrying `arg` generated different bytes on the
+// two sides of a contract whose whole point is that it does not.
+//
+// A non-string is stringified the way JavaScript stringifies it,
+// because the bytes have to match: the component reference spells out
+// the number, the boolean and the `[object Object]`.
+func TestCmpTreeArg(t *testing.T) {
+	vol := treeGen(t, `{"cmp":"File","props":{"name":"x.txt"},"children":[
+	  {"cmp":"Content","props":{"arg":"ARG","src":"SRC"}}
+	]}`)
+	if got := string(vol["/top/x.txt"]); got != "ARG" {
+		t.Fatalf("arg over src: %q", got)
+	}
+
+	vol = treeGen(t, `{"cmp":"File","props":{"name":"x.txt"},"children":[
+	  {"cmp":"Content","props":{"arg":42}},
+	  {"cmp":"Content","props":{"arg":true}},
+	  {"cmp":"Content","props":{"arg":false}},
+	  {"cmp":"Content","props":{"arg":1.5}},
+	  {"cmp":"Content","props":{"arg":["a","b"]}},
+	  {"cmp":"Content","props":{"arg":{"k":1}}}
+	]}`)
+	if got := string(vol["/top/x.txt"]); got != "42truefalse1.5a,b[object Object]" {
+		t.Fatalf("arg stringified: %q", got)
+	}
+
+	// A null `arg` is absent, so `src` answers -- the same test
+	// TypeScript makes with `null != props.arg`.
+	vol = treeGen(t, `{"cmp":"File","props":{"name":"x.txt"},"children":[
+	  {"cmp":"Content","props":{"arg":null,"src":"SRC"}}
+	]}`)
+	if got := string(vol["/top/x.txt"]); got != "SRC" {
+		t.Fatalf("null arg: %q", got)
+	}
+
+	// And `Line` takes it too, one terminator apart.
+	vol = treeGen(t, `{"cmp":"File","props":{"name":"x.txt"},"children":[
+	  {"cmp":"Line","props":{"arg":"L"}}
+	]}`)
+	if got := string(vol["/top/x.txt"]); got != "L\n" {
+		t.Fatalf("line arg: %q", got)
+	}
+}
+
+// A CLOSED PROP SET BELONGS TO THE BUILT-IN COMPONENT, so a caller who
+// REPLACES that component through CmpTreeOptions.Cmp is not bound by it.
+// TypeScript gets this for free -- an override replaces the component,
+// and FragmentShape goes with it -- and checking regardless refused a
+// tree TypeScript generates.
+func TestCmpTreeClosedPropsSkipCustomOverride(t *testing.T) {
+	const src = `{"cmp":"File","props":{"name":"x.txt"},"children":[
+	  {"cmp":"Fragment","props":{"nosuchprop":1}}]}`
+
+	var tree any
+	if err := json.Unmarshal([]byte(src), &tree); err != nil {
+		t.Fatal(err)
+	}
+
+	// The built-in still refuses it.
+	if _, err := CmpTree(tree); err == nil ||
+		!strings.Contains(err.Error(), "nosuchprop") {
+		t.Fatalf("built-in should refuse: %v", err)
+	}
+
+	// An override does not.
+	seen := false
+	root, err := CmpTree(tree, CmpTreeOptions{Cmp: map[string]CmpTreeCmp{
+		"Fragment": func(j *J, props map[string]any, _ []func(*J)) {
+			seen = true
+			j.Content("MINE")
+		},
+	}})
+	if err != nil {
+		t.Fatalf("override refused: %v", err)
+	}
+	res, err := New(WithMem(), WithFolder("/top"),
+		WithNow(func() int64 { return 1 })).Generate(Options{}, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !seen || string(res.Vol()["/top/x.txt"]) != "MINE" {
+		t.Fatalf("override did not run: %q", res.Vol()["/top/x.txt"])
+	}
+}
+
+// THE TREE IS THE CALLER'S DATA AND COMES BACK UNCHANGED, which the
+// component reference promises and this port did not keep: props were
+// handed on by reference, so a component supplied through
+// CmpTreeOptions.Cmp could write into the caller's tree and a tree
+// generated twice carried the first run into the second.
+func TestCmpTreeIsNotScribbledOn(t *testing.T) {
+	const src = `{"cmp":"Mine","props":{"a":1,"nested":{"k":"v"},"list":[{"n":1}]}}`
+
+	var tree any
+	if err := json.Unmarshal([]byte(src), &tree); err != nil {
+		t.Fatal(err)
+	}
+	before, err := json.Marshal(tree)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	scribble := CmpTreeOptions{Cmp: map[string]CmpTreeCmp{
+		"Mine": func(j *J, props map[string]any, _ []func(*J)) {
+			props["scribbled"] = true
+			if m, ok := props["nested"].(map[string]any); ok {
+				m["also"] = true
+			}
+			if l, ok := props["list"].([]any); ok && len(l) > 0 {
+				if m, ok := l[0].(map[string]any); ok {
+					m["deep"] = true
+				}
+			}
+		},
+	}}
+
+	run := func() {
+		root, err := CmpTree(tree, scribble)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := New(WithMem(), WithFolder("/top"),
+			WithNow(func() int64 { return 1 })).Generate(Options{}, root); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	run()
+	after, _ := json.Marshal(tree)
+	if string(before) != string(after) {
+		t.Fatalf("the tree was scribbled on:\n before=%s\n after =%s", before, after)
+	}
+
+	// ... and a second generate is the same generation.
+	run()
+	after, _ = json.Marshal(tree)
+	if string(before) != string(after) {
+		t.Fatalf("a second run scribbled on the tree:\n %s", after)
 	}
 }

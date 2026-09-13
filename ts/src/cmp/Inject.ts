@@ -4,7 +4,31 @@ import type { Node } from '../jostraca'
 import { cmp, each } from '../jostraca'
 
 
-const DEFAULT_MARKERS = ['#--START--#\n', '\n#--END--#']
+const DEFAULT_MARKERS: [string, string] = ['#--START--#\n', '\n#--END--#']
+
+
+/** The props `Inject` reads. */
+type InjectProps = {
+
+  /**
+   * Path of the file to edit, below the enclosing folder. It must
+   * already exist: Inject rewrites the region between the markers, it
+   * does not create a file.
+   */
+  name: string
+
+  /**
+   * The start and end marker pair. Both must be non-empty; the default
+   * pair is `#--START--#\n` and `\n#--END--#`.
+   */
+  markers?: [string, string]
+
+  /**
+   * Leave the target alone. Coerced with `!!`, so any truthy value
+   * excludes.
+   */
+  exclude?: boolean
+}
 
 
 // Resolve the marker pair, rejecting a half-specified one.
@@ -20,7 +44,7 @@ const DEFAULT_MARKERS = ['#--START--#\n', '\n#--END--#']
 // So: a pair with exactly one empty marker is rejected, and a pair with
 // both empty is treated as "not supplied" — which is what the Go port
 // already did, and is the only reading that lets both stacks agree.
-function markersOf(markers: any): string[] {
+function markersOf(markers: InjectProps['markers']): string[] {
   if (null == markers) {
     return DEFAULT_MARKERS
   }
@@ -41,7 +65,7 @@ function markersOf(markers: any): string[] {
 }
 
 
-const Inject = cmp(function Inject(props: any, children: any) {
+const Inject = cmp<InjectProps>(function Inject(props, children) {
   const node: Node = props.ctx$.node
 
   node.kind = 'inject'
@@ -56,4 +80,8 @@ const Inject = cmp(function Inject(props: any, children: any) {
 
 export {
   Inject
+}
+
+export type {
+  InjectProps
 }

@@ -27,6 +27,7 @@ declare class BuildContext {
         exclude: string[];
         last: number;
     };
+    filepaths: Map<string, string>;
     dfolder?: string;
     constructor(folder: string, existing: Existing, control: {
         dryrun: boolean;
@@ -34,6 +35,7 @@ declare class BuildContext {
         version: boolean;
     }, fs: () => FST, now: () => number);
     addmeta(file: string, meta: any): void;
+    claimFile(fullpath: string, where: string, errmark: string): void;
     folderPath(): string;
     duplicateFolder(): string;
 }

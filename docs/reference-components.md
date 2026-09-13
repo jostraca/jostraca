@@ -11,12 +11,53 @@ generator wrote.
 ## The exported components
 
 `Project`, `Folder`, `File`, `Content`, `Line`, `Fragment`, `Slot`,
-`Inject`, `Copy`, `List`, and the `cmp()` factory that makes more.
+`Inject`, `Copy`, `List`, the `cmp()` factory that makes more, and
+[`cmpTree()`](#cmptree) for a tree given as data rather than as calls.
 
 `None` is **not exported**. It exists in the source as the internal
 no-op used for the synthetic root node, and it is not reachable from
 `import { … } from 'jostraca'`. To make a component conditional, branch
 at the call site instead of substituting a no-op component.
+
+## Props are types
+
+Each component declares what it reads, and the package exports the
+declaration under the component's name:
+
+| component | props type | required |
+|---|---|---|
+| `Project` | `ProjectProps` |—|
+| `Folder` | `FolderProps` |—|
+| `File` | `FileProps` | `name` |
+| `Content` | `ContentProps` |—|
+| `Line` | `LineProps`, an alias of `ContentProps` |—|
+| `Fragment` | `FragmentProps` | `from` |
+| `Slot` | `SlotProps` |—|
+| `Inject` | `InjectProps` | `name` |
+| `CopyFiles` | `CopyFilesProps` | `from` |
+| `ListItems` | `ListItemsProps` |—|
+
+<!-- test: skip a type-only import, shown in place; the types are compiled by ts/typecase -->
+```ts
+import type { FileProps } from 'jostraca'
+
+const script: FileProps = { name: 'run.sh', mode: 0o755 }
+```
+
+A misspelled or mistyped prop is a compile error in all ten, whatever
+the component does with one at run time. That matters because run time
+answers two different ways: `Fragment` and `CopyFiles` validate a closed
+shape and throw, and the other eight accept an unknown prop and drop it.
+The types close the gap at the call site, where the typo is.
+
+`ctx$` is in none of them. `cmp()` writes it into the props object on the
+way in, so a caller never passes one, and a type that declared it would
+be asking for one.
+
+Two more types travel with them. `ListItemProps` is what a `ListItems`
+child is called with, `{item, indent, replace}`. `CmpProps<P>` is `P`
+plus the `ctx$` a component body reads, which is the props type of a
+component built with [`cmp()`](#cmp).
 
 ## How a component call works
 
@@ -49,9 +90,12 @@ normalised:
 
 A non-object first argument becomes `props.arg`. Only `Content` and
 `Line` read `arg`; for every other component a positional string is
-accepted and ignored, so `File('x.txt', …)` does **not** name the file.
-`Copy` and `Fragment` are stricter still: their props are closed
-shapes, so a positional argument throws.
+accepted and ignored at run time, so `File('x.txt', …)` does **not**
+name the file. The table is what a tree arriving as data gets: from
+TypeScript, `File('x.txt')` does not compile, because `FileProps` is
+what `File` takes and a string is not one. `Copy` and `Fragment` are
+stricter still: their props are closed shapes, so a positional argument
+throws as well.
 
 ### `props.ctx$`
 
@@ -281,9 +325,30 @@ Content(props, text)
 | `indent` | `string \| number` |—| A number is that many spaces; a string is a literal prefix. Applied to every line. |
 | `extra` | `object` | `{}` | Merged over the model for this call only. |
 | `replace` | `Record<string, any>` |—| Custom replacements. See the [utilities reference](reference-utilities.md). |
+| `raw` | `boolean` | `false` | Hand the bytes through untouched: no model substitution, and `extra` and `replace` are not read. |
 | `name` | `string` |—| Joins the component path. No output effect. |
 
 `Content` adds **no** newline. Use `Line` for that.
+
+### `raw`
+
+`Content` substitutes the model into whatever it is handed. That is
+what the component is for when you write the text at the call site: you
+put the `$$name$$` there on purpose. It is wrong when the text came
+from somewhere else and is already final—a `$$` in a shell script, a
+makefile, a doc comment or a regular expression is then rewritten, and
+the run reports nothing and exits 0.
+
+`raw: true` skips the render. `indent` still applies, because indenting
+is where the span sits rather than what it says; `extra` and `replace`
+are inputs to a render that is not happening, and are not read.
+
+**An empty model is not the same guard.** Two forms substitute with no
+model at all: `$$"quoted"$$` writes its own literal, and
+`$$__JOSTRACA_REPLACE__$$` writes the matcher. Reaching for `model: {}`
+covers the model paths and leaves those two.
+
+Templating stays the default, so nothing that worked before changes.
 
 **The second positional argument is `children`, not props.** This is the
 single easiest mistake to make with this component:
@@ -317,6 +382,8 @@ await jostraca.generate({ folder: './out' }, () => {
       Content({ src: 'N=$$n$$ M=$$m$$\n', extra: { m: 9 } })
       Content('missing=$$nope$$\n')
       Content({ src: 'foo-bar-baz\n', replace: { bar: 'BAR' } })
+      Content({ src: 'raw N=$$n$$ Q=$$"lit"$$\n', raw: true })
+      Line({ src: 'L=$$n$$ tok={t}', replace: { '{t}': 'T' } })
     })
   })
 })
@@ -333,7 +400,13 @@ TWO
 N=5 M=9
 missing=$$nope$$
 foo-BAR-baz
+raw N=$$n$$ Q=$$"lit"$$
+L=5 tok=T
 ```
+
+The last two lines are the ones to look at: `raw` kept both `$$` forms,
+including the one a model could not have supplied, and the `Line` below
+it resolved a model path and a `replace` key in the same call.
 
 ## Line
 
@@ -344,12 +417,10 @@ Line(text)
 Line(props)
 ```
 
-Source resolution is identical to `Content`, and `indent` and `name`
-behave the same.
-
-**`extra` and `replace` are ignored.** `Line` substitutes the model and
-nothing else. Where you need either, use `Content` with an explicit
-`\n`.
+Source resolution is identical to `Content`, and every prop behaves the
+same: `indent`, `name`, `extra`, `replace` and `raw`. The newline is
+appended before the render, so a `$$name$$` at the end of the line
+still resolves.
 
 | call | writes |
 |---|---|
@@ -357,6 +428,7 @@ nothing else. Where you need either, use `Content` with an explicit
 | `Line('')` or `Line()` | `\n` |
 | `Line('a\n')` | `a\n\n` |
 | `Line({arg: 'L', indent: '..'})` | `..L\n` |
+| `Line({src: 'L $$n$$', raw: true})` | `L $$n$$\n` |
 
 ## Fragment
 
@@ -375,8 +447,12 @@ Props are a **closed** shape: an unknown prop throws.
 | `indent` | `string \| number` |—| Applied to the whole assembled fragment. |
 | `replace` | `Record<string, any>` | `{}` | Custom replacements. The `Slot` machinery adds its own entries to this same object. |
 | `eject` | `[start, end]` of `string \| RegExp` |—| Keep only the region between the two markers. |
-| `exclude` |—|—| Validated and then never read. It has no effect. |
 | `name` |—|—| Not allowed; throws. |
+
+`exclude` used to be here. It was validated and then read by nothing,
+and it is gone from both ports: a prop the types now promise has to be a
+prop the code keeps. A Fragment that is passed one is refused by name
+rather than accepting it and doing nothing.
 
 The `from` resolution catches people out, so it is worth stating twice:
 with `generate({folder: './out'})`, a template at `tpl/page.html` is
@@ -737,10 +813,27 @@ Turns a function into a component.
 
 ```
 cmp(fn) => Component
+cmp<P>(fn) => Component<P>
 ```
 
 The wrapper keeps the wrapped function's `name`, which is not
 cosmetic: `Fragment` identifies its `Slot` children by name.
+
+With no type argument, `props` is `any`, which is what a component
+written before there were [props types](#props-are-types) gets and
+keeps. Name the type and both ends are checked, the call and the body:
+
+<!-- test: skip a type argument, shown in place; ts/typecase compiles the same call -->
+```ts
+const Banner = cmp<{ text: string }>((props) =>
+  Content('// ' + props.text + '\n'))
+
+Banner({ text: 'generated' })
+```
+
+Inside the body, `props` is `CmpProps<P>`: the declared props, plus the
+`ctx$` that `cmp()` writes in. A caller passes the first and never the
+second.
 
 A component emits content, and where that content lands is decided by
 its caller—which is what makes it reusable. It may also emit
@@ -790,6 +883,153 @@ function greet(name) {
 
 `line.val$` rather than `line`, because `each` wraps scalar entries.
 
+## cmpTree()
+
+Generates from a component tree given as **data** rather than as a
+callback.
+
+```
+cmpTree(tree, opts?) => () => void
+```
+
+`generate()` takes a function that calls components, which is the
+surface for a generator written in TypeScript and no surface at all for
+one written in another language. `cmpTree` is the other door: a tree of
+plain objects in, a define-phase callback out.
+
+<!-- test: scenario ref-cmptree -->
+
+<!-- test: run -->
+```js
+import { Jostraca, cmpTree } from 'jostraca'
+
+const tree = {
+  cmp: 'Folder',
+  props: { name: 'src' },
+  children: [{
+    cmp: 'File',
+    props: { name: 'planet.ts' },
+    children: [
+      { cmp: 'Content', props: { src: 'export interface Planet {\n' } },
+      { cmp: 'Content', props: { src: '  id: string\n' } },
+      { cmp: 'Content', props: { src: '}\n' } },
+    ],
+  }],
+}
+
+await Jostraca().generate({ folder: './out' }, cmpTree(tree))
+```
+
+The generated `src/planet.ts`:
+
+<!-- test: file out/src/planet.ts -->
+```ts
+export interface Planet {
+  id: string
+}
+```
+
+**It is not an interpreter.** Each node calls the same exported
+component a hand-written generator calls, in the same define phase, so
+every rule the components carry holds unchanged—containment, the
+existing-file modes, `dryrun`, the run report. There is no second
+implementation to keep in step.
+
+### The node
+
+Three keys, and two of them are optional:
+
+| key | type | meaning |
+|---|---|---|
+| `cmp` | `string` | The component, spelled as it is exported: `File`, `Content`, `ListItems`. |
+| `props` | `object` | Its first argument. |
+| `children` | `array` | Its second, as nodes. |
+
+The vocabulary is the component surface itself, so it needs no entry
+per component and no version of its own: a component works as soon as
+it is exported. `Copy` and `List` resolve to `CopyFiles` and
+`ListItems`, the names those two shipped under. The root may be one
+node or a list of them, and a list becomes siblings.
+
+`props` is passed to the component as written, so
+[every prop on this page](#the-exported-components) is reachable from a
+tree. [The props types](#props-are-types) are the machine-readable form
+of that surface: a generator that emits trees from another language can
+check them against `FileProps` and the rest, in `dist/*.d.ts`, rather
+than against this page.
+
+A tree is data, though, and data never met the compiler, so the run-time
+answer still differs by component: `Fragment` and `CopyFiles` refuse an
+unknown prop and the other eight drop it.
+
+### Options
+
+| option | type | effect |
+|---|---|---|
+| `cmp` | `Record<string, Component>` | Extra components, by the name a node's `cmp` uses. Merged over the exported set, so you may add your own or override one. |
+| `raw` | `boolean` | Set `raw` on every `Content` and `Line` in the tree, beneath each node's own props. |
+
+`raw` is the option to reach for when the tree arrived from elsewhere
+and its text is already final. It sets the prop rather than replacing
+it, so a node that does want the model in scope says `raw: false` and
+gets it.
+
+It reaches `Content` and `Line`—the components that render text they
+were handed—and no others. A `Fragment` reads a template from disk
+and a `CopyFiles` copies one, so neither has bytes from the tree to
+protect, and both validate a closed prop set that a stray `raw` would
+fail.
+
+### What a tree may not do
+
+Three rules that a hand-written generator does not need, because a data
+tree can say things a call site cannot:
+
+- **A tree may not choose the output root.** `Project.folder` is
+  refused if it is absolute or holds a `..` segment. The operator picks
+  the root, through `generate()`; the tree fills it.
+- **`cmp` must name a component the registry owns.** `toString` and
+  `constructor` answer on any ordinary object, and used to run as
+  components: no node, no output, no error.
+- **A malformed tree is refused by the call that reads it.** `cmpTree`
+  walks the whole tree before returning, so a bad node is reported
+  before the define phase has made a folder. Every refusal names the
+  node by path: `[0]/Folder[0]/File[0]`.
+
+The tree is your data and comes back unchanged. Components write into
+the props they are handed, so each node's props are copied on every
+call—deeply enough that a `replace` map may be frozen, and a tree may
+be generated twice.
+
+### Driving it from a file
+
+`tools/cmptree-gen.js` in the repository reads a tree as JSON and
+generates it, which is the whole integration for a tool that emits
+trees:
+
+<!-- test: skip a repository script, not part of the published package -->
+```sh
+gen-the-tree | node tools/cmptree-gen.js --at out --folder ./build
+gen-the-tree | node tools/cmptree-gen.js --at out --check ./app
+```
+
+`--at` takes one top-level key, for a producer that prints a whole
+document. `--check <dir>` generates into memory and compares with the
+tree on disk instead of writing: it exits 1 on drift and names the
+paths that drifted and how, which is the shape of a CI gate holding
+committed output to what the generators produce. A file the tree does
+not claim is left alone, so one generator can be checked against a
+directory that several of them write into.
+
+It compares the bytes, and the permission bits where the tree stated
+them with [`mode`](#mode). A file whose tree says nothing about mode is
+held to nothing, since a run would leave the bits it found; Windows has
+no bits to compare.
+
+`raw` is on by default in that tool and `--template` turns it off, the
+opposite way round from the library: its input is text somebody else
+already finished.
+
 ## Errors
 
 Every error out of the build phase carries `err.jostraca = true` and
@@ -809,7 +1049,21 @@ jostraca: component Content called outside generate(); components can only be us
 ERROR:FolderOp:before: Folder name must not contain a ".." path segment, name=..
 ```
 
-`Project`'s `folder` is **not** covered by that guard.
+`Project`'s `folder` is **not** covered by that guard, except in a
+[component tree given as data](#what-a-tree-may-not-do).
+
+Two `File` components resolving to one output path is refused, naming
+the path and both components:
+
+```
+ERROR:FileOp:before: two File components resolve to the same output path, path=/top/x/a.txt, first=x/a.txt, second=x/a.txt
+```
+
+The second used to win and the first was never written. The check is at
+the build phase, where the path is final, so it covers a name composed
+from `Project` and `Folder` nesting as well as a plain collision. It
+counts `File` components: an `Inject` writing to a file the same run
+created is the edit it is meant to be, not a collision.
 
 Two depth caps exist as backstops: 22 directory segments on an output
 path, and 64 on a `Copy` tree walk (the symlink-cycle guard).

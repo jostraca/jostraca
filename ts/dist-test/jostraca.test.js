@@ -1,6 +1,40 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 const node_test_1 = require("node:test");
+const Assert = __importStar(require("node:assert"));
 const expect_1 = require("./expect");
 const memfs_1 = require("../dist/util/memfs");
 const __1 = require("../");
@@ -78,6 +112,84 @@ const START_TIME = 1735689600000;
         (0, expect_1.expect)(voljson['/top/a.txt']).equal('n=1\nn=2\n');
         (0, expect_1.expect)(voljson['/top/b.txt']).equal('x=X\n');
     });
+    // RAW HANDS THE BYTES THROUGH UNTOUCHED, and the control is the same
+    // payload without it. `Content` templates unconditionally, so every
+    // `$$...$$` sequence in content jostraca did not author is
+    // substituted from the generate model -- a shell script, a makefile,
+    // a doc comment or a regex carrying `$$` is corrupted with no
+    // diagnostic and exit 0.
+    //
+    // AN EMPTY MODEL IS NOT THE SAME GUARD. `$$"quoted"$$` renders its
+    // own literal and `$$__JOSTRACA_REPLACE__$$` renders the matcher,
+    // both with no model at all, so the two are pinned here beside the
+    // model-path case: a caller who reached for `model: {}` instead of
+    // `raw` still loses those two.
+    (0, node_test_1.test)('content-raw', async () => {
+        // Every $$ shape a generated file plausibly carries, in one payload.
+        const payload = [
+            '#!/bin/sh',
+            'sed -i "s/$$path$$/x/" f', // a model path: substituted
+            'echo $$"quoted"$$', // its own literal: substituted, model or not
+            'echo $$__JOSTRACA_REPLACE__$$', // the matcher: substituted, model or not
+            "awk '{print $$1}'", // no closing pair: survives either way
+            'make: $$(VAR)$$', // no such model path: left in place
+        ].join('\n') + '\n';
+        const gen = async (raw) => {
+            const { fs, vol } = (0, memfs_1.memfs)({});
+            await (0, __1.Jostraca)().generate({ fs: () => fs, folder: '/top', model: { path: 'ZZZ' } }, () => {
+                (0, __1.File)({ name: 'a.sh' }, () => {
+                    (0, __1.Content)({ src: payload, raw });
+                });
+                (0, __1.File)({ name: 'b.sh' }, () => {
+                    (0, __1.Line)({ src: 'L $$path$$', raw });
+                });
+            });
+            const voljson = vol.toJSON();
+            return [voljson['/top/a.sh'], voljson['/top/b.sh']];
+        };
+        // WITH raw: byte-identical, the whole payload.
+        const [rawA, rawB] = await gen(true);
+        (0, expect_1.expect)(rawA).equal(payload);
+        (0, expect_1.expect)(rawB).equal('L $$path$$\n');
+        // WITHOUT raw, unchanged as a control: three of the six lines move.
+        const [subA, subB] = await gen(false);
+        (0, expect_1.expect)(subA).equal([
+            '#!/bin/sh',
+            'sed -i "s/ZZZ/x/" f',
+            'echo quoted',
+            'echo /(?<J_O>\\$\\$)(?<J_R>[^$]+)(?<J_C>\\$\\$)/',
+            "awk '{print $$1}'",
+            'make: $$(VAR)$$',
+        ].join('\n') + '\n');
+        (0, expect_1.expect)(subB).equal('L ZZZ\n');
+        // ... and an absent `raw` is the same as `raw: false`: templating
+        // is the default, and stays it.
+        const [defA, defB] = await gen(undefined);
+        (0, expect_1.expect)(defA).equal(subA);
+        (0, expect_1.expect)(defB).equal(subB);
+    });
+    // `raw` skips the RENDER, not the placement: `indent` is where the
+    // span sits in the file rather than what it says, and applies to raw
+    // content exactly as to templated content. `replace` and `extra` do
+    // go with it -- they are inputs to the render that is not happening.
+    (0, node_test_1.test)('content-raw-keeps-indent-and-drops-replace', async () => {
+        const { fs, vol } = (0, memfs_1.memfs)({});
+        await (0, __1.Jostraca)().generate({ fs: () => fs, folder: '/top' }, () => {
+            (0, __1.File)({ name: 'a.txt' }, () => {
+                (0, __1.Content)({ src: 'class X {\n' });
+                (0, __1.Content)({
+                    src: 'y = $$n$$ {tok}\n',
+                    indent: 2,
+                    raw: true,
+                    replace: { '{tok}': 'TOK' },
+                    extra: { n: 9 },
+                });
+                (0, __1.Content)({ src: '}\n' });
+            });
+        });
+        const voljson = vol.toJSON();
+        (0, expect_1.expect)(voljson['/top/a.txt']).equal('class X {\n  y = $$n$$ {tok}\n}\n');
+    });
     (0, node_test_1.test)('content', async () => {
         let nowI = 0;
         const now = () => START_TIME + (++nowI * (60 * 1000));
@@ -129,6 +241,109 @@ const START_TIME = 1735689600000;
                 '}',
             '/top/.jostraca/.gitignore': '\njostraca.meta.log\ngenerated\n'
         });
+    });
+    // TWO FILES AT ONE PATH IS REFUSED, on every road in rather than only
+    // the one that asked for it. `aontu render` refuses an absolute path,
+    // a `..` segment and a DUPLICATE over its unit list; the first two
+    // were already here (`validName`, and `cmpTree`'s folder check) and
+    // the third was the gap. It is the build phase's business because
+    // that is where the path is final.
+    //
+    // FileHandler already noticed the same thing at `savedPaths` and
+    // could only warn, because `Inject` legitimately saves to a path a
+    // `File` in the same run created. This sees the two statements that
+    // cannot both be true.
+    (0, node_test_1.test)('two-files-at-one-path-are-refused', async () => {
+        const refused = async (root) => {
+            const { fs } = (0, memfs_1.memfs)({});
+            try {
+                await (0, __1.Jostraca)().generate({ fs: () => fs, folder: '/top' }, root);
+            }
+            catch (err) {
+                return err.message;
+            }
+            return undefined;
+        };
+        Assert.match(await refused(() => {
+            (0, __1.File)({ name: 'a.txt' }, () => (0, __1.Content)('one'));
+            (0, __1.File)({ name: 'a.txt' }, () => (0, __1.Content)('two'));
+        }), /two File components resolve to the same output path/);
+        // Two different statements of nesting arriving at one file: neither
+        // name is a duplicate of the other.
+        Assert.match(await refused(() => {
+            (0, __1.Folder)({ name: 'x' }, () => (0, __1.File)({ name: 'a.txt' }, () => (0, __1.Content)('one')));
+            (0, __1.File)({ name: 'x/a.txt' }, () => (0, __1.Content)('two'));
+        }), /path=\/top\/x\/a\.txt/);
+        // A LIST OVER FILES IS THE NORMAL GENERATOR and must not break: the
+        // name is computed in the host language, so each pass names a
+        // different file.
+        const { fs, vol } = (0, memfs_1.memfs)({});
+        const info = await (0, __1.Jostraca)().generate({ fs: () => fs, folder: '/top' }, () => (0, __1.List)({ item: [{ n: 1 }, { n: 2 }], line: false }, [
+            ({ item }) => (0, __1.File)({ name: 'f' + item.n + '.txt' }, () => (0, __1.Content)('n=' + item.n)),
+        ]));
+        (0, expect_1.expect)(info.files.written).equal(['/top/f1.txt', '/top/f2.txt']);
+        const voljson = vol.toJSON();
+        (0, expect_1.expect)(voljson['/top/f1.txt']).equal('n=1');
+        (0, expect_1.expect)(voljson['/top/f2.txt']).equal('n=2');
+    });
+    // THE CLAIM IS ON THE CANONICAL PATH, so two lexically different
+    // names for one file are one file. `a.txt` and `./a.txt` claimed two
+    // paths and `FileHandler.save` then normalised both to one and let the
+    // second overwrite the first -- the exact loss the guard exists to
+    // refuse, slipping past it on a `./`. Go has never had it:
+    // `fileBefore` cleans the path before it records anything.
+    (0, node_test_1.test)('a-duplicate-path-is-refused-however-it-is-spelled', async () => {
+        const refused = async (root) => {
+            const { fs } = (0, memfs_1.memfs)({});
+            try {
+                await (0, __1.Jostraca)().generate({ fs: () => fs, folder: '/top' }, root);
+            }
+            catch (err) {
+                return err.message;
+            }
+            return undefined;
+        };
+        Assert.match(await refused(() => {
+            (0, __1.File)({ name: 'a.txt' }, () => (0, __1.Content)('FIRST'));
+            (0, __1.File)({ name: './a.txt' }, () => (0, __1.Content)('SECOND'));
+        }), /same output path, path=\/top\/a\.txt/);
+        Assert.match(await refused(() => {
+            (0, __1.Folder)({ name: 'x' }, () => (0, __1.File)({ name: 'a.txt' }, () => (0, __1.Content)('FIRST')));
+            (0, __1.File)({ name: 'x/./a.txt' }, () => (0, __1.Content)('SECOND'));
+        }), /path=\/top\/x\/a\.txt/);
+        // A `..` in a File NAME is refused by validName before any of this,
+        // so the canonical form can never climb out of the output folder.
+        Assert.match(await refused(() => {
+            (0, __1.File)({ name: '../escaped.txt' }, () => (0, __1.Content)('x'));
+        }), /must not contain a "\.\." path segment/);
+        // Two files that only LOOK similar are still two files.
+        const { fs, vol } = (0, memfs_1.memfs)({});
+        const info = await (0, __1.Jostraca)().generate({ fs: () => fs, folder: '/top' }, () => {
+            (0, __1.File)({ name: 'a.txt' }, () => (0, __1.Content)('A'));
+            (0, __1.File)({ name: './b.txt' }, () => (0, __1.Content)('B'));
+        });
+        (0, expect_1.expect)(info.files.written).equal(['/top/a.txt', '/top/b.txt']);
+        const voljson = vol.toJSON();
+        (0, expect_1.expect)(voljson['/top/a.txt']).equal('A');
+        (0, expect_1.expect)(voljson['/top/b.txt']).equal('B');
+    });
+    // AN INJECT INTO A FILE THE SAME RUN CREATED IS NOT A DUPLICATE, and
+    // is why the guard counts `File` nodes rather than saves. Both reach
+    // `FileHandler.save` with the same path, and the second is the
+    // intended edit of the first.
+    (0, node_test_1.test)('inject-into-a-generated-file-is-not-a-duplicate', async () => {
+        const { fs, vol } = (0, memfs_1.memfs)({});
+        await (0, __1.Jostraca)().generate({ fs: () => fs, folder: '/top' }, () => {
+            (0, __1.File)({ name: 'a.txt' }, () => {
+                (0, __1.Content)('A\n#--START--#\n\n#--END--#\nB\n');
+            });
+            (0, __1.Inject)({ name: 'a.txt' }, () => {
+                (0, __1.Content)('INJECTED\n');
+            });
+        });
+        const voljson = vol.toJSON();
+        (0, expect_1.expect)(voljson['/top/a.txt'])
+            .equal('A\n#--START--#\nINJECTED\n\n#--END--#\nB\n');
     });
     (0, node_test_1.test)('basic-copy', async () => {
         let nowI = 0;

@@ -25,6 +25,21 @@ function fwd(p: string): string {
   return p.includes('\\') ? p.replace(/\\/g, '/') : p
 }
 
+// THE ONE CANONICAL FORM OF AN OUTPUT PATH: separators collapsed, `.`
+// and `..` segments resolved, forward slashes.
+//
+// Exported because `save` is not the only place that has to agree about
+// what "the same file" means. `FileOp.before` composes a path from the
+// enclosing Project and Folder nesting and claims it against the
+// duplicate guard; `save` then normalised the same path and wrote it.
+// Two Files named `a.txt` and `./a.txt` therefore claimed two paths and
+// wrote one, so the second silently overwrote the first -- the very
+// case the guard exists to refuse. Go has never had it: `fileBefore`
+// does `path.Clean(fwd(raw))` BEFORE recording anything.
+function canonPath(path: string): string {
+  return fwd(Path.normalize(path))
+}
+
 const JOSTRACA_PROTECT = 'JOSTRACA_PROTECT'
 
 // Audit breadcrumb per merge outcome, so the `why` trail says which fast
@@ -286,7 +301,7 @@ class FileHandler {
 
     whence = null == whence ? '' : whence
 
-    path = fwd(Path.normalize(path))
+    path = canonPath(path)
 
     // Which of `existing.txt` / `existing.bin` governs is decided by the
     // DESTINATION EXTENSION, with the caller able to promote a file the
@@ -1177,6 +1192,7 @@ function validPath(path: string, maxdepth: number, errmark: string) {
 
 export {
   annotatedPath,
+  canonPath,
   validName,
   validPath,
   FileHandler
