@@ -38,6 +38,11 @@
 // `$$"quoted"$$` renders its own literal and `$$__JOSTRACA_REPLACE__$$`
 // renders the matcher, both with no model at all.
 //
+// WHAT --check COMPARES: the bytes, and the permission bits where the
+// tree declared them (`File({mode: 0o755})`). A mode the tree did not
+// state is not compared, because a File that says nothing about mode
+// leaves whatever is on disk. Windows has no bits to compare.
+//
 // --check IS A PURE FUNCTION OF THE TREE. The output folder is shadowed
 // by an in-memory filesystem, so nothing already on disk under <dir>
 // can change what the generators produce: no existing-file mode fires,
@@ -64,6 +69,11 @@ const META_FOLDER = '.jostraca'
 // the change, never the whole file.
 const HUNK_LIMIT = 3
 const HUNK_LINES = 3
+
+// Permission bits are a POSIX idea. On Windows chmod toggles the
+// read-only attribute and nothing else, so there are no bits to hold a
+// committed file to.
+const WINDOWS = 'win32' === process.platform
 
 const EXIT_OK = 0
 const EXIT_DRIFT = 1
@@ -191,8 +201,21 @@ function under(p, root) {
 // EVERY WRITE GOES TO MEMORY, including one aimed outside <dir>. A
 // command that only asks a question must not be able to answer it by
 // changing something.
-function shadowFs(memfs, root) {
+function shadowFs(memfs, root, modes) {
   const mem = memfs.fs
+
+  // A MODE THE RUN ACTUALLY ASKED FOR, recorded as it goes by. The
+  // volume cannot answer this on its own: it gives every file a default
+  // mode, so "what is this file's mode in memory" does not distinguish
+  // `File({mode: 0o644})` from a File that said nothing. What the
+  // comparison needs is the narrower question -- did the tree DECLARE a
+  // mode for this path -- and the only place that is visible is here,
+  // where FileHandler passes it.
+  const declare = (p, mode) => {
+    if (null != mode) {
+      modes.set(canon(p), mode & 0o777)
+    }
+  }
 
   // memfs reproduces node's refusal to write into a directory that does
   // not exist; FileHandler.ensureDir normally makes it first, and does
@@ -215,10 +238,21 @@ function shadowFs(memfs, root) {
     readdirSync: readThrough('readdirSync'),
     realpathSync: readThrough('realpathSync'),
 
-    writeFileSync: (p, data, opts) => (parents(p), mem.writeFileSync(p, data, opts)),
+    writeFileSync: (p, data, opts) => (
+      parents(p),
+      declare(p, null == opts || 'string' === typeof opts ? undefined : opts.mode),
+      mem.writeFileSync(p, data, opts)),
     mkdirSync: (p, opts) => mem.mkdirSync(p, opts),
-    renameSync: (from, to) => (parents(to), mem.renameSync(from, to)),
-    chmodSync: (p, mode) => mem.chmodSync(p, mode),
+
+    // The atomic write lands under a temp name and is renamed into
+    // place, so the declaration follows the bytes to their final path.
+    renameSync: (from, to) => (
+      parents(to),
+      (modes.has(canon(from)) && modes.set(canon(to), modes.get(canon(from)))),
+      modes.delete(canon(from)),
+      mem.renameSync(from, to)),
+
+    chmodSync: (p, mode) => (declare(p, mode), mem.chmodSync(p, mode)),
     unlinkSync: (p) => mem.unlinkSync(p),
   }
 }
@@ -335,7 +369,7 @@ function how(want, have) {
 // states is checked. A file that stops being generated therefore
 // lingers on disk and is not reported; deleting it is the same review
 // as adding it.
-function compare(dir, files) {
+function compare(dir, files, modes, root) {
   const drift = []
 
   for (const rel of [...files.keys()].sort()) {
@@ -343,8 +377,10 @@ function compare(dir, files) {
     const path = Path.join(dir, rel)
 
     let have
+    let stat
     try {
       have = Fs.readFileSync(path)
+      stat = Fs.statSync(path)
     }
     catch {
       // Absent is drift: the generators claim a file the tree does not
@@ -353,21 +389,45 @@ function compare(dir, files) {
       continue
     }
 
-    if (want.equals(have)) {
+    if (!want.equals(have)) {
+      drift.push({
+        rel,
+        why: 'differs from the generated tree',
+        // A binary file has no lines to show, and printing its bytes as
+        // text helps nobody.
+        detail: want.includes(0) || have.includes(0) ? [] :
+          how(want.toString('utf8'), have.toString('utf8')),
+      })
       continue
     }
 
-    drift.push({
-      rel,
-      why: 'differs from the generated tree',
-      // A binary file has no lines to show, and printing its bytes as
-      // text helps nobody.
-      detail: want.includes(0) || have.includes(0) ? [] :
-        how(want.toString('utf8'), have.toString('utf8')),
-    })
+    // A MODE IS OUTPUT TOO. `File({mode: 0o755})` makes a generated
+    // script executable, and a committed copy with the right bytes and
+    // the wrong bits is drift a byte comparison cannot see -- the
+    // generator would chmod it and this would have said clean.
+    //
+    // Only where the TREE DECLARED one: a File that says nothing about
+    // mode leaves whatever is there, so there is nothing to hold it to.
+    // And only on POSIX, because Windows has no permission bits to
+    // compare -- chmod there toggles the read-only attribute and
+    // nothing else, so the check would fail every file on that platform
+    // for a difference the filesystem cannot express.
+    const mode = modes.get(canon(Path.join(root, rel)))
+    if (!WINDOWS && null != mode && (stat.mode & 0o777) !== mode) {
+      drift.push({
+        rel,
+        why: 'has mode ' + oct(stat.mode & 0o777) +
+          ', generated as ' + oct(mode),
+      })
+    }
   }
 
   return drift
+}
+
+
+function oct(mode) {
+  return '0o' + mode.toString(8).padStart(3, '0')
 }
 
 
@@ -411,11 +471,14 @@ async function check(opts, tree) {
   const { memfs } = require('../ts/dist/util/memfs')
   const vol = memfs({})
 
+  // Filled by the shadow as the run declares modes; read by compare.
+  const modes = new Map()
+
   try {
     await Jostraca().generate(
       {
         folder: dir,
-        fs: () => shadowFs(vol, root),
+        fs: () => shadowFs(vol, root, modes),
         model: {},
         // The `.jostraca/generated` baseline is for a later merge
         // against hand edits. A check makes no next run to merge into.
@@ -446,7 +509,7 @@ async function check(opts, tree) {
   // `res.vol()`/`res.fs()` are only present under `mem: true`; this run
   // provides its own filesystem, so read the volume it was given.
   const files = generated(vol, root)
-  const drift = compare(dir, files)
+  const drift = compare(dir, files, modes, root)
 
   for (const d of drift) {
     process.stderr.write('cmptree-gen: ' + d.rel + ' ' + d.why + '\n')

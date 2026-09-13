@@ -57,6 +57,9 @@ const Os = __importStar(require("node:os"));
 const Path = __importStar(require("node:path"));
 const node_child_process_1 = require("node:child_process");
 const TOOL = Path.join(__dirname, '..', '..', 'tools', 'cmptree-gen.js');
+// Permission bits are a POSIX idea; the mode case below is skipped
+// where the filesystem cannot express them.
+const WINDOWS = 'win32' === process.platform;
 const EXIT_OK = 0;
 const EXIT_DRIFT = 1;
 const EXIT_USAGE = 2;
@@ -237,6 +240,72 @@ function listing(dir) {
             const templated = run(dir, tree, ['--template', '--check', out]);
             Assert.equal(templated.code, EXIT_DRIFT);
             Assert.match(templated.err, /a\.sh differs/);
+        }
+        finally {
+            Fs.rmSync(dir, { recursive: true, force: true });
+        }
+    });
+    // A MODE IS OUTPUT TOO. `File({mode: 0o755})` makes a generated
+    // script executable, and a committed copy with the right bytes and
+    // the wrong bits is drift a byte comparison cannot see -- the
+    // generator would chmod it and the check said clean.
+    //
+    // POSIX ONLY: Windows chmod toggles the read-only attribute and
+    // nothing else, so there are no bits there to hold a file to.
+    (0, node_test_1.test)('a-declared-mode-is-compared', { skip: WINDOWS }, () => {
+        const dir = tmp();
+        const out = Path.join(dir, 'app');
+        try {
+            const src = '#!/bin/sh\necho hi\n';
+            Fs.mkdirSync(out, { recursive: true });
+            Fs.writeFileSync(Path.join(out, 'run.sh'), src);
+            Fs.chmodSync(Path.join(out, 'run.sh'), 0o644);
+            const tree = [{
+                    cmp: 'File',
+                    props: { name: 'run.sh', mode: 0o755 },
+                    children: [{ cmp: 'Content', props: { src } }],
+                }];
+            // Right bytes, wrong bits.
+            const drifted = run(dir, tree, ['--check', out]);
+            Assert.equal(drifted.code, EXIT_DRIFT, drifted.err);
+            Assert.match(drifted.err, /run\.sh has mode 0o644, generated as 0o755/);
+            // ... and clean once the bits match.
+            Fs.chmodSync(Path.join(out, 'run.sh'), 0o755);
+            const clean = run(dir, tree, ['--check', out]);
+            Assert.equal(clean.code, EXIT_OK, clean.err);
+            // A TREE THAT SAYS NOTHING ABOUT MODE holds the file to nothing:
+            // jostraca leaves whatever is there, so there is no claim to
+            // check. Without this the default the memory volume gives every
+            // file would report drift on every file with a mode of its own.
+            const silent = [{
+                    cmp: 'File',
+                    props: { name: 'run.sh' },
+                    children: [{ cmp: 'Content', props: { src } }],
+                }];
+            Fs.chmodSync(Path.join(out, 'run.sh'), 0o600);
+            const unclaimed = run(dir, silent, ['--check', out]);
+            Assert.equal(unclaimed.code, EXIT_OK, unclaimed.err);
+        }
+        finally {
+            Fs.rmSync(dir, { recursive: true, force: true });
+        }
+    });
+    // AN EMPTY FOLDER IN THE TREE IS NOT A FILE. `Project` and `Folder`
+    // make directories, and reading one as a file throws EISDIR -- which
+    // turned a clean check into a usage error. The walk asks what each
+    // entry is before reading it.
+    (0, node_test_1.test)('an-empty-folder-in-the-tree-is-not-read-as-a-file', () => {
+        const dir = tmp();
+        const out = Path.join(dir, 'app');
+        try {
+            Fs.mkdirSync(Path.join(out, 'nothinghere'), { recursive: true });
+            Fs.writeFileSync(Path.join(out, 'a.txt'), 'A\n');
+            const res = run(dir, [
+                { cmp: 'Folder', props: { name: 'nothinghere' } },
+                file('a.txt', 'A\n'),
+            ], ['--check', out]);
+            Assert.equal(res.code, EXIT_OK, res.err);
+            Assert.match(res.out, /checked 1 file\(s\).*0 drifted/);
         }
         finally {
             Fs.rmSync(dir, { recursive: true, force: true });

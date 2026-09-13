@@ -53,6 +53,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -142,14 +143,50 @@ func treeErr(msg, path string) error {
 
 // --- props readers -------------------------------------------------
 
+// copyProps rebuilds a decoded-JSON value so that nothing a component
+// does can reach the caller's tree. Maps and slices are rebuilt to any
+// depth; everything else is a JSON scalar and is copied by value.
+//
+// PER INVOCATION, which is what makes it worth the allocation: a
+// component may write into the props it is handed -- a custom one
+// through CmpTreeOptions.Cmp most obviously -- and a tree generated
+// twice would otherwise carry the first run into the second. The
+// TypeScript twin's copyProps has the same job and the same rule, and
+// the component reference promises the tree comes back unchanged.
+//
+// NO CYCLE GUARD, unlike the TypeScript twin. A tree here is decoded
+// JSON, which cannot refer to itself, and `CmpTree` takes `any` rather
+// than a type a caller could build a cycle in. TypeScript's copyProps
+// carries a WeakMap because a hand-built object literal can.
+func copyProps(v any) any {
+	switch t := v.(type) {
+	case map[string]any:
+		out := make(map[string]any, len(t))
+		for k, val := range t {
+			out[k] = copyProps(val)
+		}
+		return out
+	case []any:
+		out := make([]any, 0, len(t))
+		for _, el := range t {
+			out = append(out, copyProps(el))
+		}
+		return out
+	default:
+		return v
+	}
+}
+
 // propsMerge layers the three statements about a node's props, least
 // specific first: `defaults` is set once for the whole tree, `inherit`
 // is what the parent bound for this invocation (ListItems' item, indent
 // and replace), and the node's own props are what its author wrote.
+//
+// The node's own props are DEEP-COPIED on the way in; the other two are
+// not, because `defaults` is this file's own literal and `inherit` is
+// the parent's per-invocation binding rather than anything the caller
+// holds.
 func propsMerge(defaults, inherit, props map[string]any) map[string]any {
-	if len(defaults) == 0 && len(inherit) == 0 {
-		return props
-	}
 	out := make(map[string]any, len(defaults)+len(inherit)+len(props))
 	for k, v := range defaults {
 		out[k] = v
@@ -158,7 +195,7 @@ func propsMerge(defaults, inherit, props map[string]any) map[string]any {
 		out[k] = v
 	}
 	for k, v := range props {
-		out[k] = v
+		out[k] = copyProps(v)
 	}
 	return out
 }
@@ -296,8 +333,16 @@ func nodeThunk(
 	if err := validFolder(props, path); err != nil {
 		return nil, err
 	}
-	if err := validClosedProps(name, props, path); err != nil {
-		return nil, err
+	// The closed prop set is the BUILT-IN component's, so a caller who
+	// replaces that component through CmpTreeOptions.Cmp is not bound by
+	// it: their Fragment may take whatever props it likes. TypeScript
+	// gets this for free -- an override replaces the component, and
+	// FragmentShape goes with it -- and checking here regardless
+	// refused a tree TypeScript generates.
+	if _, overridden := cmps[name]; !overridden {
+		if err := validClosedProps(name, props, path); err != nil {
+			return nil, err
+		}
 	}
 
 	var kids []any
@@ -425,9 +470,59 @@ func init() {
 	}
 }
 
+// propSrc reads a Content or Line's source text: `arg` first, then
+// `src`, which is the precedence TypeScript's components apply and the
+// order docs/cmp-surface.tsv publishes. `arg` is the positional form
+// (`Content('text')`), and a tree may state it as a key.
+//
+// A NON-STRING IS STRINGIFIED THE WAY TYPESCRIPT STRINGIFIES IT, since
+// both ports have to produce the same bytes from the same tree. The
+// component reference spells out the cases: a number writes its digits,
+// a boolean writes `true` or `false`, and an object writes
+// `[object Object]`. Only `arg` takes this route; `src` is declared a
+// string and a non-string there is not source text.
+func propSrc(p map[string]any) string {
+	if arg, present := p["arg"]; present && arg != nil {
+		return jsString(arg)
+	}
+	return propString(p, "src")
+}
+
+// jsString reproduces JavaScript's `'' + value` for a decoded JSON
+// value. Arrays join their elements with commas and any other object is
+// `[object Object]`, both of which are JavaScript's rules rather than
+// anything chosen here.
+func jsString(v any) string {
+	switch t := v.(type) {
+	case string:
+		return t
+	case bool:
+		if t {
+			return "true"
+		}
+		return "false"
+	case float64:
+		return strconv.FormatFloat(t, 'g', -1, 64)
+	case []any:
+		parts := make([]string, 0, len(t))
+		for _, el := range t {
+			if el == nil {
+				parts = append(parts, "")
+				continue
+			}
+			parts = append(parts, jsString(el))
+		}
+		return strings.Join(parts, ",")
+	case nil:
+		return ""
+	default:
+		return "[object Object]"
+	}
+}
+
 func contentProps(p map[string]any) ContentProps {
 	return ContentProps{
-		Src:     propString(p, "src"),
+		Src:     propSrc(p),
 		Name:    propString(p, "name"),
 		Indent:  p["indent"],
 		Replace: propMap(p, "replace"),

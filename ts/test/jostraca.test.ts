@@ -339,6 +339,55 @@ describe('jostraca', () => {
   })
 
 
+  // THE CLAIM IS ON THE CANONICAL PATH, so two lexically different
+  // names for one file are one file. `a.txt` and `./a.txt` claimed two
+  // paths and `FileHandler.save` then normalised both to one and let the
+  // second overwrite the first -- the exact loss the guard exists to
+  // refuse, slipping past it on a `./`. Go has never had it:
+  // `fileBefore` cleans the path before it records anything.
+  test('a-duplicate-path-is-refused-however-it-is-spelled', async () => {
+    const refused = async (root: Function) => {
+      const { fs } = memfs({})
+      try {
+        await Jostraca().generate({ fs: () => fs, folder: '/top' }, root)
+      }
+      catch (err: any) {
+        return err.message
+      }
+      return undefined
+    }
+
+    Assert.match(await refused(() => {
+      File({ name: 'a.txt' }, () => Content('FIRST'))
+      File({ name: './a.txt' }, () => Content('SECOND'))
+    }) as string, /same output path, path=\/top\/a\.txt/)
+
+    Assert.match(await refused(() => {
+      Folder({ name: 'x' }, () => File({ name: 'a.txt' }, () => Content('FIRST')))
+      File({ name: 'x/./a.txt' }, () => Content('SECOND'))
+    }) as string, /path=\/top\/x\/a\.txt/)
+
+    // A `..` in a File NAME is refused by validName before any of this,
+    // so the canonical form can never climb out of the output folder.
+    Assert.match(await refused(() => {
+      File({ name: '../escaped.txt' }, () => Content('x'))
+    }) as string, /must not contain a "\.\." path segment/)
+
+    // Two files that only LOOK similar are still two files.
+    const { fs, vol } = memfs({})
+    const info = await Jostraca().generate(
+      { fs: () => fs, folder: '/top' },
+      () => {
+        File({ name: 'a.txt' }, () => Content('A'))
+        File({ name: './b.txt' }, () => Content('B'))
+      })
+    expect(info.files.written).equal(['/top/a.txt', '/top/b.txt'])
+    const voljson: any = vol.toJSON()
+    expect(voljson['/top/a.txt']).equal('A')
+    expect(voljson['/top/b.txt']).equal('B')
+  })
+
+
   // AN INJECT INTO A FILE THE SAME RUN CREATED IS NOT A DUPLICATE, and
   // is why the guard counts `File` nodes rather than saves. Both reach
   // `FileHandler.save` with the same path, and the second is the

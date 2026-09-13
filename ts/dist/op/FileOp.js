@@ -11,7 +11,14 @@ const FileOp = {
         // folderPath() falls back to the base output folder when no Project or
         // Folder has seeded the path, so a top-level File stays inside the
         // output folder instead of resolving to '/<name>'.
-        cfile.fullpath = buildctx.folderPath() + '/' + name;
+        //
+        // CANONICALISED HERE, not left for `save` to do. `a.txt` and
+        // `./a.txt` are one file, and claiming them as two meant the
+        // duplicate guard below passed while `save` normalised both to the
+        // same path and let the second overwrite the first. Go's
+        // `fileBefore` cleans before it claims, and this is TypeScript
+        // catching up to it.
+        cfile.fullpath = (0, FileHandler_1.canonPath)(buildctx.folderPath() + '/' + name);
         cfile.content = [];
         // Two Files at one path is a mistake, and the second used to win in
         // silence. See BuildContext.claimFile for why the guard lives at

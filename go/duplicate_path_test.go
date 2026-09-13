@@ -121,3 +121,86 @@ func TestCmpTreeListItemsCannotVaryAFileName(t *testing.T) {
 		t.Fatalf("message: %v", err)
 	}
 }
+
+// THE CLAIM IS ON THE CANONICAL PATH, so two lexically different names
+// for one file are one file. Go has always cleaned the path before
+// recording it (`fileBefore` does `path.Clean(fwd(raw))`); this pins
+// that, because it is the behaviour TypeScript had to be corrected to
+// match after its guard let `a.txt` and `./a.txt` through as two.
+func TestDuplicatePathIsCanonical(t *testing.T) {
+	refused := func(root func(*J)) error {
+		_, err := New(WithMem(), WithFolder("/top"),
+			WithNow(func() int64 { return 1 })).Generate(Options{}, root)
+		return err
+	}
+
+	err := refused(func(j *J) {
+		j.File("a.txt", func(j *J) { j.Content("FIRST") })
+		j.File("./a.txt", func(j *J) { j.Content("SECOND") })
+	})
+	if !errors.Is(err, ErrDuplicateFilePath) ||
+		!strings.Contains(err.Error(), "path=/top/a.txt") {
+		t.Fatalf("dot-slash duplicate: %v", err)
+	}
+
+	err = refused(func(j *J) {
+		j.Folder("x", func(j *J) {
+			j.File("a.txt", func(j *J) { j.Content("FIRST") })
+		})
+		j.File("x/./a.txt", func(j *J) { j.Content("SECOND") })
+	})
+	if !errors.Is(err, ErrDuplicateFilePath) ||
+		!strings.Contains(err.Error(), "path=/top/x/a.txt") {
+		t.Fatalf("composed dot-slash duplicate: %v", err)
+	}
+
+	// Two files that only LOOK similar are still two files.
+	res, err := New(WithMem(), WithFolder("/top"),
+		WithNow(func() int64 { return 1 })).Generate(Options{}, func(j *J) {
+		j.File("a.txt", func(j *J) { j.Content("A") })
+		j.File("./b.txt", func(j *J) { j.Content("B") })
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	vol := res.Vol()
+	if string(vol["/top/a.txt"]) != "A" || string(vol["/top/b.txt"]) != "B" {
+		t.Fatalf("two files: %q %q", vol["/top/a.txt"], vol["/top/b.txt"])
+	}
+}
+
+// A LINE APPENDS ITS NEWLINE UNCONDITIONALLY, which is what TypeScript
+// does and what the component reference documents (`Line('a\n')` writes
+// `a\n\n`). This port appended only when Src did not already end in
+// one, so the same call produced different bytes on the two sides -- an
+// undocumented divergence rather than a deviation, and TypeScript is
+// canonical.
+//
+// Both spellings, because they had drifted apart from each other too:
+// `Line` carried its own copy of the rule and now delegates to `LineP`.
+func TestLineAppendsItsNewlineUnconditionally(t *testing.T) {
+	res, err := New(WithMem(), WithFolder("/top"),
+		WithNow(func() int64 { return 1 })).Generate(Options{}, func(j *J) {
+		j.File("a.txt", func(j *J) { j.Line("a\n") })
+		j.File("b.txt", func(j *J) { j.Line("b") })
+		j.File("c.txt", func(j *J) { j.Line("") })
+		j.File("d.txt", func(j *J) { j.LineP(ContentProps{Src: "d\n"}) })
+		j.File("e.txt", func(j *J) { j.LineP(ContentProps{Src: "e\n", Raw: true}) })
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	vol := res.Vol()
+
+	for _, c := range []struct{ path, want string }{
+		{"/top/a.txt", "a\n\n"},
+		{"/top/b.txt", "b\n"},
+		{"/top/c.txt", "\n"},
+		{"/top/d.txt", "d\n\n"},
+		{"/top/e.txt", "e\n\n"},
+	} {
+		if got := string(vol[c.path]); got != c.want {
+			t.Fatalf("%s: %q, want %q", c.path, got, c.want)
+		}
+	}
+}

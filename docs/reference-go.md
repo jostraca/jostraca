@@ -125,6 +125,12 @@ no model substitution, and `Replace` and `Extra` are not read. `Indent`
 still applies. It is `false` by default in both ports, and the
 [component reference](reference-components.md#raw) has the reasoning.
 
+`Line` and `LineP` append their newline unconditionally, so
+`Line("a\n")` writes `a\n\n` exactly as TypeScript does. There is no
+`Arg` field: a positional `Content(src)` is the Go spelling of the same
+thing, and a component tree given as data may state `arg` as a key on
+either component.
+
 Semantics follow the [component reference](reference-components.md)
 unless the deviations below say otherwise.
 

@@ -954,6 +954,11 @@ committed output to what the generators produce. A file the tree does
 not claim is left alone, so one generator can be checked against a
 directory that several of them write into.
 
+It compares the bytes, and the permission bits where the tree stated
+them with [`mode`](#mode). A file whose tree says nothing about mode is
+held to nothing, since a run would leave the bits it found; Windows has
+no bits to compare.
+
 `raw` is on by default in that tool and `--template` turns it off, the
 opposite way round from the library: its input is text somebody else
 already finished.

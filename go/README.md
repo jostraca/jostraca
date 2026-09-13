@@ -436,6 +436,20 @@ same logical input:
 - `CopyFilesProps` has no `Indent` field. It was set on the node and
   never read by the copy build step, so the only thing it did was accept
   a prop TypeScript refuses.
+- `CmpTree` does NOT apply that closed check when the caller replaces
+  `Fragment` or `CopyFiles` through `CmpTreeOptions.Cmp`. The prop set
+  belongs to the built-in component, and an override replaces it -- in
+  TypeScript `FragmentShape` goes with the component it validates.
+- `CmpTree` deep-copies each node's props on every invocation, the way
+  the TypeScript twin does, so a component cannot write into the
+  caller's tree and a tree generated twice is two identical
+  generations. There is no cycle guard: decoded JSON cannot refer to
+  itself, where a hand-built JavaScript object can.
+- There is no `Arg` field on `ContentProps`: a positional
+  `Content(src)` is the Go spelling. A component tree given as data may
+  still state `arg`, which `CmpTree` reads with precedence over `src`
+  and stringifies as JavaScript would, because the two ports have to
+  produce the same bytes from the same tree.
 
 ### Status
 

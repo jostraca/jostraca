@@ -159,18 +159,24 @@ func (j *J) ContentP(p ContentProps) {
 	}
 }
 
-// Line is Content with a trailing newline.
+// Line is Content with a trailing newline. DELEGATES to LineP rather
+// than carrying its own copy of the rule: the two spellings had drifted
+// apart once already, and one of them is enough.
 func (j *J) Line(src string) {
-	if !strEndsWithNewline(src) {
-		src = src + "\n"
-	}
-	j.ContentP(ContentProps{Src: src})
+	j.LineP(ContentProps{Src: src})
 }
 
+// LineP is Content with a newline appended. UNCONDITIONALLY: this used
+// to append only when Src did not already end in one, so `Line("a\n")`
+// emitted "a\n" here and "a\n\n" in TypeScript, which is what the
+// component reference documents ("Line('a\n')" writes "a\n\n"). An
+// undocumented divergence rather than a deviation, and TypeScript is
+// canonical, so this is the side that moves.
+//
+// `Line("")` and `Line()` still write one newline, since there was
+// nothing to append to.
 func (j *J) LineP(p ContentProps) {
-	if !strEndsWithNewline(p.Src) {
-		p.Src = p.Src + "\n"
-	}
+	p.Src = p.Src + "\n"
 	j.ContentP(p)
 }
 
@@ -618,10 +624,6 @@ func mergeModel(base, extra map[string]any) map[string]any {
 		out[k] = v
 	}
 	return out
-}
-
-func strEndsWithNewline(s string) bool {
-	return len(s) > 0 && s[len(s)-1] == '\n'
 }
 
 // THE NAMES TWO COMPONENTS SHIPPED UNDER, kept as DEPRECATED ALIASES so

@@ -449,3 +449,147 @@ func TestCmpTreeRawIsSafeOnEveryComponent(t *testing.T) {
 		t.Fatalf("inject.txt: %q", got)
 	}
 }
+
+// `arg` IS THE POSITIONAL FORM, AND A TREE MAY STATE IT AS A KEY. It
+// outranks `src`, which is the precedence TypeScript's Content applies
+// and the order docs/cmp-surface.tsv publishes -- and this port read
+// only `src`, so a tree carrying `arg` generated different bytes on the
+// two sides of a contract whose whole point is that it does not.
+//
+// A non-string is stringified the way JavaScript stringifies it,
+// because the bytes have to match: the component reference spells out
+// the number, the boolean and the `[object Object]`.
+func TestCmpTreeArg(t *testing.T) {
+	vol := treeGen(t, `{"cmp":"File","props":{"name":"x.txt"},"children":[
+	  {"cmp":"Content","props":{"arg":"ARG","src":"SRC"}}
+	]}`)
+	if got := string(vol["/top/x.txt"]); got != "ARG" {
+		t.Fatalf("arg over src: %q", got)
+	}
+
+	vol = treeGen(t, `{"cmp":"File","props":{"name":"x.txt"},"children":[
+	  {"cmp":"Content","props":{"arg":42}},
+	  {"cmp":"Content","props":{"arg":true}},
+	  {"cmp":"Content","props":{"arg":false}},
+	  {"cmp":"Content","props":{"arg":1.5}},
+	  {"cmp":"Content","props":{"arg":["a","b"]}},
+	  {"cmp":"Content","props":{"arg":{"k":1}}}
+	]}`)
+	if got := string(vol["/top/x.txt"]); got != "42truefalse1.5a,b[object Object]" {
+		t.Fatalf("arg stringified: %q", got)
+	}
+
+	// A null `arg` is absent, so `src` answers -- the same test
+	// TypeScript makes with `null != props.arg`.
+	vol = treeGen(t, `{"cmp":"File","props":{"name":"x.txt"},"children":[
+	  {"cmp":"Content","props":{"arg":null,"src":"SRC"}}
+	]}`)
+	if got := string(vol["/top/x.txt"]); got != "SRC" {
+		t.Fatalf("null arg: %q", got)
+	}
+
+	// And `Line` takes it too, one terminator apart.
+	vol = treeGen(t, `{"cmp":"File","props":{"name":"x.txt"},"children":[
+	  {"cmp":"Line","props":{"arg":"L"}}
+	]}`)
+	if got := string(vol["/top/x.txt"]); got != "L\n" {
+		t.Fatalf("line arg: %q", got)
+	}
+}
+
+// A CLOSED PROP SET BELONGS TO THE BUILT-IN COMPONENT, so a caller who
+// REPLACES that component through CmpTreeOptions.Cmp is not bound by it.
+// TypeScript gets this for free -- an override replaces the component,
+// and FragmentShape goes with it -- and checking regardless refused a
+// tree TypeScript generates.
+func TestCmpTreeClosedPropsSkipCustomOverride(t *testing.T) {
+	const src = `{"cmp":"File","props":{"name":"x.txt"},"children":[
+	  {"cmp":"Fragment","props":{"nosuchprop":1}}]}`
+
+	var tree any
+	if err := json.Unmarshal([]byte(src), &tree); err != nil {
+		t.Fatal(err)
+	}
+
+	// The built-in still refuses it.
+	if _, err := CmpTree(tree); err == nil ||
+		!strings.Contains(err.Error(), "nosuchprop") {
+		t.Fatalf("built-in should refuse: %v", err)
+	}
+
+	// An override does not.
+	seen := false
+	root, err := CmpTree(tree, CmpTreeOptions{Cmp: map[string]CmpTreeCmp{
+		"Fragment": func(j *J, props map[string]any, _ []func(*J)) {
+			seen = true
+			j.Content("MINE")
+		},
+	}})
+	if err != nil {
+		t.Fatalf("override refused: %v", err)
+	}
+	res, err := New(WithMem(), WithFolder("/top"),
+		WithNow(func() int64 { return 1 })).Generate(Options{}, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !seen || string(res.Vol()["/top/x.txt"]) != "MINE" {
+		t.Fatalf("override did not run: %q", res.Vol()["/top/x.txt"])
+	}
+}
+
+// THE TREE IS THE CALLER'S DATA AND COMES BACK UNCHANGED, which the
+// component reference promises and this port did not keep: props were
+// handed on by reference, so a component supplied through
+// CmpTreeOptions.Cmp could write into the caller's tree and a tree
+// generated twice carried the first run into the second.
+func TestCmpTreeIsNotScribbledOn(t *testing.T) {
+	const src = `{"cmp":"Mine","props":{"a":1,"nested":{"k":"v"},"list":[{"n":1}]}}`
+
+	var tree any
+	if err := json.Unmarshal([]byte(src), &tree); err != nil {
+		t.Fatal(err)
+	}
+	before, err := json.Marshal(tree)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	scribble := CmpTreeOptions{Cmp: map[string]CmpTreeCmp{
+		"Mine": func(j *J, props map[string]any, _ []func(*J)) {
+			props["scribbled"] = true
+			if m, ok := props["nested"].(map[string]any); ok {
+				m["also"] = true
+			}
+			if l, ok := props["list"].([]any); ok && len(l) > 0 {
+				if m, ok := l[0].(map[string]any); ok {
+					m["deep"] = true
+				}
+			}
+		},
+	}}
+
+	run := func() {
+		root, err := CmpTree(tree, scribble)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := New(WithMem(), WithFolder("/top"),
+			WithNow(func() int64 { return 1 })).Generate(Options{}, root); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	run()
+	after, _ := json.Marshal(tree)
+	if string(before) != string(after) {
+		t.Fatalf("the tree was scribbled on:\n before=%s\n after =%s", before, after)
+	}
+
+	// ... and a second generate is the same generation.
+	run()
+	after, _ = json.Marshal(tree)
+	if string(before) != string(after) {
+		t.Fatalf("a second run scribbled on the tree:\n %s", after)
+	}
+}
