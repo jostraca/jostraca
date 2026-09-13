@@ -161,8 +161,19 @@ function canon(p) {
 
 // Is `p` at or below `root`? On a path BOUNDARY: `/out2/a` is not under
 // `/out`, however much of the string it shares.
+//
+// CASE-INSENSITIVE ON WINDOWS, where the filesystem is: `C:\Users` and
+// `c:\users` name one directory, and treating them as two would route
+// an output path's reads to the real disk instead of the shadow. That
+// cannot write anything -- every write goes to memory unconditionally --
+// but it would let what is committed change how a generated file is
+// classified, which is the one thing --check must not allow.
+const FOLD = 'win32' === process.platform
+
 function under(p, root) {
-  return p === root || p.startsWith('/' === root ? root : root + '/')
+  const a = FOLD ? p.toLowerCase() : p
+  const b = FOLD ? root.toLowerCase() : root
+  return a === b || a.startsWith('/' === b ? b : b + '/')
 }
 
 
@@ -218,20 +229,50 @@ function shadowFs(memfs, root) {
 // What the generators produced, by path relative to the output folder.
 // jostraca's own meta folder is bookkeeping rather than output, and is
 // timestamped, so it is not part of the comparison.
-function generated(res, root) {
-  const fs = res.fs()
+//
+// WALKED FROM THE OUTPUT ROOT rather than read off `vol.toJSON()`. That
+// serialiser walks from `/`, and a Windows path is rooted at its drive
+// (`C:/Users/...`), which has no `/` ancestor to be reached from -- so
+// it answered with nothing at all on a Windows runner while the run
+// itself had gone perfectly. Walking from a root this function already
+// knows is both narrower and portable.
+function generated(memfs, root) {
+  const fs = memfs.fs
   const out = new Map()
-  for (const abs of Object.keys(res.vol().toJSON())) {
-    const key = canon(abs)
-    if (!under(key, root) || key === root) {
-      continue
+
+  const walk = (dir, rel) => {
+    let names
+    try {
+      names = fs.readdirSync(dir)
     }
-    const rel = key.substring(root.length + 1)
-    if (rel === META_FOLDER || rel.startsWith(META_FOLDER + '/')) {
-      continue
+    catch {
+      // Nothing was generated under it, which is not an error here: an
+      // empty tree is a clean check against an empty claim.
+      return
     }
-    out.set(rel, fs.readFileSync(key))
+    for (const name of names) {
+      const key = '' === rel ? name : rel + '/' + name
+      if (key === META_FOLDER || key.startsWith(META_FOLDER + '/')) {
+        continue
+      }
+      const full = dir + '/' + name
+      let st
+      try {
+        st = fs.statSync(full)
+      }
+      catch {
+        continue
+      }
+      if (st.isDirectory()) {
+        walk(full, key)
+      }
+      else {
+        out.set(key, fs.readFileSync(full))
+      }
+    }
   }
+
+  walk(root, '')
   return out
 }
 
@@ -370,9 +411,8 @@ async function check(opts, tree) {
   const { memfs } = require('../ts/dist/util/memfs')
   const vol = memfs({})
 
-  let res
   try {
-    res = await Jostraca().generate(
+    await Jostraca().generate(
       {
         folder: dir,
         fs: () => shadowFs(vol, root),
@@ -405,8 +445,8 @@ async function check(opts, tree) {
 
   // `res.vol()`/`res.fs()` are only present under `mem: true`; this run
   // provides its own filesystem, so read the volume it was given.
-  const drift = compare(dir, generated(
-    { vol: () => vol.vol, fs: () => vol.fs }, root))
+  const files = generated(vol, root)
+  const drift = compare(dir, files)
 
   for (const d of drift) {
     process.stderr.write('cmptree-gen: ' + d.rel + ' ' + d.why + '\n')
@@ -415,9 +455,11 @@ async function check(opts, tree) {
     }
   }
 
-  const n = res.files.written.length
+  // The count is what was COMPARED, which is what the volume holds --
+  // `res.files.written` is the same set for this run and says so less
+  // directly.
   process.stdout.write(
-    'checked ' + n + ' file(s) against ' + dir + ', ' +
+    'checked ' + files.size + ' file(s) against ' + dir + ', ' +
     drift.length + ' drifted\n')
 
   return 0 < drift.length ? EXIT_DRIFT : EXIT_OK

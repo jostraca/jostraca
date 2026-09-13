@@ -143,9 +143,33 @@ class MemVolume {
             }
         }
     }
+    // Record every prefix of `cp` as a directory, IN THE FORM memClean
+    // PRODUCES, because that is the form every lookup arrives in.
+    //
+    // The drive prefix is the whole reason this is not a plain split.
+    // memClean keeps `C:` outside the leading slash (`C:/Users/x`); this
+    // used to rebuild from `''` and so stored `/C:/Users/x`, one leading
+    // slash off. `mkdirSync` then reported success and `existsSync` said
+    // false for the same path, and the next write failed ENOENT on a
+    // parent that had just been created. Every suite here uses POSIX keys
+    // (`/top/...`), so nothing reached it until a caller put real OS
+    // paths into the volume on Windows.
+    //
+    // go/fs.go's markDirsLocked carries the same invariant for the
+    // leading slash, and has no drive branch to get wrong: memClean there
+    // does not special-case a drive, so the Go MemFS has never accepted
+    // one. This is a TypeScript-only concern.
     mkdirp(cp) {
-        const parts = cp.split('/').filter((p) => '' !== p);
-        let cur = '';
+        const drive = /^[A-Za-z]:\//.test(cp);
+        const prefix = drive ? cp.slice(0, 2) : '';
+        const parts = (drive ? cp.slice(2) : cp).split('/').filter((p) => '' !== p);
+        // The drive root is a directory too: parentOf('C:/Users') answers
+        // `C:`, and a write there would otherwise fail on a missing parent.
+        let cur = prefix;
+        if ('' !== cur && !this.dirs.has(cur)) {
+            this.dirs.set(cur, DEFAULT_DIR_MODE);
+            this.touch(cur);
+        }
         for (const part of parts) {
             cur = cur + '/' + part;
             if (!this.dirs.has(cur)) {
@@ -179,6 +203,14 @@ class MemVolume {
     // binary exactly as the `memfs` package is (0xFF becomes U+FFFD -- see
     // ts/tools/corpus-bytes.js, which routes around it deliberately). An
     // empty directory appears as null.
+    //
+    // IT WALKS FROM `/`, so a WINDOWS DRIVE PATH is not in the result: a
+    // `C:/...` key has no `/` ancestor to be reached from. Left as is
+    // deliberately -- the walk order below is contract, pinned by
+    // tools/memfs-differential.js and by 1583 lines of the Go parity
+    // corpus, and nothing needs a drive-rooted volume serialised. A caller
+    // holding real OS paths should walk from its own root with
+    // readdirSync, which keys off dirs and is not root-relative.
     toJSON() {
         // Depth-first from the root, taking each directory's children in the
         // order they were created. NOT a flat creation-order listing: a subtree

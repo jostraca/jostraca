@@ -25,6 +25,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const node_test_1 = require("node:test");
 const expect_1 = require("./expect");
 const node_path_1 = __importDefault(require("node:path"));
+const memfs_1 = require("../dist/util/memfs");
 // Must stay identical to absBoundaryCases in go/platform_test.go.
 const ABS_BOUNDARY = [
     // path, posix, win32
@@ -59,6 +60,49 @@ const ABS_BOUNDARY = [
         const windows = 'win32' === process.platform;
         const actual = ABS_BOUNDARY.map(([path]) => [path, node_path_1.default.isAbsolute(path)]);
         (0, expect_1.expect)(actual).equal(ABS_BOUNDARY.map(([path, posix, win32]) => [path, windows ? win32 : posix]));
+    });
+    // A WINDOWS DRIVE PATH IN THE MEMORY FILESYSTEM, and it is asserted on
+    // every platform because the bug had nothing to do with the host: it
+    // was one form disagreeing with another INSIDE src/util/memfs.ts.
+    //
+    // `memClean` keeps the drive outside the leading slash (`C:/Users/x`)
+    // and `mkdirp` rebuilt every key from `''`, so it stored
+    // `/C:/Users/x`. `mkdirSync` then reported success while `existsSync`
+    // said false for the same path, and the next write failed ENOENT on a
+    // parent that had just been created.
+    //
+    // Nothing reached it for as long as every suite here used POSIX keys
+    // (`/top/...`). A caller putting real OS paths into a volume does, and
+    // on a Windows runner that is every path it has.
+    (0, node_test_1.test)('memfs-accepts-a-windows-drive-path', async () => {
+        const { fs, vol } = (0, memfs_1.memfs)({});
+        const base = 'C:/Users/RUNNER~1/AppData/Local/Temp/j';
+        const dir = base + '/app/models';
+        // memClean is the form every lookup arrives in, and is what the
+        // stored directory keys have to match.
+        (0, expect_1.expect)((0, memfs_1.memClean)(dir)).equal(dir);
+        (0, expect_1.expect)((0, memfs_1.memClean)('C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\j/app/models'))
+            .equal(dir);
+        fs.mkdirSync(dir, { recursive: true });
+        // The pair that disagreed.
+        (0, expect_1.expect)(fs.existsSync(dir)).true();
+        (0, expect_1.expect)(fs.statSync(dir).isDirectory()).true();
+        // The drive root is a directory too, because parentOf('C:/Users')
+        // answers `C:` and a write there would fail on a missing parent.
+        (0, expect_1.expect)(vol.dirs.has('C:')).true();
+        (0, expect_1.expect)([...vol.dirs.keys()].filter((k) => k.startsWith('/C:')))
+            .equal([]);
+        // ... and a write through it round-trips.
+        fs.writeFileSync(dir + '/planet.rb', 'class Planet\nend\n');
+        (0, expect_1.expect)(fs.readFileSync(dir + '/planet.rb', 'utf8'))
+            .equal('class Planet\nend\n');
+        (0, expect_1.expect)(fs.readdirSync(base + '/app')).equal(['models']);
+        (0, expect_1.expect)(fs.readdirSync(dir)).equal(['planet.rb']);
+        // A POSIX volume is untouched: no drive, no prefix, same keys as
+        // before.
+        const posix = (0, memfs_1.memfs)({});
+        posix.fs.mkdirSync('/top/a/b', { recursive: true });
+        (0, expect_1.expect)([...posix.vol.dirs.keys()]).equal(['/', '/top', '/top/a', '/top/a/b']);
     });
 });
 //# sourceMappingURL=platform.test.js.map

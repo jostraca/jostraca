@@ -23,6 +23,8 @@ import { expect } from './expect'
 
 import Path from 'node:path'
 
+import { memfs, memClean } from '../dist/util/memfs'
+
 
 // Must stay identical to absBoundaryCases in go/platform_test.go.
 const ABS_BOUNDARY: [string, boolean, boolean][] = [
@@ -69,6 +71,58 @@ describe('platform', () => {
 
     expect(actual).equal(ABS_BOUNDARY.map(([path, posix, win32]) =>
       [path, windows ? win32 : posix]))
+  })
+
+
+  // A WINDOWS DRIVE PATH IN THE MEMORY FILESYSTEM, and it is asserted on
+  // every platform because the bug had nothing to do with the host: it
+  // was one form disagreeing with another INSIDE src/util/memfs.ts.
+  //
+  // `memClean` keeps the drive outside the leading slash (`C:/Users/x`)
+  // and `mkdirp` rebuilt every key from `''`, so it stored
+  // `/C:/Users/x`. `mkdirSync` then reported success while `existsSync`
+  // said false for the same path, and the next write failed ENOENT on a
+  // parent that had just been created.
+  //
+  // Nothing reached it for as long as every suite here used POSIX keys
+  // (`/top/...`). A caller putting real OS paths into a volume does, and
+  // on a Windows runner that is every path it has.
+  test('memfs-accepts-a-windows-drive-path', async () => {
+    const { fs, vol } = memfs({})
+
+    const base = 'C:/Users/RUNNER~1/AppData/Local/Temp/j'
+    const dir = base + '/app/models'
+
+    // memClean is the form every lookup arrives in, and is what the
+    // stored directory keys have to match.
+    expect(memClean(dir)).equal(dir)
+    expect(memClean('C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\j/app/models'))
+      .equal(dir)
+
+    fs.mkdirSync(dir, { recursive: true })
+
+    // The pair that disagreed.
+    expect(fs.existsSync(dir)).true()
+    expect(fs.statSync(dir).isDirectory()).true()
+
+    // The drive root is a directory too, because parentOf('C:/Users')
+    // answers `C:` and a write there would fail on a missing parent.
+    expect(vol.dirs.has('C:')).true()
+    expect([...vol.dirs.keys()].filter((k: string) => k.startsWith('/C:')))
+      .equal([])
+
+    // ... and a write through it round-trips.
+    fs.writeFileSync(dir + '/planet.rb', 'class Planet\nend\n')
+    expect(fs.readFileSync(dir + '/planet.rb', 'utf8'))
+      .equal('class Planet\nend\n')
+    expect(fs.readdirSync(base + '/app')).equal(['models'])
+    expect(fs.readdirSync(dir)).equal(['planet.rb'])
+
+    // A POSIX volume is untouched: no drive, no prefix, same keys as
+    // before.
+    const posix = memfs({})
+    posix.fs.mkdirSync('/top/a/b', { recursive: true })
+    expect([...posix.vol.dirs.keys()]).equal(['/', '/top', '/top/a', '/top/a/b'])
   })
 
 })
