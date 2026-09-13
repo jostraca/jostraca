@@ -488,10 +488,17 @@ func propSrc(p map[string]any) string {
 	return propString(p, "src")
 }
 
-// jsString reproduces JavaScript's `'' + value` for a decoded JSON
-// value. Arrays join their elements with commas and any other object is
-// `[object Object]`, both of which are JavaScript's rules rather than
-// anything chosen here.
+// jsString reproduces what JavaScript's `String(value)` gives for a
+// decoded JSON value, which is the conversion `Content` gets for free
+// when it concatenates a non-string `arg`. Arrays join their elements
+// with commas and any other object is `[object Object]`, both of which
+// are JavaScript's rules rather than anything chosen here.
+//
+// Written as String(value) rather than as the empty-string
+// concatenation on purpose. Two apostrophes in a row are the troff
+// convention for a closing quote, and gofmt's doc-comment formatter
+// rewrites them to a curly one: the lint gate then fails and the
+// sentence says something else than it did.
 func jsString(v any) string {
 	switch t := v.(type) {
 	case string:
