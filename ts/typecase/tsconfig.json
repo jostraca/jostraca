@@ -1,0 +1,20 @@
+{
+  // Type cases for ts/test/cmp-props.test.ts. NOT one of the build's two
+  // projects (`tsc --build src test`) and deliberately outside both of
+  // their roots, because half of cases.ts is meant to fail: the suite
+  // runs this project itself and asserts WHICH lines fail.
+  //
+  // Settings match test/tsconfig.json, so a case is checked the way a
+  // suite beside it would be. No `references`: this reads `dist/`, the
+  // artifact a consumer installs, rather than the source.
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "noEmit": true,
+    "strict": true,
+    "target": "ES2022",
+    "lib": ["esnext"],
+    "types": ["node"]
+  }
+}

@@ -50,11 +50,13 @@ exports.cmpTree = cmpTree;
 // property that makes the aontu side able to grow one primitive at a
 // time.
 //
-// NO DEPENDENCY IN EITHER DIRECTION. The contract between the two
-// projects is this JSON shape, not a package: jostraca does not
-// depend on aontu (see docs/ADR.md record 0001 -- a production
-// dependency needs its own record) and aontu does not depend on
-// jostraca. A pipe is the whole integration.
+// JOSTRACA DOES NOT DEPEND ON AONTU, and will not: a production
+// dependency needs its own record (docs/ADR.md 0001), and nothing here
+// needs one. The other direction is aontu's call, and this file is
+// written so that either answer works -- the contract is the JSON
+// shape, so a pipe is a whole integration, and a consumer that does
+// install the package gets the components and their props types as
+// well.
 //
 // A DATA TREE IS NOT A HAND-WRITTEN ONE, and two rules follow from
 // that difference rather than from the components.

@@ -3,9 +3,10 @@
 **Status:** SUPPORTED, 2026-09-13. Began as a spike on 2026-09-09 (in
 TypeScript only, behind no flag, with no Go twin). Both ports now carry
 it, it is documented in the reference pages, and §6 records the P0 work
-aontu's `UNITS-AND-TREES.1.md` asked for. There is still no production
-dependency in either direction. §1 to §5 are the spike's own record,
-kept as written except where an item is marked resolved.
+aontu's `UNITS-AND-TREES.1.md` asked for. jostraca takes no dependency
+on aontu; the reverse is aontu's to make, and §6.5 exports the props
+types for it. §1 to §5 are the spike's own record, kept as written
+except where an item is marked resolved.
 
 **Origin:** Richard Rodger, 2026-09-09: *"Jostraca should be used by
 aontu for code generation. The Jostraca component primitives like
@@ -455,52 +456,125 @@ nodes, which is what aontu does anyway since it iterates in the
 language. [verified] `list-items-cannot-vary-a-file-name`,
 `TestCmpTreeListItemsCannotVaryAFileName`.
 
-### 6.5 The prop surface — PUBLISHED, at `docs/cmp-surface.tsv`
+### 6.5 The prop surface — the components declare their props as TYPES
 
-Option 1 of the two. One row per prop per component: name, type, whether
-it is required, what it does, and a `*` row per component saying what an
-unknown prop does. Tab-separated, comment lines, the same shape as the
-shared corpus — and deliberately NOT in `test/spec/`, because both
-stacks' spec runners read every `.tsv` there as function cases and fail
-on an unknown `fn`.
+Neither of the two options the ask offered. The ask framed it as publish
+a machine-readable surface or state that props are unchecked, and said a
+middle position would be worse than either end. Both readings assumed
+the props could not simply be DECLARED — which they can, and in a
+TypeScript library they should be. Richard Rodger, 2026-09-13:
+*"Jostraca functions should declare proper types so props are defined.
+They should be properly documented and tested. Jostraca is a library and
+exposes a programmatic api in the usual way."*
 
-**The trade, stated plainly, because the ask says the answer is not
-obvious.** What is bought: the contract aontu is about to depend on
-entirely stops being a page of prose. What is paid: a release coupling.
-When jostraca adds a prop, a consumer pinning an older copy refuses a
-tree jostraca would accept, until it re-pins. That is a real cost and it
-falls on aontu, not here.
+**What this replaced, and why the first answer was wrong.** The first
+answer was `docs/cmp-surface.tsv`: one row per prop per component,
+guarded by a drift test on each side. It is deleted. Two things were
+wrong with it, and only one of them was a judgement call:
 
-Three things make it the better side of the trade:
+- **A `.d.ts` IS the machine-readable prop surface.** A TSV restating
+  what a type could have said is a second copy of the same facts, kept
+  true by a test, and the copy is the thing that goes stale. The
+  declaration file ships in the package, is read by every editor, and
+  needs no guard to stay true because the compiler emits it from the
+  code.
+- **It was built to avoid a package edge that is not there to avoid.**
+  The brief said "No dependency on aontu, in either direction. JSON
+  shape, pipe, no package edge", and that was taken as a constraint on
+  the ANSWER rather than on jostraca's own dependencies. Richard Rodger,
+  2026-09-13: *"Aontu uses jostraca as a dependency - there is no need
+  for any of this."* jostraca still takes no dependency on aontu, which
+  is the half that is jostraca's to decide; the other half is aontu's,
+  and a consumer that installs the package gets the types by importing
+  them.
 
-- **There is no package edge and there is no new one.** The file is
-  fetched at a tag and vendored, the way aontu already pins bundled
-  profiles by hash. A pipe is still the whole integration.
-- **The surface is not uniform, and prose was hiding it.** Two of the
-  ten components — `Fragment` and `CopyFiles` — validate a CLOSED prop
-  set and refuse an unknown prop; the other eight accept anything and
-  drop what they do not read. A consumer cannot guess which, and "props
-  are unchecked" would have been the wrong statement to publish.
-- **Saying nothing costs the same class of failure as §6.1.** A typo'd
-  `indent` on a `Line` is a silently dropped prop, which is the shape of
-  the bug being treated as a blocker one section up.
+**What was built.** Every component declares a props type beside the
+code that reads it, and the package exports all ten:
 
-**It is guarded, not asserted.** `ts/test/cmp-surface.test.ts` reads the
-file and the components beside it and fails when they disagree: every
-component on disk has rows, every declared prop is one the source reads
-and every read prop is declared (a `unused:` note is the one exemption,
-for a prop both ports accept and neither reads), and every `*` row is
-checked BEHAVIOURALLY — a component declared `refused:` is generated
-with an unknown prop and must refuse it, one declared `ignored:` must
-accept it. `go/cmp_surface_test.go` holds the Go port to the same `*`
-rows through the data path.
+```ts
+import type { FileProps, ContentProps } from 'jostraca'
+```
 
-**What jostraca is NOT doing: checking props at the seam.** No runtime
-closed check across the board, because the engine legitimately hands a
-component props it never declared — `ListItems` binds `item`, `indent`
-and `replace` for each invocation of its children. aontu checks what its
-author wrote, at its own call site, against this file. That keeps the
-check where the typo is.
+`ProjectProps`, `FolderProps`, `FileProps`, `ContentProps`, `LineProps`
+(an alias of `ContentProps`), `FragmentProps`, `SlotProps`,
+`InjectProps`, `CopyFilesProps`, `ListItemsProps` — plus `ListItemProps`
+for what a `ListItems` child is called with, and `CmpProps<P>` for what
+a component body sees. `Fragment` and `CopyFiles` had derived types from
+their shapes (`ReturnType<typeof FragmentShape>`); they now declare the
+type explicitly and the shape validates against it, so the compile-time
+and run-time statements are the same statement made twice.
+
+`cmp()` is generic, which is what makes a declaration reach the caller:
+it took `Function` and returned `(props: any, children?: any) => void`,
+so a typed body was erased at the export. `cmp<FileProps>(...)` now
+types the caller AND the body, and `cmp(fn)` with an untyped body still
+types exactly as before.
+
+**Five things that fell out of doing it.**
+
+1. **The overload order is load-bearing.** With the props signature
+   first, `File({nosuchprop: 1})` was refused with *`nosuchprop` does not
+   exist on `CmpChild[] | ((args: any) => any)`* — TypeScript reports the
+   LAST overload's error. Props last, and the message names `FileProps`.
+2. **The positional form and the text-child form are different sets.**
+   Two components read `arg` (`Content`, `Line`); three take literal text
+   as a child (those two and `ListItems`). One type parameter for both
+   made `ListItems('x')` compile, which is a silent no-op. `Component<P,
+   Arg, Child>` keeps them apart.
+3. **`Fragment.exclude` is gone, from both ports.** It was declared,
+   validated, and read by nothing — the component reference said so in
+   as many words. A declared prop has to be a prop the code keeps, so it
+   goes rather than becoming the one declaration that means nothing. A
+   tree that passes it is now refused by name, where before it was
+   accepted and dropped.
+4. **`Node.content` was declared `any[]` and is a string half the time.**
+   `Content` writes the rendered string; a file, slot, fragment or copy
+   node holds the list of parts. `ContentOp` carried an
+   `as unknown as string` to read back what `Content` had written, and
+   that cast was the only sign the declaration did not hold. Declared
+   `any`, with the split stated.
+5. **The props types carry JSDoc, not the house `//` style.** `tsc`
+   drops a line comment on the way into the `.d.ts` and keeps a `/** */`
+   one, so a `//` comment on a published prop is a comment the consumer
+   never sees — not in the declaration file, not on hover. The reasoning
+   notes around the types stay `//`: those are for a reader of the
+   source.
+
+**How it is held.** Three gates, none of them a restatement of the
+types:
+
+- `ts/test/cmp-props.test.ts`, four checks. Every component on disk has
+  a props type and the package exports it. Every declared prop is one
+  the source reads and every read prop is declared, scanned out of
+  `src/cmp/*.ts` and compared against the EMITTED `dist/cmp/*.d.ts` —
+  the artifact a consumer installs, not the source it came from. The
+  types refuse what they say they refuse. And the run time does what the
+  types say, which is a different fact: a data tree carries JSON and
+  never met the compiler.
+- `ts/typecase/`, a project outside the build's two, holding one call
+  per line with an `ERR:` marker on each line that must fail. The suite
+  runs `tsc` over it and holds the diagnostics to the markers. Eighteen
+  refusals, each for a stated reason.
+- `go/cmp_props_test.go`, which reads the TypeScript props types out of
+  `ts/src/cmp/*.ts` and compares them field for field with the Go
+  structs. Two deviations are named in `propDeviation` and nowhere else
+  — `ContentProps` has no `Arg` (Go's positional form is the
+  `Content(src)` method) and `ListItemsProps.NoLine` inverts `line` so
+  the zero value matches the default — and a third cannot appear
+  quietly. The unknown-prop behaviour is held through the data path, as
+  before.
+
+**What jostraca is still NOT doing: checking props at the seam.** No
+runtime closed check across the board, for the reason it never had one:
+the engine legitimately hands a component props it never declared, since
+`ListItems` binds `item`, `indent` and `replace` for each invocation of
+its children. What changed is where the check now lands for a consumer
+written in TypeScript — at its own call site, against the imported type,
+which is where the typo is. A consumer emitting trees as data gets the
+run-time answer, which is still not uniform: `Fragment` and `CopyFiles`
+refuse an unknown prop and the other eight drop it. That non-uniformity
+was the strongest argument for publishing something, and it is why the
+tree-level behaviour is tested on both sides rather than described.
 
 Publishing it surfaced four TS↔Go divergences, all at the data path and
 all now closed:
@@ -542,7 +616,9 @@ all now closed:
   lines of JavaScript, it needs a `bin` entry and a move under `ts/` --
   a change to what the package installs, so it waits on aontu saying it
   is wanted.
-- **Whether the prop surface is pinned or advisory.** §6.5 publishes it;
-  whether aontu REFUSES an unknown prop against its vendored copy or
-  warns is aontu's call, and the release coupling is different in each
-  case.
+- **Whether to check props before the tree is built.** §6.5 exports the
+  types, so an aontu that depends on jostraca can check what its author
+  wrote at its own call site. Whether it does, and whether it refuses or
+  warns, is aontu's call — and nothing forces the choice, because a tree
+  that reaches `cmpTree` unchecked still gets the run-time answer: two
+  components refuse an unknown prop and eight drop it.

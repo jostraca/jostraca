@@ -439,6 +439,21 @@ function Jostraca(gopts_in) {
         check,
     };
 }
+// Make a component from the function that defines a node.
+//
+// `P` is the props the component reads, and naming it is what gives the
+// BODY its types as well as the caller's: `props` inside is `P` plus the
+// ambient `ctx$`. `Arg` is the positional form -- `Content('text')`
+// lands in `props.arg` -- and `Child` is literal text in the children
+// position.
+//
+//   const Banner = cmp<{text: string}>(function Banner(props) {
+//     Content('// ' + props.text + '\n')
+//   })
+//
+// BOTH DEFAULT, so the untyped form a component outside this package is
+// written in -- `cmp(function My(props: any, children: any) {...})` --
+// types exactly as it did before there were any types to declare.
 function cmp(component) {
     const cf = (props, children) => {
         const ctx$ = GLOBAL.jostraca.getStore();

@@ -432,10 +432,22 @@ same logical input:
   that one port refuses and the other generates does not mean one thing,
   which matters because the data path is the contract a generator in
   another language writes against. `treeClosedCmp` in `tree.go` holds
-  the two sets, and `docs/cmp-surface.tsv` publishes them.
+  the two sets.
 - `CopyFilesProps` has no `Indent` field. It was set on the node and
   never read by the copy build step, so the only thing it did was accept
   a prop TypeScript refuses.
+- `FragmentProps` has no `Exclude` field, and neither does the
+  TypeScript `FragmentProps`. It was declared on both sides, validated,
+  and read by neither. Now that each component's props are a type the
+  package publishes, a declaration has to be a promise the code keeps.
+- The props structs here and the props types in `ts/src/cmp/*.ts` carry
+  the same fields, held field for field by `TestCmpPropsMatchTypeScript`
+  rather than by review. Two differences are deliberate and are named in
+  `propDeviation` in `cmp_props_test.go`: `ContentProps` has no `Arg`,
+  because the positional form here is the `Content(src)` method rather
+  than a prop, and `ListItemsProps.NoLine` inverts TypeScript's `line`
+  so that Go's zero value matches its default. A third cannot appear
+  without the test naming it.
 - `CmpTree` does NOT apply that closed check when the caller replaces
   `Fragment` or `CopyFiles` through `CmpTreeOptions.Cmp`. The prop set
   belongs to the built-in component, and an override replaces it -- in

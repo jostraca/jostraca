@@ -20,7 +20,11 @@ func fmtErrorf(format string, args ...any) error {
 // callers should use the positional Project method when they only need
 // Folder.
 type ProjectProps struct {
-	Name   string
+	// Names the project, and joins the node path. No output of its own.
+	Name string
+
+	// Output folder, joined to Options.Folder. A tree is refused an
+	// absolute path or a ".." segment.
 	Folder string
 }
 
@@ -59,7 +63,14 @@ func (j *J) Folder(name string, body func(*J)) {
 
 // FileProps is the full options struct for File.
 type FileProps struct {
-	Name    string
+	// Path below the enclosing folder. It may hold "/", so a File can
+	// reach into subfolders without a Folder around it. A ".." segment is
+	// refused, and so are two Files that resolve to one output path.
+	Name string
+
+	// Leave the file alone when it already exists. true always skips it;
+	// a string, or a list of strings, names paths relative to the output
+	// folder.
 	Exclude any
 
 	// Mode sets POSIX permission bits on the generated file, e.g. 0o755 to
@@ -101,13 +112,31 @@ func (j *J) FileP(p FileProps, body func(*J)) {
 // `$$"quoted"$$` renders its own literal and `$$__JOSTRACA_REPLACE__$$`
 // renders the matcher, neither of them from the model. Indent is
 // placement rather than substitution and applies either way.
+// NO Arg. TypeScript reads a positional Content('text') into props.arg;
+// the positional form here is the Content(src) method, so the field has
+// nothing to carry. Held by TestCmpPropsMatchTypeScript, which pins this
+// and the ListItems NoLine inversion as the only two field-set
+// differences between the ports.
 type ContentProps struct {
-	Src     string
-	Name    string
-	Indent  any
+	// Source text.
+	Src string
+
+	// Names the span, and joins the node path. No effect on output.
+	Name string
+
+	// A number is that many spaces, a string is a literal prefix.
+	Indent any
+
+	// Extra substitutions, keyed by a literal, a /regexp/ or a #Tag.
 	Replace map[string]any
-	Extra   map[string]any
-	Raw     bool
+
+	// Merged over the generate model, for this span only.
+	Extra map[string]any
+
+	// Hand the bytes through untouched: no model substitution, and so
+	// neither Extra nor Replace. See the note above for why templating
+	// is the default.
+	Raw bool
 }
 
 // Content emits a string of text into the surrounding File. Templates
@@ -182,6 +211,8 @@ func (j *J) LineP(p ContentProps) {
 
 // SlotProps is the options struct for Slot.
 type SlotProps struct {
+	// Matches the <[SLOT:name]> marker in the enclosing Fragment. Empty
+	// means the unnamed <[SLOT]> marker.
 	Name string
 }
 
@@ -244,8 +275,16 @@ func (j *J) Cmp(name string, fn func(*J)) {
 // InjectProps configures Inject. Markers default to TS's
 // "#--START--#\n" / "\n#--END--#" pair when both are empty.
 type InjectProps struct {
-	Name    string
+	// Path of the file to edit, below the enclosing folder. It must
+	// already exist: Inject rewrites the region between the markers, it
+	// does not create a file.
+	Name string
+
+	// The start and end marker pair. Both must be non-empty; an empty
+	// pair means the default.
 	Markers [2]string
+
+	// Leave the target alone.
 	Exclude any
 }
 
@@ -284,12 +323,32 @@ func (j *J) InjectP(p InjectProps, body func(*J)) {
 }
 
 // FragmentProps configures Fragment.
+//
+// NO Exclude. The field was here, was assigned to the node, and was read
+// by nothing on either side -- the component reference said so in as
+// many words ("Validated and then never read. It has no effect."). Now
+// that each component declares its props as a type the package
+// publishes, a declaration has to be a promise the code keeps, so it
+// goes rather than becoming the one field that means nothing. A tree
+// carrying `{"cmp":"Fragment","props":{"exclude":true}}` is refused by
+// name from here on, which is the diagnostic it should have had all
+// along. TypeScript is canonical and moved first.
 type FragmentProps struct {
-	From    string
-	Indent  any
+	// Path of the template file. A relative path resolves against the
+	// output folder. The file must exist at define time.
+	From string
+
+	// A number is that many spaces, a string is a literal prefix,
+	// applied to the whole fragment.
+	Indent any
+
+	// Extra substitutions, applied to the template as it is read. The
+	// <[SLOT]> markers are added to this, so keep a key of your own
+	// distinct from them.
 	Replace map[string]any
-	Exclude any
-	Eject   any
+
+	// A start and end marker pair: only the region between them is read.
+	Eject any
 }
 
 // Fragment reads an external template, replays Slot children into
@@ -326,7 +385,6 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 		Kind:    KindFragment,
 		From:    p.From,
 		Indent:  p.Indent,
-		Exclude: p.Exclude,
 		Replace: p.Replace,
 		Path:    childPath(j.cur, ""),
 		Meta:    map[string]any{},
@@ -389,7 +447,6 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 	n.Meta["slotNames"] = names
 }
 
-// CopyFilesProps configures Copy.
 // CopyFilesProps configures CopyFiles.
 //
 // NO Indent. The field was here, was assigned to the node, and was
@@ -403,9 +460,21 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 // field goes. Indenting a spliced copy is a feature, and would arrive
 // with an implementation on both sides.
 type CopyFilesProps struct {
-	From    string
-	To      string
+	// File or directory to copy. Independent of the output folder: a
+	// relative path resolves against the process working directory, not
+	// against the project. It must exist at define time.
+	From string
+
+	// Destination name below the enclosing folder, when it differs from
+	// the source name. A directory copy lands under it.
+	To string
+
+	// Substitutions applied to copied text. A binary file is copied
+	// through unchanged.
 	Replace map[string]any
+
+	// Paths to skip, relative to the copied source root. A scalar is as
+	// legal as a list; a boolean is accepted and does nothing.
 	Exclude any
 }
 
@@ -455,8 +524,16 @@ func (j *J) CopyFiles(p CopyFilesProps) {
 // is accepted and never used - the one handed to the body is built fresh
 // per item.
 type ListItemsProps struct {
-	Item   any
+	// Walked once per element, with each element bound as Item for the
+	// body. A slice is walked in order; a map is walked by value.
+	Item any
+
+	// Suppress the blank line written after the last item. Inverts
+	// TypeScript's `line` so Go's zero value matches its default.
 	NoLine bool
+
+	// Set on the node and handed to the body, so the body can apply it
+	// itself.
 	Indent any
 }
 
@@ -492,7 +569,11 @@ const listItemMacro = `/{item(\.(?<path>[^}]+))?}/`
 // a bare {item} yields the empty string, so does a `$`-suffixed key, and
 // so does an unresolved path - unlike $$path$$, which is left in place.
 type ListItemProps struct {
-	Item    any
+	// The element this invocation is for.
+	Item any
+
+	// As given to the ListItems. Neither does anything on its own: both
+	// are meant to be passed straight into the components in the body.
 	Indent  any
 	Replace map[string]any
 }

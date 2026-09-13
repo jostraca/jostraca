@@ -8,6 +8,39 @@ import { cmp, template, each, escre, Content } from '../jostraca'
 import { Shape, One, Optional, Check, Empty, Skip } from 'shape'
 
 
+/**
+ * The props `Fragment` reads.
+ *
+ * Validated, unlike most of the components: the shape below is a closed
+ * set, so a misspelled prop stops the run instead of being dropped. The
+ * type and the shape say the same thing at two different times.
+ */
+type FragmentProps = {
+
+  /**
+   * Path of the template file. A relative path resolves against the
+   * output folder. The file must exist at define time.
+   */
+  from: string
+
+  /**
+   * A number is that many spaces, a string is a literal prefix, applied
+   * to the whole fragment.
+   */
+  indent?: string | number
+
+  /**
+   * Extra substitutions, applied to the template as it is read. The
+   * `<[SLOT]>` markers are added to this, so keep a key of your own
+   * distinct from them.
+   */
+  replace?: Record<string, any>
+
+  /** A start and end marker pair: only the region between them is read. */
+  eject?: (string | RegExp)[]
+}
+
+
 const From = (from: any, _: any, s: any) => s.ctx.fs().statSync(from)
 
 // A CLOSED PROP SET HAS TO ADMIT THE ENGINE'S OWN BINDINGS. A parent
@@ -19,14 +52,20 @@ const From = (from: any, _: any, s: any) => s.ctx.fs().statSync(from)
 // then met an `item` it had never heard of and refused a legitimate
 // tree: a Fragment repeated once per entity is an ordinary generator.
 //
-// `item` is accepted and not read. `indent` and `replace` were already
-// here and are read. The Go port never had the problem -- its props are
-// a struct, so an unknown key in the map is simply not looked at -- so
-// this is TypeScript catching up to it rather than the other way round.
+// `item` is accepted and not read, which is why it is here and not in
+// `FragmentProps`: a props type says what a CALLER writes, and nobody
+// writes a binding. `indent` and `replace` are both.
+//
+// NO `exclude`. It was declared here, validated, and read by nothing on
+// either side -- the component reference said so in as many words
+// ("Validated and then never read. It has no effect."). A prop the
+// types now promise has to be a prop the code keeps, so it goes rather
+// than becoming the one declaration that means nothing. A tree that
+// passes it is refused by name from here on, which is the diagnostic it
+// should have had all along.
 const FragmentShape = Shape({
   ctx$: Object,
   from: Check(From).String() as unknown as string,
-  exclude: Optional(One(Boolean, [String])) as unknown as boolean | string[],
   indent: Optional(One(Empty(String), Number)),
   replace: {} as any,
   eject: Optional([One(String, RegExp)]) as unknown as any[],
@@ -34,10 +73,7 @@ const FragmentShape = Shape({
 }, { name: 'Fragment' })
 
 
-type FragmentProps = ReturnType<typeof FragmentShape>
-
-
-const Fragment = cmp(function Fragment(props: FragmentProps, children: any) {
+const Fragment = cmp<FragmentProps>(function Fragment(props, children) {
   // Resolve a relative `from` BEFORE validating.
   //
   // The `from` check stats the path, and it used to stat the raw relative
@@ -49,8 +85,8 @@ const Fragment = cmp(function Fragment(props: FragmentProps, children: any) {
   //
   // Relative paths now resolve against the output folder, which is
   // predictable and matches the Go port.
-  if ('string' === typeof (props as any).from && !Path.isAbsolute((props as any).from)) {
-    props = { ...props, from: Path.join((props as any).ctx$.folder, (props as any).from) } as any
+  if ('string' === typeof props.from && !Path.isAbsolute(props.from)) {
+    props = { ...props, from: Path.join(props.ctx$.folder, props.from) }
   }
 
   props = FragmentShape(props, { fs: props.ctx$.fs })
@@ -137,3 +173,6 @@ export {
   Fragment
 }
 
+export type {
+  FragmentProps
+}

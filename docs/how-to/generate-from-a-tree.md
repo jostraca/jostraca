@@ -72,5 +72,5 @@ The repository's `tools/cmptree-gen.js` does every step here from the
 command line, including a `--check <dir>` mode that generates into
 memory and compares with what is committed instead of writing. The
 [component reference](../reference-components.md#cmptree) covers both,
-and [`cmp-surface.tsv`](../cmp-surface.tsv) is the prop surface as data,
-for checking a tree before it gets here.
+and [the props types](../reference-components.md#props-are-types) are
+the prop surface to check a tree against before it gets here.

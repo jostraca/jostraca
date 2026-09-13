@@ -1,4 +1,4 @@
-import type { Node, Component, JostracaResult, CheckDrift, CheckResult } from './types';
+import type { Node, Component, CmpContext, CmpProps, CmpChild, CmpChildren, JostracaResult, CheckDrift, CheckResult } from './types';
 import { BuildContext } from './build/BuildContext';
 import { each, get, getx, camelify, snakify, kebabify, cmap, vmap, deep, omap, names, template, escre, indent, isbincontent, isbinext, partify, lcf, ucf } from './util/basic';
 import * as PointUtil from './util/point';
@@ -13,6 +13,16 @@ import { Fragment } from './cmp/Fragment';
 import { Folder } from './cmp/Folder';
 import { Project } from './cmp/Project';
 import { ListItems, List } from './cmp/ListItems';
+import type { ContentProps } from './cmp/Content';
+import type { LineProps } from './cmp/Line';
+import type { SlotProps } from './cmp/Slot';
+import type { CopyFilesProps, CopyProps } from './cmp/CopyFiles';
+import type { FileProps } from './cmp/File';
+import type { InjectProps } from './cmp/Inject';
+import type { FragmentProps } from './cmp/Fragment';
+import type { FolderProps } from './cmp/Folder';
+import type { ProjectProps } from './cmp/Project';
+import type { ListItemsProps, ListItemProps, ListProps } from './cmp/ListItems';
 import { cmpTree, TREE_CMP } from './tree';
 import type { CmpTreeNode, CmpTreeOptions } from './tree';
 declare const OptionsShape: {
@@ -309,6 +319,6 @@ declare function Jostraca(gopts_in?: JostracaOptions | {}): {
     generate: (opts_in: JostracaOptions | {}, root: Function) => Promise<JostracaResult>;
     check: (opts: JostracaOptions | {}, root: Function) => Promise<CheckResult>;
 };
-declare function cmp(component: Function): Component;
-export type { JostracaResult, JostracaOptions, CheckDrift, CheckResult, Component, Node, Existing, CmpTreeNode, CmpTreeOptions, };
+declare function cmp<P = any, Arg = never, Child = never>(component: (props: CmpProps<P>, children?: any) => any): Component<P, Arg, Child>;
+export type { JostracaResult, JostracaOptions, CheckDrift, CheckResult, Component, CmpContext, CmpProps, CmpChild, CmpChildren, Node, Existing, CmpTreeNode, CmpTreeOptions, ProjectProps, FolderProps, FileProps, ContentProps, LineProps, SlotProps, InjectProps, FragmentProps, CopyFilesProps, ListItemsProps, ListItemProps, CopyProps, ListProps, };
 export { Jostraca, BuildContext, cmp, each, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, isbincontent, isbinext, partify, lcf, ucf, deep, omap, Project, Content, File, Inject, Fragment, Folder, Line, Slot, CopyFiles, ListItems, Copy, List, PointUtil, DiffUtil, cmpTree, TREE_CMP, };

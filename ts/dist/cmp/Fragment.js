@@ -17,14 +17,20 @@ const From = (from, _, s) => s.ctx.fs().statSync(from);
 // then met an `item` it had never heard of and refused a legitimate
 // tree: a Fragment repeated once per entity is an ordinary generator.
 //
-// `item` is accepted and not read. `indent` and `replace` were already
-// here and are read. The Go port never had the problem -- its props are
-// a struct, so an unknown key in the map is simply not looked at -- so
-// this is TypeScript catching up to it rather than the other way round.
+// `item` is accepted and not read, which is why it is here and not in
+// `FragmentProps`: a props type says what a CALLER writes, and nobody
+// writes a binding. `indent` and `replace` are both.
+//
+// NO `exclude`. It was declared here, validated, and read by nothing on
+// either side -- the component reference said so in as many words
+// ("Validated and then never read. It has no effect."). A prop the
+// types now promise has to be a prop the code keeps, so it goes rather
+// than becoming the one declaration that means nothing. A tree that
+// passes it is refused by name from here on, which is the diagnostic it
+// should have had all along.
 const FragmentShape = (0, shape_1.Shape)({
     ctx$: Object,
     from: (0, shape_1.Check)(From).String(),
-    exclude: (0, shape_1.Optional)((0, shape_1.One)(Boolean, [String])),
     indent: (0, shape_1.Optional)((0, shape_1.One)((0, shape_1.Empty)(String), Number)),
     replace: {},
     eject: (0, shape_1.Optional)([(0, shape_1.One)(String, RegExp)]),

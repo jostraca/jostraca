@@ -103,15 +103,14 @@ var treeCmpDeprecated = map[string]string{
 // thing. Go's props are a struct, so an unknown key in the map was
 // simply never looked at; this restores the refusal rather than
 // dropping it from TypeScript, because a closed set is the stronger
-// guarantee and it is the one the published prop surface
-// (docs/cmp-surface.tsv) states.
+// guarantee and it is the one the published props types state.
 //
 // `item`, `indent` and `replace` are in both sets because they are the
 // ENGINE's bindings, which ListItems passes to every child -- see the
 // note on FragmentShape in the TypeScript port.
 var treeClosedCmp = map[string]map[string]bool{
 	"Fragment": {
-		"from": true, "exclude": true, "indent": true,
+		"from": true, "indent": true,
 		"replace": true, "eject": true, "item": true,
 	},
 	"CopyFiles": {
@@ -421,7 +420,6 @@ func init() {
 				From:    propString(p, "from"),
 				Indent:  p["indent"],
 				Replace: propMap(p, "replace"),
-				Exclude: p["exclude"],
 				Eject:   p["eject"],
 			}, runChildren(c, nil))
 		},
@@ -471,8 +469,8 @@ func init() {
 }
 
 // propSrc reads a Content or Line's source text: `arg` first, then
-// `src`, which is the precedence TypeScript's components apply and the
-// order docs/cmp-surface.tsv publishes. `arg` is the positional form
+// `src`, which is the precedence TypeScript's components apply and
+// ContentProps declares. `arg` is the positional form
 // (`Content('text')`), and a tree may state it as a key.
 //
 // A NON-STRING IS STRINGIFIED THE WAY TYPESCRIPT STRINGIFIES IT, since

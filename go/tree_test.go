@@ -452,7 +452,7 @@ func TestCmpTreeRawIsSafeOnEveryComponent(t *testing.T) {
 
 // `arg` IS THE POSITIONAL FORM, AND A TREE MAY STATE IT AS A KEY. It
 // outranks `src`, which is the precedence TypeScript's Content applies
-// and the order docs/cmp-surface.tsv publishes -- and this port read
+// and its ContentProps declares -- and this port read
 // only `src`, so a tree carrying `arg` generated different bytes on the
 // two sides of a contract whose whole point is that it does not.
 //

@@ -8,8 +8,9 @@ const From = (from, _, s) => s.ctx.meta.fs().statSync(from);
 // same note in Fragment.ts. `ListItems` binds `item`, `indent` and
 // `replace` for each invocation of its children, and a data child
 // receives all three merged under its own props. `replace` this
-// component reads; `item` and `indent` it does not, and refusing them
-// refused a whole legitimate tree.
+// component reads, and it is a prop besides; `item` and `indent` it
+// does not, which is why they are here and not in `CopyFilesProps`. A
+// props type says what a CALLER writes, and nobody writes a binding.
 const CopyFilesShape = (0, shape_1.Shape)({
     ctx$: Object,
     // The From path is independent of the project folder.

@@ -19,6 +19,46 @@ no-op used for the synthetic root node, and it is not reachable from
 `import { … } from 'jostraca'`. To make a component conditional, branch
 at the call site instead of substituting a no-op component.
 
+## Props are types
+
+Each component declares what it reads, and the package exports the
+declaration under the component's name:
+
+| component | props type | required |
+|---|---|---|
+| `Project` | `ProjectProps` |—|
+| `Folder` | `FolderProps` |—|
+| `File` | `FileProps` | `name` |
+| `Content` | `ContentProps` |—|
+| `Line` | `LineProps`, an alias of `ContentProps` |—|
+| `Fragment` | `FragmentProps` | `from` |
+| `Slot` | `SlotProps` |—|
+| `Inject` | `InjectProps` | `name` |
+| `CopyFiles` | `CopyFilesProps` | `from` |
+| `ListItems` | `ListItemsProps` |—|
+
+<!-- test: skip a type-only import, shown in place; the types are compiled by ts/typecase -->
+```ts
+import type { FileProps } from 'jostraca'
+
+const script: FileProps = { name: 'run.sh', mode: 0o755 }
+```
+
+A misspelled or mistyped prop is a compile error in all ten, whatever
+the component does with one at run time. That matters because run time
+answers two different ways: `Fragment` and `CopyFiles` validate a closed
+shape and throw, and the other eight accept an unknown prop and drop it.
+The types close the gap at the call site, where the typo is.
+
+`ctx$` is in none of them. `cmp()` writes it into the props object on the
+way in, so a caller never passes one, and a type that declared it would
+be asking for one.
+
+Two more types travel with them. `ListItemProps` is what a `ListItems`
+child is called with, `{item, indent, replace}`. `CmpProps<P>` is `P`
+plus the `ctx$` a component body reads, which is the props type of a
+component built with [`cmp()`](#cmp).
+
 ## How a component call works
 
 `cmp()` wraps a function into a component. Each call:
@@ -50,9 +90,12 @@ normalised:
 
 A non-object first argument becomes `props.arg`. Only `Content` and
 `Line` read `arg`; for every other component a positional string is
-accepted and ignored, so `File('x.txt', …)` does **not** name the file.
-`Copy` and `Fragment` are stricter still: their props are closed
-shapes, so a positional argument throws.
+accepted and ignored at run time, so `File('x.txt', …)` does **not**
+name the file. The table is what a tree arriving as data gets: from
+TypeScript, `File('x.txt')` does not compile, because `FileProps` is
+what `File` takes and a string is not one. `Copy` and `Fragment` are
+stricter still: their props are closed shapes, so a positional argument
+throws as well.
 
 ### `props.ctx$`
 
@@ -404,8 +447,12 @@ Props are a **closed** shape: an unknown prop throws.
 | `indent` | `string \| number` |—| Applied to the whole assembled fragment. |
 | `replace` | `Record<string, any>` | `{}` | Custom replacements. The `Slot` machinery adds its own entries to this same object. |
 | `eject` | `[start, end]` of `string \| RegExp` |—| Keep only the region between the two markers. |
-| `exclude` |—|—| Validated and then never read. It has no effect. |
 | `name` |—|—| Not allowed; throws. |
+
+`exclude` used to be here. It was validated and then read by nothing,
+and it is gone from both ports: a prop the types now promise has to be a
+prop the code keeps. A Fragment that is passed one is refused by name
+rather than accepting it and doing nothing.
 
 The `from` resolution catches people out, so it is worth stating twice:
 with `generate({folder: './out'})`, a template at `tpl/page.html` is
@@ -766,10 +813,27 @@ Turns a function into a component.
 
 ```
 cmp(fn) => Component
+cmp<P>(fn) => Component<P>
 ```
 
 The wrapper keeps the wrapped function's `name`, which is not
 cosmetic: `Fragment` identifies its `Slot` children by name.
+
+With no type argument, `props` is `any`, which is what a component
+written before there were [props types](#props-are-types) gets and
+keeps. Name the type and both ends are checked, the call and the body:
+
+<!-- test: skip a type argument, shown in place; ts/typecase compiles the same call -->
+```ts
+const Banner = cmp<{ text: string }>((props) =>
+  Content('// ' + props.text + '\n'))
+
+Banner({ text: 'generated' })
+```
+
+Inside the body, `props` is `CmpProps<P>`: the declared props, plus the
+`ctx$` that `cmp()` writes in. A caller passes the first and never the
+second.
 
 A component emits content, and where that content lands is decided by
 its caller—which is what makes it reusable. It may also emit
@@ -889,11 +953,14 @@ node or a list of them, and a list becomes siblings.
 
 `props` is passed to the component as written, so
 [every prop on this page](#the-exported-components) is reachable from a
-tree. The machine-readable form of that surface is
-[`cmp-surface.tsv`](cmp-surface.tsv): one row per prop per component,
-with its type, whether it is required, and whether that component
-refuses a prop it does not know. Read it if you are generating trees
-from another language and want to check them before they arrive.
+tree. [The props types](#props-are-types) are the machine-readable form
+of that surface: a generator that emits trees from another language can
+check them against `FileProps` and the rest, in `dist/*.d.ts`, rather
+than against this page.
+
+A tree is data, though, and data never met the compiler, so the run-time
+answer still differs by component: `Fragment` and `CopyFiles` refuse an
+unknown prop and the other eight drop it.
 
 ### Options
 

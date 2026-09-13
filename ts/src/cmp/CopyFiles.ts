@@ -6,14 +6,52 @@ import { cmp } from '../jostraca'
 import { Shape, One, Optional, Check, Skip } from 'shape'
 
 
+/**
+ * The props `CopyFiles` reads.
+ *
+ * Validated, like `Fragment` and unlike the other eight: the shape below
+ * is a closed set, so a misspelled prop stops the run instead of being
+ * dropped. The type and the shape say the same thing at two different
+ * times.
+ */
+type CopyFilesProps = {
+
+  /**
+   * File or directory to copy. Independent of the output folder: a
+   * relative path resolves against the process working directory, not
+   * against the project. It must exist at define time.
+   */
+  from: string
+
+  /**
+   * Destination name below the enclosing folder, when it differs from
+   * the source name. A directory copy lands under it.
+   */
+  to?: string
+
+  /**
+   * Substitutions applied to copied text. A binary file is copied
+   * through unchanged.
+   */
+  replace?: Record<string, any>
+
+  /**
+   * Paths to skip, relative to the copied source root. A scalar is as
+   * legal as a list; a boolean is accepted and does nothing.
+   */
+  exclude?: boolean | string | RegExp | (string | RegExp)[]
+}
+
+
 const From = (from: any, _: any, s: any) => s.ctx.meta.fs().statSync(from)
 
 // A CLOSED PROP SET HAS TO ADMIT THE ENGINE'S OWN BINDINGS -- see the
 // same note in Fragment.ts. `ListItems` binds `item`, `indent` and
 // `replace` for each invocation of its children, and a data child
 // receives all three merged under its own props. `replace` this
-// component reads; `item` and `indent` it does not, and refusing them
-// refused a whole legitimate tree.
+// component reads, and it is a prop besides; `item` and `indent` it
+// does not, which is why they are here and not in `CopyFilesProps`. A
+// props type says what a CALLER writes, and nobody writes a binding.
 const CopyFilesShape = Shape({
   ctx$: Object,
 
@@ -41,9 +79,7 @@ const CopyFilesShape = Shape({
 }, { name: 'CopyFiles' })
 
 
-type CopyFilesProps = ReturnType<typeof CopyFilesShape>
-
-const CopyFiles = cmp(function CopyFiles(props: CopyFilesProps, _children: any) {
+const CopyFiles = cmp<CopyFilesProps>(function CopyFiles(props, _children) {
   const ctx = props.ctx$
   const node: Node = ctx.node
 
@@ -81,9 +117,16 @@ const CopyFiles = cmp(function CopyFiles(props: CopyFilesProps, _children: any) 
 // `copy` was already taken by the builtin that copies a VALUE.
 const Copy = CopyFiles
 
+/** @deprecated Use `CopyFilesProps`. */
+type CopyProps = CopyFilesProps
+
 
 export {
   CopyFiles,
   Copy,
 }
 
+export type {
+  CopyFilesProps,
+  CopyProps,
+}

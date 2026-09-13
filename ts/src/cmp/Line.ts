@@ -1,10 +1,22 @@
 
 import type { Node } from '../jostraca'
+import type { ContentProps } from './Content'
 
 import { cmp, template } from '../jostraca'
 
 
-const Line = cmp(function Line(props: any, children: any) {
+/**
+ * The props `Line` reads: exactly `Content`'s.
+ *
+ * An alias rather than a copy, so the two cannot drift apart. The
+ * components are one terminator apart -- `Line` appends a newline and
+ * renders the same way -- and the Go port says the same thing by taking
+ * `ContentProps` in `LineP`.
+ */
+type LineProps = ContentProps
+
+
+const Line = cmp<LineProps, string, string>(function Line(props, children) {
   const node: Node = props.ctx$.node
   node.kind = 'content'
   node.indent = props.indent
@@ -51,4 +63,8 @@ const Line = cmp(function Line(props: any, children: any) {
 
 export {
   Line
+}
+
+export type {
+  LineProps
 }
