@@ -1,4 +1,4 @@
-declare function memClean(p: string): string;
+declare function memClean(p: string, cwd?: string): string;
 declare class MemVolume {
     files: Map<string, Buffer<ArrayBufferLike>>;
     times: Map<string, number>;

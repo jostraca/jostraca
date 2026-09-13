@@ -47,7 +47,7 @@
 import Path from 'node:path'
 import * as Fs from 'node:fs'
 
-import { memfs } from './util/memfs'
+import { memfs, memClean } from './util/memfs'
 
 import type {
   FST,
@@ -63,12 +63,17 @@ import type {
 const META_FOLDER = '.jostraca'
 
 
-// Canonical absolute path: forward slashes, no trailing separator. The
-// memory filesystem keys on the same form, so the two agree about what
-// "the same file" means on every platform.
+// Canonical form of a path, AS THE MEMORY VOLUME KEYS IT.
+//
+// `memClean` rather than a second normaliser of its own, so the two
+// agree by construction. They did not when this was `Path.resolve`:
+// that turns `/app` into `D:/app` on Windows while the volume keeps
+// `/app`, and it resolves a relative folder against the process working
+// directory while the writer hands the volume the relative path it
+// composed. Either mismatch made the walk find nothing and every check
+// answer "clean" -- the one wrong answer a gate must never give.
 function canon(p: string): string {
-  const abs = Path.resolve(String(p)).replace(/\\/g, '/')
-  return 1 < abs.length ? abs.replace(/\/+$/, '') : abs
+  return memClean(String(p))
 }
 
 

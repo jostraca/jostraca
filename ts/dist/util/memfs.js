@@ -46,14 +46,28 @@ function fserr(code, syscall, path, dest) {
 // no `.` or `..` segments. Relative paths resolve against process.cwd(), which
 // is what the `memfs` package does and what the corpus tools in ts/tools rely
 // on. Ported from memClean in go/fs.go, plus the cwd rule.
-function memClean(p) {
+// `cwd` is a parameter so the Windows branch can be asserted on any
+// host: the bug below only shows when the working directory is itself
+// drive-rooted, which no POSIX runner can produce.
+function memClean(p, cwd) {
     let s = String(p).replace(/\\/g, '/');
+    const isDrive = (v) => /^[A-Za-z]:\//.test(v);
     // Windows drive paths ('C:/x') are already absolute; everything else that
     // does not start with '/' is relative to the working directory.
-    const drive = /^[A-Za-z]:\//.test(s);
-    if (!drive && !s.startsWith('/')) {
-        s = String(process.cwd()).replace(/\\/g, '/') + '/' + s;
+    if (!isDrive(s) && !s.startsWith('/')) {
+        s = String(null == cwd ? process.cwd() : cwd).replace(/\\/g, '/') +
+            '/' + s;
     }
+    // TESTED AFTER THE PREPEND, because resolving a relative path against a
+    // drive-rooted working directory produces a drive-rooted path -- and
+    // testing first said otherwise. `a.txt` under `D:/w` came back as
+    // `/D:/w/a.txt` while `D:/w/a.txt` came back as itself, so one volume
+    // held two keys for one file and a caller mixing the two forms found
+    // nothing. Every suite here uses POSIX keys, so only a Windows runner
+    // could see it, and only a caller that mixes forms -- which `check`
+    // does, walking an absolute root over paths the writer composed from a
+    // relative `folder`.
+    const drive = isDrive(s);
     let prefix = '';
     if (drive) {
         prefix = s.slice(0, 2);

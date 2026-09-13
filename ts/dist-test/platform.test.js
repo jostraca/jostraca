@@ -104,5 +104,35 @@ const ABS_BOUNDARY = [
         posix.fs.mkdirSync('/top/a/b', { recursive: true });
         (0, expect_1.expect)([...posix.vol.dirs.keys()]).equal(['/', '/top', '/top/a', '/top/a/b']);
     });
+    // A RELATIVE PATH UNDER A DRIVE-ROOTED WORKING DIRECTORY IS ITSELF
+    // DRIVE-ROOTED, and `memClean` used to decide otherwise: it tested for
+    // a drive BEFORE prepending the working directory, so `a.txt` under
+    // `D:/w` came back `/D:/w/a.txt` while `D:/w/a.txt` came back as
+    // itself. One volume then held two keys for one file, and a caller
+    // mixing the two forms found neither.
+    //
+    // `cwd` is a parameter precisely so this can be asserted here: no
+    // POSIX runner has a drive-rooted working directory, and only a
+    // Windows one could otherwise reach the branch. The same reason
+    // ABS_BOUNDARY above asserts both platforms' tables on one host.
+    (0, node_test_1.test)('memclean-resolves-a-relative-path-against-a-drive-cwd', async () => {
+        const win = 'D:/a/work';
+        // The pair that disagreed: one file, two spellings, one key.
+        (0, expect_1.expect)((0, memfs_1.memClean)('a.txt', win)).equal('D:/a/work/a.txt');
+        (0, expect_1.expect)((0, memfs_1.memClean)('D:/a/work/a.txt', win)).equal('D:/a/work/a.txt');
+        (0, expect_1.expect)((0, memfs_1.memClean)('sub/a.txt', win)).equal('D:/a/work/sub/a.txt');
+        // Backslashes, `.` and `..` all resolve the same way they do
+        // anywhere else, and the drive survives each.
+        (0, expect_1.expect)((0, memfs_1.memClean)('sub\\a.txt', win)).equal('D:/a/work/sub/a.txt');
+        (0, expect_1.expect)((0, memfs_1.memClean)('./a.txt', win)).equal('D:/a/work/a.txt');
+        (0, expect_1.expect)((0, memfs_1.memClean)('sub/../a.txt', win)).equal('D:/a/work/a.txt');
+        // A POSIX-absolute path is left alone even under a drive cwd, which
+        // is what `Path.resolve` would NOT do -- it would answer `D:/app`.
+        // The volume keys `/app`, so anything comparing against it must too.
+        (0, expect_1.expect)((0, memfs_1.memClean)('/app/a.txt', win)).equal('/app/a.txt');
+        // And a POSIX working directory is unchanged.
+        (0, expect_1.expect)((0, memfs_1.memClean)('a.txt', '/w')).equal('/w/a.txt');
+        (0, expect_1.expect)((0, memfs_1.memClean)('/abs/a.txt', '/w')).equal('/abs/a.txt');
+    });
 });
 //# sourceMappingURL=platform.test.js.map
