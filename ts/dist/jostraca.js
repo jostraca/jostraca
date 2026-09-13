@@ -104,6 +104,7 @@ const NoneOp_1 = require("./op/NoneOp");
 const tree_1 = require("./tree");
 Object.defineProperty(exports, "cmpTree", { enumerable: true, get: function () { return tree_1.cmpTree; } });
 Object.defineProperty(exports, "TREE_CMP", { enumerable: true, get: function () { return tree_1.TREE_CMP; } });
+const check_1 = require("./check");
 const GLOBAL = global;
 const KONSOLE = GLOBAL['con' + 'sole'];
 // One AsyncLocalStorage, created once and shared.
@@ -426,8 +427,16 @@ function Jostraca(gopts_in) {
         slot: SlotOp_1.SlotOp,
         none: NoneOp_1.NoneOp,
     };
+    // `check` is a GENERATION MODE, not a separate engine: it runs this
+    // same `generate` against a shadowed output folder and compares what
+    // came out with what is committed. See src/check.ts for what the
+    // shadow buys and what it costs.
+    async function check(opts, root) {
+        return (0, check_1.checkRun)(generate, opts, root);
+    }
     return {
         generate,
+        check,
     };
 }
 function cmp(component) {

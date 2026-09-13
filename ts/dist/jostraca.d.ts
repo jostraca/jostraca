@@ -1,4 +1,4 @@
-import type { Node, Component, JostracaResult } from './types';
+import type { Node, Component, JostracaResult, CheckDrift, CheckResult } from './types';
 import { BuildContext } from './build/BuildContext';
 import { each, get, getx, camelify, snakify, kebabify, cmap, vmap, deep, omap, names, template, escre, indent, isbincontent, isbinext, partify, lcf, ucf } from './util/basic';
 import * as PointUtil from './util/point';
@@ -307,7 +307,8 @@ type Existing = {
 };
 declare function Jostraca(gopts_in?: JostracaOptions | {}): {
     generate: (opts_in: JostracaOptions | {}, root: Function) => Promise<JostracaResult>;
+    check: (opts: JostracaOptions | {}, root: Function) => Promise<CheckResult>;
 };
 declare function cmp(component: Function): Component;
-export type { JostracaResult, JostracaOptions, Component, Node, Existing, CmpTreeNode, CmpTreeOptions, };
+export type { JostracaResult, JostracaOptions, CheckDrift, CheckResult, Component, Node, Existing, CmpTreeNode, CmpTreeOptions, };
 export { Jostraca, BuildContext, cmp, each, get, getx, camelify, snakify, kebabify, cmap, vmap, names, template, escre, indent, isbincontent, isbinext, partify, lcf, ucf, deep, omap, Project, Content, File, Inject, Fragment, Folder, Line, Slot, CopyFiles, ListItems, Copy, List, PointUtil, DiffUtil, cmpTree, TREE_CMP, };

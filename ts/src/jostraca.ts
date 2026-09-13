@@ -19,6 +19,8 @@ import type {
   Component,
   Log,
   JostracaResult,
+  CheckDrift,
+  CheckResult,
 } from './types'
 
 import {
@@ -76,6 +78,8 @@ import { NoneOp } from './op/NoneOp'
 
 import { cmpTree, TREE_CMP } from './tree'
 import type { CmpTreeNode, CmpTreeOptions } from './tree'
+
+import { checkRun } from './check'
 
 
 
@@ -500,8 +504,20 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
     none: NoneOp,
   }
 
+  // `check` is a GENERATION MODE, not a separate engine: it runs this
+  // same `generate` against a shadowed output folder and compares what
+  // came out with what is committed. See src/check.ts for what the
+  // shadow buys and what it costs.
+  async function check(
+    opts: JostracaOptions | {},
+    root: Function
+  ): Promise<CheckResult> {
+    return checkRun(generate, opts, root)
+  }
+
   return {
     generate,
+    check,
   }
 }
 
@@ -594,6 +610,8 @@ function cmp(component: Function): Component {
 export type {
   JostracaResult,
   JostracaOptions,
+  CheckDrift,
+  CheckResult,
   Component,
   Node,
   Existing,

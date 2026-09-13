@@ -52,6 +52,7 @@ Running the generator again over code a person has edited.
 - [Show a diff instead of writing](show-a-diff-instead-of-writing.md). Rewrite the target as an annotated two-way diff so a reviewer can see both versions.
 - [Let a user take a file over](let-a-user-take-a-file-over.md). Mark a generated file with JOSTRACA_PROTECT so no later run overwrites it.
 - [Preview a run without writing](preview-a-run.md). Run the whole generator with control.dryrun so it reports what it would do and writes nothing.
+- [Check committed output for drift](check-committed-output-for-drift.md). Fail a build when committed generated files stop matching what the generator produces.
 
 ## Files, copying and permissions
 

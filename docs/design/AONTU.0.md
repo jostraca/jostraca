@@ -310,7 +310,52 @@ alternative is aontu reimplementing the build phase.
 The ports stay byte-identical, and getting there closed four
 divergences the promotion surfaced. Three are §6.5.
 
-### 6.3 `cmptree-gen --check <dir>` — done, and proved against rb-solar
+### 6.3 `check` — done, proved against rb-solar, and it should never
+### have been a script
+
+**The capability is `Jostraca().check(opts, root)`, in the package, in
+both ports.** It was a script first, and the correction is worth
+recording because the reasoning that put it there was bad in a way that
+is easy to repeat.
+
+The question was where the comparison should live. I answered it with a
+TESTING argument -- a CI gate's contract is its exit code and its
+stderr, so the suite should spawn the binary -- which is true, and
+justifies a thin CLI test, and says nothing at all about where the
+engine belongs. It decided the architecture anyway.
+
+The deeper error: **a drift gate has nothing to do with trees as data.**
+It was filed under the aontu bridge because aontu is what asked for it.
+A hand-written TypeScript generator wants the identical gate, and could
+not have it without shelling out to a script that was not even in the
+published package -- while every other generation mode (`mem`,
+`dryrun`, the existing-file modes, `build: false`) is an option on
+`generate`. It also left Ask 2 half-done: `cmpTree` was promoted to a
+supported surface because it is the only road in for a consumer in
+another language, and then the gate those same consumers need was put
+outside the surface.
+
+The distribution question §6.6 first raised -- whether the script needs
+a `bin` entry so four CI jobs can reach it -- was an artifact of the
+mistake rather than a real question. With the capability in the API, a
+`bin` is a packaging convenience.
+
+`tools/cmptree-gen.js` is now argument parsing, rendering and an exit
+code: 561 lines to 329, with the 250 that were engine moved to
+`ts/src/check.ts` and `go/check.go`. Every one of its eleven CLI cases
+passed unchanged across the move, which is the evidence the refactor
+kept the behaviour.
+
+**What the API buys that the CLI could not.** `opts.fs` is the
+filesystem holding the committed tree, so a check can hold one
+in-memory tree against another and never touch disk -- which is how
+most of `ts/test/check.test.ts` and `go/check_test.go` are written.
+`drift` carries the bytes of both sides rather than a rendered diff, so
+a test asserts on them, a build counts them, and the CLI renders them
+with `DiffUtil.hunks`.
+
+The rest of this section describes the behaviour, which the move did not
+change.
 
 `aontu gen.aon | cmptree-gen --check <dir>` generates into memory,
 compares with the tree on disk, exits 1 on drift and names each drifted
@@ -489,12 +534,14 @@ all now closed:
 
 ### 6.6 What aontu should decide
 
-- **Distribution.** `tools/cmptree-gen.js` is a repository script, not a
-  published binary: the npm package ships `src`, `dist` and the licence.
-  If the four `--check` consumers need to run it from an install rather
-  than from a checkout, it needs a `bin` entry and a move under `ts/`.
-  That is small, and it is a change to what the package installs, so it
-  waits on aontu saying it is wanted.
+- **Distribution.** Answered in part by §6.3: the CAPABILITY ships, as
+  `Jostraca().check(...)` and `(*J).Check(...)`, so a consumer with
+  jostraca installed can write the four-line gate itself. What is still
+  a repository script is the COMMAND, `tools/cmptree-gen.js`. If the
+  four consumers want `npx cmptree-gen --check app` rather than four
+  lines of JavaScript, it needs a `bin` entry and a move under `ts/` --
+  a change to what the package installs, so it waits on aontu saying it
+  is wanted.
 - **Whether the prop surface is pinned or advisory.** §6.5 publishes it;
   whether aontu REFUSES an unknown prop against its vendored copy or
   warns is aontu's call, and the release coupling is different in each

@@ -25,6 +25,20 @@ type JostracaResult = {
     vol?: () => any;
     fs?: () => FST;
 };
+type CheckDrift = {
+    path: string;
+    kind: 'missing' | 'content' | 'mode';
+    generated?: Buffer;
+    existing?: Buffer;
+    mode?: number;
+    existingMode?: number;
+};
+type CheckResult = {
+    folder: string;
+    checked: string[];
+    drift: CheckDrift[];
+    files: JostracaResult["files"];
+};
 type Node = {
     kind: string;
     meta: any;
@@ -62,4 +76,4 @@ type FileEntry = {
     copy?: string;
 };
 type Audit = [string, any][];
-export type { JostracaResult, Node, OpStep, OpDef, Component, Log, FileEntry, FST, Audit, };
+export type { JostracaResult, CheckDrift, CheckResult, Node, OpStep, OpDef, Component, Log, FileEntry, FST, Audit, };

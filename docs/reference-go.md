@@ -134,6 +134,37 @@ either component.
 Semantics follow the [component reference](reference-components.md)
 unless the deviations below say otherwise.
 
+## `Check`
+
+```
+Check(Options, root) => (CheckResult, error)
+```
+
+The twin of TypeScript's [`check`](reference-options.md#check): generate
+into memory, compare with a folder, and answer with the difference as
+data. It takes the same `Options` as `Generate`, and `Folder` is the
+folder checked; `FS`, if set, is the filesystem holding the committed
+tree, so a test can hold one in-memory tree against another.
+
+<!-- test: skip a Go sample; the behaviour is pinned by go/check_test.go and the TypeScript twin's suite -->
+```go
+res, err := jostraca.New().Check(jostraca.Options{Folder: "app"}, root)
+if err != nil {
+    return err
+}
+for _, d := range res.Drift {
+    fmt.Printf("%s: %s
+", d.Kind, d.Path)
+}
+```
+
+`CheckResult` carries `Folder`, `Checked`, `Drift` and `Files`. A
+`Drift` is `Path`, `Kind` (`DriftMissing`, `DriftContent` or
+`DriftMode`), the `Generated` and `Existing` bytes, and `Mode` with
+`ExistingMode` on a mode difference. What is compared, and what the
+shadowed folder refuses to let influence the answer, is the same on
+both sides and documented on that page.
+
 ## A component tree as data
 
 `CmpTree` is the twin of TypeScript's
