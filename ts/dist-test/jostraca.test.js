@@ -683,6 +683,58 @@ const START_TIME = 1735689600000;
             '/top/foo.txt': 'ONE\nTWO\nTHREE\n',
         });
     });
+    // AN EXPRESSION-BODIED ARROW RETURNS WHAT `each` RETURNS.
+    //
+    //     '// #Marker': () => each(list, (x) => Line(...))
+    //
+    // is a generator that emits, and also hands back an array with one
+    // undefined per item, purely because the arrow has no braces. Both
+    // channels are live, and only the emission was meant.
+    //
+    // Before the return value was JSONified this reached the output as
+    // ',,,' -- close enough to blank to go unseen for a long time. As JSON
+    // it became `[null,null,null]` in the middle of generated source:
+    // invalid syntax, exit 0, no diagnostic. The block-bodied form of the
+    // same generator was always correct, so the two spellings had to stop
+    // producing different files.
+    //
+    // The emission wins; the accidental return is dropped. A handler that
+    // emits NOTHING still substitutes its return value, which is what
+    // `zed` and `obj` pin here -- see template.test
+    // `replace-function-jsonifies-objects` for that contract in full.
+    (0, node_test_1.test)('fragment-replace-emit-wins-over-return', async () => {
+        let nowI = 0;
+        const now = () => START_TIME + (++nowI * (60 * 1000));
+        const { fs, vol } = (0, memfs_1.memfs)({
+            '/f01.txt': 'A[arrow]B[block]C[zed]D[obj]E\n'
+        });
+        const items = [{ name: 'x' }, { name: 'y' }, { name: 'z' }];
+        const jostraca = (0, __1.Jostraca)({ now, model: {} });
+        await jostraca.generate({ fs: () => fs, folder: '/top' }, (0, __1.cmp)((_props) => {
+            (0, __1.Project)({}, () => {
+                (0, __1.File)({ name: 'foo.txt' }, () => {
+                    (0, __1.Fragment)({
+                        from: '/f01.txt',
+                        replace: {
+                            // Emits AND returns each()'s array of undefined.
+                            '[arrow]': () => (0, __1.each)(items, (i) => (0, __1.Line)(i.name)),
+                            // The same generator, written so it returns nothing.
+                            '[block]': () => { (0, __1.each)(items, (i) => (0, __1.Line)(i.name)); },
+                            // Emits nothing: the return value is the replacement.
+                            '[zed]': () => 'ZED',
+                            // Emits nothing: an object return is still JSONified.
+                            '[obj]': () => ({ b: 1, a: 2 }),
+                        }
+                    });
+                });
+            });
+        }));
+        const voljson = vol.toJSON();
+        // The two generators produce the SAME text, and neither leaves an
+        // array behind.
+        (0, expect_1.expect)(voljson['/top/foo.txt'])
+            .equal('Ax\ny\nz\nBx\ny\nz\nCZEDD{"a":2,"b":1}E\n');
+    });
     (0, node_test_1.test)('fragment-subcmp', async () => {
         let nowI = 0;
         const now = () => START_TIME + (++nowI * (60 * 1000));
