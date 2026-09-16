@@ -73,6 +73,24 @@ const FragmentShape = Shape({
 }, { name: 'Fragment' })
 
 
+// Discard a replace function's return value when the call emitted
+// components. See the note at its use in `Fragment`.
+//
+// `ctx$.children` is the sibling array the define phase appends to, and
+// `cmp` restores it after every nested component, so the array this reads
+// before the call is the one it reads after.
+function emitWins(ctx$: any, fn: Function) {
+  return function (this: any, ...args: any[]) {
+    const siblings = ctx$.children
+    const before = null == siblings ? -1 : siblings.length
+    const out = fn.apply(this, args)
+    const after = null == ctx$.children ? -1 : ctx$.children.length
+
+    return (siblings === ctx$.children && before < after) ? undefined : out
+  }
+}
+
+
 const Fragment = cmp<FragmentProps>(function Fragment(props, children) {
   // Resolve a relative `from` BEFORE validating.
   //
@@ -97,7 +115,43 @@ const Fragment = cmp<FragmentProps>(function Fragment(props, children) {
   node.from = props.from
   node.indent = props.indent
 
-  const replace = props.replace || {}
+  // A REPLACE FUNCTION THAT EMITS IS A VOID FUNCTION, whatever it
+  // happens to return.
+  //
+  // In a Fragment, a replace function's job is to emit: it calls `Line`,
+  // `Content` or a nested component, and the marker is replaced by what
+  // those produced. jostraca's own `<[SLOT]>` handlers below are exactly
+  // that shape. Its RETURN value is a second, independent channel --
+  // return a string and it is inserted at the marker.
+  //
+  // Nobody writes a handler meaning to use both, but arrow syntax hands
+  // one over for free:
+  //
+  //     '// #Marker': () => each(list, (x) => Line(`${x.name},`))
+  //
+  // An expression-bodied arrow RETURNS `each`'s value -- an array with
+  // one entry per item, each the return of `Line`, which is undefined.
+  // A block body (`() => { each(...) }`) is the same generator and
+  // returns nothing. The two read identically and behaved identically
+  // for as long as a returned array reached the output as its
+  // comma-joined elements, which looked close enough to blank to pass
+  // unnoticed. Once a non-string return became JSON (so that one value
+  // formats one way however it is supplied -- see `template`), the same
+  // handler started emitting `[null,null,null,null]` into the middle of
+  // generated source: invalid syntax, written with exit 0, and no
+  // diagnostic naming the marker or the file.
+  //
+  // So: if the handler emitted, the emission IS the replacement and the
+  // return value is discarded. The two channels can no longer both be
+  // live for one marker, and the accidental one loses to the deliberate
+  // one. A handler that emits nothing is untouched, which is what keeps
+  // the documented `fn -> value` substitution (objects JSONified,
+  // scalars verbatim) working exactly as its tests pin it.
+  const replace: Record<string, any> = {}
+  for (const rk of Object.keys(props.replace || {})) {
+    const rv = (props.replace as any)[rk]
+    replace[rk] = 'function' === typeof rv ? emitWins(props.ctx$, rv) : rv
+  }
 
 
   const { model } = props.ctx$
