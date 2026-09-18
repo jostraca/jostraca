@@ -29,6 +29,7 @@ import (
 	"bytes"
 	"io/fs"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -239,10 +240,27 @@ func (j *J) Check(opts Options, root func(*J)) (CheckResult, error) {
 		base = OsFS{}
 	}
 
-	shadow := newShadowFS(base, memClean(folder))
+	// RESOLVED, because "" is not a usable root. `memClean(".")` is the
+	// empty string, and against it `under` answers backwards -- a
+	// relative output path is not "under" it, so the run would read the
+	// COMMITTED file and a protected one would suppress its own write;
+	// an absolute path from a Project.Folder elsewhere is, so the walk
+	// would descend into a tree outside the folder. The TypeScript twin
+	// carries the same empty root and is right anyway, because its
+	// handler hands memfs absolute paths and every one of them starts
+	// with the separator. Resolving here is what makes Go's paths
+	// absolute in the same way, rather than leaving the answer to
+	// whether a caller happened to spell the folder absolutely.
+	abs, err := filepath.Abs(folder)
+	if err != nil {
+		return CheckResult{}, err
+	}
+	abs = memClean(abs)
+
+	shadow := newShadowFS(base, abs)
 
 	run := opts
-	run.Folder = folder
+	run.Folder = abs
 	run.FS = shadow
 
 	// Forced, because each would answer a different question than the

@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 )
 
 // THE CHECK GENERATION MODE (check.go, twin of ts/src/check.ts).
@@ -307,6 +308,157 @@ func TestCheckWritesNothing(t *testing.T) {
 	got, _ := os.ReadFile(filepath.Join(out, "a.txt"))
 	if !bytes.Equal(got, []byte("STALE\n")) {
 		t.Fatalf("a check rewrote the file it was asked about: %q", got)
+	}
+}
+
+// EVERY SPELLING OF THE FOLDER FINDS THE SAME DRIFT, and `.` is the
+// one that matters: it is the default, and it was the one that checked
+// NOTHING and answered clean on a drifted tree. Every other case in
+// this file passes an absolute "/app", which is why that survived.
+func TestCheckFolderSpellings(t *testing.T) {
+	for _, spelling := range []string{"ABS", "out", ".", "./out"} {
+		t.Run(spelling, func(t *testing.T) {
+			tmp := t.TempDir()
+			out := filepath.Join(tmp, "out")
+			if err := os.MkdirAll(out, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(
+				filepath.Join(out, "a.txt"), []byte("STALE\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			folder, at := spelling, tmp
+			switch spelling {
+			case "ABS":
+				folder = out
+			case ".":
+				at = out
+			}
+
+			prev, err := os.Getwd()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Chdir(at); err != nil {
+				t.Fatal(err)
+			}
+			defer os.Chdir(prev)
+
+			res, err := New().Check(Options{Folder: folder}, func(j *J) {
+				j.File("a.txt", func(j *J) { j.Content("FRESH\n") })
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Join(res.Checked, ",") != "a.txt" {
+				t.Fatalf("checked: %v", res.Checked)
+			}
+			if len(res.Drift) != 1 || res.Drift[0].Kind != DriftContent {
+				t.Fatalf("drift: %+v", res.Drift)
+			}
+		})
+	}
+}
+
+// A PROTECTED COMMITTED FILE MUST NOT HIDE DRIFT. The run reads the
+// output path through the shadow, so it has to reach MEMORY: reaching
+// the committed tree instead lets a `JOSTRACA_PROTECT` marker suppress
+// the write, leaving nothing generated to compare and a clean answer
+// for a file the generator asked to change. That is what an empty
+// shadow root did, because `under` answered false for every relative
+// path and true for every absolute one.
+func TestCheckProtectedFileDoesNotHideDrift(t *testing.T) {
+	for _, spelling := range []string{"ABS", "."} {
+		t.Run(spelling, func(t *testing.T) {
+			tmp := t.TempDir()
+			out := filepath.Join(tmp, "out")
+			if err := os.MkdirAll(out, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(out, "a.txt"),
+				[]byte("# JOSTRACA_PROTECT\nSTALE\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			folder, at := out, tmp
+			if spelling == "." {
+				folder, at = ".", out
+			}
+			prev, err := os.Getwd()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Chdir(at); err != nil {
+				t.Fatal(err)
+			}
+			defer os.Chdir(prev)
+
+			res, err := New().Check(Options{Folder: folder}, func(j *J) {
+				j.File("a.txt", func(j *J) { j.Content("FRESH\n") })
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(res.Drift) != 1 || res.Drift[0].Kind != DriftContent {
+				t.Fatalf("drift: %+v", res.Drift)
+			}
+		})
+	}
+}
+
+// A PROJECT FOLDER ELSEWHERE IS NOT WALKED, and the walk returns. An
+// absolute ProjectProps.Folder writes outside the checked folder, and
+// MemFS exposes such a key under an empty root as an entry whose name
+// is empty. Both ways of handling that are wrong and this holds
+// against both: joining it with a separator walks a path that is not
+// the folder's and finds nothing to compare, and taking the name alone
+// re-enters the root and recurses until the stack goes.
+func TestCheckAbsoluteProjectFolderOutsideRoot(t *testing.T) {
+	tmp := t.TempDir()
+	out := filepath.Join(tmp, "out")
+	if err := os.MkdirAll(out, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(
+		filepath.Join(out, "a.txt"), []byte("STALE\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	elsewhere := filepath.Join(tmp, "elsewhere")
+
+	prev, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(out); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(prev)
+
+	done := make(chan CheckResult, 1)
+	go func() {
+		res, cerr := New().Check(Options{Folder: "."}, func(j *J) {
+			j.File("a.txt", func(j *J) { j.Content("FRESH\n") })
+			j.Project(ProjectProps{Folder: elsewhere}, func(j *J) {
+				j.File("x.txt", func(j *J) { j.Content("X\n") })
+			})
+		})
+		if cerr != nil {
+			t.Error(cerr)
+		}
+		done <- res
+	}()
+
+	select {
+	case res := <-done:
+		if strings.Join(res.Checked, ",") != "a.txt" {
+			t.Fatalf("checked: %v", res.Checked)
+		}
+		if len(res.Drift) != 1 || res.Drift[0].Kind != DriftContent {
+			t.Fatalf("drift: %+v", res.Drift)
+		}
+	case <-time.After(20 * time.Second):
+		t.Fatal("Check did not return: the walk is recursing")
 	}
 }
 

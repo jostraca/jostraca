@@ -74,6 +74,14 @@ var specFns = map[string]func(a []any) (any, error){
 			if rep, ok := raw["replace"].(map[string]any); ok {
 				spec.Replace = rep
 			}
+			// EJECT TOO, because the TypeScript adapter passes the
+			// whole spec through. Reading only `replace` here would let
+			// a shared eject row run against a nil spec on this side
+			// and a real one on the other, which is the adapter drift
+			// the corpus exists to rule out.
+			if ej, ok := raw["eject"].([]any); ok {
+				spec.Eject = ej
+			}
 		}
 		return Template(specStr(a[0]), a[1], spec)
 	},

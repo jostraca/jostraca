@@ -758,15 +758,20 @@ labels and `Humanify`. Days-from-civil arithmetic, about 40 LOC. No `chrono`.
   **accepting** the field, or configurations the canonical TS API takes would be
   rejected. What it does not need is an engine behind it: nothing matches
   against it, so it places no requirement on the regex decision above.
-- **`eject` with a slash-wrapped string diverges.** `go/template.go:773-790`
-  treats `"/START.*/"` as a regex body, citing `basic.ts:584-590` as its
-  authority. That citation points at the function-replacement branch. TS's real
-  eject path (`basic.ts:407-414` into `getCachedEjectRE` at `:677-684`) always
-  escapes: `new RegExp('[ \t]*' + escre(s) + '[ \t]*\\n?')`. So
-  `eject: ["/START.*/", "END"]` compiles a pattern in Go and matches literal text
-  in TS. **[verified]** Neither side tests it. Per `CLAUDE.md`, TS is canonical
-  and Go is the one to fix. Passing a real regex object works correctly in both,
-  so eject-as-regex remains genuine API through the typed value.
+- **`eject` with a slash-wrapped string diverged. FIXED 2026-09-18 in Go.**
+  `go/template.go` treated `"/START.*/"` as a regex body, citing
+  `basic.ts:584-590` as its authority. That citation points at the
+  function-replacement branch. TS's real eject path (`basic.ts:407-414` into
+  `getCachedEjectRE` at `:677-684`) always escapes: `new RegExp('[ \t]*' +
+  escre(s) + '[ \t]*\\n?')`. So `eject: ["/START.*/", "END"]` compiled a
+  pattern in Go and matched literal text in TS. **[verified]** Neither side
+  tested it, and Go's corpus assertion had been loosened to
+  `strings.Contains(got, "Q1")`, which passed either way and so hid it. Per
+  `CLAUDE.md`, TS was canonical and Go was the one to fix: the unwrapping is
+  gone, both ports now answer `"\nA\n  START  \nQ1\n  END  \nB\n"` for the
+  slash forms, and both suites assert that value. Passing a real regex object
+  works correctly in both, so eject-as-regex remains genuine API through the
+  typed value, and both suites now pin that too.
 
 ### 9.4 What must not be substituted
 
@@ -792,6 +797,18 @@ capabilities as default-unsupported trait methods rather than downcasting, and a
 `MemFs` over `Mutex<HashMap<String, Vec<u8>>>`. Rust has no lexical
 `path.Clean`, so `memClean` gets ported too and used wherever Go calls
 `path.Clean`.
+
+**With it, port the empty-root trap.** `memClean(".")` is `""`, and a
+memory filesystem with no notion of a working directory cannot tell
+`"a.txt"` from `"/a.txt"`. Go's check walk built its child paths as
+`dir + "/" + name`, so an empty root produced `"/a.txt"` and read
+nothing — `Check` compared zero files and called a drifted tree clean,
+for the default folder and no other spelling. The TypeScript twin has
+the identical line and survives it only because memfs roots a relative
+path at `/`, which makes the two spellings one file. Fixed in Go on
+2026-09-18 by building the child from the name alone when the directory
+is empty, and `TestCheckFolderSpellings` holds all four spellings in
+each port. Any filesystem written from scratch inherits the trap.
 
 The part most likely to force rework is Fragment replay. `fragmentAfter` builds
 a replace map of slot-marker closures that **re-enter the builder** mid-template-scan

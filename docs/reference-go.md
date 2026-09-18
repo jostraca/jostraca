@@ -461,11 +461,11 @@ is no sort-by-property in Go.
   declaration order in TypeScript, which sorts insertion-ordered
   `Object.keys()` with a stable sort. A Go map has no declaration order to
   reproduce. The two agree whenever declaration order is alphabetical.
-- An eject marker given as a slash-wrapped string (`"/START.*/"`) is
-  compiled as a regular expression here and matched literally by
-  TypeScript. Passing a
-  real regular-expression value behaves the same on both sides. TypeScript is
-  canonical, so Go is the side to change.
+- An eject marker given as a slash-wrapped string (`"/START.*/"`) is matched
+  literally, as TypeScript matches it: the slashes are characters in the
+  marker, not a pattern delimiter. Go compiled it as a regular expression
+  until 2026-09-18. To eject by pattern, pass a real regular-expression
+  value, which behaves the same on both sides.
 
 ## Concurrency
 

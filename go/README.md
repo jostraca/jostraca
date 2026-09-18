@@ -411,11 +411,14 @@ same logical input:
   chosen over matching TS and random. The two agree whenever declaration
   order happens to be alphabetical, which `test/spec/template.tsv`
   (`template-replace-equal-length-keys`) pins.
-- An eject marker given as a slash-wrapped STRING (`"/START.*/"`) is
+- An eject marker given as a slash-wrapped STRING (`"/START.*/"`) was
   compiled as a regex here and matched literally by TS, which always
-  escapes (`ts/src/util/basic.ts` `getCachedEjectRE`). A real
-  `*regexp.Regexp` / `RegExp` value behaves the same on both sides.
-  Untested on either stack; TS is canonical, so Go is the side to change.
+  escapes (`ts/src/util/basic.ts` `getCachedEjectRE`). **Resolved
+  2026-09-18**: Go matches it literally too, and both sides are pinned
+  by `test/spec/template.tsv`
+  (`template-eject-plain-string`, `template-eject-slash-wrapped-string`).
+  A real `*regexp.Regexp` / `RegExp` value always behaved the same on
+  both sides and remains the way to eject by pattern.
 - `CmpTree` -- the data-driven define phase -- takes its inherited props
   as an explicit parameter and returns `(func(*J), error)`. TypeScript
   calls a child with the parent's arguments and merges them there; a Go
