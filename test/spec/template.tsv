@@ -22,3 +22,5 @@ template-replace-empty-match	template	["aQQQb",{},{"replace":{"/Q*/":"Z"}}]	-	em
 template-replace-no-match	template	["abc",{},{"replace":{"Q":"Z"}}]	"abc"	
 template-replace-and-ref	template	["Q$$a$$",{"a":"V"},{"replace":{"Q":"Z"}}]	"ZV"	
 template-replace-equal-length-keys	template	["xAAx",{},{"replace":{"/A+/":"PLUS","/AA/":"PAIR"}}]	"xPLUSx"	
+template-eject-plain-string	template	["\nA\n  START  \nQ$$a$$\n  END  \nB\n",{"a":1},{"eject":["START","END"]}]	"Q1\n"	
+template-eject-slash-wrapped-string	template	["\nA\n  START  \nQ$$a$$\n  END  \nB\n",{"a":1},{"eject":["/START/","/END/"]}]	"\nA\n  START  \nQ1\n  END  \nB\n"	

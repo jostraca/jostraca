@@ -106,7 +106,7 @@ rather than taken:
 | | `Hunks` aliases the caller's arrays | resolved |
 | template + getx + utils | getx `?` filter stamps the model | resolved |
 | | template non-determinism (#42) | resolved |
-| | slash-wrapped string eject marker | **live** (deviation) |
+| | slash-wrapped string eject marker | resolved |
 | components + op walker | Go panic, nil-body Fragment | resolved |
 | | Fragment `eject` never read | resolved |
 | | `List` `{item}` macro (#40) | resolved |
