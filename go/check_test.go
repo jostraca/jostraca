@@ -310,6 +310,56 @@ func TestCheckWritesNothing(t *testing.T) {
 	}
 }
 
+// EVERY SPELLING OF THE FOLDER FINDS THE SAME DRIFT, and `.` is the
+// one that matters: it is the default, and it was the one that checked
+// NOTHING and answered clean on a drifted tree. Every other case in
+// this file passes an absolute "/app", which is why that survived.
+func TestCheckFolderSpellings(t *testing.T) {
+	for _, spelling := range []string{"ABS", "out", ".", "./out"} {
+		t.Run(spelling, func(t *testing.T) {
+			tmp := t.TempDir()
+			out := filepath.Join(tmp, "out")
+			if err := os.MkdirAll(out, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(
+				filepath.Join(out, "a.txt"), []byte("STALE\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			folder, at := spelling, tmp
+			switch spelling {
+			case "ABS":
+				folder = out
+			case ".":
+				at = out
+			}
+
+			prev, err := os.Getwd()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Chdir(at); err != nil {
+				t.Fatal(err)
+			}
+			defer os.Chdir(prev)
+
+			res, err := New().Check(Options{Folder: folder}, func(j *J) {
+				j.File("a.txt", func(j *J) { j.Content("FRESH\n") })
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Join(res.Checked, ",") != "a.txt" {
+				t.Fatalf("checked: %v", res.Checked)
+			}
+			if len(res.Drift) != 1 || res.Drift[0].Kind != DriftContent {
+				t.Fatalf("drift: %+v", res.Drift)
+			}
+		})
+	}
+}
+
 // treeRoot decodes a component tree and returns its define-phase
 // callback, failing the test rather than returning an error.
 func treeRoot(t *testing.T, src string, opts ...CmpTreeOptions) func(*J) {

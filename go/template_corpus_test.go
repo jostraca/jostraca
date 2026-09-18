@@ -1,6 +1,7 @@
 package jostraca
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -67,17 +68,30 @@ func TestTemplateCorpusEject(t *testing.T) {
 		t.Errorf("string eject: got %q", got)
 	}
 
-	// regex eject keeps the surrounding whitespace at the matched
-	// boundaries (TS keeps everything between the regex match starts/ends).
+	// A SLASH-WRAPPED STRING IS A LITERAL MARKER, so it matches nothing
+	// here and the source comes back whole. This assertion was once
+	// `strings.Contains(got, "Q1")`, which passed either way and so hid
+	// the divergence it was loosened for: Go unwrapped the slashes as a
+	// regex body and ejected, TS escaped them and did not. Go was the
+	// one to fix (DEPENDENCY_PLAN.md 9.3), and the value below is what
+	// BOTH ports now answer.
 	got, err = Template(src, m, &TemplateSpec{Eject: []any{"/START/", "/END/"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Allow a non-strict assertion since regex eject semantics are
-	// behaviourally similar but not byte-equal across stacks (Go's
-	// regex slice strips before the match; TS retains some chars).
-	if !strings.Contains(got, "Q1") {
-		t.Errorf("regex eject missing Q1: got %q", got)
+	if want := "\nA\n  START  \nQ1\n  END  \nB\n"; got != want {
+		t.Errorf("slash-wrapped eject: got %q, want %q", got, want)
+	}
+
+	// Regex ejection is still genuine API through the typed value, and
+	// that path was never the divergence.
+	got, err = Template(src, m, &TemplateSpec{
+		Eject: []any{regexp.MustCompile("START"), regexp.MustCompile("END")}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "  \nQ1\n  "; got != want {
+		t.Errorf("regexp eject: got %q, want %q", got, want)
 	}
 }
 

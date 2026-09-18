@@ -241,6 +241,35 @@ const shape = (res) => res.drift.map((d) => ({
         Assert.deepEqual(res.drift, []);
         Assert.deepEqual(res.checked, ['sdk/a.txt']);
     });
+    // EVERY SPELLING OF THE FOLDER FINDS THE SAME DRIFT. `.` is the
+    // default and the one a contributor types, and every other case here
+    // passes an absolute `/app` -- so this is the shape the suite never
+    // held. The Go twin checked NOTHING under `.` and answered clean on
+    // a drifted tree; this port was already right, and this keeps it so.
+    //
+    // A REAL FILESYSTEM, because a relative folder means nothing without
+    // a working directory to be relative to.
+    (0, node_test_1.test)('every-folder-spelling-finds-the-same-drift', async () => {
+        for (const spelling of ['ABS', 'out', '.', './out']) {
+            const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'jostraca-check-'));
+            const out = Path.join(dir, 'out');
+            const prev = process.cwd();
+            try {
+                Fs.mkdirSync(out, { recursive: true });
+                Fs.writeFileSync(Path.join(out, 'a.txt'), 'STALE\n');
+                const folder = 'ABS' === spelling ? out : spelling;
+                process.chdir('.' === spelling ? out : dir);
+                const res = await (0, __1.Jostraca)().check({ folder }, () => (0, __1.File)({ name: 'a.txt' }, () => (0, __1.Content)('FRESH\n')));
+                Assert.deepEqual(res.checked, ['a.txt'], spelling);
+                Assert.equal(res.drift.length, 1, spelling);
+                Assert.equal(res.drift[0].kind, 'content', spelling);
+            }
+            finally {
+                process.chdir(prev);
+                Fs.rmSync(dir, { recursive: true, force: true });
+            }
+        }
+    });
     // A MODE IS OUTPUT TOO, where the tree stated one. The bytes match
     // and the bits do not, which no byte comparison can see: a real
     // generate would chmod the file and the gate would have said clean.

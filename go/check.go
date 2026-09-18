@@ -201,7 +201,15 @@ func (s *shadowFS) generated() map[string][]byte {
 				strings.HasPrefix(key, checkMetaFolder+"/") {
 				continue
 			}
-			full := dir + "/" + e.Name
+			// An EMPTY dir is the root, and joining it with a slash
+			// would build "/a.txt" -- a DIFFERENT key here, where the
+			// write landed at "a.txt". The TypeScript twin survives
+			// the same line because memfs roots a relative path at /,
+			// so the two spell one file; MemFS does not.
+			full := e.Name
+			if dir != "" {
+				full = dir + "/" + e.Name
+			}
 			if e.IsDir {
 				walk(full, key)
 				continue

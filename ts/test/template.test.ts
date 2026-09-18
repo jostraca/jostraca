@@ -91,6 +91,15 @@ B
 
     expect(template(src0, m0, { eject: ['START', 'END'] })).equal('Q1\n')
     expect(template(src0, m0, { eject: [/START/, /END/] })).equal('  \nQ1\n  ')
+
+    // A STRING MARKER IS LITERAL, slashes and all: `getCachedEjectRE`
+    // escapes whatever it is given, so `/START/` looks for those seven
+    // characters and finds none. The Go port used to unwrap them as a
+    // regex body and eject, and its corpus test was loosened until it
+    // passed either way; Go was the one to fix, and this is the value
+    // both ports now answer.
+    expect(template(src0, m0, { eject: ['/START/', '/END/'] }))
+      .equal('\nA\n  START  \nQ1\n  END  \nB\n')
   })
 
 
