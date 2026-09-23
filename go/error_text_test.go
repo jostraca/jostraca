@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 // Every error jostraca raises itself has the same message BODY in both
@@ -172,6 +173,21 @@ func TestErrorBodyDefineTimeFrom(t *testing.T) {
 		t.Fatalf("the filesystem error is not wrapped: %v", frag)
 	}
 
+	// shape clips the value at 111 UTF-16 code units, not bytes.
+	for _, c := range []struct{ from, shown string }{
+		{"/" + strings.Repeat("é", 80) + ".txt", "/" + strings.Repeat("é", 80) + ".txt"},
+		{"/" + strings.Repeat("é", 200), "/" + strings.Repeat("é", 107) + "..."},
+	} {
+		err := errorRefusal(t, func(j *J) {
+			j.File("a.txt", func(j *J) { j.Fragment(FragmentProps{From: c.from}, nil) })
+		})
+		body, _ = errorBody(t, err)
+		if !strings.HasPrefix(body, `Fragment: Validation failed for property "from" `+
+			`with string "`+c.shown+`" because check "From" failed (threw: `) {
+			t.Fatalf("body %q", body)
+		}
+	}
+
 	cp := errorRefusal(t, func(j *J) {
 		j.CopyFiles(CopyFilesProps{From: "/nope"})
 	})
@@ -183,7 +199,8 @@ func TestErrorBodyDefineTimeFrom(t *testing.T) {
 }
 
 // shape clips a value inside a message to 111 characters, and so does
-// the Go rendering of the same text.
+// the Go rendering of the same text. A character is a UTF-16 code unit,
+// as JavaScript counts it, not a byte.
 func TestShapeValueTextClips(t *testing.T) {
 	long := "/" + strings.Repeat("x", 200)
 	got := shapeValueText(long)
@@ -192,6 +209,25 @@ func TestShapeValueTextClips(t *testing.T) {
 	}
 	if got := shapeValueText(`C:\x"y`); got != `C:\\x\y` {
 		t.Fatalf("%q", got)
+	}
+
+	// 85 units in 165 bytes: not clipped.
+	accented := "/" + strings.Repeat("é", 80) + ".txt"
+	if got := shapeValueText(accented); got != accented {
+		t.Fatalf("%q", got)
+	}
+
+	// 108 units kept, whatever their width in bytes.
+	if got, want := shapeValueText("/"+strings.Repeat("é", 200)),
+		"/"+strings.Repeat("é", 107)+"..."; got != want {
+		t.Fatalf("\n got %q\nwant %q", got, want)
+	}
+
+	// Two units per emoji: the 54th would end at unit 109, past the cut,
+	// so it is dropped whole rather than split.
+	got = shapeValueText("x" + strings.Repeat("😀", 100))
+	if want := "x" + strings.Repeat("😀", 53) + "..."; got != want || !utf8.ValidString(got) {
+		t.Fatalf("\n got %q\nwant %q", got, want)
 	}
 }
 

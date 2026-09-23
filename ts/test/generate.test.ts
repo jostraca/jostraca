@@ -466,6 +466,16 @@ describe('generate', () => {
       Assert.ok(frag.message.startsWith('Fragment: Validation failed for property "from" ' +
         'with string "/out/nope.txt" because check "From" failed (threw: '), frag.message)
 
+      // shape clips the value at 111 UTF-16 code units, not bytes.
+      for (const [from, shown] of [
+        ['/' + 'é'.repeat(80) + '.txt', '/' + 'é'.repeat(80) + '.txt'],
+        ['/' + 'é'.repeat(200), '/' + 'é'.repeat(107) + '...'],
+      ]) {
+        const err = await refusal(() => File({ name: 'a.txt' }, () => Fragment({ from })))
+        Assert.ok(err.message.startsWith('Fragment: Validation failed for property "from" ' +
+          'with string "' + shown + '" because check "From" failed (threw: '), err.message)
+      }
+
       const copy = await refusal(() => CopyFiles({ from: '/nope' }))
       Assert.ok(copy.message.startsWith('CopyFiles: '), copy.message)
       Assert.ok(copy.message.includes('Validation failed for property "from" ' +

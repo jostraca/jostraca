@@ -53,8 +53,34 @@ func shapeValueText(s string) string {
 	if js, err := marshalJSLike(s); err == nil {
 		s = strings.ReplaceAll(js, `"`, "")
 	}
-	if len(s) > 111 {
-		s = s[:108] + "..."
+	return clipUTF16(s, 111)
+}
+
+// clipUTF16 clips s as shape's truncate does, counting a character as
+// JavaScript's length does, in UTF-16 code units: beyond limit units, the
+// first limit-3 and "...". A character the cut would split is dropped
+// whole; JavaScript keeps half a surrogate pair there, which a Go string
+// cannot hold.
+func clipUTF16(s string, limit int) string {
+	units := func(r rune) int {
+		if r > 0xFFFF {
+			return 2
+		}
+		return 1
+	}
+	total := 0
+	for _, r := range s {
+		total += units(r)
+	}
+	if total <= limit {
+		return s
+	}
+	kept := 0
+	for i, r := range s {
+		if kept+units(r) > limit-3 {
+			return s[:i] + "..."
+		}
+		kept += units(r)
 	}
 	return s
 }
