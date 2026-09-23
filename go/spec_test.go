@@ -58,6 +58,26 @@ var specFns = map[string]func(a []any) (any, error){
 
 	"deep": func(a []any) (any, error) { return Deep(a[0], a[1:]...), nil },
 
+	// {mark, oval, sort}, booleans only: EachSpec holds their inverses,
+	// so an absent flag keeps TS's default.
+	"each": func(a []any) (any, error) {
+		spec := EachSpec{}
+		if 2 <= len(a) {
+			if raw, ok := a[1].(map[string]any); ok {
+				if v, ok := raw["mark"].(bool); ok {
+					spec.NoMark = !v
+				}
+				if v, ok := raw["oval"].(bool); ok {
+					spec.Raw = !v
+				}
+				if v, ok := raw["sort"].(bool); ok {
+					spec.Sort = v
+				}
+			}
+		}
+		return Each(a[0], spec, nil), nil
+	},
+
 	"omap": func(a []any) (any, error) {
 		m, _ := a[0].(map[string]any)
 		return OMap(m), nil

@@ -12,18 +12,22 @@ import (
 	"unicode"
 )
 
-// EachSpec configures Each. Field semantics differ from TS in two
-// places (PORT_PLAN §14, Phase-4 BUILD_LOG):
+// EachSpec configures Each. The fields invert TS's flags so that the Go
+// zero value is TS's default (PORT_PLAN §14):
 //
-//	Raw    — if true, items are returned as-is (TS oval=false). If
-//	         false (default), scalar items are wrapped in {val$, index$}
-//	         or {key$, val$} matching TS's default oval=true behaviour;
-//	         items that are already map[string]any pass through and
-//	         only get the index$/key$ stamp.
-//	NoMark — if true, suppress the index$/key$ marker that TS adds by
-//	         default. Inverted from TS so Go zero value matches TS
-//	         default mark=true.
-//	Sort   — sort by stringified value (slices) or by key (maps).
+//	Raw    — TS oval:false. Items are returned as they are. Otherwise
+//	         (the default) a scalar item is wrapped as {val$} (slices) or
+//	         {key$, val$} (maps); anything object-like -- a map, slice,
+//	         array or struct -- passes through unwrapped, as a JS object
+//	         does.
+//	NoMark — TS mark:false: nothing is stamped. Otherwise index$ or key$
+//	         is written onto each map[string]any item, the only form Go can
+//	         stamp. TS also stamps an array item, as a property JSON never
+//	         shows; Go cannot.
+//	Sort   — TS sort:true. A slice sorts stably by String(item) in UTF-16
+//	         order, as JS's default sort does. A map (always iterated in
+//	         key order) sorts its entries by value when the first value is
+//	         not object-like.
 type EachSpec struct {
 	NoMark bool
 	Raw    bool
@@ -31,8 +35,8 @@ type EachSpec struct {
 	Args   any
 }
 
-// Each iterates a slice or map and applies a transform. Mirrors
-// src/util/basic.ts:7-107.
+// Each iterates a slice or map and applies a transform. Mirrors each in
+// ts/src/util/basic.ts.
 func Each(subject any, spec EachSpec, apply func(any) any) []any {
 	if subject == nil {
 		return []any{}
@@ -44,34 +48,19 @@ func Each(subject any, spec EachSpec, apply func(any) any) []any {
 		for i := 0; i < rv.Len(); i++ {
 			items[i] = rv.Index(i).Interface()
 		}
-		if spec.Sort {
+		if spec.Sort && len(items) > 1 {
 			sort.SliceStable(items, func(a, b int) bool {
-				return fmt.Sprint(items[a]) < fmt.Sprint(items[b])
+				return jsLess(jsString(items[a]), jsString(items[b]))
 			})
 		}
 		out := make([]any, 0, len(items))
 		for i, item := range items {
 			val := item
-			if !spec.Raw {
-				// TS basic.ts:39-49: when oval=true (default), object
-				// items pass through untouched; non-objects get wrapped
-				// as {val$: n}. Then mark=true (default) writes index$
-				// onto whichever object now sits in the slot.
-				if m, ok := item.(map[string]any); ok {
-					if !spec.NoMark {
-						m["index$"] = i
-					}
-					val = m
-				} else {
-					val = map[string]any{"val$": item, "index$": i}
-				}
-			} else if !spec.NoMark {
-				// Raw=true (oval=false) + mark=true: set index$ only on
-				// object items, leave scalars unchanged. Mirrors TS at
-				// basic.ts:47-49.
-				if m, ok := val.(map[string]any); ok {
-					m["index$"] = i
-				}
+			if !spec.Raw && !jsObjectLike(item) {
+				val = map[string]any{"val$": item}
+			}
+			if m, ok := val.(map[string]any); ok && m != nil && !spec.NoMark {
+				m["index$"] = i
 			}
 			if apply != nil {
 				val = apply(val)
@@ -79,43 +68,82 @@ func Each(subject any, spec EachSpec, apply func(any) any) []any {
 			out = append(out, val)
 		}
 		return out
+
 	case reflect.Map:
-		// Always sort by key for cross-stack determinism; spec.Sort
-		// remains for explicit-by-value sort which is unimplemented.
-		ks := sortedStringKeys(rv)
-		out := make([]any, 0, len(ks))
-		for _, k := range ks {
-			v := rv.MapIndex(reflect.ValueOf(k)).Interface()
-			var val any
-			if spec.Raw {
-				val = v
-				if !spec.NoMark {
-					if m, ok := val.(map[string]any); ok {
-						m["key$"] = k
-					}
-				}
-			} else {
-				// TS basic.ts:79-89: when oval=true and value is already
-				// an object, pass through and stamp key$ onto it. Only
-				// scalars get wrapped as {key$, val$}.
-				if m, ok := v.(map[string]any); ok {
-					if !spec.NoMark {
-						m["key$"] = k
-					}
-					val = m
-				} else {
-					val = map[string]any{"key$": k, "val$": v}
-				}
+		entries := sortedMapEntries(rv)
+		for i, e := range entries {
+			if !spec.Raw && !jsObjectLike(e.v) {
+				entries[i].v = map[string]any{"key$": e.k, "val$": e.v}
 			}
+			if m, ok := entries[i].v.(map[string]any); ok && m != nil && !spec.NoMark {
+				m["key$"] = e.k
+			}
+		}
+		if spec.Sort && len(entries) > 1 {
+			// TS sorts by the key$ property when the first value is an
+			// object (a no-op after the key sort), and by value otherwise.
+			byKey := jsObjectLike(entries[0].v)
+			pick := func(v any) any {
+				if !byKey {
+					return v
+				}
+				if p, ok := jsProp(v, "key$"); ok {
+					return p
+				}
+				return jsUndefined
+			}
+			sort.SliceStable(entries, func(a, b int) bool {
+				lt, undef := jsLessThan(pick(entries[a].v), pick(entries[b].v))
+				return lt && !undef
+			})
+		}
+		out := make([]any, 0, len(entries))
+		for _, e := range entries {
+			val := e.v
 			if apply != nil {
 				val = apply(val)
 			}
 			out = append(out, val)
 		}
 		return out
+
 	default:
 		return []any{}
 	}
+}
+
+type mapEntry struct {
+	k string
+	v any
+}
+
+// sortedMapEntries returns a map's entries in JavaScript key order. It
+// reads the values from the iterator, so a key type that is not a plain
+// string (a named string, an integer) cannot make MapIndex panic.
+func sortedMapEntries(rv reflect.Value) []mapEntry {
+	out := make([]mapEntry, 0, rv.Len())
+	iter := rv.MapRange()
+	for iter.Next() {
+		out = append(out, mapEntry{k: jsJSONMapKey(iter.Key()), v: iter.Value().Interface()})
+	}
+	sort.SliceStable(out, func(i, j int) bool { return jsLess(out[i].k, out[j].k) })
+	return out
+}
+
+// jsObjectLike is JS `null != v && 'object' === typeof v` for a Go value:
+// a map, slice, array, struct or non-nil pointer. A func is not, as a JS
+// function is not.
+func jsObjectLike(v any) bool {
+	if v == nil {
+		return false
+	}
+	switch reflect.ValueOf(v).Kind() {
+	case reflect.Map, reflect.Slice, reflect.Array, reflect.Struct:
+		return true
+	case reflect.Ptr, reflect.Interface:
+		return !reflect.ValueOf(v).IsNil()
+	}
+	return false
 }
 
 // EachF is the simplest narrower variant of Each: a pure transform of

@@ -44,6 +44,10 @@ const FN: Record<string, (a: any[]) => any> = {
   getx: (a) => (Basic as any).getx(a[0], a[1]),
   deep: (a) => (Basic as any).deep(...a),
   omap: (a) => Object.entries((Basic as any).omap(a[0])),
+  // Flags are booleans only; Go's EachSpec holds their inverses.
+  each: (a) => 1 === a.length
+    ? (Basic as any).each(a[0])
+    : (Basic as any).each(a[0], a[1]),
   template: (a) => (Basic as any).template(a[0], a[1], a[2]),
   names: (a) => 2 === a.length
     ? (Basic as any).names(a[0], a[1])
