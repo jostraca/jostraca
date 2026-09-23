@@ -211,3 +211,47 @@ func nestedGenModel(t *testing.T, seed map[string]string, model map[string]any,
 	}
 	return nestedVol(m)
 }
+
+// A File nested in a File, directly or through a Folder, is written to its
+// own path, and the outer File keeps all of its own content, before and
+// after it. Go collected from the tree and was right throughout; TS left
+// the inner File current and lost the outer file's trailing content, and
+// moved to save and restore it. Mirrors 'file-inside-file' in the
+// `components` block of ts/test/jostraca.test.ts.
+func TestFileInsideFile(t *testing.T) {
+	out := nestedGen(t, nil, func(j *J) {
+		j.File("outer.txt", func(j *J) {
+			j.Content("1")
+			j.File("inner.txt", func(j *J) { j.Content("2") })
+			j.Content("3")
+		})
+		j.File("outer2.txt", func(j *J) {
+			j.Content("1")
+			j.Folder("sub", func(j *J) {
+				j.File("inner.txt", func(j *J) { j.Content("2") })
+			})
+			j.Content("3")
+		})
+	})
+	want := map[string]string{
+		"/out/outer.txt":     "13",
+		"/out/inner.txt":     "2",
+		"/out/outer2.txt":    "13",
+		"/out/sub/inner.txt": "2",
+	}
+	if !reflect.DeepEqual(out, want) {
+		t.Errorf("got %q\nwant %q", out, want)
+	}
+
+	files, written := projectScopeGen(t, "/out", func(j *J) {
+		j.Project(ProjectProps{}, func(j *J) {
+			j.File("outer.txt", func(j *J) {
+				j.Content("1")
+				j.File("inner.txt", func(j *J) { j.Content("2") })
+				j.Content("3")
+			})
+		})
+	})
+	expectFiles(t, files, []string{"/out/inner.txt", "/out/outer.txt"})
+	expectFiles(t, written, []string{"/out/inner.txt", "/out/outer.txt"})
+}

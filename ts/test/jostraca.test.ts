@@ -2127,4 +2127,39 @@ describe('components', () => {
     expect(files).equal(['/out/a/x.txt', '/out/b/y.txt'])
   })
 
+
+  // A File nested in a File, directly or through a Folder, is written to
+  // its own path and the outer File keeps all of its own content, before
+  // and after it. Go: TestFileInsideFile in go/nested_emitters_test.go.
+  test('file-inside-file', async () => {
+    const direct = await genIn('/out', () => Project({}, () => {
+      File({ name: 'outer.txt' }, () => {
+        Content('1')
+        File({ name: 'inner.txt' }, () => Content('2'))
+        Content('3')
+      })
+    }))
+    expect(direct.files).equal(['/out/inner.txt', '/out/outer.txt'])
+    expect(direct.written).equal(['/out/inner.txt', '/out/outer.txt'])
+
+    const out = await gen({}, () => Project({}, () => {
+      File({ name: 'outer.txt' }, () => {
+        Content('1')
+        File({ name: 'inner.txt' }, () => Content('2'))
+        Content('3')
+      })
+      File({ name: 'outer2.txt' }, () => {
+        Content('1')
+        Folder({ name: 'sub' }, () => File({ name: 'inner.txt' }, () => Content('2')))
+        Content('3')
+      })
+    }))
+    expect(out).equal({
+      '/out/outer.txt': '13',
+      '/out/inner.txt': '2',
+      '/out/outer2.txt': '13',
+      '/out/sub/inner.txt': '2',
+    })
+  })
+
 })

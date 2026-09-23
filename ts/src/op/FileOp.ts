@@ -11,6 +11,13 @@ const ON = 'FileOp:'
 const FileOp = {
 
   before(node: Node, _ctx$: any, buildctx: BuildContext) {
+    // Save the enclosing file and put it back in after(), as Copy, Inject,
+    // Fragment and Slot do. A File nested in a File (directly or through a
+    // Folder) otherwise left itself current, and the outer file's content
+    // after it went into the inner buffer, already written, and was lost.
+    // Go's fileAfter collects from the tree and always kept it.
+    node.meta.file_prev = buildctx.current.file
+
     const cfile: any = buildctx.current.file = node
     const name = node.name as string
 
@@ -53,6 +60,8 @@ const FileOp = {
     const FN = 'after:'
     const { log } = buildctx
     const fs = ctx$.fs()
+
+    buildctx.current.file = node.meta.file_prev
 
     // The node's own buffer, not buildctx.current.file. Every op that makes
     // itself current.file for the duration of its children puts the previous
