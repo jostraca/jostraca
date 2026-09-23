@@ -44,3 +44,6 @@ cmap-null-child-filter	cmap	[{"a":null,"b":{"x":5}},{"x":"$FILTER"}]	{"b":{"x":5
 vmap-null-child-key	vmap	[{"a":null,"b":{"x":5}},{"k":"$KEY"}]	[{"k":"a"},{"k":"b"}]	
 cmap-copy-and-literal	cmap	[{"a":{"x":1,"y":2}},{"x":"$COPY","l":"L"}]	{"a":{"l":"L","x":1}}	
 cmap-scalar-child-length	cmap	[{"s":"abc","n":5},{"length":"$COPY","k":"$KEY"}]	{"n":{"k":"n","length":null},"s":{"k":"s","length":3}}	
+deep-null-arg	deep	[{"a":1},null]	null	
+deep-null-arg-middle	deep	[{"a":1},null,{"b":2}]	{"b":2}	
+deep-null-arg-last	deep	[{"a":1},{"b":2},null]	null	

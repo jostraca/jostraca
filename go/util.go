@@ -818,15 +818,10 @@ func nodeExt(path string) string {
 func Deep(dst any, srcs ...any) any {
 	out := dst
 	for _, src := range srcs {
-		// A nil *source* is an absent argument and is skipped, matching
-		// TS's `undefined === over` check. A nil map value or slice
-		// element is different: that is a present key holding nil, and it
-		// overwrites the way TS's `null` does. Go has no separate
-		// `undefined`, so the two cases are told apart by position --
-		// here for arguments, in mergeOne for members.
-		if src == nil {
-			continue
-		}
+		// nil is TS null at every position: an argument replaces the
+		// accumulated base exactly as a member does. Only TS undefined is
+		// skipped, and Go spells that by not passing the argument. A
+		// typed nil map is still a map, and merges as an empty one.
 		out = mergeOne(out, src)
 	}
 	return out
@@ -1024,9 +1019,8 @@ func isArrayIndexKey(k string) bool {
 }
 
 func mergeOne(dst, src any) any {
-	// No `src == nil` short-circuit: reaching here means src is a member
-	// of a map or slice, so nil is a real value and wins, as TS `null`
-	// does. Absent arguments are filtered by Deep before this is called.
+	// No `src == nil` short-circuit: nil is a real value and wins, as TS
+	// `null` does, for an argument and a member alike.
 	if dst == nil {
 		return src
 	}

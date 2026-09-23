@@ -629,14 +629,26 @@ func TestDeepSliceTopLevel(t *testing.T) {
 // The nil-as-member vs nil-as-argument split, which is how a language
 // with no `undefined` reproduces TS's null/undefined distinction.
 func TestDeepNilSemantics(t *testing.T) {
-	// A nil argument is absent and is skipped.
+	// A nil argument is TS null: it replaces the base, as TS
+	// deep({a:1}, null) is null. Only an argument not passed at all is
+	// TS undefined.
 	got := Deep(map[string]any{"a": 1}, nil)
-	if !reflect.DeepEqual(got, map[string]any{"a": 1}) {
-		t.Errorf("nil arg: got %v, want map[a:1]", got)
+	if got != nil {
+		t.Errorf("nil arg: got %v, want nil", got)
 	}
 	got = Deep(map[string]any{"a": 1}, nil, map[string]any{"b": 2})
-	if !reflect.DeepEqual(got, map[string]any{"a": 1, "b": 2}) {
-		t.Errorf("nil arg between sources: got %v", got)
+	if !reflect.DeepEqual(got, map[string]any{"b": 2}) {
+		t.Errorf("nil arg between sources: got %v, want map[b:2]", got)
+	}
+	got = Deep(map[string]any{"a": 1})
+	if !reflect.DeepEqual(got, map[string]any{"a": 1}) {
+		t.Errorf("no sources: got %v, want map[a:1]", got)
+	}
+
+	// A typed nil map is still a map, and merges as an empty one.
+	got = Deep(map[string]any{"a": 1}, map[string]any(nil))
+	if !reflect.DeepEqual(got, map[string]any{"a": 1}) {
+		t.Errorf("typed nil map arg: got %v, want map[a:1]", got)
 	}
 
 	// A nil map value is present and overwrites, as TS `null` does.
