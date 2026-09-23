@@ -1,0 +1,44 @@
+{
+  "scenario": "merge_marker_clean",
+  "runs": [
+    {
+      "preserved": [],
+      "written": [
+        "/out/app/doc.md"
+      ],
+      "presented": [],
+      "diffed": [],
+      "merged": [],
+      "conflicted": [],
+      "unchanged": []
+    },
+    {
+      "preserved": [],
+      "written": [],
+      "presented": [],
+      "diffed": [],
+      "merged": [
+        "/out/app/doc.md"
+      ],
+      "conflicted": [],
+      "unchanged": []
+    },
+    {
+      "preserved": [],
+      "written": [],
+      "presented": [],
+      "diffed": [],
+      "merged": [
+        "/out/app/doc.md"
+      ],
+      "conflicted": [],
+      "unchanged": []
+    }
+  ],
+  "vol": {
+    "/out/app/doc.md": "How a conflict looks:\n>>>>>>> EXISTING: 2020-01-01T00:00:00.000Z/merge\nv3\n",
+    "/out/.jostraca/generated/app/doc.md": "How a conflict looks:\n>>>>>>> EXISTING: 2020-01-01T00:00:00.000Z/merge\nv3\n",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/doc.md\": {\n      \"action\": \"merge\",\n      \"path\": \"app/doc.md\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}

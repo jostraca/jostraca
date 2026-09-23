@@ -522,10 +522,24 @@ class FileHandler {
                   why
                 )
                 const diffcontent = mergeres.content
-                const conflict = mergeres.conflict
 
-                this.saveFile(path, diffcontent,
-                  { encoding: 'utf8', ...modeopts() }, whence + meta.action)
+                // A file still holding an earlier merge's markers is left
+                // byte-for-byte untouched, and reported conflicted: it
+                // still carries markers, and the documented guard on
+                // files.conflicted must not pass over it. Rewriting it
+                // bumped the mtime for nothing.
+                const unresolved = 'unresolved' === mergeres.outcome
+                const conflict = mergeres.conflict || unresolved
+
+                if (unresolved) {
+                  if (this.chmodUnchanged(path, mode)) {
+                    why.push('chmod-0')
+                  }
+                }
+                else {
+                  this.saveFile(path, diffcontent,
+                    { encoding: 'utf8', ...modeopts() }, whence + meta.action)
+                }
 
                 // this.files.merged.push(path)
                 this.filelog('merged', path)
@@ -695,7 +709,8 @@ class FileHandler {
     why: string[]
   ): {
     content: string,
-    conflict: boolean
+    conflict: boolean,
+    outcome: string,
   } {
     const res = DiffUtil.merge(generated, baseline, existing, {
       when: this.when,
@@ -705,7 +720,7 @@ class FileHandler {
 
     why.push(MERGE_WHY[res.outcome])
 
-    return { content: res.content, conflict: res.conflict }
+    return { content: res.content, conflict: res.conflict, outcome: res.outcome }
   }
 
 

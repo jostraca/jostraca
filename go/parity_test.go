@@ -790,6 +790,8 @@ var knownParityGaps = map[string]string{}
 // runner so the parity scenario list shows only single-Generate cases.
 var phaseShapedCorpora = map[string]struct{}{
 	"merge_retain":        {}, // covered by TestMergeRetainSequence
+	"merge_marker_clean":  {}, // covered by TestParityRuns
+	"merge_unresolved":    {}, // covered by TestParityRuns
 	"diff_corpus":         {}, // covered by TestDiffCorpusMatchesTS
 	"template_corpus":     {}, // covered by TestTemplateCorpusMatchesTS
 	"scenario_corpus":     {}, // covered by TestScenarioCorpusMatchesTS
@@ -907,4 +909,84 @@ func mergeRunnerNoEdit(t *testing.T, bodyA, bodyB, srcTpl string) *MemFS {
 	mergeTrue := true
 	gen(bodyB, Options{Existing: Existing{Txt: ExistingTxt{Merge: &mergeTrue}}})
 	return mem
+}
+
+// parityRuns mirrors the multi-generate scenarios recorded by snapshotRuns
+// in tools/extract-parity.js. Each step is an edit (a func over the volume)
+// or a generate (options and a root).
+type parityStep struct {
+	edit func(*MemFS)
+	opts Options
+	root func(*J)
+}
+
+func parityOne(name, body string) func(*J) {
+	return func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File(name, func(j *J) { j.Content(body) })
+		})
+	}
+}
+
+var parityRuns = map[string][]parityStep{
+	"merge_marker_clean": func() []parityStep {
+		merge := true
+		opts := Options{Existing: Existing{Txt: ExistingTxt{Merge: &merge}}}
+		doc := func(v string) func(*J) {
+			return parityOne("doc.md", "How a conflict looks:\n>>>>>>> EXISTING: "+
+				"2020-01-01T00:00:00.000Z/merge\n"+v+"\n")
+		}
+		return []parityStep{{opts: opts, root: doc("v1")},
+			{opts: opts, root: doc("v2")}, {opts: opts, root: doc("v3")}}
+	}(),
+	"merge_unresolved": func() []parityStep {
+		merge := true
+		opts := Options{Existing: Existing{Txt: ExistingTxt{Merge: &merge}}}
+		return []parityStep{
+			{root: parityOne("a.txt", "A\n")},
+			{edit: func(m *MemFS) { _ = m.WriteFile("/out/app/a.txt", []byte("A\nuser\n")) }},
+			{opts: opts, root: parityOne("a.txt", "A\ngen\n")},
+			{opts: opts, root: parityOne("a.txt", "A\ngen2\n")},
+		}
+	}(),
+}
+
+func TestParityRuns(t *testing.T) {
+	for name, steps := range parityRuns {
+		t.Run(name, func(t *testing.T) {
+			body, err := parityFS.ReadFile("testdata/parity/" + name + ".json")
+			if err != nil {
+				t.Fatal(err)
+			}
+			var want struct {
+				Runs []Files               `json:"runs"`
+				Vol  map[string]corpusBytes `json:"vol"`
+			}
+			if err := json.Unmarshal(body, &want); err != nil {
+				t.Fatal(err)
+			}
+			mem := NewMemFS()
+			i := 0
+			for _, st := range steps {
+				if st.edit != nil {
+					st.edit(mem)
+					continue
+				}
+				res, err := New(WithFS(mem), WithFolder("/out"),
+					WithNow(func() int64 { return frozenNow })).Generate(st.opts, st.root)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if i >= len(want.Runs) {
+					t.Fatalf("more generates than TS recorded")
+				}
+				assertFiles(t, res.Files, want.Runs[i])
+				i++
+			}
+			if i != len(want.Runs) {
+				t.Fatalf("%d generates, TS recorded %d", i, len(want.Runs))
+			}
+			assertVol(t, mem, want.Vol)
+		})
+	}
 }

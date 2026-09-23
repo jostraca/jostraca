@@ -1042,7 +1042,57 @@ async function main() {
     })
   })
 
+  // A clean merge over a file whose generated text contains the marker
+  // sentinel is written: the engine decides, the handler never pre-empts.
+  const sentinel = (v) => () => Project({ folder: 'app' }, () => {
+    File({ name: 'doc.md' }, () => Content(
+      'How a conflict looks:\n>>>>>>> EXISTING: 2020-01-01T00:00:00.000Z/merge\n' + v + '\n'))
+  })
+  const mergeOpts = { existing: { txt: { merge: true } } }
+  await snapshotRuns('merge_marker_clean', [
+    [mergeOpts, sentinel('v1')],
+    [mergeOpts, sentinel('v2')],
+    [mergeOpts, sentinel('v3')],
+  ])
+
+  // A file still holding an earlier merge's markers is left untouched and
+  // reported merged and conflicted.
+  const one = (body) => () => Project({ folder: 'app' }, () => {
+    File({ name: 'a.txt' }, () => Content(body))
+  })
+  await snapshotRuns('merge_unresolved', [
+    [{}, one('A\n')],
+    (fs) => fs.writeFileSync('/out/app/a.txt', 'A\nuser\n'),
+    [mergeOpts, one('A\ngen\n')],
+    [mergeOpts, one('A\ngen2\n')],
+  ])
+
   console.log('done')
+}
+
+// snapshotRuns records a scenario of several generates over one volume,
+// with edits between them. Each step is either a function called with the
+// fs (an edit), or [opts, root] (a generate). The files lists of every
+// generate are recorded, and the final volume.
+async function snapshotRuns(name, steps) {
+  const mfs = memfs({})
+  const runs = []
+  for (const step of steps) {
+    if ('function' === typeof step) {
+      step(mfs.fs)
+      continue
+    }
+    const [opts, root] = step
+    const res = await Jostraca({}).generate(Object.assign({
+      fs: () => mfs.fs, folder: '/out', now: () => FROZEN_NOW,
+    }, opts), root)
+    runs.push(res.files)
+  }
+  fs.writeFileSync(
+    path.join(outDir, name + '.json'),
+    JSON.stringify({ scenario: name, runs, vol: volOf(mfs) }, null, 2) + '\n',
+  )
+  console.log('wrote', name)
 }
 
 // snapshotMerge runs a two-phase scenario: a clean first generation,

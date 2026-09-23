@@ -581,4 +581,104 @@ describe('filehandler', () => {
     }
   })
 
+
+  // The merge engine decides the outcome. A clean merge over a file whose
+  // generated text contains the marker sentinel is written; a file still
+  // holding an earlier merge's markers is left byte-for-byte untouched, a
+  // requested mode still applied, and reported merged AND conflicted.
+  test('merge-marker-files', async () => {
+    const merge = { txt: { merge: true } }
+
+    // (1) clean over the sentinel.
+    {
+      const { fs } = memfs({})
+      const gen = async (v: string) => {
+        const res: any = await Jostraca({ now: () => NOW, log: quiet }).generate({
+          fs: () => fs, folder: '/out', existing: merge,
+        }, () => Project({}, () => File({ name: 'doc.md' }, () => Content(
+          'How a conflict looks:\n>>>>>>> EXISTING: 2020-01-01T00:00:00.000Z/merge\n' + v + '\n'))))
+        return res
+      }
+      await gen('v1')
+      for (const v of ['v2', 'v3']) {
+        const res = await gen(v)
+        expect(fs.readFileSync('/out/doc.md', 'utf8').endsWith(v + '\n')).equal(true)
+        expect(res.files.merged).equal(['/out/doc.md'])
+        expect(res.files.conflicted).equal([])
+        expect(metaOf(fs).files['doc.md'].action).equal('merge')
+        const rec = res.audit().find((e: any) => 'FileHandler:save:merge' === e[0])
+        expect(rec[1].why.includes('merge-clean-0')).equal(true)
+      }
+    }
+
+    // (2)-(4) over an unresolved file, on the OS filesystem.
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'jostraca-unres-'))
+    try {
+      for (const [name, opts, mode, actions] of [
+        ['plain', { existing: merge }, undefined, ['merge']],
+        ['mode', { existing: merge }, 0o755, ['merge']],
+        ['preserve', { existing: { txt: { merge: true, preserve: true } } }, undefined,
+          ['preserve', 'merge']],
+      ] as [string, any, number | undefined, string[]][]) {
+        const out = Path.join(dir, name)
+        const a = Path.join(out, 'a.txt')
+        const gen = (body: string, extra: any = {}, m?: number) =>
+          Jostraca({ now: () => NOW, log: quiet }).generate({ folder: out, ...extra },
+            () => Project({}, () => File({ name: 'a.txt', ...(null == m ? {} : { mode: m }) },
+              () => Content(body))))
+        await gen('A\n')
+        Fs.writeFileSync(a, 'A\nuser\n')
+        await gen('A\ngen\n', { existing: merge })
+        const before = Fs.readFileSync(a)
+        const ino = Fs.statSync(a).ino
+        const res = await gen('A\ngen2\n', opts, mode)
+        expect({ name, same: Fs.readFileSync(a).equals(before), ino: Fs.statSync(a).ino })
+          .equal({ name, same: true, ino })
+        expect(res.files.merged).equal([a.replace(/\\/g, '/')])
+        expect(res.files.conflicted).equal([a.replace(/\\/g, '/')])
+        const e = JSON.parse(Fs.readFileSync(Path.join(out, '.jostraca', 'jostraca.meta.log'), 'utf8'))
+          .files['a.txt']
+        expect({ name, action: e.action, actions: e.actions, conflict: e.conflict })
+          .equal({ name, action: 'merge', actions, conflict: true })
+        if (null != mode && 'win32' !== process.platform) {
+          expect(Fs.statSync(a).mode & 0o777).equal(mode)
+        }
+        expect(Fs.readFileSync(Path.join(out, '.jostraca', 'generated', 'a.txt'), 'utf8'))
+          .equal('A\ngen2\n')
+      }
+
+      // (5) diff-mode markers followed by a merge run.
+      const out = Path.join(dir, 'diffthen')
+      const a = Path.join(out, 'a.txt')
+      const gen = (body: string, existing?: any) =>
+        Jostraca({ now: () => NOW, log: quiet }).generate({ folder: out, existing },
+          () => Project({}, () => File({ name: 'a.txt' }, () => Content(body))))
+      await gen('A\nB\n', { txt: { diff: true } })
+      Fs.writeFileSync(a, 'A\nU\n')
+      await gen('A\nG\n', { txt: { diff: true } })
+      const before = Fs.readFileSync(a)
+      const res = await gen('A\nG2\n', merge)
+      expect(Fs.readFileSync(a).equals(before)).equal(true)
+      expect(res.files.merged).equal([a.replace(/\\/g, '/')])
+      expect(res.files.conflicted).equal([a.replace(/\\/g, '/')])
+
+      // (6) an unresolved file holding a non-UTF-8 byte keeps it.
+      const out6 = Path.join(dir, 'latin1')
+      const a6 = Path.join(out6, 'a.txt')
+      const gen6 = (body: string, existing?: any) =>
+        Jostraca({ now: () => NOW, log: quiet }).generate({ folder: out6, existing },
+          () => Project({}, () => File({ name: 'a.txt' }, () => Content(body))))
+      await gen6('A\n')
+      Fs.writeFileSync(a6, 'A\nuser\n')
+      await gen6('A\ngen\n', merge)
+      const marked = Buffer.concat([Fs.readFileSync(a6), Buffer.from([0xe9, 0x0a])])
+      Fs.writeFileSync(a6, marked)
+      await gen6('A\ngen2\n', merge)
+      expect(Fs.readFileSync(a6).equals(marked)).equal(true)
+    }
+    finally {
+      Fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
 })

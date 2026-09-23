@@ -470,41 +470,19 @@ func (fh *fileHandler) savePresent(p string, content []byte, rpath, whence strin
 // saveMerge runs a 3-way merge using the duplicate-folder baseline as
 // the common ancestor. The caller (save()) only dispatches here when a
 // baseline file exists; the no-baseline fall-through path is handled
-// before dispatch and ends in the regular write logic, mirroring TS at
-// FileHandler.ts:282-336.
+// before dispatch and ends in the regular write logic, as in TS.
 //
-// Skip semantics: if existing already contains conflict markers from
-// a previous unresolved merge, the file is left untouched (TS
-// "merge-unresolved" action at FileHandler.ts:429-433). The duplicate
-// baseline is still refreshed so a future user-resolution can merge
-// cleanly.
+// The diff engine decides the outcome; this never pre-empts it. A file
+// still holding an earlier merge's markers (MergeUnresolved) is left
+// byte-for-byte untouched, a requested mode still applied, and reported
+// merged AND conflicted, as TS does. A clean merge over a file whose
+// generated text happens to contain the marker sentinel is written.
 func (fh *fileHandler) saveMerge(p string, content, existing []byte, rpath, whence string, why []string, mode fs.FileMode) error {
-	if HasConflicts(string(existing)) {
-		// Existing has unresolved markers; do not re-merge. The baseline is
-		// still refreshed by save()'s centralised duplicate write, so a
-		// future user-resolution merges cleanly.
-		fh.appendAudit("save:skip", map[string]any{
-			"action":  "skip",
-			"path":    rpath,
-			"whence":  whence,
-			"why":     append(why, "merge-unresolved-0"),
-			"exists":  true,
-			"actions": []string{"skip"},
-		})
-		if fh.bmeta != nil {
-			fh.bmeta.recordAction(rpath, "skip", true, false, false)
-		}
-		return nil
-	}
 	dpath := fh.duplicateFolder + "/" + rpath
-	// saveMerge is only entered when a baseline exists; the no-baseline
-	// fall-through is handled in save() before dispatch.
 	baseline, err := fh.fs.ReadFile(dpath)
 	if err != nil {
 		return err
 	}
-	// The fast paths and the choice between them live in the diff engine,
-	// which reports an Outcome; record it as a breadcrumb.
 	res := Merge(string(content), string(baseline), string(existing), DiffSpec{
 		When: fh.when,
 		Last: fh.bmeta.last(),
@@ -512,32 +490,40 @@ func (fh *fileHandler) saveMerge(p string, content, existing []byte, rpath, when
 	})
 	why = append(why, mergeWhy[res.Outcome])
 
-	if err := fh.ensureDirOf(p); err != nil {
-		return err
-	}
-	if !fh.control.Dryrun {
-		// Forward the requested mode, as the TS branch does via modeopts().
-		// These used to call writeAtomic, so an explicit FileProps.Mode was
-		// silently dropped whenever merge or diff handled the file.
-		if err := fh.writeAtomicMode(p, []byte(res.Content), mode); err != nil {
+	unresolved := res.Outcome == MergeUnresolved
+	conflict := res.Conflict || unresolved
+
+	if unresolved {
+		if fh.chmodUnchanged(p, mode) {
+			why = append(why, "chmod-0")
+		}
+	} else {
+		if err := fh.ensureDirOf(p); err != nil {
 			return err
+		}
+		if !fh.control.Dryrun {
+			// Forward the requested mode, as the TS branch does via
+			// modeopts().
+			if err := fh.writeAtomicMode(p, []byte(res.Content), mode); err != nil {
+				return err
+			}
 		}
 	}
 	fh.filelog("merged", p)
-	if res.Conflict {
+	if conflict {
 		fh.filelog("conflicted", p)
 	}
 	fh.appendAudit("save:merge", map[string]any{
 		"action":   "merge",
 		"path":     rpath,
-		"conflict": res.Conflict,
+		"conflict": conflict,
 		"whence":   whence,
 		"why":      why,
 		"exists":   true,
 		"actions":  []string{"merge"},
 	})
 	if fh.bmeta != nil {
-		fh.bmeta.recordAction(rpath, "merge", true, res.Conflict, false)
+		fh.bmeta.recordAction(rpath, "merge", true, conflict, false)
 	}
 	return nil
 }

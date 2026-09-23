@@ -87,6 +87,13 @@ const STATE = [
   { key: 'same', seed: 'GENERATED\n' },
   { key: 'changed', seed: 'USER EDITED\n' },
   { key: 'empty', seed: '' },
+  // Still holding an earlier merge's markers. Crossed with the merge mode
+  // only: the file is left untouched and reported merged and conflicted.
+  {
+    key: 'unresolved', only: 'merge',
+    seed: 'A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n' +
+      '=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n',
+  },
 ]
 
 // File-name shapes. The dotfile at top level is the one that collapsed
@@ -445,6 +452,9 @@ function buildCases() {
   for (const f of FOLDERS) {
     for (const e of EXISTING) {
       for (const st of STATE) {
+        if (null != st.only && st.only !== e.key) {
+          continue
+        }
         for (const n of NAMES) {
           cases.push({
             name: [f.key, e.key, st.key, n.key].join('/'),

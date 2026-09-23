@@ -2696,6 +2696,186 @@
       }
     },
     {
+      "name": "unset/merge/unresolved/plain",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "a.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "a.txt"
+        ],
+        "conflicted": [
+          "a.txt"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "unset/merge/unresolved/dotfile",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        ".env"
+      ],
+      "vol": {
+        ".env": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        ".jostraca/generated/.env": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \".env\": {\n      \"action\": \"merge\",\n      \"path\": \".env\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          ".env"
+        ],
+        "conflicted": [
+          ".env"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "unset/merge/unresolved/dot-and-plain",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        ".env",
+        "env"
+      ],
+      "vol": {
+        ".env": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "env": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        ".jostraca/generated/.env": "GENERATED\n",
+        ".jostraca/generated/env": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \".env\": {\n      \"action\": \"merge\",\n      \"path\": \".env\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"env\": {\n      \"action\": \"merge\",\n      \"path\": \"env\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          ".env",
+          "env"
+        ],
+        "conflicted": [
+          ".env",
+          "env"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "unset/merge/unresolved/nested",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "sub/a.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        ".jostraca/generated/sub/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "sub/a.txt"
+        ],
+        "conflicted": [
+          "sub/a.txt"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "unset/merge/unresolved/two",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.txt",
+        "b.txt"
+      ],
+      "vol": {
+        "a.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "b.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/generated/b.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"b.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"b.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "a.txt",
+          "b.txt"
+        ],
+        "conflicted": [
+          "a.txt",
+          "b.txt"
+        ],
+        "unchanged": []
+      }
+    },
+    {
       "name": "unset/present/fresh/plain",
       "folder": null,
       "existing": {
@@ -7451,6 +7631,186 @@
       "vol": {
         "a.txt": "<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nGENERATED\n=======\n>>>>>>> EXISTING: 1969-12-31T23:59:59.999Z/merge\n",
         "b.txt": "<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nGENERATED\n=======\n>>>>>>> EXISTING: 1969-12-31T23:59:59.999Z/merge\n",
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/generated/b.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"b.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"b.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "a.txt",
+          "b.txt"
+        ],
+        "conflicted": [
+          "a.txt",
+          "b.txt"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "dot/merge/unresolved/plain",
+      "folder": ".",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "a.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "a.txt"
+        ],
+        "conflicted": [
+          "a.txt"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "dot/merge/unresolved/dotfile",
+      "folder": ".",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        ".env"
+      ],
+      "vol": {
+        ".env": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        ".jostraca/generated/.env": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \".env\": {\n      \"action\": \"merge\",\n      \"path\": \".env\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          ".env"
+        ],
+        "conflicted": [
+          ".env"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "dot/merge/unresolved/dot-and-plain",
+      "folder": ".",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        ".env",
+        "env"
+      ],
+      "vol": {
+        ".env": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "env": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        ".jostraca/generated/.env": "GENERATED\n",
+        ".jostraca/generated/env": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \".env\": {\n      \"action\": \"merge\",\n      \"path\": \".env\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"env\": {\n      \"action\": \"merge\",\n      \"path\": \"env\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          ".env",
+          "env"
+        ],
+        "conflicted": [
+          ".env",
+          "env"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "dot/merge/unresolved/nested",
+      "folder": ".",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "sub/a.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        ".jostraca/generated/sub/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "sub/a.txt"
+        ],
+        "conflicted": [
+          "sub/a.txt"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "dot/merge/unresolved/two",
+      "folder": ".",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.txt",
+        "b.txt"
+      ],
+      "vol": {
+        "a.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "b.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
         ".jostraca/generated/a.txt": "GENERATED\n",
         ".jostraca/generated/b.txt": "GENERATED\n",
         ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"b.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"b.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
@@ -12252,6 +12612,186 @@
       }
     },
     {
+      "name": "rel/merge/unresolved/plain",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "out/a.txt"
+        ],
+        "conflicted": [
+          "out/a.txt"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "rel/merge/unresolved/dotfile",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        ".env"
+      ],
+      "vol": {
+        "out/.env": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "out/.jostraca/generated/.env": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \".env\": {\n      \"action\": \"merge\",\n      \"path\": \".env\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "out/.env"
+        ],
+        "conflicted": [
+          "out/.env"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "rel/merge/unresolved/dot-and-plain",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        ".env",
+        "env"
+      ],
+      "vol": {
+        "out/.env": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "out/env": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "out/.jostraca/generated/.env": "GENERATED\n",
+        "out/.jostraca/generated/env": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \".env\": {\n      \"action\": \"merge\",\n      \"path\": \".env\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"env\": {\n      \"action\": \"merge\",\n      \"path\": \"env\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "out/.env",
+          "out/env"
+        ],
+        "conflicted": [
+          "out/.env",
+          "out/env"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "rel/merge/unresolved/nested",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "out/sub/a.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "out/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "out/sub/a.txt"
+        ],
+        "conflicted": [
+          "out/sub/a.txt"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "rel/merge/unresolved/two",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.txt",
+        "b.txt"
+      ],
+      "vol": {
+        "out/a.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "out/b.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/generated/b.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"b.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"b.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "out/a.txt",
+          "out/b.txt"
+        ],
+        "conflicted": [
+          "out/a.txt",
+          "out/b.txt"
+        ],
+        "unchanged": []
+      }
+    },
+    {
       "name": "rel/present/fresh/plain",
       "folder": "out",
       "existing": {
@@ -17007,6 +17547,186 @@
       "vol": {
         "out/a.txt": "<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nGENERATED\n=======\n>>>>>>> EXISTING: 1969-12-31T23:59:59.999Z/merge\n",
         "out/b.txt": "<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nGENERATED\n=======\n>>>>>>> EXISTING: 1969-12-31T23:59:59.999Z/merge\n",
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/generated/b.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"b.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"b.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "out/a.txt",
+          "out/b.txt"
+        ],
+        "conflicted": [
+          "out/a.txt",
+          "out/b.txt"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "dotrel/merge/unresolved/plain",
+      "folder": "./out",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "out/a.txt"
+        ],
+        "conflicted": [
+          "out/a.txt"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "dotrel/merge/unresolved/dotfile",
+      "folder": "./out",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        ".env"
+      ],
+      "vol": {
+        "out/.env": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "out/.jostraca/generated/.env": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \".env\": {\n      \"action\": \"merge\",\n      \"path\": \".env\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "out/.env"
+        ],
+        "conflicted": [
+          "out/.env"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "dotrel/merge/unresolved/dot-and-plain",
+      "folder": "./out",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        ".env",
+        "env"
+      ],
+      "vol": {
+        "out/.env": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "out/env": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "out/.jostraca/generated/.env": "GENERATED\n",
+        "out/.jostraca/generated/env": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \".env\": {\n      \"action\": \"merge\",\n      \"path\": \".env\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"env\": {\n      \"action\": \"merge\",\n      \"path\": \"env\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "out/.env",
+          "out/env"
+        ],
+        "conflicted": [
+          "out/.env",
+          "out/env"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "dotrel/merge/unresolved/nested",
+      "folder": "./out",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "out/sub/a.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "out/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "out/sub/a.txt"
+        ],
+        "conflicted": [
+          "out/sub/a.txt"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "dotrel/merge/unresolved/two",
+      "folder": "./out",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.txt",
+        "b.txt"
+      ],
+      "vol": {
+        "out/a.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "out/b.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
         "out/.jostraca/generated/a.txt": "GENERATED\n",
         "out/.jostraca/generated/b.txt": "GENERATED\n",
         "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"b.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"b.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
@@ -21808,6 +22528,186 @@
       }
     },
     {
+      "name": "abs/merge/unresolved/plain",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "/abs/a.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "/abs/a.txt"
+        ],
+        "conflicted": [
+          "/abs/a.txt"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "abs/merge/unresolved/dotfile",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        ".env"
+      ],
+      "vol": {
+        "/abs/.env": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "/abs/.jostraca/generated/.env": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \".env\": {\n      \"action\": \"merge\",\n      \"path\": \".env\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "/abs/.env"
+        ],
+        "conflicted": [
+          "/abs/.env"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "abs/merge/unresolved/dot-and-plain",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        ".env",
+        "env"
+      ],
+      "vol": {
+        "/abs/.env": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "/abs/env": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "/abs/.jostraca/generated/.env": "GENERATED\n",
+        "/abs/.jostraca/generated/env": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \".env\": {\n      \"action\": \"merge\",\n      \"path\": \".env\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"env\": {\n      \"action\": \"merge\",\n      \"path\": \"env\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "/abs/.env",
+          "/abs/env"
+        ],
+        "conflicted": [
+          "/abs/.env",
+          "/abs/env"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "abs/merge/unresolved/nested",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "/abs/sub/a.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "/abs/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "/abs/sub/a.txt"
+        ],
+        "conflicted": [
+          "/abs/sub/a.txt"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "abs/merge/unresolved/two",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.txt",
+        "b.txt"
+      ],
+      "vol": {
+        "/abs/a.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "/abs/b.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/generated/b.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"b.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"b.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "/abs/a.txt",
+          "/abs/b.txt"
+        ],
+        "conflicted": [
+          "/abs/a.txt",
+          "/abs/b.txt"
+        ],
+        "unchanged": []
+      }
+    },
+    {
       "name": "abs/present/fresh/plain",
       "folder": "/abs",
       "existing": {
@@ -26563,6 +27463,186 @@
       "vol": {
         "a/b/a.txt": "<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nGENERATED\n=======\n>>>>>>> EXISTING: 1969-12-31T23:59:59.999Z/merge\n",
         "a/b/b.txt": "<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nGENERATED\n=======\n>>>>>>> EXISTING: 1969-12-31T23:59:59.999Z/merge\n",
+        "a/b/.jostraca/generated/a.txt": "GENERATED\n",
+        "a/b/.jostraca/generated/b.txt": "GENERATED\n",
+        "a/b/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"b.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"b.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "a/b/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "a/b/a.txt",
+          "a/b/b.txt"
+        ],
+        "conflicted": [
+          "a/b/a.txt",
+          "a/b/b.txt"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "nested/merge/unresolved/plain",
+      "folder": "a/b",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "a/b/a.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "a/b/.jostraca/generated/a.txt": "GENERATED\n",
+        "a/b/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "a/b/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "a/b/a.txt"
+        ],
+        "conflicted": [
+          "a/b/a.txt"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "nested/merge/unresolved/dotfile",
+      "folder": "a/b",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        ".env"
+      ],
+      "vol": {
+        "a/b/.env": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "a/b/.jostraca/generated/.env": "GENERATED\n",
+        "a/b/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \".env\": {\n      \"action\": \"merge\",\n      \"path\": \".env\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "a/b/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "a/b/.env"
+        ],
+        "conflicted": [
+          "a/b/.env"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "nested/merge/unresolved/dot-and-plain",
+      "folder": "a/b",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        ".env",
+        "env"
+      ],
+      "vol": {
+        "a/b/.env": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "a/b/env": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "a/b/.jostraca/generated/.env": "GENERATED\n",
+        "a/b/.jostraca/generated/env": "GENERATED\n",
+        "a/b/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \".env\": {\n      \"action\": \"merge\",\n      \"path\": \".env\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"env\": {\n      \"action\": \"merge\",\n      \"path\": \"env\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "a/b/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "a/b/.env",
+          "a/b/env"
+        ],
+        "conflicted": [
+          "a/b/.env",
+          "a/b/env"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "nested/merge/unresolved/nested",
+      "folder": "a/b",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "a/b/sub/a.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "a/b/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "a/b/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "a/b/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "a/b/sub/a.txt"
+        ],
+        "conflicted": [
+          "a/b/sub/a.txt"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "nested/merge/unresolved/two",
+      "folder": "a/b",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.txt",
+        "b.txt"
+      ],
+      "vol": {
+        "a/b/a.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "a/b/b.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
         "a/b/.jostraca/generated/a.txt": "GENERATED\n",
         "a/b/.jostraca/generated/b.txt": "GENERATED\n",
         "a/b/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"b.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"b.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
@@ -31364,6 +32444,186 @@
       }
     },
     {
+      "name": "trailing/merge/unresolved/plain",
+      "folder": "out/",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "out/a.txt"
+        ],
+        "conflicted": [
+          "out/a.txt"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "trailing/merge/unresolved/dotfile",
+      "folder": "out/",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        ".env"
+      ],
+      "vol": {
+        "out/.env": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "out/.jostraca/generated/.env": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \".env\": {\n      \"action\": \"merge\",\n      \"path\": \".env\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "out/.env"
+        ],
+        "conflicted": [
+          "out/.env"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "trailing/merge/unresolved/dot-and-plain",
+      "folder": "out/",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        ".env",
+        "env"
+      ],
+      "vol": {
+        "out/.env": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "out/env": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "out/.jostraca/generated/.env": "GENERATED\n",
+        "out/.jostraca/generated/env": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \".env\": {\n      \"action\": \"merge\",\n      \"path\": \".env\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"env\": {\n      \"action\": \"merge\",\n      \"path\": \"env\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "out/.env",
+          "out/env"
+        ],
+        "conflicted": [
+          "out/.env",
+          "out/env"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "trailing/merge/unresolved/nested",
+      "folder": "out/",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "out/sub/a.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "out/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "out/sub/a.txt"
+        ],
+        "conflicted": [
+          "out/sub/a.txt"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "trailing/merge/unresolved/two",
+      "folder": "out/",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.txt",
+        "b.txt"
+      ],
+      "vol": {
+        "out/a.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "out/b.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/generated/b.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"b.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"b.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "out/a.txt",
+          "out/b.txt"
+        ],
+        "conflicted": [
+          "out/a.txt",
+          "out/b.txt"
+        ],
+        "unchanged": []
+      }
+    },
+    {
       "name": "trailing/present/fresh/plain",
       "folder": "out/",
       "existing": {
@@ -36119,6 +37379,186 @@
       "vol": {
         "/abs/a.txt": "<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nGENERATED\n=======\n>>>>>>> EXISTING: 1969-12-31T23:59:59.999Z/merge\n",
         "/abs/b.txt": "<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nGENERATED\n=======\n>>>>>>> EXISTING: 1969-12-31T23:59:59.999Z/merge\n",
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/generated/b.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"b.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"b.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "/abs/a.txt",
+          "/abs/b.txt"
+        ],
+        "conflicted": [
+          "/abs/a.txt",
+          "/abs/b.txt"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "abstrailing/merge/unresolved/plain",
+      "folder": "/abs/",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "/abs/a.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "/abs/a.txt"
+        ],
+        "conflicted": [
+          "/abs/a.txt"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "abstrailing/merge/unresolved/dotfile",
+      "folder": "/abs/",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        ".env"
+      ],
+      "vol": {
+        "/abs/.env": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "/abs/.jostraca/generated/.env": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \".env\": {\n      \"action\": \"merge\",\n      \"path\": \".env\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "/abs/.env"
+        ],
+        "conflicted": [
+          "/abs/.env"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "abstrailing/merge/unresolved/dot-and-plain",
+      "folder": "/abs/",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        ".env",
+        "env"
+      ],
+      "vol": {
+        "/abs/.env": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "/abs/env": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "/abs/.jostraca/generated/.env": "GENERATED\n",
+        "/abs/.jostraca/generated/env": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \".env\": {\n      \"action\": \"merge\",\n      \"path\": \".env\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"env\": {\n      \"action\": \"merge\",\n      \"path\": \"env\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "/abs/.env",
+          "/abs/env"
+        ],
+        "conflicted": [
+          "/abs/.env",
+          "/abs/env"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "abstrailing/merge/unresolved/nested",
+      "folder": "/abs/",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "/abs/sub/a.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "/abs/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "/abs/sub/a.txt"
+        ],
+        "conflicted": [
+          "/abs/sub/a.txt"
+        ],
+        "unchanged": []
+      }
+    },
+    {
+      "name": "abstrailing/merge/unresolved/two",
+      "folder": "/abs/",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.txt",
+        "b.txt"
+      ],
+      "vol": {
+        "/abs/a.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+        "/abs/b.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
         "/abs/.jostraca/generated/a.txt": "GENERATED\n",
         "/abs/.jostraca/generated/b.txt": "GENERATED\n",
         "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"b.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"b.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
