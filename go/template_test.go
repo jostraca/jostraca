@@ -429,3 +429,46 @@ func TestMacroOwnPropertiesOnly(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
+
+// A $$ref$$ is a getx path, so the full getx grammar applies: space and
+// '.' separators, own-property steps such as length, and typed Go
+// containers, which are the same logical input as JSON objects and arrays.
+func TestTemplateRefIsGetx(t *testing.T) {
+	typed := map[string]any{
+		"a": map[string]string{"b": "x"},
+		"l": []string{"p", "q"},
+		"i": map[string]int{"n": 7},
+	}
+	got, err := Template("$$a.b$$ $$l.1$$ $$i.n$$ $$l.length$$", typed, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "x q 7 2"; got != want {
+		t.Errorf("typed containers: got %q, want %q", got, want)
+	}
+
+	if _, err := Template("$$1$$", map[int]string{1: "one"}, nil); err != nil {
+		t.Errorf("integer-keyed model: %v", err)
+	}
+	if got, _ := Template("$$1$$", map[float64]string{1: "one"}, nil); got != "$$1$$" {
+		t.Errorf("float-keyed model: got %q, want the macro unchanged", got)
+	}
+
+	mem := NewMemFS()
+	model := map[string]any{"a": map[string]any{"b": "AB"}, "list": []any{1.0, 2.0, 3.0}}
+	_, err = New(WithFS(mem), WithFolder("/out"), WithNow(func() int64 { return 1735689600000 })).
+		Generate(Options{Model: model}, func(j *J) {
+			j.Project(ProjectProps{Folder: "."}, func(j *J) {
+				j.File("a.txt", func(j *J) { j.Content("A=$$a b$$ L=$$list.length$$\n") })
+			})
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{"/out/a.txt", "/out/.jostraca/generated/a.txt"} {
+		body, _ := mem.ReadFile(p)
+		if want := "A=AB L=3\n"; string(body) != want {
+			t.Errorf("%s: got %q, want %q", p, body, want)
+		}
+	}
+}

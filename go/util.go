@@ -484,8 +484,10 @@ func Names(base map[string]any, name string, prop ...string) map[string]any {
 	if base == nil {
 		base = map[string]any{}
 	}
+	// Only an omitted prop defaults: TS names(base, name, '') uses '' as
+	// the stem.
 	p := "name"
-	if len(prop) > 0 && prop[0] != "" {
+	if len(prop) > 0 {
 		p = prop[0]
 	}
 

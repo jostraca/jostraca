@@ -288,18 +288,43 @@ func stripInternalPrefix(k string) string {
 	return ""
 }
 
+// resolveModelRef resolves a $$ref$$ as TS template does: a quoted
+// literal, then the regex itself for __JOSTRACA_REPLACE__, and otherwise
+// getx against the model. An unresolved ref (nil or NaN) leaves the macro
+// in place.
 func resolveModelRef(insertRE *regexp.Regexp, model any, fullMatch, ref string) string {
+	if lit, ok := quotedRef(ref); ok {
+		return lit
+	}
 	if ref == "__JOSTRACA_REPLACE__" {
 		return formatJSStyleRegex(insertRE)
 	}
-	if strings.HasPrefix(ref, `"`) && strings.HasSuffix(ref, `"`) && len(ref) >= 2 {
-		return ref[1 : len(ref)-1]
-	}
-	val, ok := lookup(model, ref)
-	if !ok {
-		return fullMatch
+	val := GetX(model, ref)
+	switch f := val.(type) {
+	case float64:
+		if math.IsNaN(f) {
+			return fullMatch
+		}
+	case float32:
+		if math.IsNaN(float64(f)) {
+			return fullMatch
+		}
 	}
 	return formatValue(val, fullMatch)
+}
+
+// quotedRef is TS's /^"(.+)"$/: at least one character between the
+// quotes, and none of them a JavaScript line terminator, since '.' does
+// not match \n, \r, U+2028 or U+2029.
+func quotedRef(ref string) (string, bool) {
+	if len(ref) < 3 || ref[0] != '"' || ref[len(ref)-1] != '"' {
+		return "", false
+	}
+	inner := ref[1 : len(ref)-1]
+	if strings.ContainsAny(inner, "\n\r\u2028\u2029") {
+		return "", false
+	}
+	return inner, true
 }
 
 // invokeReplace runs the value (which may be a string, function, or
@@ -857,28 +882,4 @@ func compileEjectMarker(v any) (*regexp.Regexp, error) {
 		return re, nil
 	}
 	return nil, fmt.Errorf("eject marker: unsupported type %T", v)
-}
-
-// lookup follows a dot-path through map[string]any/[]any-shaped data.
-func lookup(model any, path string) (any, bool) {
-	cur := model
-	for _, p := range strings.Split(path, ".") {
-		switch obj := cur.(type) {
-		case map[string]any:
-			next, ok := obj[p]
-			if !ok {
-				return nil, false
-			}
-			cur = next
-		case []any:
-			i, err := strconv.Atoi(p)
-			if err != nil || i < 0 || i >= len(obj) {
-				return nil, false
-			}
-			cur = obj[i]
-		default:
-			return nil, false
-		}
-	}
-	return cur, true
 }

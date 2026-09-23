@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 // GetXPath is the narrower variant of GetX taking an explicit
@@ -179,6 +180,62 @@ var jsSpaceRE = regexp.MustCompile(jsSpaceClass)
 // all read as 'a b' or 'a', and quotes are stripped only from a token
 // matching ^"[^"]+"$.
 func getxTokenize(p string) []string {
+	if toks, ok := getxTokenizePlain(p); ok {
+		return toks
+	}
+	getxTokenCacheMu.Lock()
+	toks, ok := getxTokenCache[p]
+	getxTokenCacheMu.Unlock()
+	if ok {
+		return toks
+	}
+	toks = getxTokenizeRE(p)
+	getxTokenCacheMu.Lock()
+	if len(getxTokenCache) >= getxTokenCacheMax {
+		getxTokenCache = make(map[string][]string, getxTokenCacheMax)
+	}
+	getxTokenCache[p] = toks
+	getxTokenCacheMu.Unlock()
+	return toks
+}
+
+// Tokens are never mutated by the walk, so a cached slice can be shared.
+const getxTokenCacheMax = 1000
+
+var (
+	getxTokenCacheMu sync.Mutex
+	getxTokenCache   = make(map[string][]string, getxTokenCacheMax)
+)
+
+// getxTokenizePlain is the regex's answer for the common path made only of
+// ASCII word characters, '.' and ' ': every run of word characters is a
+// token, and every run of the other two is a dropped separator.
+func getxTokenizePlain(p string) ([]string, bool) {
+	out := []string{}
+	start := -1
+	for i := 0; i < len(p); i++ {
+		c := p[i]
+		switch {
+		case (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_':
+			if start < 0 {
+				start = i
+			}
+		case c == '.' || c == ' ':
+			if start >= 0 {
+				out = append(out, p[start:i])
+				start = -1
+			}
+		default:
+			return nil, false
+		}
+	}
+	if start >= 0 {
+		out = append(out, p[start:])
+	}
+	return out, true
+}
+
+func getxTokenizeRE(p string) []string {
 	out := []string{}
 	for _, m := range getxTokenRE.FindAllStringSubmatch(p, -1) {
 		tok := m[1]
