@@ -550,6 +550,44 @@ func checkForcesBuild(t *testing.T, j *J, opts Options) {
 	}
 }
 
+// THE FOLDER AND FILESYSTEM RESOLVE AS GENERATE RESOLVES THEM: the
+// per-call value, else the one given to New, else the default.
+func TestCheckGlobalFolder(t *testing.T) {
+	dir := fwd(t.TempDir())
+	out := dir + "/out"
+	if err := os.MkdirAll(out, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(out+"/a.txt", []byte("A\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res, err := New(WithFolder(out)).Check(Options{}, func(j *J) {
+		j.File("a.txt", func(j *J) { j.Content("A\n") })
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Folder != out {
+		t.Fatalf("folder: %q", res.Folder)
+	}
+	if strings.Join(res.Checked, ",") != "a.txt" || len(res.Drift) != 0 {
+		t.Fatalf("checked: %v drift: %s", res.Checked, driftKinds(res))
+	}
+}
+
+func TestCheckGlobalFS(t *testing.T) {
+	base := memBase(t, map[string][]byte{"/out/a.txt": []byte("A\n")})
+	res, err := New(WithFS(base)).Check(Options{Folder: "/out"}, func(j *J) {
+		j.File("a.txt", func(j *J) { j.Content("A\n") })
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(res.Checked, ",") != "a.txt" || len(res.Drift) != 0 {
+		t.Fatalf("checked: %v drift: %s", res.Checked, driftKinds(res))
+	}
+}
+
 // treeRoot decodes a component tree and returns its define-phase
 // callback, failing the test rather than returning an error.
 func treeRoot(t *testing.T, src string, opts ...CmpTreeOptions) func(*J) {

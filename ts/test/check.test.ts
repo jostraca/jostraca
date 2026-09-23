@@ -393,6 +393,41 @@ describe('check', () => {
   })
 
 
+  // THE FOLDER AND FILESYSTEM RESOLVE AS GENERATE RESOLVES THEM: the
+  // per-call value, else the one given to Jostraca(), else the default.
+  //
+  // A REAL FILESYSTEM for the folder case, because the global folder is
+  // read through node:fs when no provider is given.
+  test('a-global-folder-is-checked', async () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'jostraca-check-'))
+    const out = Path.join(dir, 'out')
+    try {
+      Fs.mkdirSync(out, { recursive: true })
+      Fs.writeFileSync(Path.join(out, 'a.txt'), 'A\n')
+
+      const res = await Jostraca({ folder: out }).check({}, () =>
+        File({ name: 'a.txt' }, () => Content('A\n')))
+
+      Assert.equal(res.folder, out)
+      Assert.deepEqual(res.checked, ['a.txt'])
+      Assert.deepEqual(res.drift, [])
+    }
+    finally {
+      Fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  test('a-global-fs-holds-the-committed-tree', async () => {
+    const { fs } = memfs({ '/out/a.txt': 'A\n' })
+    const res = await Jostraca({ fs: () => fs }).check({ folder: '/out' }, () =>
+      File({ name: 'a.txt' }, () => Content('A\n')))
+
+    Assert.equal(res.folder, '/out')
+    Assert.deepEqual(res.checked, ['a.txt'])
+    Assert.deepEqual(res.drift, [])
+  })
+
+
   // A CHECK WRITES NOTHING, ANYWHERE -- including the run that reports
   // drift, and including the meta folder a generate would leave. A
   // command that only asks a question must not be able to answer it by

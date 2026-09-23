@@ -534,7 +534,7 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
     opts: JostracaOptions | {},
     root: Function
   ): Promise<CheckResult> {
-    return checkRun(generate, opts, root)
+    return checkRun(generate, opts, root, gOpts)
   }
 
   return {
