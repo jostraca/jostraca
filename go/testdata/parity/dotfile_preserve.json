@@ -27,6 +27,192 @@
     "conflicted": [],
     "unchanged": []
   },
+  "audit": [
+    [
+      "FileHandler:existsFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "exists": false
+      }
+    ],
+    [
+      "FileHandler:loadFile:",
+      {
+        "path": "/out/app/.env",
+        "when": 1735689600000,
+        "size": 8
+      }
+    ],
+    [
+      "FileHandler:copyFile:FileOp:after:preserve::",
+      {
+        "topath": "/out/app/.env.old",
+        "frompath": "/out/app/.env",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 8
+      }
+    ],
+    [
+      "FileHandler:save:preserve",
+      {
+        "action": "preserve",
+        "path": "/out/app/.env",
+        "exists": true,
+        "actions": [
+          "preserve"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<Wx>",
+          "exists-0",
+          "preserve-0",
+          "content-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:FileOp:after:write:",
+      {
+        "path": "/out/app/.env",
+        "when": 1735689600000,
+        "existed": true,
+        "size": 8
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/.env",
+        "exists": true,
+        "actions": [
+          "preserve",
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<Wx>",
+          "exists-0",
+          "preserve-0",
+          "content-0",
+          "write-0",
+          "not-protect-1",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:loadFile:",
+      {
+        "path": "/out/app/.npmrc",
+        "when": 1735689600000,
+        "size": 10
+      }
+    ],
+    [
+      "FileHandler:copyFile:FileOp:after:preserve::",
+      {
+        "topath": "/out/app/.npmrc.old",
+        "frompath": "/out/app/.npmrc",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 10
+      }
+    ],
+    [
+      "FileHandler:save:preserve",
+      {
+        "action": "preserve",
+        "path": "/out/app/.npmrc",
+        "exists": true,
+        "actions": [
+          "preserve"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<Wx>",
+          "exists-0",
+          "preserve-0",
+          "content-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:FileOp:after:write:",
+      {
+        "path": "/out/app/.npmrc",
+        "when": 1735689600000,
+        "existed": true,
+        "size": 10
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/.npmrc",
+        "exists": true,
+        "actions": [
+          "preserve",
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<Wx>",
+          "exists-0",
+          "preserve-0",
+          "content-0",
+          "write-0",
+          "not-protect-1",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 685
+      }
+    ],
+    [
+      "FileHandler:saveJSON:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "size": 685
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/.gitignore",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 29
+      }
+    ]
+  ],
   "vol": {
     "/out/app/.env": "NEW-ENV\n",
     "/out/app/.npmrc": "NEW-NPMRC\n",

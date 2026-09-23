@@ -59,23 +59,30 @@ func step(n *Node, st *jstate, b *buildCtx) error {
 	return nil
 }
 
-// runBuild is the entry point used by Generate after the define phase.
-// Phase 6 onward: ops actually touch the filesystem via fileHandler.
-func runBuild(st *jstate) (*buildCtx, error) {
-	if st.root == nil {
-		return nil, nil
-	}
+// newBuild constructs the build context, its file handler and the meta
+// log load, as TS's BuildContext constructor does after every define
+// phase, build or no build. That is one clock sample for Result.When and
+// the meta log's existsFile, audited.
+func newBuild(st *jstate) (*buildCtx, error) {
 	b := newBuildCtx(st)
-	b.fh = newFileHandler(b)
-	if err := step(st.root, st, b); err != nil {
+	fh, err := newFileHandler(b)
+	if err != nil {
 		return b, err
 	}
-	if b.fh != nil && b.fh.bmeta != nil {
-		if err := b.fh.bmeta.done(); err != nil {
-			return b, err
-		}
-	}
+	b.fh = fh
 	return b, nil
+}
+
+// runBuild walks the tree and writes the meta log. A define phase that
+// produced nothing walks nothing and records nothing, as TS's build().
+func runBuild(st *jstate, b *buildCtx) error {
+	if st.root == nil {
+		return nil
+	}
+	if err := step(st.root, st, b); err != nil {
+		return err
+	}
+	return b.fh.bmeta.done()
 }
 
 // --- Op implementations (Phase 5 stubs unless noted). ---
@@ -383,7 +390,7 @@ func fileAfter(n *Node, st *jstate, b *buildCtx) error {
 			}
 		}
 	}
-	return b.fh.saveMode(n.FullPath, []byte(body), "FileOp:after", n.Mode)
+	return b.fh.saveMode(n.FullPath, []byte(body), "FileOp:after:", n.Mode)
 }
 
 // fileExcluded reports whether a File's exclude prop names it. The value
@@ -465,6 +472,9 @@ func contentBefore(n *Node, _ *jstate, b *buildCtx) error {
 	return nil
 }
 
+// copyFileWhence is the whence TS's CopyOp copyFile helper saves with.
+const copyFileWhence = "Copy:copyFile:"
+
 // copyBefore resolves single-file vs directory copies. For a single
 // file, it reads the source, applies template substitution to text
 // files, and queues a write at the resolved destination. For a
@@ -541,9 +551,9 @@ func copyAfter(n *Node, st *jstate, b *buildCtx) error {
 		// content-detected binary with an unlisted extension is governed by
 		// existing.bin rather than existing.txt.
 		if bin, _ := n.Meta["copyBinary"].(bool); bin {
-			return b.fh.saveBinary(n.FullPath, []byte(n.Content[0]), "CopyOp:after")
+			return b.fh.saveBinary(n.FullPath, []byte(n.Content[0]), copyFileWhence)
 		}
-		return b.fh.save(n.FullPath, []byte(n.Content[0]), "CopyOp:after")
+		return b.fh.save(n.FullPath, []byte(n.Content[0]), copyFileWhence)
 	case "copy":
 		return copyWalk(n, st, b)
 	}
@@ -640,23 +650,31 @@ func walkCopyDepth(b *buildCtx, st *jstate, from, to string, n *Node,
 			}
 			continue
 		}
+		// A listed binary extension goes through the handler's copy, which
+		// reads the source with an audited loadFile; anything else is read
+		// directly, sniffed and templated, as TS's walk routes on
+		// isTemplate(name).
+		if IsBinExt(e.Name) {
+			if err := b.fh.copy(src, dst); err != nil {
+				return err
+			}
+			continue
+		}
 		body, err := b.fh.fs.ReadFile(src)
 		if err != nil {
 			return err
 		}
-		isBin := IsBinExt(src) || IsBinContent(body)
-		if !isBin {
-			rendered, err := Template(string(body), st.model, &TemplateSpec{Replace: n.Replace})
-			if err != nil {
+		if IsBinExt(src) || IsBinContent(body) {
+			if err := b.fh.saveBinary(dst, body, copyFileWhence); err != nil {
 				return err
 			}
-			body = []byte(rendered)
+			continue
 		}
-		if isBin {
-			if err := b.fh.saveBinary(dst, body, "CopyOp:walk"); err != nil {
-				return err
-			}
-		} else if err := b.fh.save(dst, body, "CopyOp:walk"); err != nil {
+		rendered, err := Template(string(body), st.model, &TemplateSpec{Replace: n.Replace})
+		if err != nil {
+			return err
+		}
+		if err := b.fh.save(dst, []byte(rendered), copyFileWhence); err != nil {
 			return err
 		}
 	}
@@ -864,11 +882,12 @@ func injectAfter(n *Node, _ *jstate, b *buildCtx) error {
 		pair, _ := marshalJSLike(n.Markers[:])
 		b.st.warn(injectDlog, "inject", "markers not found, nothing injected: path="+
 			n.FullPath+" markers="+pair)
-		return b.fh.save(n.FullPath, src, "InjectOp:after")
+		return b.fh.save(n.FullPath, src, "")
 	}
 	out.WriteString(s[pos:])
 
-	return b.fh.save(n.FullPath, []byte(out.String()), "InjectOp:after")
+	// TS saves an Inject with no whence of its own.
+	return b.fh.save(n.FullPath, []byte(out.String()), "")
 }
 
 // fragmentBefore stashes the parent file's current content slot so we

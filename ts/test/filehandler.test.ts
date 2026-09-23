@@ -750,4 +750,149 @@ describe('filehandler', () => {
     expect(u[1].size).equal(6)
   })
 
+
+  // The clock is sampled once for Result.when when the build context is
+  // constructed, once per low-level file call, once per recorded action,
+  // and once for `last`; build:false and an empty define still construct
+  // the context and check for the meta log.
+  test('clock-sampling', async () => {
+    const t0 = 1735689600000
+    const counter = () => {
+      let n = t0
+      return { now: () => n++, calls: () => n - t0 }
+    }
+    const two = (a: string, b: string) => () => Project({}, () => {
+      File({ name: 'a.txt' }, () => Content(a))
+      Folder({ name: 'sub' }, () => File({ name: 'b.txt' }, () => Content(b)))
+    })
+
+    {
+      const c = counter()
+      const { fs } = memfs({})
+      const res = await Jostraca({ now: c.now, log: quiet })
+        .generate({ fs: () => fs, folder: '/out' }, two('A\n', 'B\n'))
+      const meta = metaOf(fs)
+      expect([res.when, meta.files['a.txt'].when, meta.files['sub/b.txt'].when,
+        meta.last, c.calls()]).equal([t0, t0 + 3, t0 + 5, t0 + 6, 10])
+    }
+
+    {
+      const c = counter()
+      const { fs } = memfs({})
+      const j = Jostraca({ now: c.now, log: quiet })
+      let res: any = await j.generate({ fs: () => fs, folder: '/out', build: false },
+        two('A\n', 'B\n'))
+      expect([res.when, c.calls(), res.audit().map((e: any) => e[0])])
+        .equal([t0, 2, ['FileHandler:existsFile:']])
+      res = await j.generate({ fs: () => fs, folder: '/out' }, two('A\n', 'B\n'))
+      expect([res.when, c.calls()]).equal([t0 + 2, 12])
+    }
+
+    {
+      const c = counter()
+      const res: any = await Jostraca({ now: c.now, log: quiet })
+        .generate({ fs: () => memfs({}).fs, folder: '/out' }, () => { })
+      expect([res.audit().map((e: any) => e[0]), c.calls()])
+        .equal([['FileHandler:existsFile:'], 2])
+    }
+
+    {
+      const c = counter()
+      const { fs } = memfs({})
+      const whens: string[] = []
+      const runs = [['x: 1\n', 'B\n'], ['x: 2\n', 'B\n'], ['x: 2\n', 'B\n']]
+      for (let i = 0; i < runs.length; i++) {
+        if (2 === i) fs.writeFileSync('/out/b.txt', 'USER EDIT\n')
+        const [a, b] = runs[i]
+        const res = await Jostraca({ now: c.now, log: quiet }).generate({
+          fs: () => fs, folder: '/out',
+        }, () => Project({}, () => {
+          Folder({ name: 'model' }, () => File({ name: 'a.aontu' }, () => Content(a)))
+          File({ name: 'b.txt' }, () => Content(b))
+        }))
+        whens.push((res.when - t0) + '/' + (metaOf(fs).last - t0))
+      }
+      expect(whens.join(' ') + ' ' + c.calls()).equal('0/6 10/19 23/32 36')
+    }
+  })
+
+
+  // The handler refuses a path whose directory has more than 22 segments,
+  // counted as composed. The run fails after the Folder directories exist
+  // and before any file, meta log or .gitignore is written.
+  test('path-depth', async () => {
+    const deep = (n: number) => () => Project({}, () => {
+      const nest = (i: number): void => {
+        if (i === n) {
+          File({ name: 'deep.txt' }, () => Content('D'))
+          return
+        }
+        Folder({ name: 'd' + i }, () => nest(i + 1))
+      }
+      nest(0)
+    })
+    const gen = (fs: any, folder: string, n: number) =>
+      Jostraca({ now: () => NOW, log: quiet }).generate({ fs: () => fs, folder }, deep(n))
+
+    await gen(memfs({}).fs, 'out', 21)
+
+    const mfs = memfs({})
+    const dirs = Array.from({ length: 22 }, (_, i) => 'd' + i).join('/')
+    await expect(gen(mfs.fs, 'out', 22)).rejects(
+      new RegExp('saveFile: path too deep, path=out/' + dirs + '/deep.txt'))
+    expect(Object.values(mfs.vol.toJSON()).filter((v) => null != v)).equal([])
+    expect(mfs.fs.existsSync('out/' + dirs)).equal(true)
+
+    const root = '/' + Array.from({ length: 19 }, (_, i) => 'r' + (i + 1)).join('/')
+    await gen(memfs({}).fs, root, 3)
+    await expect(gen(memfs({}).fs, root, 4)).rejects(
+      new RegExp('saveFile: path too deep, path=' + root + '/d0/d1/d2/d3/deep.txt'))
+  })
+
+
+  // The meta log and .gitignore go through the atomic, audited writer: a
+  // failure writing either is returned, and an unreadable previous meta
+  // log is not fatal.
+  test('meta-atomic', async () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'jostraca-meta-'))
+    const gen = (out: string) => Jostraca({ now: () => NOW, log: quiet })
+      .generate({ folder: out }, () => Project({}, () => File({ name: 'a.txt' }, () => Content('A'))))
+    const canDeny = (() => {
+      if ('win32' === process.platform) return false
+      const p = Path.join(dir, 'probe')
+      Fs.writeFileSync(p, 'x')
+      Fs.chmodSync(p, 0)
+      try { Fs.readFileSync(p); return false } catch (e) { return true }
+    })()
+    try {
+      const out1 = Path.join(dir, 'gi')
+      Fs.mkdirSync(Path.join(out1, '.jostraca', '.gitignore'), { recursive: true })
+      await expect(gen(out1)).rejects(/FileHandler:saveFile: path=/)
+      expect(Fs.existsSync(Path.join(out1, '.jostraca', 'jostraca.meta.log'))).equal(true)
+
+      if (canDeny) {
+        const out2 = Path.join(dir, 'unreadable')
+        await gen(out2)
+        const meta = Path.join(out2, '.jostraca', 'jostraca.meta.log')
+        Fs.chmodSync(meta, 0)
+        await gen(out2)
+        expect(Fs.statSync(meta).mode & 0o777).equal(0)
+        Fs.chmodSync(meta, 0o666)
+
+        const out3 = Path.join(dir, 'ro')
+        await gen(out3)
+        const meta3 = Path.join(out3, '.jostraca', 'jostraca.meta.log')
+        const before = Fs.readFileSync(meta3, 'utf8')
+        Fs.chmodSync(Path.join(out3, '.jostraca'), 0o555)
+        Fs.writeFileSync(Path.join(out3, 'a.txt'), 'EDIT')
+        await expect(gen(out3)).rejects()
+        Fs.chmodSync(Path.join(out3, '.jostraca'), 0o777)
+        expect(Fs.readFileSync(meta3, 'utf8')).equal(before)
+      }
+    }
+    finally {
+      Fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
 })

@@ -415,9 +415,12 @@ async function runCase(spec) {
     }
   }
 
+  // A counter clock makes every sample visible: Result.when, each meta
+  // entry's when, the meta log's last, and every audit entry.
+  let tick = FROZEN_NOW
   const opts = {
     fs: () => fs,
-    now: () => FROZEN_NOW,
+    now: 'counter' === spec.clock ? () => tick++ : () => FROZEN_NOW,
     model: MODEL,
   }
   if (null != folder) {
@@ -449,7 +452,19 @@ async function runCase(spec) {
     out[key] = null == v ? '' : enc(fs.readFileSync(k))
   }
 
-  return { out, error, lists: null == res ? null : res.files }
+  return {
+    out, error, lists: null == res ? null : res.files,
+    when: null == res ? null : res.when,
+    audit: null == res ? null : auditOf(res),
+  }
+}
+
+
+// A run's audit trail, with each err reduced to its message: the rest of
+// an Error is host detail.
+function auditOf(res) {
+  return res.audit().map(([tag, data]) => [tag, Object.fromEntries(
+    Object.entries(data).map(([k, v]) => [k, 'err' === k ? String(v?.message) : v]))])
 }
 
 
@@ -514,6 +529,49 @@ function buildCases() {
     }
   }
 
+  // The counter-clock block: a cross-section of folders, modes, states and
+  // names run with a clock that ticks on every sample, so the number and
+  // order of samples, and the audit trail, are held to TS's.
+  const CLOCK_STATES = ['fresh', 'same', 'changed', 'unresolved']
+  for (const f of FOLDERS.filter((f) => 'rel' === f.key || 'abs' === f.key)) {
+    for (const e of EXISTING) {
+      for (const st of STATE.filter((st) => CLOCK_STATES.includes(st.key))) {
+        if (null != st.only && st.only !== e.key) {
+          continue
+        }
+        for (const n of NAMES.filter((n) => 'plain' === n.key || 'two' === n.key)) {
+          cases.push({
+            name: ['clock', f.key, e.key, st.key, n.key].join('/'),
+            clock: 'counter',
+            folder: f.folder,
+            existing: e.existing,
+            seed: st.seed,
+            baseline: 'merge' === e.key ? 'BASELINE\n' : null,
+            names: n.names,
+            files: n.names.map((name) => ({
+              name, kind: 'file', body: TXT_BODY, seed: st.seed,
+            })),
+          })
+        }
+      }
+    }
+  }
+  for (const e of BIN_EXISTING) {
+    const n = BIN_NAMES.find((n) => 'mix' === n.key)
+    for (const st of binStates(n)) {
+      cases.push({
+        name: ['clock', 'abs', e.key, st.key, n.key].join('/'),
+        clock: 'counter',
+        folder: '/abs',
+        existing: e.existing,
+        seed: null,
+        baseline: e.existing.txt && e.existing.txt.merge ? 'BASELINE\n' : null,
+        names: n.files.map((file) => file.name),
+        files: n.files.map((file) => ({ ...file, seed: binSeed(st, file) })),
+      })
+    }
+  }
+
   return cases
 }
 
@@ -535,6 +593,14 @@ function encodeCase(spec, res) {
     error: res.error,
     // The seven files lists the run reported.
     lists: res.lists,
+  }
+
+  // The counter-clock cases also pin every clock sample and the whole
+  // audit trail.
+  if ('counter' === spec.clock) {
+    out.clock = spec.clock
+    out.when = res.when
+    out.audit = res.audit
   }
 
   // Only the binary block needs per-file seeds/bodies/routes; the text

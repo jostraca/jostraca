@@ -3,6 +3,7 @@ package jostraca
 import (
 	"bytes"
 	"encoding/json"
+	"path"
 	"sort"
 )
 
@@ -15,11 +16,6 @@ type buildMeta struct {
 	fh   *fileHandler
 	prev map[string]any
 	next metaSnapshot
-
-	// cur is the entry of the save in progress. Each save builds a fresh
-	// one and commits it at the end, so a path saved twice in a run carries
-	// the LAST save's values, as TS's addmeta replacing the key does.
-	cur *metaEntry
 }
 
 type metaSnapshot struct {
@@ -42,7 +38,9 @@ type metaEntry struct {
 	When     int64
 }
 
-func newBuildMeta(fh *fileHandler) *buildMeta {
+// newBuildMeta loads the previous meta log, as TS's BuildMeta
+// constructor does. An unreadable log is not fatal; a refused path is.
+func newBuildMeta(fh *fileHandler) (*buildMeta, error) {
 	bm := &buildMeta{
 		fh: fh,
 		next: metaSnapshot{
@@ -56,17 +54,22 @@ func newBuildMeta(fh *fileHandler) *buildMeta {
 			byPath: map[string]*metaEntry{},
 		},
 	}
-	bm.load()
-	return bm
+	if err := bm.load(); err != nil {
+		return nil, err
+	}
+	return bm, nil
 }
 
 func (bm *buildMeta) metaPath() string {
-	return bm.fh.folder + "/.jostraca/jostraca.meta.log"
+	return path.Join(bm.fh.folder, ".jostraca", "jostraca.meta.log")
 }
 
 func (bm *buildMeta) gitignorePath() string {
-	return bm.fh.folder + "/.jostraca/.gitignore"
+	return path.Join(bm.fh.folder, ".jostraca", ".gitignore")
 }
+
+// maxJSTime is the largest absolute epoch-ms a JS Date holds.
+const maxJSTime = 8.64e15
 
 // last returns the previous build's epoch-ms. Defaults to -1 when no
 // prior meta exists, matching TS BuildMeta default at
@@ -84,90 +87,38 @@ func (bm *buildMeta) last() int64 {
 	return -1
 }
 
-// maxJSTime is the largest absolute epoch-ms a JS Date holds.
-const maxJSTime = 8.64e15
-
-func (bm *buildMeta) load() {
-	if bm == nil {
-		return
+// load reads the previous meta log through the audited low-level calls,
+// as TS's loadMetaData does.
+func (bm *buildMeta) load() error {
+	metapath := bm.metaPath()
+	has, err := bm.fh.existsFile(metapath, "")
+	if err != nil || !has {
+		return err
 	}
-	if !bm.fh.fs.Exists(bm.metaPath()) {
-		return
-	}
-	b, err := bm.fh.fs.ReadFile(bm.metaPath())
+	prev, err := bm.fh.loadJSON(metapath, "")
 	if err != nil {
-		return
-	}
-	bm.prev = map[string]any{}
-	if err := json.Unmarshal(b, &bm.prev); err != nil {
 		// A truncated or hand-edited meta log must not block generation:
 		// the file is bookkeeping, regenerated on every run. Reset to empty
 		// rather than carrying a half-decoded map forward. Mirrors the
 		// recovery in ts/src/build/BuildMeta.ts.
 		bm.fh.st.warn(metaDlog, "meta", "unreadable meta log, continuing with empty state: "+
-			bm.metaPath()+" err=FileHandler:loadJSON: path="+bm.metaPath()+" err="+err.Error())
-		bm.prev = map[string]any{}
+			metapath+" err="+err.Error())
+		prev = map[string]any{}
 	}
+	bm.prev = prev
+	return nil
 }
 
 // metaDlog records non-fatal meta-log weirdness.
 var metaDlog = NewDLog("jostraca", "buildmeta.go")
 
-// beginSave starts a fresh entry for one save of rpath.
-func (bm *buildMeta) beginSave(rpath string, exists bool) {
+// add records one save's entry, as TS's addmeta assigning the key does: a
+// path already recorded this run keeps its position and takes the new
+// values, so it carries the LAST save's.
+func (bm *buildMeta) add(e *metaEntry) {
 	if bm == nil {
 		return
 	}
-	bm.cur = &metaEntry{Path: rpath, Exists: exists, Actions: []string{}}
-}
-
-// recordProtect flags the entry of the save in progress as protected. TS
-// sets meta.protect once for the whole save() (as soon as the marker is
-// seen), independent of which action later fires.
-func (bm *buildMeta) recordProtect(rpath string, protect bool) {
-	if bm == nil || !protect {
-		return
-	}
-	bm.entryFor(rpath, false).Protect = true
-}
-
-// recordAction appends an action to the entry of the save in progress.
-// kind is the action token (write/preserve/present/diff/merge/skip); the
-// entry's Action is the latest one and Actions records every action this
-// save applied, in order.
-func (bm *buildMeta) recordAction(rpath, action string, exists, conflict, protect bool) {
-	if bm == nil {
-		return
-	}
-	e := bm.entryFor(rpath, exists)
-	if e.When == 0 {
-		e.When = bm.fh.now()
-	}
-	e.Action = action
-	e.Actions = append(e.Actions, action)
-	if conflict {
-		e.Conflict = true
-	}
-	if protect {
-		e.Protect = true
-	}
-}
-
-func (bm *buildMeta) entryFor(rpath string, exists bool) *metaEntry {
-	if bm.cur == nil || bm.cur.Path != rpath {
-		bm.beginSave(rpath, exists)
-	}
-	return bm.cur
-}
-
-// endSave commits the entry of the save in progress. A path already
-// recorded this run keeps its position and takes the new values.
-func (bm *buildMeta) endSave() {
-	if bm == nil || bm.cur == nil {
-		return
-	}
-	e := bm.cur
-	bm.cur = nil
 	if prev, ok := bm.next.byPath[e.Path]; ok {
 		*prev = *e
 		return
@@ -176,8 +127,10 @@ func (bm *buildMeta) endSave() {
 	bm.next.byPath[e.Path] = e
 }
 
-// done writes the meta file and a sibling .gitignore that excludes
-// the meta log and generated/ baseline copies from version control.
+// done writes the meta file and a sibling .gitignore that excludes the
+// meta log and generated/ baseline copies from version control, through
+// the same atomic, audited writer as the outputs. A failure writing either
+// is returned.
 func (bm *buildMeta) done() error {
 	if bm == nil {
 		return nil
@@ -188,20 +141,12 @@ func (bm *buildMeta) done() error {
 	// made after the build finished.
 	bm.next.last = bm.fh.now()
 
-	out := bm.encode()
-	if err := bm.fh.ensureDirOf(bm.metaPath()); err != nil {
+	if err := bm.fh.saveJSON(bm.metaPath(), bm.encode(), ""); err != nil {
 		return err
 	}
-	if !bm.fh.control.Dryrun {
-		if err := bm.fh.fs.WriteFile(bm.metaPath(), out); err != nil {
-			return err
-		}
-		if !bm.fh.control.Version {
-			_ = bm.fh.fs.WriteFile(
-				bm.gitignorePath(),
-				[]byte("\njostraca.meta.log\ngenerated\n"),
-			)
-		}
+	if !bm.fh.control.Version {
+		return bm.fh.saveFile(bm.gitignorePath(),
+			[]byte("\njostraca.meta.log\ngenerated\n"), 0, "")
 	}
 	return nil
 }

@@ -48,6 +48,12 @@ type scenarioCorpusCase struct {
 	Vol      map[string]corpusBytes   `json:"vol"`
 	Error    bool                     `json:"error"`
 	Lists    *Files                   `json:"lists"`
+
+	// The counter-clock cases: every clock sample ticks, and Result.When
+	// and the audit trail are recorded too.
+	Clock string `json:"clock"`
+	When  *int64 `json:"when"`
+	Audit []any  `json:"audit"`
 }
 
 type scenarioCorpusFile struct {
@@ -192,7 +198,12 @@ func TestScenarioCorpusMatchesTS(t *testing.T) {
 			}
 		}
 
-		opts := []Option{WithFS(mem), WithNow(func() int64 { return 1735689600000 })}
+		now := func() int64 { return 1735689600000 }
+		if c.Clock == "counter" {
+			tick := int64(1735689600000)
+			now = func() int64 { v := tick; tick++; return v }
+		}
+		opts := []Option{WithFS(mem), WithNow(now)}
 		if c.Folder != nil {
 			opts = append(opts, WithFolder(*c.Folder))
 		}
@@ -281,6 +292,18 @@ func TestScenarioCorpusMatchesTS(t *testing.T) {
 				mismatch++
 				if mismatch <= 12 {
 					t.Errorf("%s: files lists differ\n go=%s\n ts=%s", c.Name, g, w)
+				}
+			} else if c.When != nil && res.When != *c.When {
+				mismatch++
+				if mismatch <= 12 {
+					t.Errorf("%s: when %d, TS %d", c.Name, res.When, *c.When)
+				}
+			} else if c.Audit != nil {
+				if g, w := auditPair(t, res.Audit(), c.Audit); g != w {
+					mismatch++
+					if mismatch <= 12 {
+						t.Errorf("%s: audit differs\n go=%s\n ts=%s", c.Name, g, w)
+					}
 				}
 			}
 		}

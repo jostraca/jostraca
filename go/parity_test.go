@@ -74,6 +74,9 @@ type parityCase struct {
 	// Files is the seven files lists the TS run reported, or nil when it
 	// threw.
 	Files *Files `json:"files"`
+
+	// Audit is the TS run's audit trail, each err reduced to its message.
+	Audit []any `json:"audit"`
 }
 
 // scenarioRunner builds the component tree for a named scenario. The
@@ -714,7 +717,61 @@ func runParityCase(t *testing.T, path, name string) {
 	if c.Files != nil {
 		assertFiles(t, res.Files, *c.Files)
 	}
+	if c.Audit != nil {
+		assertAudit(t, res.Audit(), c.Audit)
+	}
 	assertVol(t, mem, c.Vol)
+}
+
+// auditJSON renders a Go audit trail in the recorded [tag, data] form. An
+// err compares by presence only: its text is the host's.
+func auditJSON(t *testing.T, a Audit) []any {
+	t.Helper()
+	out := make([]any, 0, len(a))
+	for _, e := range a {
+		data := map[string]any{}
+		for k, v := range e.Data {
+			if k == "err" {
+				v = "<err>"
+			}
+			data[k] = v
+		}
+		out = append(out, []any{e.Tag, data})
+	}
+	b, err := json.Marshal(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var norm []any
+	_ = json.Unmarshal(b, &norm)
+	return norm
+}
+
+// auditPair renders a Go audit trail and a recorded TS one comparably,
+// entry by entry and in order, each err compared by presence.
+func auditPair(t *testing.T, got Audit, want []any) (string, string) {
+	t.Helper()
+	for _, e := range want {
+		pair, _ := e.([]any)
+		if len(pair) == 2 {
+			if data, ok := pair[1].(map[string]any); ok {
+				if _, has := data["err"]; has {
+					data["err"] = "<err>"
+				}
+			}
+		}
+	}
+	gb, _ := json.Marshal(auditJSON(t, got))
+	wb, _ := json.Marshal(want)
+	return string(gb), string(wb)
+}
+
+// assertAudit compares a Go audit trail with the recorded TS one.
+func assertAudit(t *testing.T, got Audit, want []any) {
+	t.Helper()
+	if g, w := auditPair(t, got, want); g != w {
+		t.Errorf("audit differs\nGo: %s\nTS: %s", g, w)
+	}
 }
 
 // assertFiles compares the seven files lists with the TS run's, in order.
@@ -791,6 +848,9 @@ var knownParityGaps = map[string]string{}
 var phaseShapedCorpora = map[string]struct{}{
 	"merge_retain":        {}, // covered by TestMergeRetainSequence
 	"merge_marker_clean":  {}, // covered by TestParityRuns
+	"audit_basic":         {}, // covered by TestParityRuns
+	"audit_rerun":         {}, // covered by TestParityRuns
+	"audit_nested":        {}, // covered by TestParityRuns
 	"merge_unresolved":    {}, // covered by TestParityRuns
 	"diff_corpus":         {}, // covered by TestDiffCorpusMatchesTS
 	"template_corpus":     {}, // covered by TestTemplateCorpusMatchesTS
@@ -928,7 +988,52 @@ func parityOne(name, body string) func(*J) {
 	}
 }
 
+func parityAuditTree(a, b string) func(*J) {
+	return func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("a.txt", func(j *J) { j.Content(a) })
+			j.Folder("sub", func(j *J) {
+				j.File("b.txt", func(j *J) { j.Content(b) })
+			})
+		})
+	}
+}
+
 var parityRuns = map[string][]parityStep{
+	"audit_basic": {{root: parityAuditTree("A\n", "B\n")}},
+	"audit_rerun": func() []parityStep {
+		yes, no := true, false
+		return []parityStep{
+			{root: parityAuditTree("L1\nL2\nL3\n", "B\n")},
+			{edit: func(m *MemFS) { _ = m.WriteFile("/out/app/a.txt", []byte("L1\nU\nL3\n")) }},
+			{opts: Options{Existing: Existing{Txt: ExistingTxt{Merge: &yes, Preserve: &yes}}},
+				root: parityAuditTree("L1\nG\nL3\n", "B\n")},
+			{opts: Options{Existing: Existing{Txt: ExistingTxt{Write: &no, Present: &yes}}},
+				root: parityAuditTree("L1\nG2\nL3\n", "B\n")},
+			{opts: Options{Existing: Existing{Txt: ExistingTxt{Diff: &yes}}},
+				root: parityAuditTree("L1\nG3\nL3\n", "B\n")},
+		}
+	}(),
+	"audit_nested": {
+		{edit: func(m *MemFS) {
+			_ = m.WriteFile("/src/tree/t.txt", []byte("T $$v$$\n"))
+			_ = m.WriteFile("/src/tree/deep/i.png", []byte{0x89, 0x50, 0x00, 0xff})
+			_ = m.WriteFile("/src/tree/deep/m.bin", []byte{0x00, 0x01, 0x02})
+			_ = m.WriteFile("/out/app/j.txt", []byte("<\n#--START--#\nold\n#--END--#\n>"))
+		}},
+		{opts: Options{Model: map[string]any{"v": "V"}}, root: func(j *J) {
+			j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+				j.Folder("x", func(j *J) {
+					j.Folder("y", func(j *J) {
+						j.File("n.txt", func(j *J) { j.Content("N") })
+					})
+				})
+				j.CopyFiles(CopyFilesProps{From: "/src/tree", To: "c"})
+				j.CopyFiles(CopyFilesProps{From: "/src/tree/t.txt", To: "one.txt"})
+				j.Inject("j.txt", func(j *J) { j.Content("J") })
+			})
+		}},
+	},
 	"merge_marker_clean": func() []parityStep {
 		merge := true
 		opts := Options{Existing: Existing{Txt: ExistingTxt{Merge: &merge}}}
@@ -959,8 +1064,11 @@ func TestParityRuns(t *testing.T) {
 				t.Fatal(err)
 			}
 			var want struct {
-				Runs []Files               `json:"runs"`
-				Vol  map[string]corpusBytes `json:"vol"`
+				Runs []struct {
+					Files Files `json:"files"`
+					Audit []any `json:"audit"`
+				} `json:"runs"`
+				Vol map[string]corpusBytes `json:"vol"`
 			}
 			if err := json.Unmarshal(body, &want); err != nil {
 				t.Fatal(err)
@@ -980,7 +1088,8 @@ func TestParityRuns(t *testing.T) {
 				if i >= len(want.Runs) {
 					t.Fatalf("more generates than TS recorded")
 				}
-				assertFiles(t, res.Files, want.Runs[i])
+				assertFiles(t, res.Files, want.Runs[i].Files)
+				assertAudit(t, res.Audit(), want.Runs[i].Audit)
 				i++
 			}
 			if i != len(want.Runs) {

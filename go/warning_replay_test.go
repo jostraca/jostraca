@@ -318,12 +318,23 @@ type gateFS struct {
 	release chan struct{}
 }
 
-func (g *gateFS) WriteFile(path string, data []byte) error {
+func (g *gateFS) hold() {
 	g.once.Do(func() {
 		close(g.reached)
 		<-g.release
 	})
+}
+
+func (g *gateFS) WriteFile(path string, data []byte) error {
+	g.hold()
 	return g.MemFS.WriteFile(path, data)
+}
+
+// Every write is atomic, through an exclusive create, so that is where
+// the build is held.
+func (g *gateFS) WriteFileExcl(path string, data []byte) error {
+	g.hold()
+	return g.MemFS.WriteFileExcl(path, data)
 }
 
 // The calls are forced to overlap: call two is held inside its build until

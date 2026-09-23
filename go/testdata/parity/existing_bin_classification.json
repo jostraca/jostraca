@@ -46,6 +46,307 @@
     ],
     "unchanged": []
   },
+  "audit": [
+    [
+      "FileHandler:existsFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "exists": false
+      }
+    ],
+    [
+      "FileHandler:loadFile:",
+      {
+        "path": "/out/p/logo.png",
+        "when": 1735689600000,
+        "size": 8
+      }
+    ],
+    [
+      "FileHandler:copyFile:Copy:copyFile:preserve::",
+      {
+        "topath": "/out/p/logo.old.png",
+        "frompath": "/out/p/logo.png",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 8
+      }
+    ],
+    [
+      "FileHandler:save:Copy:copyFile::preserve",
+      {
+        "action": "preserve",
+        "path": "/out/p/logo.png",
+        "exists": true,
+        "actions": [
+          "preserve"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<Wx>",
+          "exists-0",
+          "preserve-0",
+          "content-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:Copy:copyFile:write:",
+      {
+        "path": "/out/p/logo.png",
+        "when": 1735689600000,
+        "existed": true,
+        "size": 12
+      }
+    ],
+    [
+      "FileHandler:save:Copy:copyFile::write",
+      {
+        "action": "write",
+        "path": "/out/p/logo.png",
+        "exists": true,
+        "actions": [
+          "preserve",
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<Wx>",
+          "exists-0",
+          "preserve-0",
+          "content-0",
+          "write-0",
+          "not-protect-1",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:loadFile:",
+      {
+        "path": "/out/p/mod.wasm",
+        "when": 1735689600000,
+        "size": 3
+      }
+    ],
+    [
+      "FileHandler:copyFile:Copy:copyFile:preserve::",
+      {
+        "topath": "/out/p/mod.old.wasm",
+        "frompath": "/out/p/mod.wasm",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 3
+      }
+    ],
+    [
+      "FileHandler:save:Copy:copyFile::preserve",
+      {
+        "action": "preserve",
+        "path": "/out/p/mod.wasm",
+        "exists": true,
+        "actions": [
+          "preserve"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<Wx>",
+          "exists-0",
+          "preserve-0",
+          "content-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:Copy:copyFile:write:",
+      {
+        "path": "/out/p/mod.wasm",
+        "when": 1735689600000,
+        "existed": true,
+        "size": 16
+      }
+    ],
+    [
+      "FileHandler:save:Copy:copyFile::write",
+      {
+        "action": "write",
+        "path": "/out/p/mod.wasm",
+        "exists": true,
+        "actions": [
+          "preserve",
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<Wx>",
+          "exists-0",
+          "preserve-0",
+          "content-0",
+          "write-0",
+          "not-protect-1",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:loadFile:",
+      {
+        "path": "/out/p/readme.txt",
+        "when": 1735689600000,
+        "size": 4
+      }
+    ],
+    [
+      "FileHandler:saveFile:Copy:copyFile:diff:",
+      {
+        "path": "/out/p/readme.txt",
+        "when": 1735689600000,
+        "existed": true,
+        "size": 206
+      }
+    ],
+    [
+      "FileHandler:save:diff",
+      {
+        "action": "diff",
+        "path": "/out/p/readme.txt",
+        "exists": true,
+        "actions": [
+          "diff"
+        ],
+        "protect": false,
+        "conflict": true,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<Wx>",
+          "exists-0",
+          "write-0",
+          "not-protect-1",
+          "diff-0",
+          "content-2"
+        ]
+      }
+    ],
+    [
+      "FileHandler:loadFile:",
+      {
+        "path": "/out/p/icon.png",
+        "when": 1735689600000,
+        "size": 9
+      }
+    ],
+    [
+      "FileHandler:copyFile:FileOp:after:preserve::",
+      {
+        "topath": "/out/p/icon.old.png",
+        "frompath": "/out/p/icon.png",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 9
+      }
+    ],
+    [
+      "FileHandler:save:preserve",
+      {
+        "action": "preserve",
+        "path": "/out/p/icon.png",
+        "exists": true,
+        "actions": [
+          "preserve"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<Wx>",
+          "exists-0",
+          "preserve-0",
+          "content-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:FileOp:after:write:",
+      {
+        "path": "/out/p/icon.png",
+        "when": 1735689600000,
+        "existed": true,
+        "size": 9
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/p/icon.png",
+        "exists": true,
+        "actions": [
+          "preserve",
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<Wx>",
+          "exists-0",
+          "preserve-0",
+          "content-0",
+          "write-0",
+          "not-protect-1",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 1222
+      }
+    ],
+    [
+      "FileHandler:saveJSON:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "size": 1222
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/.gitignore",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 29
+      }
+    ]
+  ],
   "vol": {
     "/tm/logo.png": "hello $$v$$\n",
     "/tm/mod.wasm": {

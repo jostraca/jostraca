@@ -62,6 +62,7 @@ async function snapshot(name, opts, root, prepopulate) {
       // The seven files lists, so a scenario pins what a run reports as
       // well as what it writes.
       files: null == res ? null : res.files,
+      audit: null == res ? null : auditOf(res),
       vol: result,
     }, null, 2) + '\n',
   )
@@ -1067,7 +1068,47 @@ async function main() {
     [mergeOpts, one('A\ngen2\n')],
   ])
 
+  // The audit trail, pinned whole: the low-level calls with their whence
+  // tags, and each save's decision record with its breadcrumbs.
+  const auditTree = (a, b) => () => Project({ folder: 'app' }, () => {
+    File({ name: 'a.txt' }, () => Content(a))
+    Folder({ name: 'sub' }, () => File({ name: 'b.txt' }, () => Content(b)))
+  })
+  await snapshotRuns('audit_basic', [[{}, auditTree('A\n', 'B\n')]])
+  await snapshotRuns('audit_rerun', [
+    [{}, auditTree('L1\nL2\nL3\n', 'B\n')],
+    (fs) => fs.writeFileSync('/out/app/a.txt', 'L1\nU\nL3\n'),
+    [{ existing: { txt: { merge: true, preserve: true } } }, auditTree('L1\nG\nL3\n', 'B\n')],
+    [{ existing: { txt: { write: false, present: true } } }, auditTree('L1\nG2\nL3\n', 'B\n')],
+    [{ existing: { txt: { diff: true } } }, auditTree('L1\nG3\nL3\n', 'B\n')],
+  ])
+  await snapshotRuns('audit_nested', [
+    (fs) => {
+      fs.mkdirSync('/src/tree/deep', { recursive: true })
+      fs.writeFileSync('/src/tree/t.txt', 'T $$v$$\n')
+      fs.writeFileSync('/src/tree/deep/i.png', Buffer.from([0x89, 0x50, 0x00, 0xff]))
+      fs.writeFileSync('/src/tree/deep/m.bin', Buffer.from([0x00, 0x01, 0x02]))
+      fs.mkdirSync('/out/app', { recursive: true })
+      fs.writeFileSync('/out/app/j.txt', '<\n#--START--#\nold\n#--END--#\n>')
+    },
+    [{ model: { v: 'V' } }, () => Project({ folder: 'app' }, () => {
+      Folder({ name: 'x' }, () => Folder({ name: 'y' }, () => {
+        File({ name: 'n.txt' }, () => Content('N'))
+      }))
+      Copy({ from: '/src/tree', to: 'c' })
+      Copy({ from: '/src/tree/t.txt', to: 'one.txt' })
+      Inject({ name: 'j.txt' }, () => Content('J'))
+    })],
+  ])
+
   console.log('done')
+}
+
+// A run's audit trail, with each err reduced to its message: the rest of
+// an Error is host detail.
+function auditOf(res) {
+  return res.audit().map(([tag, data]) => [tag, Object.fromEntries(
+    Object.entries(data).map(([k, v]) => [k, 'err' === k ? String(v?.message) : v]))])
 }
 
 // snapshotRuns records a scenario of several generates over one volume,
@@ -1086,7 +1127,7 @@ async function snapshotRuns(name, steps) {
     const res = await Jostraca({}).generate(Object.assign({
       fs: () => mfs.fs, folder: '/out', now: () => FROZEN_NOW,
     }, opts), root)
-    runs.push(res.files)
+    runs.push({ files: res.files, audit: auditOf(res) })
   }
   fs.writeFileSync(
     path.join(outDir, name + '.json'),

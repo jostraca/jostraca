@@ -246,9 +246,15 @@ func (j *J) generate(
 	// touch the filesystem (FileHandler arrives in Phase 6).
 	doBuild := merged.Build == nil || *merged.Build
 	res = Result{
-		When:  st.now(),
-		Audit: func() Audit { return nil },
+		Audit: func() Audit { return Audit{} },
 	}
+
+	b, err := newBuild(st)
+	if err != nil {
+		return res, err
+	}
+	res.When = b.when
+	res.Audit = func() Audit { return b.audit }
 
 	// The in-memory handles are attached exactly when mem is on for this
 	// call, whether or not the build phase runs, as they are in TS: Vol is
@@ -261,17 +267,10 @@ func (j *J) generate(
 	}
 
 	if doBuild {
-		b, err := runBuild(st)
+		err := runBuild(st, b)
+		res.Files = b.fh.files
 		if err != nil {
 			return res, err
-		}
-		if b != nil {
-			res.When = b.when
-			audit := b.audit
-			res.Audit = func() Audit { return audit }
-			if b.fh != nil {
-				res.Files = b.fh.files
-			}
 		}
 	}
 

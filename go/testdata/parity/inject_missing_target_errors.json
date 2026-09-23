@@ -4,6 +4,7 @@
   "prepopulate": {},
   "error": true,
   "files": null,
+  "audit": null,
   "vol": {
     "/out/app": null
   }
