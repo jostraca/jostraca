@@ -368,49 +368,6 @@ func fileAfter(n *Node, st *jstate, b *buildCtx) error {
 	return b.fh.saveMode(n.FullPath, []byte(body), "FileOp:after", n.Mode)
 }
 
-// nodeText renders a node from a *replayed* subtree to its text.
-//
-// A replay (Fragment's slot/default handlers, and user func(*J) replace
-// callbacks) builds nodes outside the main tree walk, so their ops never
-// fire. Content nodes already carry their text, but a nested Fragment has
-// to be rendered here on demand. Inject and Copy are rendered by their own
-// after-hooks during the real walk, so their Content is taken as-is.
-//
-// Any other container is descended into, so content nested arbitrarily
-// deep is collected — matching TS, which accumulates into the current
-// file's buffer as the walk descends and so never had a depth limit.
-func nodeText(n *Node, st *jstate, b *buildCtx) string {
-	if n == nil {
-		return ""
-	}
-
-	var sb strings.Builder
-
-	switch n.Kind {
-	case KindContent, KindInject, KindCopy:
-		for _, s := range n.Content {
-			sb.WriteString(s)
-		}
-		return sb.String()
-
-	case KindFragment:
-		if len(n.Content) == 0 {
-			if err := fragmentAfter(n, st, b); err != nil && b.replayErr == nil {
-				b.replayErr = err
-			}
-		}
-		for _, s := range n.Content {
-			sb.WriteString(s)
-		}
-		return sb.String()
-	}
-
-	for _, c := range n.Children {
-		sb.WriteString(nodeText(c, st, b))
-	}
-	return sb.String()
-}
-
 func contentBefore(n *Node, _ *jstate, b *buildCtx) error {
 	// Append the rendered content to the current file's accumulator.
 	if b.current.file != nil && b.current.file != n {
@@ -825,162 +782,18 @@ func fragmentBefore(n *Node, _ *jstate, b *buildCtx) error {
 	return nil
 }
 
-// fragmentAfter reads the From file, runs Template with replay
-// callbacks per Slot name, and appends output as a new Content node
-// on the parent File.
-func fragmentAfter(n *Node, st *jstate, b *buildCtx) error {
-	if b.fh == nil {
-		return nil
-	}
-	body, _ := n.Meta["fragmentBody"].(func(*J))
-	slotNames, _ := n.Meta["slotNames"].([]string)
-
-	// Already resolved at define time by FragmentP (see resolveFragmentFrom),
-	// and resolution is NOT idempotent for a relative output folder other
-	// than ".": re-resolving turned "generated/frag.txt" into
-	// "generated/generated/frag.txt", so define-time validation passed and
-	// then the read failed. Read the stored path, as ts/src/cmp/Fragment.ts
-	// does.
-	src, err := b.fh.fs.ReadFile(n.From)
-	if err != nil {
-		return err
-	}
-
-	// Build the replace map: one entry per named slot, plus a default
-	// <[SLOT]> handler for non-Slot children. Source iteration is
-	// alphabetical for cross-stack determinism.
-	//
-	// User-supplied func(*J) callbacks let replace handlers re-enter
-	// the component system. Wrap them here so the J they receive is
-	// bound to a fresh buffer node; the buffer's accumulated Content
-	// children become the replacement text. Mirrors TS Fragment's
-	// `handle: s => Content(s)` re-entrant pattern.
-	replace := map[string]any{}
-	for _, k := range sortedKeys(n.Replace) {
-		v := n.Replace[k]
-		if subFn, ok := v.(func(*J)); ok {
-			subFn := subFn
-			replace[k] = ReplaceFunc(func(_ map[string]string, _ string) string {
-				buffer := &Node{Kind: KindFragment, Meta: map[string]any{}}
-				subFn(&J{st: st, cur: buffer})
-				var sb strings.Builder
-				for _, c := range buffer.Children {
-					if c.Kind == KindContent {
-						for _, s := range c.Content {
-							sb.WriteString(s)
-						}
-					}
-				}
-				return sb.String()
-			})
-		} else {
-			replace[k] = v
-		}
-	}
-	// replayWithFilter runs the user's Fragment body against a fresh
-	// throwaway parent node carrying filter. Slot's check at SlotP looks
-	// at j.cur.Filter, so the filter must live on the throwaway, not on n.
-	replayWithFilter := func(filter FilterFunc, collect func(*Node) string) string {
-		// A Fragment may legitimately have no body: FragmentP returns before
-		// stashing one when body == nil (builder.go). Calling it anyway was a
-		// nil func call, so a two-line program -- a bodyless Fragment over a
-		// source containing an unnamed <[SLOT]> marker -- panicked and killed
-		// the caller's goroutine. TS renders the marker as empty in that case
-		// (each over null children is a no-op, ts/src/cmp/Fragment.ts), so an
-		// empty replay is the matching answer. See docs/design/PARITY_PLAN.md 3.
-		if body == nil {
-			return ""
-		}
-		throwaway := &Node{Kind: KindFragment, Meta: map[string]any{}, Filter: filter}
-		body(&J{st: st, cur: throwaway})
-		return collect(throwaway)
-	}
-	// Collect the replayed subtree in source order, at any depth. These used
-	// to look only one level down (Slot's direct Content grandchildren, or
-	// the parent's direct Content children), so anything nested deeper — a
-	// Fragment inside a Slot, most obviously — was silently dropped where TS
-	// emits it.
-	collectSlot := func(parent *Node) string {
-		var sb strings.Builder
-		for _, c := range parent.Children {
-			if c.Kind == KindSlot {
-				sb.WriteString(nodeText(c, st, b))
-			}
-		}
-		return sb.String()
-	}
-	collectContent := func(parent *Node) string {
-		var sb strings.Builder
-		for _, c := range parent.Children {
-			if c.Kind != KindSlot {
-				sb.WriteString(nodeText(c, st, b))
-			}
-		}
-		return sb.String()
-	}
-	for _, name := range slotNames {
-		name := name
-		key := "/[ \\t]*[-<!/#*]*[ \\t]*<\\[SLOT:" + EscRE(name) + "\\]>[ \\t]*[->/#*]*[ \\t]*/"
-		replace[key] = ReplaceFunc(func(_ map[string]string, _ string) string {
-			return replayWithFilter(
-				func(kind, slotName string) bool { return kind == "slot" && slotName == name },
-				collectSlot,
-			)
-		})
-	}
-	// Default <[SLOT]> matches non-Slot children.
-	//
-	// defaultSlot is set from inside the replacement rather than by
-	// re-testing the marker regex against the source: Template owns the
-	// matching, so asking Template is the only way to be sure the check
-	// below and the substitution can never disagree. Mirrors
-	// ts/src/cmp/Fragment.ts.
-	defaultSlot := false
-	replace["/[ \\t]*[-<!/#*]*[ \\t]*<\\[SLOT\\]>[ \\t]*[->/#*]*[ \\t]*/"] =
-		ReplaceFunc(func(_ map[string]string, _ string) string {
-			defaultSlot = true
-			return replayWithFilter(
-				func(kind, _ string) bool { return kind != "slot" },
-				collectContent,
-			)
-		})
-
-	rendered, err := Template(string(src), st.model, &TemplateSpec{
-		Replace: replace,
-		Eject:   n.Meta["fragmentEject"],
-	})
-	if err != nil {
-		return err
-	}
-	if b.replayErr != nil {
-		err, b.replayErr = b.replayErr, nil
-		return err
-	}
-	// Non-Slot children of a Fragment are the content of the *unnamed*
-	// <[SLOT]> marker. If the source has no unnamed marker there is
-	// nowhere for them to go, and both stacks used to drop them without a
-	// word.
-	//
-	// The signal is a flag set by the scan filter, not `len(n.Children)`:
-	// since the filter moved to attachAndDescend, nothing attaches during
-	// the scan at all, so children are always empty here. TS reads its own
-	// `sawnonslot` local at the same point.
-	_, sawNonSlot := n.Meta["fragmentSawNonSlot"]
-	if sawNonSlot && !defaultSlot {
-		return &NodeError{Step: "fragment", Err: fmtErrorf(
-			"Fragment has non-Slot children, but %s contains no unnamed "+
-				"<[SLOT]> marker to receive them; their output would be "+
-				"silently discarded. Add an unnamed <[SLOT]> marker to the "+
-				"fragment source, or wrap the children in a named Slot.",
-			n.From)}
-	}
+// fragmentAfter joins what the define-phase render attached, in source
+// order, and applies Indent. Nested components have run their own ops by
+// now, so a CopyFiles or a nested Fragment contributes its text here.
+func fragmentAfter(n *Node, _ *jstate, _ *buildCtx) error {
+	var sb strings.Builder
+	collectFragment(&sb, n)
+	rendered := sb.String()
 	if n.Indent != nil {
 		rendered = Indent(rendered, n.Indent)
 	}
 
-	// Stash the rendered output on the Fragment node so the parent's
-	// fileAfter walks Children in source order and splices Fragment's
-	// content in place (not appended at the end).
+	// Stored on the node so the parent's collector splices it in place.
 	n.Content = []string{rendered}
 	return nil
 }

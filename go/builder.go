@@ -245,9 +245,9 @@ func (j *J) SlotP(p SlotProps, body func(*J)) {
 // The node is why this is not simply `fn(j)`. Without one, a user component
 // used as a direct Fragment child was invisible to the filter, so its body
 // ran once per replay pass where TS ran it zero times, and the tree Go
-// assembled was flatter than TS's. KindNone carries no op and nodeText
-// walks straight through it, so nesting changes no output on its own. See
-// #29.
+// assembled was flatter than TS's. KindNone carries no op and the content
+// collectors walk straight through it, so nesting changes no output on its
+// own. See #29.
 func (j *J) Cmp(name string, fn func(*J)) {
 	if j.st.err != nil || fn == nil {
 		return
@@ -388,14 +388,6 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 		Path:    childPath(j.cur, ""),
 		Meta:    map[string]any{},
 	}
-	// Eject rides on Meta, the way fragmentBody and slotNames already do.
-	// It used to be declared on FragmentProps and read by nothing at all, so
-	// a Fragment that trims to a region in TS emitted its whole source file
-	// here. Mirrors ts/src/cmp/Fragment.ts, which passes props.eject straight
-	// into template(). See docs/design/PARITY_PLAN.md 3.
-	if p.Eject != nil {
-		n.Meta["fragmentEject"] = p.Eject
-	}
 	if j.filtered(n) {
 		return
 	}
@@ -405,45 +397,10 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 	if j.st.root == nil {
 		j.st.root = n
 	}
-	if body == nil {
-		return
-	}
 
-	// Stash the body callback on the node so the Fragment op can replay
-	// it during build phase. Capture by closure since body is a Go func.
-	n.Meta["fragmentBody"] = body
-	// Eagerly walk once with a slot-name-collecting filter so
-	// Fragment can inject <[SLOT:name]> replace handlers before
-	// the build phase runs Template.
-	slotNames := map[string]struct{}{}
-	sawNonSlot := false
-	n.Filter = func(kind, name string) bool {
-		if kind == "slot" {
-			slotNames[name] = struct{}{}
-		} else {
-			sawNonSlot = true
-		}
-		return false
-	}
-	body(&J{st: j.st, cur: n})
-	n.Filter = nil
-
-	// Which children the scan REJECTED, recorded here because it can no
-	// longer be inferred from n.Children: nothing attaches during the scan
-	// now, so a Fragment's children are always empty at this point. TS
-	// tracks the same thing in a `sawnonslot` local, for the same reason.
-	if sawNonSlot {
-		n.Meta["fragmentSawNonSlot"] = true
-	}
-
-	// Stash the slot names so the op can build the right replace keys.
-	// Sorted for deterministic regex-build order across stacks.
-	names := make([]string, 0, len(slotNames))
-	for k := range slotNames {
-		names = append(names, k)
-	}
-	sortJS(names)
-	n.Meta["slotNames"] = names
+	// Rendered NOW, as TS renders it inside the component call. See
+	// fragment.go.
+	renderFragment(j.st, n, body, p.Eject)
 }
 
 // CopyFilesProps configures CopyFiles.

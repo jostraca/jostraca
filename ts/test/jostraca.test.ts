@@ -17,6 +17,7 @@ import {
   Fragment,
   Content,
   Copy,
+  CopyFiles,
   Inject,
   Line,
   List,
@@ -1930,6 +1931,138 @@ describe('components', () => {
     expect(out['/out/double.txt']).equal('[$$b$$]\ncontent:$$b$$\n')
     expect(out['/out/r1.txt']).equal('$$b$$ and bar N\n')
     expect(out['/out/r2.txt']).equal('$$"q"$$ and $$name$$ N\n')
+  })
+
+
+  // A Fragment renders when it is called, in the define phase: the source
+  // is read, the slots replayed and the template run there, and whatever a
+  // slot or replace handler emits becomes a child the build walk visits.
+  // Go: go/fragment_timing_test.go, which pins each of these.
+  const genErr = async (fsdef: any, def: any, gopts?: any) => {
+    const { fs, vol } = memfs(fsdef)
+    let err: any = null
+    try {
+      await Jostraca({ now: () => START_TIME, ...(gopts || {}) })
+        .generate({ fs: () => fs, folder: '/out' }, cmp(def))
+    }
+    catch (e: any) {
+      err = e
+    }
+    return { err, vol: vol.toJSON() as any }
+  }
+
+  const FRAG_SRC = {
+    '/tm/noslot.txt': 'no markers $$name$$\n',
+    '/tm/model.txt': 'M=$$name$$\n',
+    '/tm/twice.txt': '1 <[SLOT:a]>\n2 <[SLOT:a]>\n3 <[SLOT]>\n4 <[SLOT]>\n',
+    '/tm/replace.txt': 'FOO and BAR $$name$$\n',
+    '/tm/slot.txt': 'HEAD<[SLOT:s]>TAIL\n',
+    '/tm/c.txt': 'copied $$name$$\n',
+  }
+
+  const noOutput = (vol: any) =>
+    Object.keys(vol).filter((k: string) => k.startsWith('/out'))
+
+  test('fragment-render-error-writes-nothing', async () => {
+    const nonslot = await genErr(FRAG_SRC, () => Project({}, () => {
+      File({ name: 'ok.txt' }, () => Content('ok'))
+      File({ name: 'n.txt' }, () =>
+        Fragment({ from: '/tm/noslot.txt' }, () => Content('lost')))
+    }))
+    Assert.match(nonslot.err.message, /Fragment has non-Slot children/)
+    expect(noOutput(nonslot.vol)).equal([])
+
+    const empty = await genErr(FRAG_SRC, () => Project({}, () => {
+      File({ name: 'first.txt' }, () => Content('first'))
+      File({ name: 'e.txt' }, () =>
+        Fragment({ from: '/tm/model.txt', replace: { '/x*/': 'y' } }))
+    }), { model: { name: 'World' } })
+    Assert.match(empty.err.message, /matches empty string/)
+    expect(noOutput(empty.vol)).equal([])
+  })
+
+  test('fragment-reads-the-model-when-called', async () => {
+    const model: any = { name: 'World' }
+    const out = await gen(FRAG_SRC, () => Project({}, () => {
+      File({ name: 'm.txt' }, () => {
+        Fragment({ from: '/tm/model.txt' })
+        Content('content=$$name$$\n')
+        model.name = 'CHANGED'
+      })
+    }), { model })
+    expect(out['/out/m.txt']).equal('M=World\ncontent=World\n')
+  })
+
+  test('fragment-body-runs-in-the-define-phase', async () => {
+    let n = 0
+    const out = await gen(FRAG_SRC, () => Project({}, () => {
+      File({ name: 'c.txt' }, () => {
+        Fragment({ from: '/tm/twice.txt' }, () => {
+          n++
+          Slot({ name: 'a' }, () => Content('a' + n))
+          Content('d' + n)
+        })
+        Content('after=' + n + '\n')
+      })
+    }))
+    expect(out['/out/c.txt']).equal('1a2\n2a3\n3d4\n4d5\nafter=5\n')
+  })
+
+  test('fragment-reads-its-source-before-the-run-writes-it', async () => {
+    const out = await gen({ ...FRAG_SRC, '/out/tpl.txt': 'OLD $$name$$ <[SLOT]>\n' },
+      () => Project({}, () => {
+        File({ name: 'tpl.txt' }, () => Content('NEW $$name$$ <[SLOT]>\n'))
+        File({ name: 'use.txt' }, () => Fragment({ from: 'tpl.txt' }, () => Content('S')))
+      }), { model: { name: 'World' } })
+    expect(out['/out/tpl.txt']).equal('NEW World <[SLOT]>\n')
+    expect(out['/out/use.txt']).equal('OLD WorldS\n')
+  })
+
+  test('fragment-slot-copy-runs-in-the-build', async () => {
+    const out = await gen(FRAG_SRC, () => Project({}, () => {
+      File({ name: 'f.txt' }, () => {
+        Fragment({ from: '/tm/slot.txt' }, () => {
+          Slot({ name: 's' }, () => {
+            Content('pre;')
+            CopyFiles({ from: '/tm/c.txt', to: 'c.txt' })
+            Content('post;')
+          })
+        })
+      })
+    }), { model: { name: 'World' } })
+    expect(out['/out/c.txt']).equal('copied World\n')
+    expect(out['/out/f.txt']).equal('HEADpre;copied World\npost;TAIL\n')
+  })
+
+  // Everything a replace handler emits lands at the marker, in emission
+  // order: ListItems, Line, a nested Fragment and a user component.
+  test('fragment-replace-handler-emissions', async () => {
+    const Wrap = cmp(function Wrap(_props: any, children: any) {
+      Content('<')
+      each(children, { call: true })
+      Content('>')
+    })
+    const out = await gen(FRAG_SRC, () => Project({}, () => {
+      File({ name: 'f.txt' }, () => {
+        Fragment({
+          from: '/tm/replace.txt', replace: {
+            FOO: () => {
+              List({ item: [{ n: 1 }, { n: 2 }], line: false },
+                ({ replace }: any) => Content({ src: '[{item.n}]', replace }))
+            },
+            BAR: () => { Line('bar') },
+          }
+        })
+        Fragment({
+          from: '/tm/replace.txt', replace: {
+            FOO: () => { Fragment({ from: '/tm/model.txt' }) },
+            BAR: () => { Wrap(() => Content('w')) },
+          }
+        })
+      })
+    }), { model: { name: 'World' } })
+    expect(out['/out/f.txt'])
+      .equal('[1][2] and bar\n World\nM=World\n and <w> World\n')
   })
 
 })
