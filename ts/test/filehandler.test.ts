@@ -533,4 +533,52 @@ describe('filehandler', () => {
     }
   })
 
+
+  // A path saved twice in one run appears once per files kind, at its first
+  // position, and has one meta entry, at its first key position, carrying
+  // the LAST save's values.
+  test('duplicate-save-bookkeeping', async () => {
+    const M = 'a\n#--START--#\nold\n#--END--#\nz\n'
+    const entry = (path: string, exists: boolean) => ({
+      action: 'write', path, exists, actions: ['write'], protect: false,
+      conflict: false, when: NOW, hwhen: 2025010100000000,
+    })
+    const log = (...entries: any[]) => JSON.stringify({
+      foldername: '.jostraca', filename: 'jostraca.meta.log',
+      last: NOW, hlast: 2025010100000000,
+      files: Object.fromEntries(entries.map((e) => [e.path, e])),
+    }, null, 2)
+
+    const rows: [string, any, () => void, string[], string][] = [
+      ['file-then-inject', {}, () => Project({}, () => {
+        File({ name: 't.txt' }, () => Content(M))
+        Inject({ name: 't.txt' }, () => Content('NEW'))
+      }), ['/out/t.txt'], log(entry('t.txt', true))],
+      ['inject-twice', { '/out/t.txt': M }, () => Project({}, () => {
+        Inject({ name: 't.txt' }, () => Content('ONE'))
+        Inject({ name: 't.txt' }, () => Content('TWO'))
+      }), ['/out/t.txt'], log(entry('t.txt', true))],
+      ['copy-then-file', { '/src/single.txt': 'S\n' }, () => Project({}, () => {
+        Copy({ from: '/src/single.txt' })
+        File({ name: 'single.txt' }, () => Content('F\n'))
+      }), ['/out/single.txt'], log(entry('single.txt', true))],
+      ['file-then-copy', { '/src/single.txt': 'S\n' }, () => Project({}, () => {
+        File({ name: 'single.txt' }, () => Content('F\n'))
+        Copy({ from: '/src/single.txt' })
+      }), ['/out/single.txt'], log(entry('single.txt', true))],
+      ['file-g-h-inject-g', {}, () => Project({}, () => {
+        File({ name: 'g.txt' }, () => Content(M))
+        File({ name: 'h.txt' }, () => Content('H'))
+        Inject({ name: 'g.txt' }, () => Content('NEW'))
+      }), ['/out/g.txt', '/out/h.txt'], log(entry('g.txt', true), entry('h.txt', false))],
+    ]
+    for (const [name, seed, root, written, meta] of rows) {
+      const { fs } = memfs(seed)
+      const res = await Jostraca({ now: () => NOW, log: quiet })
+        .generate({ fs: () => fs, folder: '/out' }, root)
+      expect({ name, written: res.files.written }).equal({ name, written })
+      expect({ name, meta: fs.readFileSync(META, 'utf8') }).equal({ name, meta })
+    }
+  })
+
 })

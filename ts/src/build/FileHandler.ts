@@ -139,6 +139,7 @@ class FileHandler {
   }
   createdDirs: Set<string>
   savedPaths: Set<string>
+  filelogged: Record<string, Set<string>>
 
 
   constructor(
@@ -173,6 +174,7 @@ class FileHandler {
 
     this.createdDirs = new Set()
     this.savedPaths = new Set()
+    this.filelogged = {}
 
     // Yikes!
     this.duplicateFolder = bctx.duplicateFolder.bind(bctx)
@@ -1114,16 +1116,20 @@ class FileHandler {
   }
 
 
+  // A path appears at most once per kind, at its first position. Only the
+  // LAST entry used to be checked, so File t, File u, Inject t listed t
+  // twice and the list depended on sibling order.
   filelog(kind: string, path: string): void {
     path = fwd(path)
     let files: any = this.files
     if (files[kind]) {
-      const kindlog = files[kind]
-      if (path === kindlog[kindlog.length - 1]) {
+      const seen = this.filelogged[kind] = this.filelogged[kind] || new Set()
+      if (seen.has(path)) {
         dlog('filelog', kind, 'duplicate: ' + path)
       }
       else {
-        kindlog.push(path)
+        seen.add(path)
+        files[kind].push(path)
       }
     }
     else {

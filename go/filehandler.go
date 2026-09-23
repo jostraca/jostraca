@@ -38,6 +38,9 @@ type fileHandler struct {
 	// of one path.
 	st         *jstate
 	savedPaths map[string]struct{}
+
+	// filelogged holds, per files kind, the paths already listed.
+	filelogged map[string]map[string]struct{}
 }
 
 const protectMarker = "JOSTRACA_PROTECT"
@@ -182,6 +185,7 @@ func (fh *fileHandler) saveClassified(
 	}
 
 	exists := fh.fs.Exists(p)
+	fh.bmeta.beginSave(rpath, exists)
 	// why captures the mode-dispatch breadcrumbs accumulated during this
 	// save. Mirrors the `why` array in TS at src/build/FileHandler.ts:162+.
 	why := []string{}
@@ -270,7 +274,7 @@ func (fh *fileHandler) saveClassified(
 					if fh.chmodUnchanged(p, mode) {
 						why = append(why, "chmod-0")
 					}
-					fh.filelog(&fh.files.Unchanged, p)
+					fh.filelog("unchanged", p)
 				}
 			} else if isText && modes.merge {
 				why = append(why, "merge-0")
@@ -300,7 +304,7 @@ func (fh *fileHandler) saveClassified(
 					if fh.chmodUnchanged(p, mode) {
 						why = append(why, "chmod-0")
 					}
-					fh.filelog(&fh.files.Unchanged, p)
+					fh.filelog("unchanged", p)
 				}
 			}
 		}
@@ -334,7 +338,7 @@ func (fh *fileHandler) saveClassified(
 				why = append(why, "chmod-0")
 			}
 
-			fh.filelog(&fh.files.Unchanged, p)
+			fh.filelog("unchanged", p)
 			fh.appendAudit("save:write", map[string]any{
 				"action": "write", "path": rpath, "size": len(content),
 				"whence": whence, "why": why, "exists": exists,
@@ -367,8 +371,11 @@ func (fh *fileHandler) saveClassified(
 	fh.bmeta.recordProtect(rpath, protect)
 
 	if dup {
-		return fh.writeDuplicate(rpath, content)
+		if err := fh.writeDuplicate(rpath, content); err != nil {
+			return err
+		}
 	}
+	fh.bmeta.endSave()
 	return nil
 }
 
@@ -418,7 +425,7 @@ func (fh *fileHandler) write(p string, content []byte, rpath, whence string, exi
 			return err
 		}
 	}
-	fh.filelog(&fh.files.Written, p)
+	fh.filelog("written", p)
 	fh.appendAudit("save:write", map[string]any{
 		"action":  "write",
 		"path":    rpath,
@@ -444,7 +451,7 @@ func (fh *fileHandler) savePresent(p string, content []byte, rpath, whence strin
 			return err
 		}
 	}
-	fh.filelog(&fh.files.Presented, p)
+	fh.filelog("presented", p)
 	fh.appendAudit("save:present", map[string]any{
 		"action":  "present",
 		"path":    rpath,
@@ -516,9 +523,9 @@ func (fh *fileHandler) saveMerge(p string, content, existing []byte, rpath, when
 			return err
 		}
 	}
-	fh.filelog(&fh.files.Merged, p)
+	fh.filelog("merged", p)
 	if res.Conflict {
-		fh.filelog(&fh.files.Conflicted, p)
+		fh.filelog("conflicted", p)
 	}
 	fh.appendAudit("save:merge", map[string]any{
 		"action":   "merge",
@@ -557,9 +564,9 @@ func (fh *fileHandler) saveDiff(p string, content, existing []byte, rpath, whenc
 		}
 	}
 	conflict := !bytes.Equal(rendered, content)
-	fh.filelog(&fh.files.Diffed, p)
+	fh.filelog("diffed", p)
 	if conflict {
-		fh.filelog(&fh.files.Conflicted, p)
+		fh.filelog("conflicted", p)
 	}
 	fh.appendAudit("save:diff", map[string]any{
 		"action":   "diff",
@@ -589,7 +596,7 @@ func (fh *fileHandler) savePreserveBackup(p string, existing []byte, rpath, when
 			return err
 		}
 	}
-	fh.filelog(&fh.files.Preserved, p)
+	fh.filelog("preserved", p)
 	fh.appendAudit("preserve", map[string]any{
 		"path":   rpath,
 		"backup": fh.relative(backup),
@@ -878,8 +885,43 @@ func (fh *fileHandler) writeDuplicate(rpath string, content []byte) error {
 	return fh.writeAtomic(dup, content)
 }
 
-func (fh *fileHandler) filelog(slot *[]string, rpath string) {
-	*slot = append(*slot, rpath)
+// filelog lists p under kind at most once, at its first position, as TS's
+// filelog does; a repeat is logged.
+func (fh *fileHandler) filelog(kind, p string) {
+	var slot *[]string
+	switch kind {
+	case "preserved":
+		slot = &fh.files.Preserved
+	case "written":
+		slot = &fh.files.Written
+	case "presented":
+		slot = &fh.files.Presented
+	case "diffed":
+		slot = &fh.files.Diffed
+	case "merged":
+		slot = &fh.files.Merged
+	case "conflicted":
+		slot = &fh.files.Conflicted
+	case "unchanged":
+		slot = &fh.files.Unchanged
+	default:
+		fh.st.warn(fhDlog, "filelog", "invalid kind: "+kind)
+		return
+	}
+	if fh.filelogged == nil {
+		fh.filelogged = map[string]map[string]struct{}{}
+	}
+	seen := fh.filelogged[kind]
+	if seen == nil {
+		seen = map[string]struct{}{}
+		fh.filelogged[kind] = seen
+	}
+	if _, dup := seen[p]; dup {
+		fh.st.warn(fhDlog, "filelog", kind, "duplicate: "+p)
+		return
+	}
+	seen[p] = struct{}{}
+	*slot = append(*slot, p)
 }
 
 func (fh *fileHandler) appendAudit(tag string, data map[string]any) {

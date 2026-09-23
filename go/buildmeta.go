@@ -15,6 +15,11 @@ type buildMeta struct {
 	fh   *fileHandler
 	prev map[string]any
 	next metaSnapshot
+
+	// cur is the entry of the save in progress. Each save builds a fresh
+	// one and commits it at the end, so a path saved twice in a run carries
+	// the LAST save's values, as TS's addmeta replacing the key does.
+	cur *metaEntry
 }
 
 type metaSnapshot struct {
@@ -108,38 +113,35 @@ func (bm *buildMeta) load() {
 // metaDlog records non-fatal meta-log weirdness.
 var metaDlog = NewDLog("jostraca", "buildmeta.go")
 
-// recordAction is called by FileHandler each time a save touches a path.
-// kind is the action token (write/preserve/present/diff/merge/protect/
-// unchanged); the entry's Action is the *primary* action and Actions[]
-// records every applied action in order.
-// recordProtect flags the entry for rpath as protected. TS sets
-// meta.protect once for the whole save() (as soon as the marker is seen),
-// independent of which action later fires, so it is applied here at the
-// end of save() rather than threaded through every action helper.
+// beginSave starts a fresh entry for one save of rpath.
+func (bm *buildMeta) beginSave(rpath string, exists bool) {
+	if bm == nil {
+		return
+	}
+	bm.cur = &metaEntry{Path: rpath, Exists: exists, Actions: []string{}}
+}
+
+// recordProtect flags the entry of the save in progress as protected. TS
+// sets meta.protect once for the whole save() (as soon as the marker is
+// seen), independent of which action later fires.
 func (bm *buildMeta) recordProtect(rpath string, protect bool) {
 	if bm == nil || !protect {
 		return
 	}
-	if e, ok := bm.next.byPath[rpath]; ok {
-		e.Protect = true
-	}
+	bm.entryFor(rpath, false).Protect = true
 }
 
+// recordAction appends an action to the entry of the save in progress.
+// kind is the action token (write/preserve/present/diff/merge/skip); the
+// entry's Action is the latest one and Actions records every action this
+// save applied, in order.
 func (bm *buildMeta) recordAction(rpath, action string, exists, conflict, protect bool) {
 	if bm == nil {
 		return
 	}
-	e, ok := bm.next.byPath[rpath]
-	if !ok {
-		e = &metaEntry{
-			Path:    rpath,
-			Action:  action,
-			Exists:  exists,
-			Actions: []string{},
-			When:    bm.fh.now(),
-		}
-		bm.next.files = append(bm.next.files, e)
-		bm.next.byPath[rpath] = e
+	e := bm.entryFor(rpath, exists)
+	if e.When == 0 {
+		e.When = bm.fh.now()
 	}
 	e.Action = action
 	e.Actions = append(e.Actions, action)
@@ -149,6 +151,29 @@ func (bm *buildMeta) recordAction(rpath, action string, exists, conflict, protec
 	if protect {
 		e.Protect = true
 	}
+}
+
+func (bm *buildMeta) entryFor(rpath string, exists bool) *metaEntry {
+	if bm.cur == nil || bm.cur.Path != rpath {
+		bm.beginSave(rpath, exists)
+	}
+	return bm.cur
+}
+
+// endSave commits the entry of the save in progress. A path already
+// recorded this run keeps its position and takes the new values.
+func (bm *buildMeta) endSave() {
+	if bm == nil || bm.cur == nil {
+		return
+	}
+	e := bm.cur
+	bm.cur = nil
+	if prev, ok := bm.next.byPath[e.Path]; ok {
+		*prev = *e
+		return
+	}
+	bm.next.files = append(bm.next.files, e)
+	bm.next.byPath[e.Path] = e
 }
 
 // done writes the meta file and a sibling .gitignore that excludes

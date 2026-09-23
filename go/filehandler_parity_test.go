@@ -556,3 +556,95 @@ func TestSkipEntryWhen(t *testing.T) {
 		}
 	}
 }
+
+// fhMetaLog renders the exact meta log bytes for write entries stamped
+// fhNow, in the order given.
+func fhMetaLog(entries ...[2]any) string {
+	var b strings.Builder
+	b.WriteString("{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n" +
+		"  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {")
+	for i, e := range entries {
+		if i == 0 {
+			b.WriteString("\n")
+		}
+		path, exists := e[0].(string), e[1].(bool)
+		b.WriteString("    \"" + path + "\": {\n      \"action\": \"write\",\n      \"path\": \"" +
+			path + "\",\n      \"exists\": " + jsonBool(exists) + ",\n      \"actions\": [\n" +
+			"        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n" +
+			"      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }")
+		if i < len(entries)-1 {
+			b.WriteString(",")
+		}
+		b.WriteString("\n")
+	}
+	if len(entries) > 0 {
+		b.WriteString("  ")
+	}
+	b.WriteString("}\n}")
+	return b.String()
+}
+
+// A path saved twice in one run appears once per files kind, at its first
+// position, and has one meta entry, at its first key position, carrying
+// the LAST save's values. Twin of 'duplicate-save-bookkeeping' in
+// ts/test/filehandler.test.ts.
+func TestDuplicateSaveBookkeeping(t *testing.T) {
+	const m = "a\n#--START--#\nold\n#--END--#\nz\n"
+	rows := []struct {
+		name    string
+		seed    map[string]string
+		root    func(*J)
+		written []string
+		meta    string
+	}{
+		{"file-then-inject", nil, func(j *J) {
+			j.Project(ProjectProps{}, func(j *J) {
+				j.File("t.txt", func(j *J) { j.Content(m) })
+				j.Inject("t.txt", func(j *J) { j.Content("NEW") })
+			})
+		}, []string{"/out/t.txt"}, fhMetaLog([2]any{"t.txt", true})},
+		{"inject-twice", map[string]string{"/out/t.txt": m}, func(j *J) {
+			j.Project(ProjectProps{}, func(j *J) {
+				j.Inject("t.txt", func(j *J) { j.Content("ONE") })
+				j.Inject("t.txt", func(j *J) { j.Content("TWO") })
+			})
+		}, []string{"/out/t.txt"}, fhMetaLog([2]any{"t.txt", true})},
+		{"copy-then-file", map[string]string{"/src/single.txt": "S\n"}, func(j *J) {
+			j.Project(ProjectProps{}, func(j *J) {
+				j.CopyFiles(CopyFilesProps{From: "/src/single.txt"})
+				j.File("single.txt", func(j *J) { j.Content("F\n") })
+			})
+		}, []string{"/out/single.txt"}, fhMetaLog([2]any{"single.txt", true})},
+		{"file-then-copy", map[string]string{"/src/single.txt": "S\n"}, func(j *J) {
+			j.Project(ProjectProps{}, func(j *J) {
+				j.File("single.txt", func(j *J) { j.Content("F\n") })
+				j.CopyFiles(CopyFilesProps{From: "/src/single.txt"})
+			})
+		}, []string{"/out/single.txt"}, fhMetaLog([2]any{"single.txt", true})},
+		{"file-g-h-inject-g", nil, func(j *J) {
+			j.Project(ProjectProps{}, func(j *J) {
+				j.File("g.txt", func(j *J) { j.Content(m) })
+				j.File("h.txt", func(j *J) { j.Content("H") })
+				j.Inject("g.txt", func(j *J) { j.Content("NEW") })
+			})
+		}, []string{"/out/g.txt", "/out/h.txt"},
+			fhMetaLog([2]any{"g.txt", true}, [2]any{"h.txt", false})},
+	}
+	for _, r := range rows {
+		mem := NewMemFS()
+		for k, v := range r.seed {
+			_ = mem.WriteFile(k, []byte(v))
+		}
+		res, err := New(WithFS(mem), WithFolder("/out"), WithNow(func() int64 { return fhNow })).
+			Generate(Options{}, r.root)
+		if err != nil {
+			t.Fatalf("%s: %v", r.name, err)
+		}
+		if strings.Join(res.Files.Written, ",") != strings.Join(r.written, ",") {
+			t.Errorf("%s: written = %v, want %v", r.name, res.Files.Written, r.written)
+		}
+		if got, _ := mem.ReadFile("/out/.jostraca/jostraca.meta.log"); string(got) != r.meta {
+			t.Errorf("%s: meta log\n%s\nwant\n%s", r.name, got, r.meta)
+		}
+	}
+}
