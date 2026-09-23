@@ -307,8 +307,8 @@ func (j *J) InjectP(p InjectProps, body func(*J)) {
 	if markers == [2]string{} {
 		markers = defaultInjectMarkers
 	} else if markers[0] == "" || markers[1] == "" {
-		j.st.err = fmt.Errorf(
-			"Inject: both markers must be non-empty, got %q", markers)
+		pair, _ := marshalJSLike(markers[:])
+		j.st.err = fmt.Errorf("Inject: both markers must be non-empty, got %s", pair)
 		return
 	}
 	n := &Node{
@@ -366,7 +366,7 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 	// resolves on the FS. Mirrors TS FragmentShape's Check(From)
 	// at src/cmp/Fragment.ts:11-20.
 	if p.From == "" {
-		j.st.err = &NodeError{Step: "fragment", Err: fmtErrorf("Fragment: From is required")}
+		j.st.err = &NodeError{Step: "fragment", Err: fromMissingErr("Fragment")}
 		return
 	}
 	// Resolve a relative From against the output folder before checking it
@@ -374,8 +374,8 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 	// ts/src/cmp/Fragment.ts, which resolves before its shape check for the
 	// same reason.
 	p.From = resolveFragmentFrom(j.st, p.From)
-	if !j.st.fs.Exists(p.From) {
-		j.st.err = &NodeError{Step: "fragment", Err: fmtErrorf("Fragment: From file does not exist: %s", p.From)}
+	if _, err := j.st.fs.Stat(p.From); err != nil {
+		j.st.err = &NodeError{Step: "fragment", Err: fromCheckErr("Fragment", p.From, err)}
 		return
 	}
 	if p.Replace == nil {
@@ -488,11 +488,11 @@ func (j *J) CopyFiles(p CopyFilesProps) {
 	// Define-time validation matches TS CopyShape's Check(From)
 	// at src/cmp/Copy.ts:9-21.
 	if p.From == "" {
-		j.st.err = &NodeError{Step: "copy", Err: fmtErrorf("Copy: From is required")}
+		j.st.err = &NodeError{Step: "copy", Err: fromMissingErr("CopyFiles")}
 		return
 	}
-	if !j.st.fs.Exists(p.From) {
-		j.st.err = &NodeError{Step: "copy", Err: fmtErrorf("Copy: From does not exist: %s", p.From)}
+	if _, err := j.st.fs.Stat(p.From); err != nil {
+		j.st.err = &NodeError{Step: "copy", Err: fromCheckErr("CopyFiles", p.From, err)}
 		return
 	}
 	n := &Node{

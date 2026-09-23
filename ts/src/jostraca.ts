@@ -309,6 +309,13 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
     opts_in: JostracaOptions | {},
     root: Function):
     Promise<JostracaResult> {
+    // A designed refusal rather than the bare TypeError the call below
+    // would raise ("root is not a function"). Go's ErrNilRoot carries the
+    // same text.
+    if ('function' !== typeof root) {
+      throw new Error('jostraca: generate root callback is not a function')
+    }
+
     // Validate a COPY. `OptionsShape` injects its defaults into the object
     // it is handed and returns that same object, so validating the caller's
     // own options wrote `build`, `cmp`, `control`, `exclude` and `name`

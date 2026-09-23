@@ -16,6 +16,7 @@ import { memfs } from '../dist/util/memfs'
 import {
   Jostraca,
   Project,
+  Folder,
   File,
   Content,
   Fragment,
@@ -290,6 +291,163 @@ describe('generate', () => {
       finally {
         process.chdir(prev)
         Fs.rmSync(dir, { recursive: true, force: true })
+      }
+    })
+
+  })
+
+
+
+  // Every error jostraca raises itself has the same message BODY in both
+  // ports: the text after TS's `<ERROR:>?<Op>:<phase>: ` prefix and after
+  // Go's NodeError wrapper, `jostraca <step> @<path>: `. The wrappers
+  // differ by runtime, and so does an embedded filesystem error, which is
+  // the host's own text; those cases pin the step and the partial tree.
+  // Go twins in go/error_text_test.go.
+  describe('errors', () => {
+
+    const body = (err: any) =>
+      String(err.message).replace(/^(ERROR:)?[A-Za-z]+:[a-z]+: /, '')
+
+    const refusal = async (root: () => void) => {
+      try {
+        await Jostraca({ mem: true, folder: '/out', now: () => START_TIME })
+          .generate({}, root)
+      }
+      catch (err: any) {
+        return err
+      }
+      throw new Error('expected a refusal')
+    }
+
+    test('duplicate-file-path', async () => {
+      for (const folder of [undefined, '.']) {
+        const err = await refusal(() => Project({ folder }, () => {
+          File({ name: 'a.txt' }, () => Content('1'))
+          File({ name: './a.txt' }, () => Content('2'))
+        }))
+        Assert.equal(err.step, 'file')
+        Assert.equal(body(err), 'two File components resolve to the same output ' +
+          'path, path=/out/a.txt, first=a.txt, second=./a.txt')
+      }
+    })
+
+    test('name-traversal', async () => {
+      const err = await refusal(() => Project({}, () => {
+        File({ name: 'ok.txt' }, () => Content('ok'))
+        File({ name: '../x.txt' }, () => Content('x'))
+      }))
+      Assert.equal(err.step, 'file')
+      Assert.equal(body(err), 'File name must not contain a ".." path segment, name=../x.txt')
+    })
+
+    test('inject-target-missing', async () => {
+      const err = await refusal(() => Project({}, () => {
+        File({ name: 'ok.txt' }, () => Content('ok'))
+        Inject({ name: 'nope.txt' }, () => Content('X'))
+      }))
+      Assert.equal(err.step, 'inject')
+      Assert.equal(body(err), 'inject target does not exist, path=/out/nope.txt ' +
+        '(Inject rewrites an existing file; use File to create one)')
+    })
+
+    test('inject-one-empty-marker', async () => {
+      const err = await refusal(() => Project({}, () => {
+        Inject({ name: 'nope.txt', markers: ['X', ''] }, () => Content('X'))
+      }))
+      Assert.equal(err.message, 'Inject: both markers must be non-empty, got ["X",""]')
+    })
+
+    test('root-not-a-function', async () => {
+      await Assert.rejects(
+        Jostraca({ mem: true }).generate({}, undefined as any),
+        { message: 'jostraca: generate root callback is not a function' })
+    })
+
+    test('define-time-from', async () => {
+      const missing = await refusal(() => File({ name: 'a.txt' }, () => Fragment({} as any)))
+      Assert.equal(missing.message,
+        'Fragment: Validation failed for property "from" because the property is missing.')
+
+      const frag = await refusal(() => File({ name: 'a.txt' }, () => Fragment({ from: 'nope.txt' })))
+      Assert.ok(frag.message.startsWith('Fragment: Validation failed for property "from" ' +
+        'with string "/out/nope.txt" because check "From" failed (threw: '), frag.message)
+
+      const copy = await refusal(() => CopyFiles({ from: '/nope' }))
+      Assert.ok(copy.message.startsWith('CopyFiles: '), copy.message)
+      Assert.ok(copy.message.includes('Validation failed for property "from" ' +
+        'with string "/nope" because check "From" failed (threw: '), copy.message)
+    })
+
+    // A filesystem failure embeds the host's error, so these hold the
+    // step and the partial tree the refusal leaves, not the text. A REAL
+    // FILESYSTEM, because the failures are the operating system's.
+    test('filesystem-failures-leave-the-same-tree', async () => {
+      const walk = (d: string, rel = ''): string[] => Fs.readdirSync(d, { withFileTypes: true })
+        .sort((a, b) => a.name < b.name ? -1 : 1)
+        .flatMap((e) => e.isDirectory() ?
+          [rel + e.name + '/', ...walk(Path.join(d, e.name), rel + e.name + '/')] :
+          [rel + e.name])
+
+      const one = () => Project({ folder: '.' }, () => File({ name: 'a.txt' }, () => Content('A\n')))
+
+      const cases: [string, (out: string) => any, () => void, any, string[]][] = [
+        ['file-where-a-folder-goes',
+          (out) => Fs.writeFileSync(Path.join(out, 'sub'), 'I am a file\n'),
+          () => Project({ folder: '.' }, () =>
+            Folder({ name: 'sub' }, () => File({ name: 'a.txt' }, () => Content('A\n')))),
+          'folder', ['sub']],
+        ['folder-where-a-file-goes',
+          (out) => Fs.mkdirSync(Path.join(out, 'a.txt')),
+          one, 'file', ['a.txt/']],
+        ['meta-log-is-a-folder',
+          (out) => Fs.mkdirSync(Path.join(out, '.jostraca', 'jostraca.meta.log'), { recursive: true }),
+          one, undefined,
+          ['.jostraca/', '.jostraca/generated/', '.jostraca/generated/a.txt',
+            '.jostraca/jostraca.meta.log/', 'a.txt']],
+        ['meta-folder-is-a-file',
+          (out) => Fs.writeFileSync(Path.join(out, '.jostraca'), 'x'),
+          one, 'file', ['.jostraca', 'a.txt']],
+        ['preserve-backup-is-a-folder',
+          async (out) => {
+            await Jostraca({ now: () => START_TIME }).generate({ folder: out }, one)
+            Fs.writeFileSync(Path.join(out, 'a.txt'), 'U\n')
+            Fs.mkdirSync(Path.join(out, 'a.old.txt'))
+          },
+          () => Project({ folder: '.' }, () => File({ name: 'a.txt' }, () => Content('A2\n'))),
+          'file',
+          ['.jostraca/', '.jostraca/.gitignore', '.jostraca/generated/',
+            '.jostraca/generated/a.txt', '.jostraca/jostraca.meta.log',
+            'a.old.txt/', 'a.txt']],
+      ]
+
+      for (const [name, prep, root, step, tree] of cases) {
+        const dir = tmpdir()
+        const out = Path.join(dir, 'out')
+        try {
+          Fs.mkdirSync(out)
+          await prep(out)
+          let err: any
+          try {
+            await Jostraca({
+              now: () => START_TIME,
+              ...('preserve-backup-is-a-folder' === name ?
+                { existing: { txt: { preserve: true } } } : {}),
+            }).generate({ folder: out }, root)
+          }
+          catch (e: any) {
+            err = e
+          }
+          Assert.ok(err, name + ': expected a refusal')
+          Assert.equal(err.step, step, name)
+          Assert.deepEqual(walk(out), tree, name)
+          if ('preserve-backup-is-a-folder' === name) {
+            Assert.equal(Fs.readFileSync(Path.join(out, 'a.txt'), 'utf8'), 'U\n')
+          }
+        }
+        finally {
+          Fs.rmSync(dir, { recursive: true, force: true })
+        }
       }
     })
 

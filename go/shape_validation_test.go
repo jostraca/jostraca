@@ -19,8 +19,8 @@ func TestFragmentRequiresFrom(t *testing.T) {
 	if err == nil {
 		t.Errorf("Fragment without From should error")
 	}
-	if err != nil && !strings.Contains(err.Error(), "From is required") {
-		t.Errorf("err = %v, want 'From is required'", err)
+	if err != nil && !strings.Contains(err.Error(), `property "from" because the property is missing`) {
+		t.Errorf("err = %v, want the missing-property text", err)
 	}
 }
 
@@ -49,8 +49,8 @@ func TestCopyRequiresFrom(t *testing.T) {
 	if err == nil {
 		t.Errorf("Copy without From should error")
 	}
-	if err != nil && !strings.Contains(err.Error(), "From is required") {
-		t.Errorf("err = %v, want 'From is required'", err)
+	if err != nil && !strings.Contains(err.Error(), `property "from" because the property is missing`) {
+		t.Errorf("err = %v, want the missing-property text", err)
 	}
 }
 

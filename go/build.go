@@ -200,7 +200,7 @@ func validName(name, kind string) error {
 		return r == '/' || r == '\\'
 	}) {
 		if seg == ".." {
-			return fmt.Errorf("%w: %s name=%s", ErrNameTraversal, kind, name)
+			return fmt.Errorf("%s %w, name=%s", kind, ErrNameTraversal, name)
 		}
 	}
 	return nil
@@ -746,7 +746,7 @@ func injectAfter(n *Node, _ *jstate, b *buildCtx) error {
 	// Inject rewrites a region of an existing file; a missing target is a
 	// user error. TS throws here, so the port must too.
 	if !b.fh.fs.Exists(n.FullPath) {
-		return fmt.Errorf("%w: path=%s (Inject rewrites an existing file; use File to create one)",
+		return fmt.Errorf("%w, path=%s (Inject rewrites an existing file; use File to create one)",
 			ErrInjectTargetMissing, n.FullPath)
 	}
 	src, err := b.fh.fs.ReadFile(n.FullPath)
