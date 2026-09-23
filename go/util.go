@@ -199,16 +199,23 @@ func EachKVRaw(m any, fn func(val any, key string, idx int) any) []any {
 	return out
 }
 
-// Get is a simple dot-path lookup over map[string]any/[]any-shaped data.
+// Get is a simple dot-path lookup, TS get: the path splits on '.', each
+// part is one jsProp step (so typed maps and slices, and a string's
+// length and indices, are traversed), and the walk stops at nil. The empty
+// path is the single key "".
 func Get(root any, path string) any {
-	if path == "" {
-		return nil
+	node := root
+	for _, p := range strings.Split(path, ".") {
+		if node == nil {
+			break
+		}
+		v, ok := jsProp(node, p)
+		if !ok {
+			return nil
+		}
+		node = v
 	}
-	v, ok := lookup(root, path)
-	if !ok {
-		return nil
-	}
-	return v
+	return node
 }
 
 // Camelify converts foo-bar / foo_bar / foo bar / FooBar variants to
@@ -869,13 +876,14 @@ func VMap(o map[string]any, p map[string]any) []any {
 
 func cmapApply(spec, self any, key, sk string, parent any) any {
 	if fn, ok := spec.(CMapTransform); ok {
-		v := getxIndex(self, sk)
+		v, _ := jsProp(self, sk)
 		return fn(v, CMapCtx{SKey: sk, Self: self, Key: key, Parent: parent})
 	}
 	if s, ok := spec.(CMapSentinel); ok {
 		switch s {
 		case CMapCopy:
-			return getxIndex(self, sk)
+			v, _ := jsProp(self, sk)
+			return v
 		case CMapKey:
 			return key
 		case CMapFilter:

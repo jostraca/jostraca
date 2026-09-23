@@ -22,10 +22,15 @@ func GetXS(root any, path string) any {
 	return GetX(root, path)
 }
 
-// GetX is the rich-path lookup ported from src/util/basic.ts:128-268.
+// GetX is the rich-path lookup ported from getx in ts/src/util/basic.ts.
 // Supports dot/space-separated navigation, ancestry (`:`), comparison
 // filters (`=`, `!=`, `<`, `<=`, `>`, `>=`, `==`, `~`), array filters
 // (`?`), array indexing, and quoted segments.
+//
+// Every step is jsProp: an own property of a map, a slice or a string.
+// As in TS, a key that is present with a nil value is not the same as an
+// absent one: the walk continues through a present nil, and only an
+// absent key is a miss.
 //
 // Returns nil for any miss or invalid path; otherwise the matched value.
 func GetX(root any, path any) any {
@@ -48,54 +53,63 @@ func GetX(root any, path any) any {
 	case []any:
 		tokens = make([]string, len(p))
 		for i, x := range p {
-			tokens[i] = fmt.Sprint(x)
+			tokens[i] = jsString(x)
 		}
 	default:
 		return nil
 	}
 
+	out := getxWalk(root, tokens)
+	if isUndefined(out) {
+		return nil
+	}
+	return out
+}
+
+// getxWalk is the token loop of TS getx. jsUndefined stands for TS's
+// undefined wherever the loop tells it apart from null.
+func getxWalk(root any, tokens []string) any {
 	var node any = root
-	var out any
+	var out any = jsUndefined
 	ancestry := false
 
-	for i := 0; i < len(tokens) && node != nil; i++ {
+	for i := 0; i < len(tokens) && !isUndefined(node); i++ {
 		t0 := tokens[i]
+		hasT1 := i+1 < len(tokens)
 		var t1 string
-		if i+1 < len(tokens) {
+		if hasT1 {
 			t1 = tokens[i+1]
 		}
 
 		if t1 != "" && getxIsCompareOp(t1) {
-			val := getxIndex(node, t0)
+			val := getxStep(node, t0)
+			if isUndefined(val) {
+				val = nil
+			}
 			argRaw := ""
 			if i+2 < len(tokens) {
 				argRaw = tokens[i+2]
 			}
-			pass := getxCompare(val, t1, argRaw)
-			if pass {
+			if getxCompare(val, t1, argRaw) {
 				i += 2
 			} else {
-				node = nil
+				node = jsUndefined
 			}
-			if !(ancestry && node != nil) {
+			if !(ancestry && !isUndefined(node)) {
 				out = node
 			}
 			continue
 		}
 
-		if t1 == ":" {
-			// Look ahead: a colon followed by `=` is not an ancestry op.
-			next := ""
-			if i+2 < len(tokens) {
-				next = tokens[i+2]
-			}
-			if next != "=" {
+		if hasT1 && t1 == ":" {
+			// A colon followed by `=` is not an ancestry op.
+			if !(i+2 < len(tokens) && tokens[i+2] == "=") {
 				if !ancestry {
 					out = node
 				}
-				node = getxIndex(node, t0)
-				if node == nil {
-					out = nil
+				node = getxStep(node, t0)
+				if isUndefined(node) {
+					out = jsUndefined
 				}
 			}
 			ancestry = true
@@ -129,27 +143,34 @@ func GetX(root any, path any) any {
 			continue
 		}
 
-		if t1 != "" {
-			node = getxIndex(node, t0)
+		if hasT1 {
+			node = getxStep(node, t0)
 			if ancestry {
 				ancestry = false
-				if node == nil {
-					out = nil
-				} else {
-					node = out
+				if isUndefined(node) {
+					out = jsUndefined
 				}
+				node = out
 			}
 			continue
 		}
 
 		// Last token.
-		node = getxIndex(node, t0)
-		if !(ancestry && node != nil) {
+		node = getxStep(node, t0)
+		if !(ancestry && !isUndefined(node)) {
 			out = node
 		}
 	}
 
 	return out
+}
+
+// getxStep is one step of the walk: jsUndefined for an absent key.
+func getxStep(node any, key string) any {
+	if v, ok := jsProp(node, key); ok {
+		return v
+	}
+	return jsUndefined
 }
 
 // getxTokenize implements the regex-driven splitter from
@@ -196,40 +217,6 @@ func getxIsIdent(t string) bool {
 		}
 	}
 	return true
-}
-
-// getxIndex looks up key on node, treating maps as keyed and slices as
-// integer-indexed. Returns nil on miss.
-func getxIndex(node any, key string) any {
-	switch v := node.(type) {
-	case map[string]any:
-		if x, ok := v[key]; ok {
-			return x
-		}
-		return nil
-	case []any:
-		i, err := strconv.Atoi(key)
-		if err != nil || i < 0 || i >= len(v) {
-			return nil
-		}
-		return v[i]
-	}
-	rv := reflect.ValueOf(node)
-	switch rv.Kind() {
-	case reflect.Map:
-		x := rv.MapIndex(reflect.ValueOf(key))
-		if !x.IsValid() {
-			return nil
-		}
-		return x.Interface()
-	case reflect.Slice, reflect.Array:
-		i, err := strconv.Atoi(key)
-		if err != nil || i < 0 || i >= rv.Len() {
-			return nil
-		}
-		return rv.Index(i).Interface()
-	}
-	return nil
 }
 
 // getxCompare runs op on (val, argRaw). argRaw may be a literal string,

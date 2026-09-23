@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode/utf16"
 	"unicode/utf8"
 )
 
@@ -352,4 +353,200 @@ func jsQuote(s string) string {
 	}
 	b.WriteByte('"')
 	return b.String()
+}
+
+// jsUndefinedType is TS's undefined, for the few places that must tell it
+// apart from null (nil). It never escapes the package.
+type jsUndefinedType struct{}
+
+var jsUndefined any = jsUndefinedType{}
+
+func isUndefined(v any) bool {
+	_, ok := v.(jsUndefinedType)
+	return ok
+}
+
+// jsProp is one step of a path, with TS's own-property rule (step in
+// ts/src/util/basic.ts):
+//
+//   - a map: the key, if present; typed maps too, with a canonical
+//     decimal key for an integer-keyed map;
+//   - a slice or array: a canonical array index below its length, or
+//     "length";
+//   - a string: "length" (in UTF-16 units), or a canonical index below it,
+//     giving that UTF-16 code unit as a one-unit string;
+//   - anything else: absent.
+//
+// ok reports presence, so a key holding nil is (nil, true).
+func jsProp(node any, key string) (any, bool) {
+	switch v := node.(type) {
+	case nil:
+		return nil, false
+	case map[string]any:
+		x, ok := v[key]
+		return x, ok
+	case []any:
+		if i, ok := jsIndex(key, len(v)); ok {
+			return v[i], true
+		}
+		if key == "length" {
+			return len(v), true
+		}
+		return nil, false
+	case string:
+		return jsStringProp(v, key)
+	}
+
+	rv := reflect.ValueOf(node)
+	switch rv.Kind() {
+	case reflect.Map:
+		k, ok := jsMapKey(rv.Type().Key(), key)
+		if !ok {
+			return nil, false
+		}
+		x := rv.MapIndex(k)
+		if !x.IsValid() {
+			return nil, false
+		}
+		return x.Interface(), true
+	case reflect.Slice, reflect.Array:
+		if i, ok := jsIndex(key, rv.Len()); ok {
+			return rv.Index(i).Interface(), true
+		}
+		if key == "length" {
+			return rv.Len(), true
+		}
+	case reflect.String:
+		return jsStringProp(rv.String(), key)
+	}
+	return nil, false
+}
+
+// jsIndex parses key as a canonical array index below n: no sign, no
+// leading zero, no padding.
+func jsIndex(key string, n int) (int, bool) {
+	if !isArrayIndexKey(key) {
+		return 0, false
+	}
+	i, err := strconv.Atoi(key)
+	if err != nil || i >= n {
+		return 0, false
+	}
+	return i, true
+}
+
+func jsStringProp(s, key string) (any, bool) {
+	if key == "length" {
+		return utf16Len(s), true
+	}
+	if !isArrayIndexKey(key) {
+		return nil, false
+	}
+	units := utf16.Encode([]rune(s))
+	i, err := strconv.Atoi(key)
+	if err != nil || i >= len(units) {
+		return nil, false
+	}
+	// A lone surrogate decodes to U+FFFD, which is also what Node writes
+	// to disk for one.
+	return string(utf16.Decode(units[i : i+1])), true
+}
+
+// jsMapKey converts a path key to a map's key type: any string kind, or a
+// canonical decimal for an integer kind. Anything else is absent, where a
+// raw MapIndex would panic.
+func jsMapKey(t reflect.Type, key string) (reflect.Value, bool) {
+	switch t.Kind() {
+	case reflect.String:
+		return reflect.ValueOf(key).Convert(t), true
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		n, err := strconv.ParseInt(key, 10, 64)
+		if err != nil || strconv.FormatInt(n, 10) != key {
+			return reflect.Value{}, false
+		}
+		k := reflect.New(t).Elem()
+		if k.OverflowInt(n) {
+			return reflect.Value{}, false
+		}
+		k.SetInt(n)
+		return k, true
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		n, err := strconv.ParseUint(key, 10, 64)
+		if err != nil || strconv.FormatUint(n, 10) != key {
+			return reflect.Value{}, false
+		}
+		k := reflect.New(t).Elem()
+		if k.OverflowUint(n) {
+			return reflect.Value{}, false
+		}
+		k.SetUint(n)
+		return k, true
+	}
+	return reflect.Value{}, false
+}
+
+// jsString is JavaScript's String(v): nil is "null", numbers format as JS
+// formats them, a slice joins its elements with "," (a nil element as ""),
+// and a map or struct is "[object Object]".
+func jsString(v any) string {
+	switch x := v.(type) {
+	case nil:
+		return "null"
+	case jsUndefinedType:
+		return "undefined"
+	case string:
+		return x
+	case bool:
+		if x {
+			return "true"
+		}
+		return "false"
+	case float64:
+		return formatJSNumber(x)
+	case json.Number:
+		return jsJSONNumber(x)
+	}
+
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.String:
+		return rv.String()
+	case reflect.Bool:
+		return jsString(rv.Bool())
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(rv.Int(), 10)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return strconv.FormatUint(rv.Uint(), 10)
+	case reflect.Float32:
+		if math.IsNaN(rv.Float()) || math.IsInf(rv.Float(), 0) {
+			return formatJSNumber(rv.Float())
+		}
+		f, _ := strconv.ParseFloat(strconv.FormatFloat(rv.Float(), 'g', -1, 32), 64)
+		return formatJSNumber(f)
+	case reflect.Float64:
+		return formatJSNumber(rv.Float())
+	case reflect.Slice, reflect.Array:
+		if rv.Kind() == reflect.Slice && rv.Type().Elem().Kind() == reflect.Uint8 {
+			return string(rv.Bytes())
+		}
+		var b strings.Builder
+		for i := 0; i < rv.Len(); i++ {
+			if i > 0 {
+				b.WriteByte(',')
+			}
+			e := rv.Index(i).Interface()
+			if e != nil && !isUndefined(e) {
+				b.WriteString(jsString(e))
+			}
+		}
+		return b.String()
+	case reflect.Map, reflect.Struct:
+		return "[object Object]"
+	case reflect.Ptr, reflect.Interface:
+		if rv.IsNil() {
+			return "null"
+		}
+		return jsString(rv.Elem().Interface())
+	}
+	return fmt.Sprint(v)
 }

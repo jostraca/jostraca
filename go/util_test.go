@@ -786,3 +786,61 @@ func TestJSLess(t *testing.T) {
 		t.Errorf("sortJS = %q, want %q", keys, want)
 	}
 }
+
+// A typed Go container is the same logical input as a JSON object or
+// array, so Get and GetX step through it as TS steps through its one
+// object type. A map with non-string keys resolves a canonical decimal
+// key when its keys are integers, and is otherwise absent -- never a
+// reflect panic.
+func TestGetTypedContainers(t *testing.T) {
+	m := map[string]any{
+		"a": map[string]string{"b": "x"},
+		"l": []string{"p", "q"},
+		"i": map[string]int{"n": 7},
+	}
+	for _, get := range []func(any, string) any{
+		Get, func(r any, p string) any { return GetX(r, p) },
+	} {
+		if got := get(m, "a.b"); got != "x" {
+			t.Errorf("a.b = %v, want x", got)
+		}
+		if got := get(m, "l.1"); got != "q" {
+			t.Errorf("l.1 = %v, want q", got)
+		}
+		if got := get(m, "i.n"); got != 7 {
+			t.Errorf("i.n = %v, want 7", got)
+		}
+		if got := get(m, "l.length"); got != 2 {
+			t.Errorf("l.length = %v, want 2", got)
+		}
+	}
+
+	ik := map[string]any{"k": map[int]string{1: "one", -2: "neg"}}
+	if got := Get(ik, "k.1"); got != "one" {
+		t.Errorf("k.1 = %v, want one", got)
+	}
+	if got := Get(ik, "k.-2"); got != "neg" {
+		t.Errorf("k.-2 = %v, want neg", got)
+	}
+	for _, p := range []string{"k.01", "k.+1", "k.x"} {
+		if got := Get(ik, p); got != nil {
+			t.Errorf("%s = %v, want nil", p, got)
+		}
+	}
+	fk := map[string]any{"k": map[float64]string{1: "one"}, "u": map[uint8]string{1: "u"}}
+	if got := Get(fk, "k.1"); got != nil {
+		t.Errorf("float-keyed k.1 = %v, want nil", got)
+	}
+	if got := Get(fk, "u.1"); got != "u" {
+		t.Errorf("u.1 = %v, want u", got)
+	}
+	if got := Get(fk, "u.300"); got != nil {
+		t.Errorf("u.300 = %v, want nil (overflows uint8)", got)
+	}
+
+	type named string
+	nk := map[named]int{"z": 26}
+	if got := Get(map[string]any{"n": nk}, "n.z"); got != 26 {
+		t.Errorf("named-key n.z = %v, want 26", got)
+	}
+}
