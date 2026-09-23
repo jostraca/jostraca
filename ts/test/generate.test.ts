@@ -413,6 +413,27 @@ describe('generate', () => {
       Assert.equal(body(err), 'File name must not contain a ".." path segment, name=../x.txt')
     })
 
+    // A Copy `to` is checked as the File a single-file copy becomes, and
+    // as `Copy(to)` for a directory.
+    test('copy-to-traversal', async () => {
+      const cases: [string, string, string][] = [
+        ['/src/x.txt', '../x.txt', 'File name must not contain a ".." path segment, name=../x.txt'],
+        ['/src/d', '../x', 'Copy(to) name must not contain a ".." path segment, name=../x'],
+      ]
+      for (const [from, to, want] of cases) {
+        const err: any = await Jostraca({
+          mem: true, folder: '/out', now: () => START_TIME,
+          vol: { '/src/x.txt': 'X', '/src/d/a.txt': 'A' },
+        }).generate({}, () => Project({}, () => {
+          File({ name: 'ok.txt' }, () => Content('ok'))
+          CopyFiles({ from, to })
+        })).then(() => null, (e: any) => e)
+        Assert.ok(err, from + ': expected a refusal')
+        Assert.equal(err.step, 'copy', from)
+        Assert.equal(body(err), want, from)
+      }
+    })
+
     test('inject-target-missing', async () => {
       const err = await refusal(() => Project({}, () => {
         File({ name: 'ok.txt' }, () => Content('ok'))

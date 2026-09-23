@@ -87,6 +87,32 @@ func TestErrorBodyNameTraversal(t *testing.T) {
 	}
 }
 
+// A Copy `to` is checked as the File a single-file copy becomes, and as
+// `Copy(to)` for a directory, which is where TS checks each.
+func TestErrorBodyCopyToTraversal(t *testing.T) {
+	cases := []struct{ from, to, want string }{
+		{"/src/x.txt", "../x.txt", `File name must not contain a ".." path segment, name=../x.txt`},
+		{"/src/d", "../x", `Copy(to) name must not contain a ".." path segment, name=../x`},
+	}
+	for _, c := range cases {
+		_, err := New(WithMem(), WithFolder("/out"),
+			WithVol(map[string][]byte{"/src/x.txt": []byte("X"), "/src/d/a.txt": []byte("A")}),
+			WithNow(func() int64 { return 1735689600000 })).
+			Generate(Options{}, func(j *J) {
+				j.Project(ProjectProps{}, func(j *J) {
+					j.File("ok.txt", func(j *J) { j.Content("ok") })
+					j.CopyFiles(CopyFilesProps{From: c.from, To: c.to})
+				})
+			})
+		if !errors.Is(err, ErrNameTraversal) {
+			t.Fatalf("%s: not ErrNameTraversal: %v", c.from, err)
+		}
+		if body, step := errorBody(t, err); body != c.want || step != "copy" {
+			t.Fatalf("%s: step %q body %q\nwant %q", c.from, step, body, c.want)
+		}
+	}
+}
+
 func TestErrorBodyInjectTargetMissing(t *testing.T) {
 	err := errorRefusal(t, func(j *J) {
 		j.Project(ProjectProps{}, func(j *J) {

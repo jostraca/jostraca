@@ -427,16 +427,17 @@ func copyBefore(n *Node, st *jstate, b *buildCtx) error {
 	if b.fh == nil {
 		return nil
 	}
-	// n.Name carries the Copy `To` prop.
-	if err := validName(n.Name, "Copy(To)"); err != nil {
-		return err
-	}
 	from := n.From
 	fi, err := b.fh.fs.Stat(from)
 	if err != nil {
 		return fmt.Errorf("Copy: stat %s: %w", from, err)
 	}
+	// n.Name carries the Copy `To` prop. TS checks a single file as the
+	// File it becomes and a directory as `Copy(to)`, and names it so.
 	if fi.IsDir {
+		if err := validName(n.Name, "Copy(to)"); err != nil {
+			return err
+		}
 		// Walk handled in copyAfter.
 		n.After = &AfterRef{Kind: "copy"}
 		return nil
@@ -445,6 +446,9 @@ func copyBefore(n *Node, st *jstate, b *buildCtx) error {
 	name := n.Name
 	if name == "" {
 		name = pathBase(from)
+	}
+	if err := validName(name, "File"); err != nil {
+		return err
 	}
 	parent := b.current.folder.parent
 	dir := strings.Join(b.current.folder.path, "/")
