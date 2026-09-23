@@ -538,6 +538,20 @@ describe('util', () => {
 
 })
 
+// A count that is not finite adds nothing; test/spec/text.tsv cannot
+// carry NaN or Infinity. go/util_test.go TestIndentNonFiniteAndTyped pins
+// the same for Go.
+describe('indent-counts', () => {
+
+  test('non-finite', () => {
+    expect(indent('a', Infinity)).equal('a')
+    expect(indent('a', -Infinity)).equal('a')
+    expect(indent('a', NaN)).equal('a')
+  })
+
+})
+
+
 // humanify formats any number it is given, 0 included: only a missing
 // value means now. Past year 9007 the digit form exceeds 2^53 and rounds
 // here, where go/util_test.go TestHumanifyRangeTail pins Go's exact

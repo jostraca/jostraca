@@ -732,13 +732,18 @@ function getCachedEjectRE(s: string): RegExp {
 }
 
 
+// A number is a count of spaces: floor(n) when n is finite and positive,
+// and no pad otherwise, so a negative count or NaN is not a RangeError
+// from String.repeat. A string is a literal prefix: the replacement is a
+// function, so '$$', '$&' and '$1' in it are ordinary text rather than
+// replacement patterns.
 function indent(src: string, indent: string | number | undefined) {
   src = null == src ? '' : '' + src
   indent = null == indent ? 2 : indent
-  indent = 'number' === typeof indent ? ' '.repeat(indent) : '' + indent
-  src = src.replace(/(\n|^)(?!$)/g, '$1' + indent)
-  // (_, p1) => p1 + indent)
-  return src
+  const pad = 'number' === typeof indent ?
+    ' '.repeat(Number.isFinite(indent) && 0 < indent ? Math.floor(indent) : 0) :
+    '' + indent
+  return src.replace(/(\n|^)(?!$)/g, (_: string, p1: string) => p1 + pad)
 }
 
 

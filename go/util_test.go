@@ -1,6 +1,7 @@
 package jostraca
 
 import (
+	"math"
 	"reflect"
 	"regexp"
 	"testing"
@@ -919,5 +920,29 @@ func TestHumanifyRangeTail(t *testing.T) {
 	}
 	if got := HumanifyDigits(0); got != 1970010100000000 {
 		t.Errorf("HumanifyDigits(0) = %d, want 1970010100000000", got)
+	}
+}
+
+// Every numeric kind is a count, and a count that is not finite and
+// positive adds nothing -- never a strings.Repeat panic. Mirrors
+// ts/test/utility.test.ts indent-counts.
+func TestIndentNonFiniteAndTyped(t *testing.T) {
+	cases := []struct {
+		ind  any
+		want string
+	}{
+		{math.NaN(), "a"},
+		{math.Inf(1), "a"},
+		{math.Inf(-1), "a"},
+		{int64(3), "   a"},
+		{uint8(2), "  a"},
+		{int32(-1), "a"},
+		{float32(2.9), "  a"},
+		{"$$", "$$a"},
+	}
+	for _, c := range cases {
+		if got := Indent("a", c.ind); got != c.want {
+			t.Errorf("Indent(a, %#v) = %q, want %q", c.ind, got, c.want)
+		}
 	}
 }

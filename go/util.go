@@ -3,6 +3,7 @@ package jostraca
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"reflect"
 	"regexp"
 	"sort"
@@ -549,23 +550,34 @@ func Indent(src string, ind any) string {
 		// through to the default of two spaces rather than meaning
 		// "no indent".
 		pad = "  "
-	case int:
-		if v <= 0 {
-			return src
-		}
-		pad = strings.Repeat(" ", v)
-	case float64:
-		// JSON and other dynamic sources hand over numbers as float64.
-		// TS switches on `'number' === typeof`, which covers both, so a
-		// float count must be a count here too and not stringify to pad.
-		if v <= 0 {
-			return src
-		}
-		pad = strings.Repeat(" ", int(v))
 	case string:
 		pad = v
 	default:
-		pad = fmt.Sprint(v)
+		// Every numeric kind is a count, as TS's `'number' === typeof`
+		// is: floor(n) spaces when n is finite and positive, and no pad
+		// otherwise. JSON hands over float64, and a Go caller may pass
+		// int64 or uint8, which used to stringify to a literal pad.
+		rv := reflect.ValueOf(v)
+		switch rv.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			if rv.Int() <= 0 {
+				return src
+			}
+			pad = strings.Repeat(" ", int(rv.Int()))
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+			if rv.Uint() == 0 {
+				return src
+			}
+			pad = strings.Repeat(" ", int(rv.Uint()))
+		case reflect.Float32, reflect.Float64:
+			f := rv.Float()
+			if math.IsNaN(f) || math.IsInf(f, 0) || f < 1 {
+				return src
+			}
+			pad = strings.Repeat(" ", int(math.Floor(f)))
+		default:
+			pad = jsString(v)
+		}
 	}
 	if pad == "" {
 		return src
