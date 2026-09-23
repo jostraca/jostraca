@@ -2193,4 +2193,35 @@ describe('components', () => {
     }
   })
 
+
+  // A single-file text CopyFiles inside a File or an Inject splices exactly
+  // the text it writes to its own target: model substitution AND its
+  // `replace`. Go: TestCopyInsideFileReplace.
+  test('copy-inside-file-replace', async () => {
+    const out = await gen({ '/tm/single.txt': 'single $$name$$ FOO\n' },
+      () => Project({}, () => {
+        File({ name: 'host.txt' }, () => {
+          Content('pre\n')
+          CopyFiles({ from: '/tm/single.txt', to: 'spliced.txt', replace: { FOO: 'bar' } })
+          Content('post\n')
+        })
+      }), { model: { name: 'World' } })
+    expect(out['/out/spliced.txt']).equal('single World bar\n')
+    expect(out['/out/host.txt']).equal('pre\nsingle World bar\npost\n')
+
+    const inj = await gen({
+      '/tm/single.txt': 'single $$name$$ FOO\n',
+      '/out/t.txt': 'head\n#--START--#\nold\n#--END--#\ntail\n',
+    }, () => Project({}, () => {
+      Inject({ name: 't.txt' }, () => {
+        Content('pre;')
+        CopyFiles({ from: '/tm/single.txt', to: 'spliced.txt', replace: { FOO: 'bar' } })
+        Content('post;')
+      })
+    }), { model: { name: 'World' } })
+    expect(inj['/out/spliced.txt']).equal('single World bar\n')
+    expect(inj['/out/t.txt'])
+      .equal('head\n#--START--#\npre;single World bar\npost;\n#--END--#\ntail\n')
+  })
+
 })

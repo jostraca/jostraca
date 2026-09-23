@@ -255,3 +255,28 @@ func TestFileInsideFile(t *testing.T) {
 	expectFiles(t, files, []string{"/out/inner.txt", "/out/outer.txt"})
 	expectFiles(t, written, []string{"/out/inner.txt", "/out/outer.txt"})
 }
+
+// A single-file text CopyFiles inside a File splices exactly the text it
+// writes to its own target, `replace` included. Go templated once with the
+// copy's Replace and used that text for both; TS left `replace` off the
+// splice and moved to match. Mirrors 'copy-inside-file-replace' in
+// ts/test/jostraca.test.ts. (The Inject variant there is fh-inject-children's
+// in Go: injectAfter does not collect a CopyFiles child yet.)
+func TestCopyInsideFileReplace(t *testing.T) {
+	out := nestedGenModel(t, map[string]string{
+		"/tm/single.txt": "single $$name$$ FOO\n",
+	}, map[string]any{"name": "World"}, func(j *J) {
+		j.File("host.txt", func(j *J) {
+			j.Content("pre\n")
+			j.CopyFiles(CopyFilesProps{From: "/tm/single.txt", To: "spliced.txt",
+				Replace: map[string]any{"FOO": "bar"}})
+			j.Content("post\n")
+		})
+	})
+	if got := out["/out/spliced.txt"]; got != "single World bar\n" {
+		t.Errorf("spliced.txt: %q", got)
+	}
+	if got := out["/out/host.txt"]; got != "pre\nsingle World bar\npost\n" {
+		t.Errorf("host.txt: %q", got)
+	}
+}

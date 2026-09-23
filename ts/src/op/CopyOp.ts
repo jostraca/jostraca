@@ -47,12 +47,17 @@ const CopyOp = {
 
       FileOp.before(node, ctx$, buildctx)
       const topath = node.path
+
+      // `node` carries the copy's `replace`, which processTemplate reads.
+      // Without it the text spliced into the enclosing file skipped the
+      // replacements the copy's own target got in after().
       const state = {
         fileCount: 0,
         folderCount: 0,
         tmCount: 0,
         ctx$,
         buildctx,
+        node,
       }
       const spec = { name, frompath: from, topath: topath.join('/') }
 
