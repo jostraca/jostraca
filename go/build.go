@@ -35,7 +35,7 @@ func step(n *Node, st *jstate, b *buildCtx) error {
 		return nil
 	}
 	if int(n.Kind) >= int(kindCount) {
-		return wrap(n, fmt.Errorf("%w: %d", ErrMissingOp, n.Kind))
+		return wrap(n, fmt.Errorf("%w: %s", ErrMissingOp, kindName(n.Kind)))
 	}
 	o := ops[n.Kind]
 	if o.before != nil {

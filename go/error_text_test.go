@@ -144,6 +144,19 @@ func TestErrorBodyInjectOneEmptyMarker(t *testing.T) {
 	}
 }
 
+// The body names the kind as the step does, as TS's `missing op: ` +
+// node.kind does. Only a Kind past the table reaches it, and Go names
+// every such Kind "unknown".
+func TestErrorBodyMissingOp(t *testing.T) {
+	err := step(&Node{Kind: kindCount}, nil, nil)
+	if !errors.Is(err, ErrMissingOp) {
+		t.Fatalf("not ErrMissingOp: %v", err)
+	}
+	if body, step := errorBody(t, err); body != "missing op: "+step || step != "unknown" {
+		t.Fatalf("step %q body %q", step, body)
+	}
+}
+
 func TestErrorBodyNilRoot(t *testing.T) {
 	_, err := New(WithMem()).Generate(Options{}, nil)
 	if !errors.Is(err, ErrNilRoot) ||

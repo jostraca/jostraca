@@ -23,6 +23,7 @@ import {
   Fragment,
   CopyFiles,
   Inject,
+  cmp,
 } from '../'
 
 
@@ -449,6 +450,17 @@ describe('generate', () => {
         Inject({ name: 'nope.txt', markers: ['X', ''] }, () => Content('X'))
       }))
       Assert.equal(err.message, 'Inject: both markers must be non-empty, got ["X",""]')
+    })
+
+    // The body names the kind as the step does. Go twin:
+    // TestErrorBodyMissingOp.
+    test('missing-op', async () => {
+      const Bogus = cmp(function Bogus(props: any) {
+        props.ctx$.node.kind = 'bogus'
+      })
+      const err = await refusal(() => Project({}, () => Bogus({})))
+      Assert.equal(err.step, 'bogus')
+      Assert.equal(body(err), 'missing op: ' + err.step)
     })
 
     test('root-not-a-function', async () => {
