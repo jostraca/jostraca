@@ -76,7 +76,8 @@ type OsFS struct{}
 
 func (OsFS) sys(p string) string { return filepath.FromSlash(p) }
 
-func (o OsFS) ReadFile(p string) ([]byte, error)  { return os.ReadFile(o.sys(p)) }
+func (o OsFS) ReadFile(p string) ([]byte, error) { return os.ReadFile(o.sys(p)) }
+
 // New files and directories take 0666 and 0777 less the process umask, as
 // Node's defaults do.
 func (o OsFS) WriteFile(p string, b []byte) error { return os.WriteFile(o.sys(p), b, 0o666) }
