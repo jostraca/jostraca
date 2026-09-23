@@ -1,10 +1,8 @@
 package jostraca
 
 import (
-	"fmt"
 	"reflect"
 	"regexp"
-	"strconv"
 	"strings"
 )
 
@@ -83,14 +81,11 @@ func getxWalk(root any, tokens []string) any {
 
 		if t1 != "" && getxIsCompareOp(t1) {
 			val := getxStep(node, t0)
-			if isUndefined(val) {
-				val = nil
-			}
-			argRaw := ""
+			var arg any = jsUndefined
 			if i+2 < len(tokens) {
-				argRaw = tokens[i+2]
+				arg = getxArg(tokens[i+2])
 			}
-			if getxCompare(val, t1, argRaw) {
+			if getxCompare(val, t1, arg) {
 				i += 2
 			} else {
 				node = jsUndefined
@@ -233,74 +228,56 @@ func getxIsIdent(t string) bool {
 	return true
 }
 
-// getxCompare runs op on (val, argRaw). argRaw may be a literal string,
-// 'true'/'false', a numeric literal, or a quoted string.
-func getxCompare(val any, op, argRaw string) bool {
-	var arg any = argRaw
-	switch argRaw {
+// getxArg coerces a comparison argument as TS does: only 'true' and
+// 'false' become booleans, and quotes come off ^"[^"]+"$. Nothing is
+// parsed as a number -- 'NaN', 'inf' and '1e1' stay strings.
+func getxArg(tok string) any {
+	switch tok {
 	case "true":
-		arg = true
+		return true
 	case "false":
-		arg = false
-	default:
-		if len(argRaw) >= 2 && argRaw[0] == '"' && argRaw[len(argRaw)-1] == '"' {
-			arg = argRaw[1 : len(argRaw)-1]
-		}
+		return false
 	}
-	// Numeric coercion when both sides parse as numbers.
-	valS := fmt.Sprint(val)
-	argS := fmt.Sprint(arg)
-	vn, vErr := strconv.ParseFloat(valS, 64)
-	an, aErr := strconv.ParseFloat(argS, 64)
-	bothNum := vErr == nil && aErr == nil
+	return jsUnquote(tok)
+}
 
-	// Ordering ops mirror JS `<`/`>`: when both operands are strings the
-	// comparison is lexicographic (type-based, so a string `"10"` is less than
-	// `"9"`); otherwise both sides are coerced to numbers and non-numeric
-	// operands never match. Keeps parity with src/util/basic.ts getx().
-	valStr, valIsStr := val.(string)
-	argStr, argIsStr := arg.(string)
-	bothStr := valIsStr && argIsStr
-
+// getxCompare applies op with JavaScript's semantics: '=' is ==, '==' is
+// ===, '!=' is !=, the orderings are JS relational comparison (strings by
+// UTF-16 code unit, anything else by ToNumber), and '~' is
+// String(val).match(RegExp(arg)). val and arg may be jsUndefined.
+//
+// '~' compiles with RE2, so a pattern RE2 rejects is a non-match where JS
+// would throw, and the two regex dialects differ at their edges.
+func getxCompare(val any, op string, arg any) bool {
 	switch op {
 	case "<":
-		if bothStr {
-			return valStr < argStr
-		}
-		return bothNum && vn < an
-	case "<=":
-		if bothStr {
-			return valStr <= argStr
-		}
-		return bothNum && vn <= an
+		lt, undef := jsLessThan(val, arg)
+		return !undef && lt
 	case ">":
-		if bothStr {
-			return valStr > argStr
-		}
-		return bothNum && vn > an
+		lt, undef := jsLessThan(arg, val)
+		return !undef && lt
+	case "<=":
+		lt, undef := jsLessThan(arg, val)
+		return !undef && !lt
 	case ">=":
-		if bothStr {
-			return valStr >= argStr
-		}
-		return bothNum && vn >= an
+		lt, undef := jsLessThan(val, arg)
+		return !undef && !lt
 	case "=":
-		if bothNum {
-			return vn == an
-		}
-		return valS == argS
+		return jsLooseEqual(val, arg)
 	case "==":
-		return reflect.DeepEqual(val, arg)
+		return jsStrictEqual(val, arg)
 	case "!=":
-		if bothNum {
-			return vn != an
-		}
-		return valS != argS
+		return !jsLooseEqual(val, arg)
 	case "~":
-		re, err := regexp.Compile(argS)
+		pattern := "(?:)"
+		if !isUndefined(arg) {
+			pattern = jsString(arg)
+		}
+		re, err := regexp.Compile(pattern)
 		if err != nil {
 			return false
 		}
-		return re.MatchString(valS)
+		return re.MatchString(jsString(val))
 	}
 	return false
 }

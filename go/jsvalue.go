@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"math/big"
 	"reflect"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -549,4 +551,219 @@ func jsString(v any) string {
 		return jsString(rv.Elem().Interface())
 	}
 	return fmt.Sprint(v)
+}
+
+// JavaScript value kinds, as far as comparison needs them.
+const (
+	jkUndefined = iota
+	jkNull
+	jkBool
+	jkNumber
+	jkString
+	jkObject
+)
+
+func jsKind(v any) int {
+	switch v.(type) {
+	case jsUndefinedType:
+		return jkUndefined
+	case nil:
+		return jkNull
+	case bool:
+		return jkBool
+	case string:
+		return jkString
+	case float64, json.Number:
+		return jkNumber
+	}
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Bool:
+		return jkBool
+	case reflect.String:
+		return jkString
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
+		reflect.Float32, reflect.Float64:
+		return jkNumber
+	case reflect.Ptr, reflect.Interface, reflect.Map, reflect.Slice, reflect.Func, reflect.Chan:
+		if rv.IsNil() && rv.Kind() != reflect.Map && rv.Kind() != reflect.Slice {
+			return jkNull
+		}
+	}
+	return jkObject
+}
+
+// jsNumberOf is the float64 value of a jkNumber.
+func jsNumberOf(v any) float64 {
+	switch x := v.(type) {
+	case float64:
+		return x
+	case json.Number:
+		f, err := strconv.ParseFloat(string(x), 64)
+		if err != nil {
+			return math.NaN()
+		}
+		return f
+	}
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return float64(rv.Int())
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return float64(rv.Uint())
+	case reflect.Float32, reflect.Float64:
+		return rv.Float()
+	}
+	return math.NaN()
+}
+
+func jsBoolOf(v any) bool {
+	if b, ok := v.(bool); ok {
+		return b
+	}
+	return reflect.ValueOf(v).Bool()
+}
+
+// jsToPrimitive is ToPrimitive for the values a model holds: an object
+// becomes its String() (arrays joined, anything else "[object Object]").
+func jsToPrimitive(v any) any {
+	if jsKind(v) == jkObject {
+		return jsString(v)
+	}
+	return v
+}
+
+// jsToNumber is JavaScript's ToNumber.
+func jsToNumber(v any) float64 {
+	switch jsKind(v) {
+	case jkUndefined:
+		return math.NaN()
+	case jkNull:
+		return 0
+	case jkBool:
+		if jsBoolOf(v) {
+			return 1
+		}
+		return 0
+	case jkNumber:
+		return jsNumberOf(v)
+	case jkString:
+		return jsStringToNumber(jsString(v))
+	}
+	return jsToNumber(jsToPrimitive(v))
+}
+
+var (
+	jsSpaceTrimRE = regexp.MustCompile(`^` + jsSpaceClass + `+|` + jsSpaceClass + `+$`)
+	jsDecimalRE   = regexp.MustCompile(`^[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)([eE][+-]?[0-9]+)?$`)
+	jsRadixRE     = regexp.MustCompile(`^0([xX][0-9a-fA-F]+|[oO][0-7]+|[bB][01]+)$`)
+)
+
+// jsStringToNumber is StringToNumber: surrounding JavaScript whitespace
+// is ignored, the empty string is 0, 0x/0o/0b literals and [+-]Infinity
+// are numbers, and anything that is not a decimal literal is NaN -- so
+// Go-only spellings such as "inf", "NaN", "1_000" or "0x1p-2" are NaN.
+func jsStringToNumber(s string) float64 {
+	s = jsSpaceTrimRE.ReplaceAllString(s, "")
+	switch s {
+	case "":
+		return 0
+	case "Infinity", "+Infinity":
+		return math.Inf(1)
+	case "-Infinity":
+		return math.Inf(-1)
+	}
+	if jsRadixRE.MatchString(s) {
+		base := map[byte]int{'x': 16, 'X': 16, 'o': 8, 'O': 8, 'b': 2, 'B': 2}[s[1]]
+		n, ok := new(big.Int).SetString(s[2:], base)
+		if !ok {
+			return math.NaN()
+		}
+		f, _ := new(big.Float).SetInt(n).Float64()
+		return f
+	}
+	if jsDecimalRE.MatchString(s) {
+		f, _ := strconv.ParseFloat(s, 64)
+		return f
+	}
+	return math.NaN()
+}
+
+// jsStrictEqual is ===.
+func jsStrictEqual(x, y any) bool {
+	kx, ky := jsKind(x), jsKind(y)
+	if kx != ky {
+		return false
+	}
+	switch kx {
+	case jkUndefined, jkNull:
+		return true
+	case jkBool:
+		return jsBoolOf(x) == jsBoolOf(y)
+	case jkNumber:
+		return jsNumberOf(x) == jsNumberOf(y)
+	case jkString:
+		return jsString(x) == jsString(y)
+	}
+	return jsSameObject(x, y)
+}
+
+// jsSameObject is identity for maps, slices and pointers, which is all
+// === can mean for two objects.
+func jsSameObject(x, y any) bool {
+	rx, ry := reflect.ValueOf(x), reflect.ValueOf(y)
+	if rx.Type() != ry.Type() {
+		return false
+	}
+	switch rx.Kind() {
+	case reflect.Map, reflect.Ptr, reflect.Func, reflect.Chan, reflect.UnsafePointer:
+		return rx.Pointer() == ry.Pointer()
+	case reflect.Slice:
+		return rx.Pointer() == ry.Pointer() && rx.Len() == ry.Len()
+	}
+	return false
+}
+
+// jsLooseEqual is == (IsLooselyEqual).
+func jsLooseEqual(x, y any) bool {
+	kx, ky := jsKind(x), jsKind(y)
+	if kx == ky {
+		return jsStrictEqual(x, y)
+	}
+	xNullish := kx == jkUndefined || kx == jkNull
+	yNullish := ky == jkUndefined || ky == jkNull
+	if xNullish || yNullish {
+		return xNullish && yNullish
+	}
+	switch {
+	case kx == jkNumber && ky == jkString:
+		return jsNumberOf(x) == jsStringToNumber(jsString(y))
+	case kx == jkString && ky == jkNumber:
+		return jsStringToNumber(jsString(x)) == jsNumberOf(y)
+	case kx == jkBool:
+		return jsLooseEqual(jsToNumber(x), y)
+	case ky == jkBool:
+		return jsLooseEqual(x, jsToNumber(y))
+	case kx == jkObject:
+		return jsLooseEqual(jsToPrimitive(x), y)
+	case ky == jkObject:
+		return jsLooseEqual(x, jsToPrimitive(y))
+	}
+	return false
+}
+
+// jsLessThan is IsLessThan(x, y): two strings compare by UTF-16 code
+// unit, anything else by ToNumber. undef reports JavaScript's undefined
+// result (a NaN operand), which makes every relational operator false.
+func jsLessThan(x, y any) (lt bool, undef bool) {
+	px, py := jsToPrimitive(x), jsToPrimitive(y)
+	if jsKind(px) == jkString && jsKind(py) == jkString {
+		return jsLess(jsString(px), jsString(py)), false
+	}
+	nx, ny := jsToNumber(px), jsToNumber(py)
+	if math.IsNaN(nx) || math.IsNaN(ny) {
+		return false, true
+	}
+	return nx < ny, false
 }
