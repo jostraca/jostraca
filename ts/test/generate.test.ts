@@ -263,4 +263,36 @@ describe('generate', () => {
 
   })
 
+
+
+  // An empty folder is refused, global or per call, and nothing is
+  // written. Go's typed Options cannot tell "" from unset and falls back
+  // instead (TestEmptyFolderMeansUnset); its map form refuses it as here.
+  describe('empty-folder', () => {
+
+    const MSG = 'Jostraca Options: Validation failed for property "folder" ' +
+      'with string "" because an empty string is not allowed.'
+
+    test('a-global-empty-folder-throws', () => {
+      Assert.throws(() => Jostraca({ folder: '' }), { message: MSG })
+    })
+
+    test('a-per-call-empty-folder-rejects-and-writes-nothing', async () => {
+      const dir = tmpdir()
+      const prev = process.cwd()
+      try {
+        process.chdir(dir)
+        await Assert.rejects(Jostraca({ now: () => START_TIME }).generate({ folder: '' },
+          () => Project({}, () => File({ name: 'a.txt' }, () => Content('A')))),
+          { message: MSG })
+        Assert.deepEqual(Fs.readdirSync(dir), [])
+      }
+      finally {
+        process.chdir(prev)
+        Fs.rmSync(dir, { recursive: true, force: true })
+      }
+    })
+
+  })
+
 })

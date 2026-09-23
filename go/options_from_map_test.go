@@ -236,3 +236,26 @@ func TestOptionsFromMapKeepsAbsentGroupsUnset(t *testing.T) {
 		t.Fatalf("absent groups were set: %+v", o)
 	}
 }
+
+// KNOWN DEVIATION, the Folder twin of TestPerCallCannotClearGlobalDryrun.
+// TS refuses an empty folder. Options.Folder is a plain string, so ""
+// cannot be told from "not supplied" and falls back to the global folder,
+// then ".". The map form can tell them apart, and refuses "" as TS does.
+func TestEmptyFolderMeansUnset(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := New(WithFolder(fwd(dir))).Generate(Options{Folder: ""}, func(j *J) {
+		j.File("a.txt", func(j *J) { j.Content("A") })
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if b, err := os.ReadFile(filepath.Join(dir, "a.txt")); err != nil || string(b) != "A" {
+		t.Fatalf("a.txt: %q %v", b, err)
+	}
+
+	_, err := OptionsFromMap(map[string]any{"folder": ""})
+	want := `Jostraca Options: Validation failed for property "folder" with ` +
+		`string "" because an empty string is not allowed.`
+	if err == nil || err.Error() != want {
+		t.Fatalf("err = %v, want %q", err, want)
+	}
+}
