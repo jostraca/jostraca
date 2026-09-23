@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
+	"unicode/utf8"
 )
 
 // EachSpec configures Each. The fields invert TS's flags so that the Go
@@ -256,11 +256,9 @@ func Camelify(input any) string {
 		if p == "" {
 			continue
 		}
-		runes := []rune(p)
-		// Preserve embedded uppercase when it matches camelCase transitions.
-		// "FooBar" → ["Foo", "Bar"] → "FooBar"; "fooBar" → ["foo", "Bar"] → "FooBar".
-		runes[0] = unicode.ToUpper(runes[0])
-		sb.WriteString(string(runes))
+		// Only the first character changes, so embedded uppercase stays:
+		// "FooBar" -> ["Foo", "Bar"] -> "FooBar".
+		sb.WriteString(UCF(p))
 	}
 	return sb.String()
 }
@@ -269,7 +267,7 @@ func Camelify(input any) string {
 func Snakify(input any) string {
 	parts := Partify(input)
 	for i, p := range parts {
-		parts[i] = strings.ToLower(p)
+		parts[i] = jsToLower(p)
 	}
 	return strings.Join(parts, "_")
 }
@@ -278,7 +276,7 @@ func Snakify(input any) string {
 func Kebabify(input any) string {
 	parts := Partify(input)
 	for i, p := range parts {
-		parts[i] = strings.ToLower(p)
+		parts[i] = jsToLower(p)
 	}
 	return strings.Join(parts, "-")
 }
@@ -441,45 +439,35 @@ func glueInitials(parts []string) []string {
 func isAsciiUpper(c byte) bool { return 'A' <= c && c <= 'Z' }
 func isAsciiLower(c byte) bool { return 'a' <= c && c <= 'z' }
 
-// specSprint stringifies a scalar the way TS `” + value` does, which
-// differs from fmt.Sprint for nil ('null', not '<nil>').
+// specSprint stringifies a scalar the way TS's empty-string concatenation
+// does, which is JavaScript's String(): nil is 'null', 1e6 is '1000000'
+// and a slice joins its elements.
 func specSprint(v any) string {
-	if v == nil {
-		return "null"
-	}
-	if s, ok := v.(string); ok {
-		return s
-	}
-	return fmt.Sprint(v)
+	return jsString(v)
 }
 
-// LCF lowercases the first rune. Stringifies non-string inputs to match
-// TS's coercion behaviour (lcf(null) → 'null', lcf(true) → 'true').
+// LCF lowercases the first character (code point), with JavaScript's
+// case mapping. Non-strings stringify as JavaScript's String() does
+// (lcf(null) is 'null', lcf(['a', 1]) is 'a,1').
 func LCF(s any) string {
-	str := fmt.Sprint(s)
-	if str == "<nil>" {
-		str = "null"
-	}
+	str := jsString(s)
 	if str == "" {
 		return ""
 	}
-	r := []rune(str)
-	r[0] = unicode.ToLower(r[0])
-	return string(r)
+	_, n := utf8.DecodeRuneInString(str)
+	return jsToLower(str[:n]) + str[n:]
 }
 
-// UCF uppercases the first rune. Like LCF, coerces non-string inputs.
+// UCF uppercases the first character (code point), with JavaScript's
+// case mapping, so a leading sharp s becomes 'SS'. Coerces non-strings as
+// LCF does.
 func UCF(s any) string {
-	str := fmt.Sprint(s)
-	if str == "<nil>" {
-		str = "null"
-	}
+	str := jsString(s)
 	if str == "" {
 		return ""
 	}
-	r := []rune(str)
-	r[0] = unicode.ToUpper(r[0])
-	return string(r)
+	_, n := utf8.DecodeRuneInString(str)
+	return jsToUpper(str[:n]) + str[n:]
 }
 
 // EscRE returns s with regex special chars backslash-escaped.
@@ -524,8 +512,8 @@ func Names(base map[string]any, name string, prop ...string) map[string]any {
 	base[Camelify(p)] = Camelify(name)
 	base[Snakify(p)+"_"] = Snakify(name)
 	base[Kebabify(p)+"-"] = Kebabify(name)
-	base[strings.ToLower(p)] = strings.ToLower(name)
-	base[strings.ToUpper(p)] = strings.ToUpper(name)
+	base[jsToLower(p)] = jsToLower(name)
+	base[jsToUpper(p)] = jsToUpper(name)
 
 	return base
 }

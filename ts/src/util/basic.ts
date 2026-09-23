@@ -299,7 +299,7 @@ function get(root: any, path: string | string[]): any {
 function camelify(input: any[] | string) {
   let parts = partify(input)
   return parts
-    .map((p: string) => p[0].toUpperCase() + p.substring(1))
+    .map((p: string) => ucf(p))
     .join('')
 }
 
@@ -319,15 +319,24 @@ function snakify(input: any[] | string) {
     .join('_')
 }
 
+// ucf and lcf change the first CODE POINT: s[0] is a lone surrogate for a
+// letter outside the BMP, and a lone surrogate has no case.
 function ucf(s: string) {
   s = ('string' === typeof s ? s : '' + s)
-  return 0 < s.length ? s[0].toUpperCase() + s.substring(1) : s
+  const c = firstCodePoint(s)
+  return c.toUpperCase() + s.substring(c.length)
 }
 
 
 function lcf(s: string) {
   s = ('string' === typeof s ? s : '' + s)
-  return 0 < s.length ? s[0].toLowerCase() + s.substring(1) : s
+  const c = firstCodePoint(s)
+  return c.toLowerCase() + s.substring(c.length)
+}
+
+
+function firstCodePoint(s: string): string {
+  return 0 < s.length ? String.fromCodePoint(s.codePointAt(0) as number) : ''
 }
 
 
