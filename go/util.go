@@ -6,6 +6,7 @@ import (
 	"math"
 	"reflect"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -786,25 +787,62 @@ func IsBinExt(path string) bool {
 	return ok
 }
 
-// nodeExt is Node's path.extname, which is not filepath.Ext: Node treats a
-// dot that begins the basename as a hidden-file marker rather than an
-// extension separator, so `.DS_Store` and `.gitignore` have NO extension
-// there, where filepath.Ext returns the whole name. TS is canonical, so
-// IsBinExt has to follow Node.
+// nodeExt is Node's path.extname on the running platform, which is not
+// filepath.Ext: trailing separators are ignored ('a.png/' is .png), and a
+// dot that begins the basename is a hidden-file marker rather than an
+// extension separator, so `.DS_Store` and `.gitignore` have NO extension.
+// On POSIX only '/' separates, so a backslash is an ordinary character;
+// on Windows both do. TS is canonical, so IsBinExt has to follow Node.
 func nodeExt(path string) string {
-	base := path
-	if i := strings.LastIndexAny(base, `/\`); 0 <= i {
-		base = base[i+1:]
+	return nodeExtOn(path, runtime.GOOS == "windows")
+}
+
+// nodeExtOn is Node's posix.extname, or its win32.extname when windows is
+// set, as a seam so both legs are testable on any host.
+func nodeExtOn(path string, windows bool) string {
+	isSep := func(c byte) bool { return c == '/' || (windows && c == '\\') }
+
+	start, startPart := 0, 0
+	// A drive letter prefix, so the separator after it is not mistaken
+	// for a trailing one.
+	if windows && len(path) >= 2 && path[1] == ':' &&
+		(('a' <= path[0] && path[0] <= 'z') || ('A' <= path[0] && path[0] <= 'Z')) {
+		start, startPart = 2, 2
 	}
 
-	dot := strings.LastIndex(base, ".")
+	startDot, end := -1, -1
+	matchedSlash := true
+	preDotState := 0
 
-	// No dot, or the only dot starts the name: no extension.
-	if dot <= 0 {
+	for i := len(path) - 1; i >= start; i-- {
+		c := path[i]
+		if isSep(c) {
+			if !matchedSlash {
+				startPart = i + 1
+				break
+			}
+			continue
+		}
+		if end == -1 {
+			matchedSlash = false
+			end = i + 1
+		}
+		if c == '.' {
+			if startDot == -1 {
+				startDot = i
+			} else if preDotState != 1 {
+				preDotState = 1
+			}
+		} else if startDot != -1 {
+			preDotState = -1
+		}
+	}
+
+	if startDot == -1 || end == -1 || preDotState == 0 ||
+		(preDotState == 1 && startDot == end-1 && startDot == startPart+1) {
 		return ""
 	}
-
-	return base[dot:]
+	return path[startDot:end]
 }
 
 // Deep returns a deep-merge of the given maps and slices, with right

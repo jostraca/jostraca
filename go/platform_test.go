@@ -157,3 +157,67 @@ func TestSlashOnlyAbsPathStaysContained(t *testing.T) {
 		t.Errorf("isAbsPath called outside %s: %s", permitted, calls[0])
 	}
 }
+
+// extBoundaryCases is Node's path.extname on both platforms, which
+// isbinext follows. Every expectation was taken from node itself:
+//
+//	node -e "const P=require('path');
+//	         console.log(P.posix.extname(s), P.win32.extname(s))"
+//
+// ts/test/platform.test.ts pins the identical table against node.
+var extBoundaryCases = []struct {
+	path  string
+	posix string
+	win   string
+}{
+	{"a.png", ".png", ".png"},
+	{"a.png/", ".png", ".png"},
+	{"a.png//", ".png", ".png"},
+	{"a/b.PNG/", ".PNG", ".PNG"},
+	{"/a.png/", ".png", ".png"},
+	{"x\\.png", ".png", ""},
+	{"x\\a.png", ".png", ".png"},
+	{"a.b\\c", ".b\\c", ""},
+	{".gitignore", "", ""},
+	{"..", "", ""},
+	{"a.", ".", "."},
+	{"C:a.png", ".png", ".png"},
+	{"C:.png", ".png", ""},
+	{"", "", ""},
+	{"/", "", ""},
+	{"a..png", ".png", ".png"},
+	{".a.png", ".png", ".png"},
+	{"a.png\\", ".png\\", ".png"},
+	{".png/", "", ""},
+	{"x/.png//", "", ""},
+}
+
+func TestNodeExtBoundary(t *testing.T) {
+	for _, c := range extBoundaryCases {
+		if got := nodeExtOn(c.path, false); got != c.posix {
+			t.Errorf("nodeExtOn(%q, posix) = %q, want %q", c.path, got, c.posix)
+		}
+		if got := nodeExtOn(c.path, true); got != c.win {
+			t.Errorf("nodeExtOn(%q, windows) = %q, want %q", c.path, got, c.win)
+		}
+	}
+}
+
+// The dispatched entry point agrees with the host's leg, so 'x\\.png' is
+// binary on POSIX, where the backslash is part of the name, and not on
+// Windows, where '.png' is then a hidden-file basename.
+func TestIsBinExtDispatch(t *testing.T) {
+	windows := runtime.GOOS == "windows"
+	for _, c := range extBoundaryCases {
+		want := c.posix
+		if windows {
+			want = c.win
+		}
+		if got := nodeExt(c.path); got != want {
+			t.Errorf("nodeExt(%q) on %s = %q, want %q", c.path, runtime.GOOS, got, want)
+		}
+	}
+	if got, want := IsBinExt("x\\.png"), !windows; got != want {
+		t.Errorf("IsBinExt(x\\.png) on %s = %v, want %v", runtime.GOOS, got, want)
+	}
+}
