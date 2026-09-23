@@ -1,5 +1,8 @@
 
 import { test, describe } from 'node:test'
+import * as Fs from 'node:fs'
+import * as Os from 'node:os'
+import * as Path from 'node:path'
 import { expect } from './expect'
 
 import {
@@ -248,6 +251,80 @@ describe('control', () => {
       expect(r.files.preserved.length).equal(1)
       expect(r.actions).equal(['preserve', 'write'])
       expect(r.vol).equal(['/out/a.old.txt', '/out/a.txt'])
+    })
+
+  })
+
+
+
+  // `build` and `exclude` follow the same precedence as every other option:
+  // per-call, else global, else the default. OptionsShape used to declare
+  // both as literal defaults, which shape injected into every per-call
+  // object, so a global `build: false` or `exclude: true` was ignored.
+  describe('global-build-and-exclude', () => {
+
+    const root = () => Project({}, () => {
+      File({ name: 'a.txt' }, () => Content('A'))
+      File({ name: 'b.txt' }, () => Content('B'))
+    })
+
+    test('global-build-false-writes-nothing', async () => {
+      const j = Jostraca({ mem: true, folder: '/out', build: false, now: () => START_TIME })
+      const res: any = await j.generate({}, root)
+      expect(Object.keys(res.vol().toJSON())).equal([])
+      expect(res.files.written).equal([])
+    })
+
+    test('per-call-build-true-overrides-global-false', async () => {
+      const j = Jostraca({ mem: true, folder: '/out', build: false, now: () => START_TIME })
+      const res: any = await j.generate({ build: true }, root)
+      expect(res.files.written).equal(['/out/a.txt', '/out/b.txt'])
+    })
+
+    // A REAL FILESYSTEM, because the exclude window compares a file's mtime
+    // with the previous build's `last`. The clock is pinned and the mtimes
+    // are set explicitly, one on each side of `last`.
+    const excludeRun = async (gopts: any, opts: any) => {
+      const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'jostraca-exclude-'))
+      try {
+        const j = Jostraca({ folder: dir, now: () => START_TIME, ...gopts })
+        await j.generate({ exclude: false }, root)
+
+        Fs.writeFileSync(Path.join(dir, 'a.txt'), 'USER')
+        const sec = (ms: number) => ms / 1000
+        Fs.utimesSync(Path.join(dir, 'a.txt'),
+          sec(START_TIME + 60000), sec(START_TIME + 60000))
+        Fs.utimesSync(Path.join(dir, 'b.txt'),
+          sec(START_TIME - 60000), sec(START_TIME - 60000))
+
+        const res: any = await j.generate(opts, () => Project({}, () => {
+          File({ name: 'a.txt' }, () => Content('A2'))
+          File({ name: 'b.txt' }, () => Content('B2'))
+        }))
+        return {
+          written: res.files.written.map((p: string) => Path.basename(p)),
+          a: Fs.readFileSync(Path.join(dir, 'a.txt'), 'utf8'),
+          b: Fs.readFileSync(Path.join(dir, 'b.txt'), 'utf8'),
+        }
+      }
+      finally {
+        Fs.rmSync(dir, { recursive: true, force: true })
+      }
+    }
+
+    test('global-exclude-skips-a-user-edited-file', async () => {
+      expect(await excludeRun({ exclude: true }, {}))
+        .equal({ written: ['b.txt'], a: 'USER', b: 'B2' })
+    })
+
+    test('per-call-exclude-false-overrides-global', async () => {
+      expect(await excludeRun({ exclude: true }, { exclude: false }))
+        .equal({ written: ['a.txt', 'b.txt'], a: 'A2', b: 'B2' })
+    })
+
+    test('no-exclude-overwrites-a-user-edited-file', async () => {
+      expect(await excludeRun({}, {}))
+        .equal({ written: ['a.txt', 'b.txt'], a: 'A2', b: 'B2' })
     })
 
   })

@@ -153,14 +153,15 @@ const OptionsShape = Shape({
   log: Skip() as any, // Logging interface.
   debug: Skip('info'), // Generate additional debugging information.
 
-  // TOOD: needs rethink
-  exclude: false, // Exclude modified output files. Default: `false`.
+  // Skip, like `control` below: a literal default would be injected into
+  // every per-call options object and beat the global value.
+  exclude: Skip(Boolean), // Exclude modified output files. Default: `false`.
 
   // Validated in separate shape to allow overriding.
   existing: { txt: {}, bin: {} },
 
   model: Skip({}) as any,
-  build: true,
+  build: Skip(Boolean), // Run the build phase. Default: `true`.
   mem: Skip(Boolean),
   vol: Skip({}),
 
@@ -353,8 +354,12 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
 
     // TODO: this is no actual connection between debug and logging!
 
-    // build=true unless explicitly false
-    const doBuild: boolean = null == opts.build ? false !== gOpts.build : false !== opts.build
+    // Per-call, else global, else the default. Neither is a shape default,
+    // so an omitted per-call value really is absent here.
+    const doBuild: boolean = false !== (opts.build ?? gOpts.build ?? true)
+
+    // FileOp and CopyOp read the resolved value from ctx$.opts.
+    opts.exclude = opts.exclude ?? gOpts.exclude ?? false
 
     const model = null == opts.model ? null == gOpts.model ? {} : gOpts.model : opts.model
 

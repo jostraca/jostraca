@@ -1,9 +1,13 @@
 package jostraca
 
 import (
+	"os"
+	"path"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"testing"
+	"time"
 )
 
 // Global `control` precedence. The TS side had a defect here: OptionsShape
@@ -154,4 +158,114 @@ func TestGlobalNoDuplicateSurvivesPerCallVersion(t *testing.T) {
 		"/out/.jostraca/jostraca.meta.log",
 		"/out/a.txt",
 	}, "a global duplicate:false must survive a per-call version")
+}
+
+// Build and Exclude follow the same precedence as every other option:
+// per-call, else global, else the default. Go always honoured a global
+// value; TS ignored both until OptionsShape stopped injecting literal
+// defaults. Mirrors `global-build-and-exclude` in ts/test/control.test.ts.
+
+func buildExcludeRoot(a, b string) func(*J) {
+	return func(j *J) {
+		j.Project(ProjectProps{}, func(j *J) {
+			j.File("a.txt", func(j *J) { j.Content(a) })
+			j.File("b.txt", func(j *J) { j.Content(b) })
+		})
+	}
+}
+
+func TestGlobalBuildFalseWritesNothing(t *testing.T) {
+	m := NewMemFS()
+	res, err := New(WithFS(m), WithFolder("/out"), WithBuild(false)).
+		Generate(Options{}, buildExcludeRoot("A", "B"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	controlWant(t, controlVolKeys(m), []string{}, "global build:false must write nothing")
+	if len(res.Files.Written) != 0 {
+		t.Fatalf("written: %v", res.Files.Written)
+	}
+}
+
+func TestPerCallBuildTrueOverridesGlobalFalse(t *testing.T) {
+	m := NewMemFS()
+	build := true
+	res, err := New(WithFS(m), WithFolder("/out"), WithBuild(false)).
+		Generate(Options{Build: &build}, buildExcludeRoot("A", "B"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	controlWant(t, res.Files.Written, []string{"/out/a.txt", "/out/b.txt"},
+		"per-call build:true must override a global false")
+}
+
+// excludeWindowRun generates, edits a.txt, sets the two mtimes on either
+// side of the recorded `last`, and regenerates. A REAL FILESYSTEM, because
+// the window compares an mtime with `last`.
+func excludeWindowRun(t *testing.T, global []Option, call Options) (string, string, []string) {
+	t.Helper()
+	dir := fwd(t.TempDir())
+	const start = int64(1735689600000)
+	j := New(append([]Option{
+		WithFolder(dir),
+		WithNow(func() int64 { return start }),
+	}, global...)...)
+
+	if _, err := j.Generate(Options{}, buildExcludeRoot("A", "B")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("USER"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	later := time.UnixMilli(start + 60000)
+	earlier := time.UnixMilli(start - 60000)
+	if err := os.Chtimes(filepath.Join(dir, "a.txt"), later, later); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(filepath.Join(dir, "b.txt"), earlier, earlier); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := j.Generate(call, buildExcludeRoot("A2", "B2"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, _ := os.ReadFile(filepath.Join(dir, "a.txt"))
+	b, _ := os.ReadFile(filepath.Join(dir, "b.txt"))
+	written := []string{}
+	for _, p := range res.Files.Written {
+		written = append(written, path.Base(p))
+	}
+	return string(a), string(b), written
+}
+
+func withGlobalExclude(o *Options) { o.Exclude = true }
+
+func TestGlobalExcludeSkipsUserEditedFile(t *testing.T) {
+	a, b, written := excludeWindowRun(t, []Option{withGlobalExclude}, Options{})
+	if a != "USER" || b != "B2" {
+		t.Fatalf("a=%q b=%q", a, b)
+	}
+	controlWant(t, written, []string{"b.txt"}, "a global exclude must skip a.txt")
+}
+
+func TestNoExcludeOverwritesUserEditedFile(t *testing.T) {
+	a, b, written := excludeWindowRun(t, nil, Options{})
+	if a != "A2" || b != "B2" {
+		t.Fatalf("a=%q b=%q", a, b)
+	}
+	controlWant(t, written, []string{"a.txt", "b.txt"}, "no exclude writes both")
+}
+
+// KNOWN DEVIATION, the Exclude twin of TestPerCallCannotClearGlobalDryrun.
+// Options.Exclude is a plain bool, so a per-call false is "not supplied"
+// and the global true stays in force. TS writes both files here.
+func TestPerCallCannotClearGlobalExclude(t *testing.T) {
+	a, _, written := excludeWindowRun(t, []Option{withGlobalExclude},
+		Options{Exclude: false})
+	if a != "USER" {
+		t.Fatalf("a=%q", a)
+	}
+	controlWant(t, written, []string{"b.txt"},
+		"a per-call zero-value Exclude cannot clear a global exclude in Go")
 }
