@@ -417,3 +417,61 @@ func TestMemRelativeFolderAddressesAbsoluteSeed(t *testing.T) {
 		t.Errorf("%d keys for a.txt, want 1", n)
 	}
 }
+
+// An output folder with a trailing slash behaves exactly like the same
+// folder without one. Twin of 'folder-trailing-slash' in
+// ts/test/filehandler.test.ts.
+func TestFolderTrailingSlash(t *testing.T) {
+	cwd := memCwd()
+	merge := true
+	for _, c := range [][2]string{
+		{"out/", cwd + "/out"},
+		{"./out/", cwd + "/out"},
+		{"out//", cwd + "/out"},
+		{"/abs/out/", "/abs/out"},
+	} {
+		folder, base := c[0], c[1]
+		mem := NewMemFS()
+		root := func(body string) func(*J) {
+			return func(j *J) {
+				j.Project(ProjectProps{}, func(j *J) {
+					j.File("a.txt", func(j *J) { j.Content(body) })
+					j.Folder("sub", func(j *J) {
+						j.File("b.txt", func(j *J) { j.Content("B\n") })
+					})
+				})
+			}
+		}
+		if _, err := New(WithFS(mem), WithFolder(folder), WithNow(func() int64 { return fhNow })).
+			Generate(Options{}, root("L1\nL2\nL3\n")); err != nil {
+			t.Fatal(err)
+		}
+		for _, p := range []string{"/.jostraca/generated/a.txt", "/.jostraca/generated/sub/b.txt"} {
+			if !mem.Exists(base + p) {
+				t.Errorf("%s: %s missing", folder, p)
+			}
+		}
+		files, _ := fhMeta(t, mem, base+"/.jostraca/jostraca.meta.log")["files"].(map[string]any)
+		if _, ok := files["a.txt"]; !ok || len(files) != 2 {
+			t.Errorf("%s: meta keys %v, want a.txt and sub/b.txt", folder, files)
+		}
+		if _, ok := files["sub/b.txt"]; !ok {
+			t.Errorf("%s: meta keys %v, want sub/b.txt", folder, files)
+		}
+
+		_ = mem.WriteFile(base+"/a.txt", []byte("L1\nU\nL3\n"))
+		res, err := New(WithFS(mem), WithFolder(folder), WithNow(func() int64 { return fhNow + 1 })).
+			Generate(Options{Existing: Existing{Txt: ExistingTxt{Merge: &merge}}}, root("L1\nG\nL3\n"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(res.Files.Merged) != 1 || len(res.Files.Conflicted) != 1 ||
+			!strings.HasSuffix(res.Files.Merged[0], "/a.txt") {
+			t.Errorf("%s: merged=%v conflicted=%v", folder, res.Files.Merged, res.Files.Conflicted)
+		}
+		got, _ := mem.ReadFile(base + "/a.txt")
+		if !strings.Contains(string(got), "U\n") || !strings.Contains(string(got), "G\n") {
+			t.Errorf("%s: a.txt = %q, want both edits kept", folder, got)
+		}
+	}
+}

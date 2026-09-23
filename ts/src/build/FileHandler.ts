@@ -40,6 +40,21 @@ function canonPath(path: string): string {
   return fwd(Path.normalize(path))
 }
 
+// The output folder, canonicalised once: separators folded, normalised,
+// and trailing separators stripped except from a filesystem root. `out/`
+// kept its slash through Path.normalize, so every prefix test below looked
+// for `out//`: no path was inside the folder, meta keys kept the folder
+// prefix, no baseline was written, and a later merge found no ancestor
+// and overwrote the user's edits. Go's filepath.Clean never kept it.
+function canonFolder(folder: string): string {
+  const norm = fwd(Path.normalize(folder))
+  if ('/' === norm || /^[A-Za-z]:\/$/.test(norm)) {
+    return norm
+  }
+  const stripped = norm.replace(/\/+$/, '')
+  return '' === stripped ? '.' : stripped
+}
+
 const JOSTRACA_PROTECT = 'JOSTRACA_PROTECT'
 
 // Audit breadcrumb per merge outcome, so the `why` trail says which fast
@@ -139,7 +154,7 @@ class FileHandler {
     this.now = bctx.now
 
     this.when = bctx.when
-    this.folder = fwd(Path.normalize(bctx.folder))
+    this.folder = canonFolder(bctx.folder)
     this.audit = bctx.audit
     this.existing = existing
     this.control = control
@@ -1196,6 +1211,7 @@ function validPath(path: string, maxdepth: number, errmark: string) {
 
 export {
   annotatedPath,
+  canonFolder,
   canonPath,
   validName,
   validPath,

@@ -62,6 +62,10 @@ const FOLDERS = [
   { key: 'dotrel', folder: './out' },
   { key: 'abs', folder: '/abs' },
   { key: 'nested', folder: 'a/b' },
+  // A trailing slash must change nothing: TS once kept it, so no path was
+  // inside the folder, no baseline was written and a merge overwrote.
+  { key: 'trailing', folder: 'out/' },
+  { key: 'abstrailing', folder: '/abs/' },
 ]
 
 // Existing-file mode. `write` is the default; the rest are the documented

@@ -366,4 +366,42 @@ describe('filehandler', () => {
     }
   })
 
+
+  // An output folder with a trailing slash behaves exactly like the same
+  // folder without one: folder-relative meta keys, baselines written, and a
+  // later merge that keeps the user's edit.
+  test('folder-trailing-slash', async () => {
+    const cwd = process.cwd().replace(/\\/g, '/')
+    for (const [folder, base] of [
+      ['out/', cwd + '/out'],
+      ['./out/', cwd + '/out'],
+      ['out//', cwd + '/out'],
+      ['/abs/out/', '/abs/out'],
+    ]) {
+      const { fs } = memfs({})
+      const j = Jostraca({ log: quiet })
+      const root = (b: string) => () => Project({}, () => {
+        File({ name: 'a.txt' }, () => Content(b))
+        Folder({ name: 'sub' }, () => File({ name: 'b.txt' }, () => Content('B\n')))
+      })
+
+      await j.generate({ fs: () => fs, folder, now: () => NOW }, root('L1\nL2\nL3\n'))
+      expect({ folder, a: fs.existsSync(base + '/.jostraca/generated/a.txt') })
+        .equal({ folder, a: true })
+      expect(fs.existsSync(base + '/.jostraca/generated/sub/b.txt')).equal(true)
+      expect(Object.keys(metaOf(fs, base + '/.jostraca/jostraca.meta.log').files))
+        .equal(['a.txt', 'sub/b.txt'])
+
+      fs.writeFileSync(base + '/a.txt', 'L1\nU\nL3\n')
+      const res = await j.generate({
+        fs: () => fs, folder, now: () => NOW + 1, existing: { txt: { merge: true } },
+      }, root('L1\nG\nL3\n'))
+      expect({ folder, merged: res.files.merged.length, conflicted: res.files.conflicted.length })
+        .equal({ folder, merged: 1, conflicted: 1 })
+      expect(res.files.merged[0].endsWith('/a.txt')).equal(true)
+      const text = fs.readFileSync(base + '/a.txt', 'utf8')
+      expect(text.includes('U\n') && text.includes('G\n')).equal(true)
+    }
+  })
+
 })
