@@ -32,7 +32,8 @@ type TemplateSpec struct {
 	//   []any{...}                   — same as the [2]any form.
 	Eject any
 
-	// Custom delimiters. Empty values use the defaults `\$\$` / `[^$]+`.
+	// Custom delimiters. Empty values use the defaults `\$\$` / `[^$]+`;
+	// pass `(?:)` for an empty pattern, which is what TS does with ''.
 	Open  string
 	Close string
 	Ref   string
@@ -109,10 +110,6 @@ func TemplateR(src string, replace map[string]any) (string, error) {
 // Template renders src using $$path.to.value$$ placeholders and optional
 // replacements. See PORT_PLAN §9 for the supported feature set.
 func Template(src string, model any, spec *TemplateSpec) (string, error) {
-	if src == "" {
-		return "", nil
-	}
-
 	out := src
 
 	// Apply eject first.
@@ -130,25 +127,21 @@ func Template(src string, model any, spec *TemplateSpec) (string, error) {
 		specReplace = spec.Replace
 	}
 
-	// Build the assembled regex (cached) and a parallel canon-key map.
-	cacheKey := open + "\x00" + closeStr + "\x00" + ref + "\x00" + sortedKeysJoin(specReplace)
-	entry := getCachedTemplateRE(cacheKey, func() *templateCacheEntry {
-		return buildTemplateRE(open, closeStr, ref, specReplace)
-	})
-	if entry.err != nil {
-		return "", entry.err
-	}
-
-	// Build canon-key value map: each user replace key gets a sanitized
-	// key under which the engine looks up the actual replacement value.
-	canonValues := make(map[string]any, len(entry.canonKeys))
-	for _, ck := range entry.canonKeys {
-		canonValues[ck.canon] = specReplace[ck.orig]
-	}
-
-	insertRE := entry.re
+	// The assembled regex (cached), and the replace key each J_K group
+	// stands for. A caller's own Insert regex replaces both, as in TS.
+	var insertRE *regexp.Regexp
+	var groupKey map[string]string
 	if spec != nil && spec.Insert != nil {
 		insertRE = spec.Insert
+	} else {
+		cacheKey := open + "\x00" + closeStr + "\x00" + ref + "\x00" + sortedKeysJoin(specReplace)
+		entry := getCachedTemplateRE(cacheKey, func() *templateCacheEntry {
+			return buildTemplateRE(open, closeStr, ref, specReplace)
+		})
+		if entry.err != nil {
+			return "", entry.err
+		}
+		insertRE, groupKey = entry.re, entry.groupKey
 	}
 
 	hasHandle := spec != nil && spec.Handle != nil
@@ -180,15 +173,12 @@ func Template(src string, model any, spec *TemplateSpec) (string, error) {
 		groups := namedGroups(insertRE, remain, loc)
 		match := remain[mStart:mEnd]
 
-		insert, err := resolveMatch(insertRE, model, match, groups, canonValues, entry.canonKeys)
+		insert, err := resolveMatch(insertRE, model, match, groups, specReplace, groupKey)
 		if err != nil {
 			return "", err
 		}
 		emit(insert)
 		remain = remain[mEnd:]
-		if remain == "" {
-			break
-		}
 	}
 
 	if emitErr != nil {
@@ -200,92 +190,56 @@ func Template(src string, model any, spec *TemplateSpec) (string, error) {
 	return sb.String(), nil
 }
 
-// resolveMatch picks the replacement string for one matched location.
-// Order of attempts: model lookup via J_R, custom replacement via J_K*.
-// Iterates groups in alphabetical order so output is deterministic
-// across stacks (Go map iteration is random by default).
+// resolveMatch picks the replacement string for one matched location: a
+// model ref through J_R, or else the replace key whose J_K group matched,
+// whose OWN value is used (groupKey maps the group back to the key). A
+// match that captured nothing is an error, as TS throws on it.
 func resolveMatch(insertRE *regexp.Regexp, model any, match string, groups map[string]string,
-	canonValues map[string]any, canonKeys []canonKey) (string, error) {
-	if ref, ok := groups["J_R"]; ok && ref != "" {
+	replace map[string]any, groupKey map[string]string) (string, error) {
+	if ref, ok := groups["J_R"]; ok {
+		if ref == "" {
+			return "", fmt.Errorf("%w: %s", ErrEmptyMatchRegex, insertRE)
+		}
 		return resolveModelRef(insertRE, model, match, ref), nil
 	}
-	user := userGroupView(groups, match)
 
-	keys := sortedKeys(groups)
-	// Pass 1: J_K* (literal/regex user keys).
-	for _, k := range keys {
-		v := groups[k]
-		if !strings.HasPrefix(k, "J_K") || v == "" {
+	for _, k := range sortedKeys(groups) {
+		if !strings.HasPrefix(k, "J_K") {
 			continue
 		}
-		canon := stripJKPrefix(k)
-		val, ok := canonValues[canon]
-		if !ok {
-			continue
+		if groups[k] == "" {
+			break
 		}
-		return invokeReplace(val, user, match), nil
+		return invokeReplace(replace[groupKey[k]], userGroupView(groups, match), match), nil
 	}
-	// Pass 2: J_T* (tag wrappers).
-	for _, k := range keys {
-		v := groups[k]
-		if !strings.HasPrefix(k, "J_T") || v == "" {
-			continue
-		}
-		canon := stripJKPrefix(k)
-		val, ok := canonValues[canon]
-		if !ok {
-			continue
-		}
-		return invokeReplace(val, user, match), nil
-	}
-	// Nothing matched usefully — leave the match in place.
-	return match, nil
+	return "", fmt.Errorf("%w: %s", ErrEmptyMatchRegex, insertRE)
 }
 
-// userGroupView returns a stripped, user-friendly view of the named-group
-// map. Internal names like J_N1_indent are exposed as `indent`. The full
-// match is exposed as `$&` for parity with JS regex-replace conventions.
-//
-// Iterates input keys in alphabetical order so the deterministic
-// "first non-empty wins on collision" behaviour is the same across
-// stacks regardless of Go map iteration randomisation.
+var userGroupNameRE = regexp.MustCompile(`^J_[NT]\d+_(.+)$`)
+
+// userGroupView is the groups object TS hands a replace function: the
+// whole match under `$&`, then every J_N and J_T group that took part
+// (even one that matched "") under its stripped name, visited in sorted
+// order so a later one overwrites an earlier one. A J_T group, the
+// identifier of a #Tag key, also sets `name`. The J_K wrappers and the
+// internal names are not exposed.
 func userGroupView(groups map[string]string, match string) map[string]string {
 	out := make(map[string]string, len(groups)+1)
+	out["$&"] = match
 	for _, k := range sortedKeys(groups) {
 		v := groups[k]
-		if v == "" {
+		if !strings.HasPrefix(k, "J_") {
+			out[k] = v
 			continue
 		}
-		short := stripInternalPrefix(k)
-		if short != "" {
-			if _, exists := out[short]; !exists {
-				out[short] = v
+		if m := userGroupNameRE.FindStringSubmatch(k); m != nil {
+			out[m[1]] = v
+			if strings.HasPrefix(k, "J_T") {
+				out["name"] = v
 			}
 		}
-		// Always keep the raw key too for advanced users.
-		out[k] = v
 	}
-	out["$&"] = match
 	return out
-}
-
-// stripInternalPrefix removes J_K<n>_, J_T<n>_, or J_N<n>_ prefixes,
-// returning the bare user-visible name.
-func stripInternalPrefix(k string) string {
-	for _, prefix := range []string{"J_K", "J_T", "J_N"} {
-		if !strings.HasPrefix(k, prefix) {
-			continue
-		}
-		rest := k[len(prefix):]
-		i := 0
-		for i < len(rest) && rest[i] >= '0' && rest[i] <= '9' {
-			i++
-		}
-		if i > 0 && i < len(rest) && rest[i] == '_' {
-			return rest[i+1:]
-		}
-	}
-	return ""
 }
 
 // resolveModelRef resolves a $$ref$$ as TS template does: a quoted
@@ -524,17 +478,11 @@ func delimiters(spec *TemplateSpec) (open, closeStr, ref string) {
 	return
 }
 
-// canonKey records the mapping between the user's replace key and the
-// sanitized identifier used as a regex group name.
-type canonKey struct {
-	orig  string
-	canon string
-}
-
 type templateCacheEntry struct {
-	re        *regexp.Regexp
-	canonKeys []canonKey
-	err       error
+	re *regexp.Regexp
+	// groupKey maps each J_K group name to the replace key it stands for.
+	groupKey map[string]string
+	err      error
 }
 
 const templateCacheMax = 100
@@ -562,70 +510,60 @@ func getCachedTemplateRE(key string, build func() *templateCacheEntry) *template
 // unsupportedLookRE detects RE2-incompatible JS regex constructs.
 var unsupportedLookRE = regexp.MustCompile(`\(\?<?[!=]`)
 
+// buildTemplateRE assembles the regex exactly as TS template does, group
+// names and numbering included: a J_K<n>_<key> wrapper per replace key,
+// numbered before the groups inside it, then J_N<n>_<name> for a regex
+// key's own named groups, and for a #Tag key J_N<n>_indent, J_T<n>_<Name
+// or TAG> for the identifier and, with a dash, J_N<n>_TAG. The sanitised
+// key in a J_K name is decoration: groupKey maps it back.
 func buildTemplateRE(open, closeStr, ref string, replace map[string]any) *templateCacheEntry {
 	var sb strings.Builder
 	sb.WriteString(`(?P<J_O>` + open + `)`)
 	sb.WriteString(`(?P<J_R>` + ref + `)`)
 	sb.WriteString(`(?P<J_C>` + closeStr + `)`)
 
-	// sortedKeys, NOT a bare map range. Go randomises map iteration order per
-	// process, and sortReplaceKeys is a STABLE sort whose every comparison ends
-	// in `len(b) < len(a)` -- so two keys of equal length are a tie and kept
-	// whatever order the map happened to yield. Those keys become alternation
-	// branches in one assembled regex, and alternation order picks the winner,
-	// so the same input produced different output between runs. Measured before
-	// this line changed: 20 processes, 19 one way and 1 the other.
-	//
-	// This makes Go's tie-break alphabetical where TS's is insertion order, the
-	// same deliberate deviation OMap already carries for the same reason: a Go
-	// map has no insertion order to reproduce. Deterministic and documented
-	// beats matching TS and random. See issue #42.
 	keys := sortedKeys(replace)
 	sortReplaceKeys(keys)
 
-	canonKeys := make([]canonKey, 0, len(keys))
+	groupKey := make(map[string]string, len(keys))
 	counter := 1
 
 	for _, k := range keys {
-		canon := idenstrTemplate(k)
-		canonKeys = append(canonKeys, canonKey{orig: k, canon: canon})
+		gname := fmt.Sprintf("J_K%d_%s", counter, idenstrTemplate(k))
+		counter++
+		groupKey[gname] = k
 
+		var body string
 		switch {
 		case isRegexKey(k):
-			body := k[1 : len(k)-1]
+			body = k[1 : len(k)-1]
 			if unsupportedLookRE.MatchString(body) {
 				return &templateCacheEntry{err: fmt.Errorf("%w: %s", ErrLookbehind, k)}
 			}
 			body = renameUserGroups(body, &counter)
-			sb.WriteString("|")
-			sb.WriteString(fmt.Sprintf(`(?P<J_K%d_%s>%s)`, counter, canon, body))
-			counter++
 
 		case isTagKey(k):
-			pattern, err := buildTagRegex(k, &counter)
-			if err != nil {
-				return &templateCacheEntry{err: err}
-			}
-			sb.WriteString("|")
-			sb.WriteString(fmt.Sprintf(`(?P<J_T%d_%s>%s)`, counter, canon, pattern))
-			counter++
+			body = buildTagRegex(k, &counter)
 
 		default:
-			sb.WriteString("|")
-			sb.WriteString(fmt.Sprintf(`(?P<J_K%d_%s>%s)`, counter, canon, regexp.QuoteMeta(k)))
-			counter++
+			body = regexp.QuoteMeta(k)
 		}
+		sb.WriteString("|(?P<" + gname + ">" + body + ")")
 	}
 
 	re, err := regexp.Compile(sb.String())
 	if err != nil {
 		return &templateCacheEntry{err: fmt.Errorf("template: failed to compile assembled regex: %w", err)}
 	}
-	return &templateCacheEntry{re: re, canonKeys: canonKeys}
+	return &templateCacheEntry{re: re, groupKey: groupKey}
 }
 
+// isRegexKey is TS's /^\/.+\/$/: at least one character between the
+// slashes, none of them a line terminator, so '/' and '//' are literal
+// keys.
 func isRegexKey(k string) bool {
-	return len(k) >= 2 && strings.HasPrefix(k, "/") && strings.HasSuffix(k, "/")
+	return len(k) >= 3 && k[0] == '/' && k[len(k)-1] == '/' &&
+		!strings.ContainsAny(k[1:len(k)-1], "\n\r\u2028\u2029")
 }
 
 var tagKeyRE = regexp.MustCompile(`^#([A-Za-z0-9]+)(-[A-Z][a-z0-9]+)?$`)
@@ -634,109 +572,83 @@ func isTagKey(k string) bool {
 	return tagKeyRE.MatchString(k)
 }
 
-// buildTagRegex synthesises the regex for a #Tag or #Tag-Name key.
-// Mirrors src/util/basic.ts:460-468.
-func buildTagRegex(k string, counter *int) (string, error) {
+// buildTagRegex synthesises the regex for a #Tag or #Tag-Name key, in
+// TS's layout (the [ \t] classes hold a real tab, as the TS source does).
+func buildTagRegex(k string, counter *int) string {
 	m := tagKeyRE.FindStringSubmatch(k)
-	if m == nil {
-		return "", fmt.Errorf("invalid tag key: %s", k)
-	}
-	tagPart := m[1]
-	dashPart := ""
-	if len(m) > 2 {
-		dashPart = m[2]
-	}
+	tag, dash := m[1], m[2]
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf(`(?P<J_N%d_indent>[ \t]*)`, *counter))
+	sb.WriteString(fmt.Sprintf("(?P<J_N%d_indent>[ \t]*)", *counter))
 	*counter++
-	sb.WriteString(`//`)
-	sb.WriteString(`[ \t]*#`)
+	sb.WriteString(`\/\/`)
+	sb.WriteString("[ \t]*#")
 
-	if dashPart == "" {
-		// #Foo: capture the dynamic part as TAG=<the literal tag>.
-		sb.WriteString(fmt.Sprintf(`(?P<J_N%d_TAG>%s)`, *counter, regexp.QuoteMeta(tagPart)))
+	if dash == "" {
+		sb.WriteString(fmt.Sprintf("(?P<J_T%d_TAG>%s)", *counter, tag))
 		*counter++
 	} else {
-		// #Foo-Bar: capture an identifier as Bar (TAG holds tagPart).
-		inner := dashPart[1:] // drop leading '-'
-		sb.WriteString(fmt.Sprintf(`(?P<J_N%d_%s>[A-Za-z0-9]+)`, *counter, inner))
+		name := dash[1:]
+		sb.WriteString(fmt.Sprintf("(?P<J_T%d_%s>[A-Za-z0-9]+)", *counter, name))
 		*counter++
-		sb.WriteString(fmt.Sprintf(`-(?P<J_N%d_TAG>%s)`, *counter, regexp.QuoteMeta(inner)))
+		sb.WriteString(fmt.Sprintf("-(?P<J_N%d_TAG>%s)", *counter, name))
 		*counter++
 	}
-	sb.WriteString(`[ \t]*\n?`)
-	return sb.String(), nil
+	sb.WriteString("[ \t]*" + `\n?`)
+	return sb.String()
 }
 
 var userGroupRE = regexp.MustCompile(`\(\?P?<([\w\d_]+)>`)
 
 func renameUserGroups(src string, counter *int) string {
 	return userGroupRE.ReplaceAllStringFunc(src, func(m string) string {
-		// extract original group name
 		sub := userGroupRE.FindStringSubmatch(m)
-		if len(sub) < 2 {
-			return m
-		}
 		out := fmt.Sprintf(`(?P<J_N%d_%s>`, *counter, sub[1])
 		*counter++
 		return out
 	})
 }
 
-// idenstrTemplate sanitises an arbitrary user replace key into a valid
-// regex group identifier.
+// idenstrTemplate is TS's idenstr(k).replace(/_+/g, '_'): every character
+// that is not an ASCII word character becomes '_', and runs of '_'
+// collapse. The result can be empty, which still makes a valid group name
+// once prefixed.
 func idenstrTemplate(s string) string {
 	var sb strings.Builder
+	under := false
 	for _, r := range s {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
-			(r >= '0' && r <= '9') || r == '_' {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
 			sb.WriteRune(r)
-		} else {
+			under = false
+			continue
+		}
+		if !under {
 			sb.WriteByte('_')
 		}
+		under = true
 	}
-	out := sb.String()
-	// Collapse runs of underscores.
-	for strings.Contains(out, "__") {
-		out = strings.ReplaceAll(out, "__", "_")
-	}
-	out = strings.Trim(out, "_")
-	if out == "" {
-		out = "x"
-	}
-	return out
+	return sb.String()
 }
 
-// sortReplaceKeys mirrors src/util/basic.ts:437-439: # tags first
-// (with -dash longer-first, then plain by length); other keys by length
-// descending.
+// sortReplaceKeys orders replace keys as TS replaceKeyOrder does, by one
+// total order that depends only on the key set: '#Tag-Name' keys first,
+// then longer before shorter (in UTF-16 units), then by UTF-16 code unit.
 func sortReplaceKeys(keys []string) {
+	rank := func(k string) int {
+		if strings.HasPrefix(k, "#") && strings.Contains(k, "-") {
+			return 0
+		}
+		return 1
+	}
 	sort.SliceStable(keys, func(i, j int) bool {
 		a, b := keys[i], keys[j]
-		aTag := strings.HasPrefix(a, "#")
-		bTag := strings.HasPrefix(b, "#")
-		if aTag && !bTag {
-			return true
+		if ra, rb := rank(a), rank(b); ra != rb {
+			return ra < rb
 		}
-		if !aTag && bTag {
-			return false
+		if la, lb := utf16Len(a), utf16Len(b); la != lb {
+			return la > lb
 		}
-		if aTag && bTag {
-			aDash := strings.Contains(a, "-")
-			bDash := strings.Contains(b, "-")
-			if aDash && bDash {
-				return len(b) < len(a)
-			}
-			if aDash && !bDash {
-				return true
-			}
-			if !aDash && bDash {
-				return false
-			}
-			return len(b) < len(a)
-		}
-		return len(b) < len(a)
+		return jsLess(a, b)
 	})
 }
 
@@ -747,22 +659,6 @@ func sortedKeysJoin(m map[string]any) string {
 	}
 	sort.Strings(keys)
 	return strings.Join(keys, "\x00")
-}
-
-// stripJKPrefix turns J_K3_foo or J_T2_foo into foo.
-func stripJKPrefix(k string) string {
-	// k starts with J_K or J_T followed by digits and then underscore.
-	if !strings.HasPrefix(k, "J_K") && !strings.HasPrefix(k, "J_T") {
-		return k
-	}
-	// Find first underscore after the digits.
-	rest := k[3:]
-	for i := 0; i < len(rest); i++ {
-		if rest[i] == '_' {
-			return rest[i+1:]
-		}
-	}
-	return rest
 }
 
 // namedGroups extracts named subgroups from a successful match's index

@@ -82,6 +82,11 @@ var specFns = map[string]func(a []any) (any, error){
 			if ej, ok := raw["eject"].([]any); ok {
 				spec.Eject = ej
 			}
+			// Delimiters as well. An empty string means the default in
+			// Go (TS uses it as given), so rows keep them non-empty.
+			spec.Open, _ = raw["open"].(string)
+			spec.Close, _ = raw["close"].(string)
+			spec.Ref, _ = raw["ref"].(string)
 		}
 		return Template(specStr(a[0]), a[1], spec)
 	},

@@ -13,17 +13,15 @@ import (
 // picks the winner, so identical input produced different output between runs.
 // Measured before the fix: 20 processes, 19 "xPLUSx" and 1 "xPAIRx".
 //
-// The slice is now built with sortedKeys, so ties resolve alphabetically and
-// the result is fixed. See issue #42 and docs/design/PARITY_PLAN.md.
+// The slice is now built with sortedKeys, so ties resolve by UTF-16 code
+// unit and the result is fixed. See issue #42.
 //
-// NOTE ON PARITY. This does NOT make Go match TS in every ordering. TS sorts
-// Object.keys() with a stable sort, and Object.keys() is insertion order, so
-// TS's tie-break is DECLARATION order -- verified in separate processes:
-// {"/A+/","/AA/"} gives "xPLUSx" and {"/AA/","/A+/"} gives "xPAIRx". A Go map
-// has no declaration order to reproduce, exactly as with OMap, so Go takes the
-// alphabetical rule. Deterministic-and-documented beats matching-and-random.
-// The two agree whenever declaration order happens to be alphabetical, which
-// is what test/spec/template.tsv's template-replace-equal-length-keys pins.
+// TS now uses the same total order (replaceKeyOrder in
+// ts/src/util/basic.ts: '#Tag-Name' keys first, then longer keys, then by
+// UTF-16 code unit), so the two stacks agree for every declaration order.
+// Its tie-break used to be declaration order, and through the regex cache
+// whichever call had built the regex first; test/spec/template.tsv pins
+// both declaration orders of the same key set.
 
 func TestTemplateEqualLengthKeysAreDeterministic(t *testing.T) {
 	// Both keys are 4 characters and both match "AA" at the same offset, so

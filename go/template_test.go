@@ -1,6 +1,7 @@
 package jostraca
 
 import (
+	"encoding/json"
 	"errors"
 	"regexp"
 	"strings"
@@ -470,5 +471,57 @@ func TestTemplateRefIsGetx(t *testing.T) {
 		if want := "A=AB L=3\n"; string(body) != want {
 			t.Errorf("%s: got %q, want %q", p, body, want)
 		}
+	}
+}
+
+// The groups a replace function receives, as JSON with sorted keys.
+// ts/test/template.test.ts replace-function-groups asserts the same
+// strings: `$&`, then every J_N/J_T group that took part (an empty one
+// too) under its stripped name, `name` from a #Tag's identifier, and none
+// of the internal group names.
+func TestReplaceFunctionGroups(t *testing.T) {
+	groupsOf := func(src, key string) string {
+		var got map[string]string
+		_, err := Template(src, map[string]any{}, &TemplateSpec{Replace: map[string]any{
+			key: ReplaceFunc(func(g map[string]string, _ string) string { got = g; return "" }),
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var buf strings.Builder
+		enc := json.NewEncoder(&buf)
+		enc.SetEscapeHTML(false)
+		_ = enc.Encode(got)
+		return strings.TrimSuffix(buf.String(), "\n")
+	}
+	cases := []struct{ src, key, want string }{
+		{"  // #Foo\nrest", "#Foo", `{"$&":"  // #Foo\n","TAG":"Foo","indent":"  ","name":"Foo"}`},
+		{"  // #Bar-Name\nrest", "#Foo-Name", `{"$&":"  // #Bar-Name\n","Name":"Bar","TAG":"Name","indent":"  ","name":"Bar"}`},
+		{"aQb", "Q", `{"$&":"Q"}`},
+		{"axb", "/x(?<g>y?)/", `{"$&":"x","g":""}`},
+		{"ab", "/(?<p>a)(?<q>b)/", `{"$&":"ab","p":"a","q":"b"}`},
+	}
+	for _, c := range cases {
+		if got := groupsOf(c.src, c.key); got != c.want {
+			t.Errorf("%q over %q:\n got  %s\n want %s", c.key, c.src, got, c.want)
+		}
+	}
+}
+
+// An empty Open, Close or Ref means the default in Go, where TS uses the
+// empty string as given. The Go spelling of TS's empty delimiter is the
+// empty pattern (?:), which yields the same regex.
+func TestTemplateEmptyDelimiters(t *testing.T) {
+	model := map[string]any{"name": "Foo"}
+	got, err := Template("$$name$$", model, &TemplateSpec{Open: "(?:)"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "$$Foo"; got != want {
+		t.Errorf("Open (?:): got %q, want %q (TS {open:''})", got, want)
+	}
+	got, _ = Template("$$name$$", model, &TemplateSpec{Open: ""})
+	if want := "Foo"; got != want {
+		t.Errorf("Open empty: got %q, want the default delimiters' %q", got, want)
 	}
 }

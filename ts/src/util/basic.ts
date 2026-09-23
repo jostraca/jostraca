@@ -388,8 +388,8 @@ function idenstr(s: string) { return s.replace(/[^\w\d]/g, '_') }
 
 
 // Cache for compiled template RegExps to avoid recompilation on repeated calls.
-// Stores regex and the mapping from original keys to normalized canon keys.
-const templateRECache = new Map<string, { re: RegExp, canonKeys: [string, string][] }>()
+// Stores the regex and, for each replace key's `J_K` group, the key itself.
+const templateRECache = new Map<string, { re: RegExp, groupKey: Record<string, string> }>()
 const TEMPLATE_RE_CACHE_MAX = 100
 
 // Cache for eject RegExps.
@@ -456,7 +456,11 @@ function template(
   let close = null == spec?.close ? '\\$\\$' : spec.close
   let ref = null == spec?.ref ? '[^$]+' : spec.ref
   let specReplaceMap = spec?.replace || {}
-  let specReplaceCanon: any = {}
+
+  // The replace key each `J_K` group stands for. The sanitised key in the
+  // group name is decoration only: 'a.b' and 'a_b' both sanitise to 'a_b',
+  // so looking a value up by it gave one key the other's value.
+  let groupKey: Record<string, string> = {}
 
   let insertRE: RegExp
   if (null != spec?.insert) {
@@ -468,14 +472,10 @@ function template(
     const cached = templateRECache.get(cacheKey)
     if (cached) {
       insertRE = cached.re
-      // Rebuild specReplaceCanon from current values using cached key mapping.
-      for (const [origKey, canonKey] of cached.canonKeys) {
-        specReplaceCanon[canonKey] = specReplaceMap[origKey]
-      }
+      groupKey = cached.groupKey
     }
     else {
       let ngI = 1
-      const canonKeys: [string, string][] = []
       insertRE = new RegExp(
 
         // Match alternate for `$$foo.bar$$` model replacements.
@@ -483,20 +483,18 @@ function template(
         '(?<J_R>' + ref + ')' +
         '(?<J_C>' + close + ')' +
 
-        // Template replace entries.
+        // Template replace entries, in an order that depends only on the
+        // key set, so the cache above is sound.
         ((Object.keys(specReplaceMap))
-          .sort((a, b) => a.startsWith('#') ?
-            (a.includes('-') ? b.includes('-') ? b.length - a.length : -1 : b.length - a.length) :
-            b.length - a.length)
+          .sort(replaceKeyOrder)
           .map((k: string, _: any) => (
 
             // Normalize key for use as group name as key could be a regexp ('/foo/' format).
-            _ = idenstr(k).replace(/_+/g, '_'),
-            specReplaceCanon[_] = specReplaceMap[k],
-            canonKeys.push([k, _]),
+            _ = `J_K${ngI++}_` + idenstr(k).replace(/_+/g, '_'),
+            groupKey[_] = k,
 
             // match alternate per key.
-            `|(?<J_K${ngI++}_${_}>` +
+            `|(?<${_}>` +
 
             // Custom regexp.
             (k.match(/^\/.+\/$/) ? k.substring(1, k.length - 1)
@@ -526,7 +524,7 @@ function template(
       if (templateRECache.size >= TEMPLATE_RE_CACHE_MAX) {
         templateRECache.clear()
       }
-      templateRECache.set(cacheKey, { re: insertRE, canonKeys })
+      templateRECache.set(cacheKey, { re: insertRE, groupKey })
     }
   }
 
@@ -581,7 +579,7 @@ function template(
           filter(k => k.startsWith('J_K') && null != mg[k])[0]
         if (null != key) {
           ref = mg[key] || ''
-          insert = specReplaceCanon[key.replace(/^J_K\d+_/, '')] || ''
+          insert = specReplaceMap[groupKey[key]] || ''
         }
       }
 
@@ -650,6 +648,17 @@ function template(
 
 
   return hasCustomHandle ? out : parts.join('')
+}
+
+
+// Replace keys in one total order that depends only on the key set:
+// '#Tag-Name' keys first, then longer keys before shorter, then by UTF-16
+// code unit. The old comparator was inconsistent across its branches, so
+// the order came out of the sort algorithm, the declaration order and --
+// through the regex cache -- whichever call had built the regex first.
+function replaceKeyOrder(a: string, b: string): number {
+  const rank = (k: string) => k.startsWith('#') && k.includes('-') ? 0 : 1
+  return rank(a) - rank(b) || b.length - a.length || (a < b ? -1 : a > b ? 1 : 0)
 }
 
 
