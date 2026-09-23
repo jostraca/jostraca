@@ -76,6 +76,14 @@ func newJstateFromOptions(o Options) *jstate {
 		st.fs = newSeededMemFS(o.Vol)
 	}
 
+	// Defaulted HERE, not in the file handler, so the define-time checks
+	// on a Fragment or CopyFiles `from` run against the filesystem the
+	// build will use whether or not the caller spelled it. A missing
+	// source then refuses the run before anything is written.
+	if st.fs == nil {
+		st.fs = OsFS{}
+	}
+
 	return st
 }
 

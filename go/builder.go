@@ -374,7 +374,7 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 	// ts/src/cmp/Fragment.ts, which resolves before its shape check for the
 	// same reason.
 	p.From = resolveFragmentFrom(j.st, p.From)
-	if j.st.fs != nil && !j.st.fs.Exists(p.From) {
+	if !j.st.fs.Exists(p.From) {
 		j.st.err = &NodeError{Step: "fragment", Err: fmtErrorf("Fragment: From file does not exist: %s", p.From)}
 		return
 	}
@@ -491,7 +491,7 @@ func (j *J) CopyFiles(p CopyFilesProps) {
 		j.st.err = &NodeError{Step: "copy", Err: fmtErrorf("Copy: From is required")}
 		return
 	}
-	if j.st.fs != nil && !j.st.fs.Exists(p.From) {
+	if !j.st.fs.Exists(p.From) {
 		j.st.err = &NodeError{Step: "copy", Err: fmtErrorf("Copy: From does not exist: %s", p.From)}
 		return
 	}
