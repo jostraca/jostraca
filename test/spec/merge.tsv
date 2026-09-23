@@ -36,3 +36,11 @@ omap-nested-values	omap	[{"b":{"y":1},"a":[1,2]}]	[["a",[1,2]],["b",{"y":1}]]
 omap-upper-and-lower	omap	[{"B":1,"a":2,"A":3,"b":4}]	[["A",3],["B",1],["a",2],["b",4]]	
 omap-single	omap	[{"only":1}]	[["only",1]]	
 omap-utf16-order	omap	[{"ｚ":1,"😀":2,"10":3,"9":4}]	[["9",4],["10",3],["😀",2],["ｚ",1]]	
+cmap-filter-keeps-truthy	cmap	[{"b":{"x":1,"y":"Y","z":0},"a":{"x":2,"y":"","z":5},"c":{"x":0,"y":"c"}},{"x":"$FILTER"}]	{"a":{"x":2},"b":{"x":1}}	
+cmap-filter-with-key	cmap	[{"b":{"x":1,"y":"Y","z":0},"a":{"x":2,"y":"","z":5},"c":{"x":0,"y":"c"}},{"y":"$FILTER","k":"$KEY"}]	{"b":{"k":"b","y":"Y"},"c":{"k":"c","y":"c"}}	
+vmap-filter-keeps-truthy	vmap	[{"b":{"x":1,"y":"Y","z":0},"a":{"x":2,"y":"","z":5},"c":{"x":0,"y":"c"}},{"z":"$FILTER"}]	[{"z":5}]	
+cmap-null-child-key	cmap	[{"a":null,"b":{"x":5}},{"k":"$KEY"}]	{"a":{"k":"a"},"b":{"k":"b"}}	
+cmap-null-child-filter	cmap	[{"a":null,"b":{"x":5}},{"x":"$FILTER"}]	{"b":{"x":5}}	
+vmap-null-child-key	vmap	[{"a":null,"b":{"x":5}},{"k":"$KEY"}]	[{"k":"a"},{"k":"b"}]	
+cmap-copy-and-literal	cmap	[{"a":{"x":1,"y":2}},{"x":"$COPY","l":"L"}]	{"a":{"l":"L","x":1}}	
+cmap-scalar-child-length	cmap	[{"s":"abc","n":5},{"length":"$COPY","k":"$KEY"}]	{"n":{"k":"n","length":null},"s":{"k":"s","length":3}}	

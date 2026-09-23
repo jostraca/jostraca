@@ -751,7 +751,8 @@ const sortByKey = (a: any, b: any) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0
 // Map child objects to new child objects. Iterates source and spec
 // keys in alphabetical order for cross-stack determinism (Go map
 // iteration is randomised; sorting on both sides keeps output
-// byte-equal).
+// byte-equal). A child's field is read as an own property (step), so a
+// null or scalar child projects undefined rather than throwing.
 function cmap(o: any, p: any) {
   return Object
     .entries(o)
@@ -761,7 +762,7 @@ function cmap(o: any, p: any) {
       .sort(sortByKey)
       .reduce((s: any, m: any) => (cmap.FILTER === s ? s : (s[m[0]] = (
         // transfom(val,key,current,parentkey,parent)
-        'function' === typeof m[1] ? m[1](n[1][m[0]], {
+        'function' === typeof m[1] ? m[1](step(n[1], m[0]), {
           skey: m[0], self: n[1], key: n[0], parent: o
         }) : m[1]
       ), (cmap.FILTER === s[m[0]] ? cmap.FILTER : s))), {})
@@ -786,7 +787,7 @@ function vmap(o: any, p: any) {
       .reduce((s: any, m: any) => (vmap.FILTER === s ? s : (s[m[0]] = (
         // transfom(val,key,current,parentkey,parent)
         // 'function' === typeof m[1] ? m[1](n[1][m[0]], m[0], n[1], n[0], o) : m[1]
-        'function' === typeof m[1] ? m[1](n[1][m[0]], {
+        'function' === typeof m[1] ? m[1](step(n[1], m[0]), {
           skey: m[0], self: n[1], key: n[0], parent: o
         }) : m[1]
       ), (vmap.FILTER === s[m[0]] ? vmap.FILTER : s))), {})

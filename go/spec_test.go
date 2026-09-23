@@ -78,6 +78,16 @@ var specFns = map[string]func(a []any) (any, error){
 		return Each(a[0], spec, nil), nil
 	},
 
+	// '$COPY', '$KEY' and '$FILTER' stand for the sentinels.
+	"cmap": func(a []any) (any, error) {
+		o, _ := a[0].(map[string]any)
+		return CMap(o, specMapSpec(a[1])), nil
+	},
+	"vmap": func(a []any) (any, error) {
+		o, _ := a[0].(map[string]any)
+		return VMap(o, specMapSpec(a[1])), nil
+	},
+
 	"omap": func(a []any) (any, error) {
 		m, _ := a[0].(map[string]any)
 		return OMap(m), nil
@@ -126,6 +136,24 @@ var specFns = map[string]func(a []any) (any, error){
 	"lcs": func(a []any) (any, error) {
 		return LCS(specStrs(a[0]), specStrs(a[1])), nil
 	},
+}
+
+func specMapSpec(v any) map[string]any {
+	p, _ := v.(map[string]any)
+	out := make(map[string]any, len(p))
+	for k, x := range p {
+		switch x {
+		case "$COPY":
+			out[k] = CMapCopy
+		case "$KEY":
+			out[k] = CMapKey
+		case "$FILTER":
+			out[k] = CMapFilter
+		default:
+			out[k] = x
+		}
+	}
+	return out
 }
 
 // specStr coerces a corpus cell to string. A JSON null reaches a string

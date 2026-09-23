@@ -844,3 +844,55 @@ func TestGetTypedContainers(t *testing.T) {
 		t.Errorf("named-key n.z = %v, want 26", got)
 	}
 }
+
+// Mirrors ts/test/utility.test.ts cmap-filter: CMapFilterFn is TS
+// FILTER(fn), and a bare CMapFilter keeps a truthy field.
+func TestCMapFilterFn(t *testing.T) {
+	src := map[string]any{
+		"a": map[string]any{"x": 1.0},
+		"b": map[string]any{"x": 2.0},
+		"c": map[string]any{"x": 3.0},
+	}
+	flag := CMapFilterFn(func(v any, _ CMapCtx) any {
+		return []any{v == 2.0, v.(float64) * 10}
+	})
+	got := CMap(src, map[string]any{"x": flag, "k": CMapKey})
+	want := map[string]any{
+		"a": map[string]any{"k": "a", "x": 10.0},
+		"c": map[string]any{"k": "c", "x": 30.0},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("CMap FILTER(fn) = %v, want %v", got, want)
+	}
+	gotV := VMap(src, map[string]any{"x": flag, "k": CMapKey})
+	wantV := []any{want["a"], want["c"]}
+	if !reflect.DeepEqual(gotV, wantV) {
+		t.Errorf("VMap FILTER(fn) = %v, want %v", gotV, wantV)
+	}
+
+	plain := CMap(src, map[string]any{"x": CMapFilterFn(func(v any, _ CMapCtx) any {
+		return v.(float64) + 1
+	})})
+	if !reflect.DeepEqual(plain["b"], map[string]any{"x": 3.0}) || len(plain) != 3 {
+		t.Errorf("CMap FILTER(fn) non-array = %v", plain)
+	}
+
+	drop := CMap(src, map[string]any{"x": CMapTransform(func(v any, _ CMapCtx) any {
+		if v == 2.0 {
+			return CMapFilter
+		}
+		return v
+	})})
+	if _, ok := drop["b"]; ok || len(drop) != 2 {
+		t.Errorf("a transform returning CMapFilter should drop: %v", drop)
+	}
+
+	truthy := CMap(map[string]any{
+		"z": map[string]any{"x": 0.0}, "e": map[string]any{"x": ""},
+		"n": map[string]any{"x": nil}, "o": map[string]any{"x": map[string]any{}},
+		"s": map[string]any{"x": "s"}, "m": nil,
+	}, map[string]any{"x": CMapFilter})
+	if len(truthy) != 2 || truthy["o"] == nil || truthy["s"] == nil {
+		t.Errorf("bare CMapFilter keeps only truthy fields: %v", truthy)
+	}
+}

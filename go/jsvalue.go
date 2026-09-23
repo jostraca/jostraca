@@ -770,3 +770,20 @@ func jsLessThan(x, y any) (lt bool, undef bool) {
 	}
 	return nx < ny, false
 }
+
+// jsTruthy is JavaScript's ToBoolean: undefined, null, false, 0, NaN and
+// "" are false, and everything else, an empty object included, is true.
+func jsTruthy(v any) bool {
+	switch jsKind(v) {
+	case jkUndefined, jkNull:
+		return false
+	case jkBool:
+		return jsBoolOf(v)
+	case jkNumber:
+		n := jsNumberOf(v)
+		return n != 0 && !math.IsNaN(n)
+	case jkString:
+		return jsString(v) != ""
+	}
+	return true
+}

@@ -21,6 +21,8 @@ import {
   ucf,
   deep,
   omap,
+  cmap,
+  vmap,
 } from '../'
 
 
@@ -534,6 +536,39 @@ describe('util', () => {
   })
 
 })
+
+// FILTER(fn): fn's result is written, except that an array [flag, value]
+// drops the entry when flag is truthy and writes value otherwise. A bare
+// FILTER keeps a truthy field and drops the entry for a falsy one. The
+// Go port pins the same cases in go/util_test.go TestCMapFilterFn.
+describe('cmap-filter', () => {
+
+  test('filter-fn', () => {
+    const src = { a: { x: 1 }, b: { x: 2 }, c: { x: 3 } }
+    for (const map of [cmap, vmap] as any[]) {
+      const out = map(src, {
+        x: map.FILTER((v: number) => [2 === v, v * 10]),
+        k: map.KEY,
+      })
+      const want = [{ k: 'a', x: 10 }, { k: 'c', x: 30 }]
+      expect(cmap === map ? out : { a: out[0], c: out[1] })
+        .equal({ a: want[0], c: want[1] })
+    }
+    expect(cmap(src, { x: cmap.FILTER((v: number) => v + 1) }))
+      .equal({ a: { x: 2 }, b: { x: 3 }, c: { x: 4 } })
+    expect(cmap(src, { x: cmap.FILTER('lit') }))
+      .equal({ a: { x: 'lit' }, b: { x: 'lit' }, c: { x: 'lit' } })
+    expect(cmap(src, { x: (v: number) => 2 === v ? cmap.FILTER : v }))
+      .equal({ a: { x: 1 }, c: { x: 3 } })
+  })
+
+  test('null-child', () => {
+    expect(cmap({ a: null, b: { x: 5 } }, { x: cmap.COPY, k: cmap.KEY }))
+      .equal({ a: { x: undefined, k: 'a' }, b: { x: 5, k: 'b' } })
+  })
+
+})
+
 
 // Caller-side state is recorded by no corpus: all four record OUTPUT only,
 // never the model, the options object, or returned slices. So a helper that

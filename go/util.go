@@ -832,9 +832,10 @@ func Deep(dst any, srcs ...any) any {
 	return out
 }
 
-// CMapSentinel is a marker for CMap/VMap special values. Pass
-// CMapCopy to copy a value verbatim, CMapFilter to drop the entry, or
-// CMapKey to substitute the source key.
+// CMapSentinel is a marker for CMap/VMap special values. Pass CMapCopy
+// to copy a value verbatim, CMapKey to substitute the source key, or
+// CMapFilter to keep the source value when it is truthy (in the JS sense)
+// and drop the whole entry when it is not. See also CMapFilterFn.
 type CMapSentinel int
 
 const (
@@ -904,23 +905,48 @@ func VMap(o map[string]any, p map[string]any) []any {
 	return out
 }
 
+// cmapApply projects one field. The child's field is an own-property
+// step, so a nil or scalar child projects nil. An absent field is nil
+// too: Go has no undefined, so JSON shows null where TS drops the key.
 func cmapApply(spec, self any, key, sk string, parent any) any {
+	v, _ := jsProp(self, sk)
 	if fn, ok := spec.(CMapTransform); ok {
-		v, _ := jsProp(self, sk)
 		return fn(v, CMapCtx{SKey: sk, Self: self, Key: key, Parent: parent})
 	}
 	if s, ok := spec.(CMapSentinel); ok {
 		switch s {
 		case CMapCopy:
-			v, _ := jsProp(self, sk)
 			return v
 		case CMapKey:
 			return key
 		case CMapFilter:
+			if jsTruthy(v) {
+				return v
+			}
 			return CMapFilter
 		}
 	}
 	return spec
+}
+
+// CMapFilterFn is TS FILTER(fn): fn's result is written, except that an
+// array result [flag, value] drops the entry when flag is truthy and
+// writes value otherwise.
+func CMapFilterFn(fn func(val any, p CMapCtx) any) CMapTransform {
+	return func(val any, p CMapCtx) any {
+		r := fn(val, p)
+		arr, ok := r.([]any)
+		if !ok {
+			return r
+		}
+		if 0 < len(arr) && jsTruthy(arr[0]) {
+			return CMapFilter
+		}
+		if 1 < len(arr) {
+			return arr[1]
+		}
+		return nil
+	}
 }
 
 // OMap returns m's keys paired with their values, in the order TS `omap`
