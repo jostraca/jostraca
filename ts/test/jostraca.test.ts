@@ -24,6 +24,7 @@ import {
   Slot,
 
   cmp,
+  cmpTree,
   each,
 } from '../'
 
@@ -2222,6 +2223,45 @@ describe('components', () => {
     expect(inj['/out/spliced.txt']).equal('single World bar\n')
     expect(inj['/out/t.txt'])
       .equal('head\n#--START--#\npre;single World bar\npost;\n#--END--#\ntail\n')
+  })
+
+
+  // Fragment and CopyFiles refuse a wrongly typed prop when they are
+  // called, before anything is written, whether the tree is code or data.
+  // Content has no shape, so its indent is stringified. Go:
+  // TestClosedShapePropTypes, TestCmpTreeClosedPropTypes and
+  // TestContentIndentIsNotTypeChecked.
+  test('closed-shape-prop-types', async () => {
+    const SRC = { '/tm/model.txt': 'M=$$name$$\n', '/tm/tree/a.txt': 'A\n' }
+    const refused = async (def: any, want: RegExp) => {
+      const { err, vol } = await genErr(SRC, () => Project({}, () => {
+        File({ name: 'first.txt' }, () => Content('first'))
+        def()
+      }), { model: { name: 'World' } })
+      expect(null == err).equal(false)
+      Assert.match(err.message, want)
+      expect(noOutput(vol)).equal([])
+    }
+
+    await refused(() => CopyFiles({ from: '/tm/tree', to: 'n', exclude: 5 as any }),
+      /Value "5" for property "exclude" does not satisfy one of: Boolean, String, RegExp/)
+    await refused(() => File({ name: 'b.txt' }, () =>
+      Fragment({ from: '/tm/model.txt', indent: true as any })),
+      /Fragment: Value "true" for property "indent" does not satisfy one of: String, Number/)
+
+    const tree = (node: any) => () => cmpTree([node])()
+    await refused(tree({ cmp: 'CopyFiles', props: { from: '/tm/tree', exclude: { a: 1 } } }),
+      /Value "\{a:1\}" for property "exclude"/)
+    await refused(tree({ cmp: 'CopyFiles', props: { from: '/tm/tree', to: 5 } }),
+      /property "to" with number "5" because the number is not of type string/)
+    await refused(tree({
+      cmp: 'File', props: { name: 'b.txt' },
+      children: [{ cmp: 'Fragment', props: { from: '/tm/model.txt', indent: ['>'] } }],
+    }), /Value "\[>\]" for property "indent"/)
+
+    const out = await gen({}, () => Project({}, () =>
+      File({ name: 'c.txt' }, () => Content({ src: 'x\ny\n', indent: true as any }))))
+    expect(out['/out/c.txt']).equal('truex\ntruey\n')
   })
 
 })

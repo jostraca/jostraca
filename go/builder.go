@@ -391,6 +391,10 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 	if j.filtered(n) {
 		return
 	}
+	if err := fragmentPropError(p); err != nil {
+		j.st.err = &NodeError{Step: "fragment", Err: err}
+		return
+	}
 	if j.cur != nil {
 		j.cur.Children = append(j.cur.Children, n)
 	}
@@ -461,6 +465,10 @@ func (j *J) CopyFiles(p CopyFilesProps) {
 		Meta:    map[string]any{},
 	}
 	if j.filtered(n) {
+		return
+	}
+	if err := copyFilesPropError(p); err != nil {
+		j.st.err = &NodeError{Step: "copy", Err: err}
 		return
 	}
 	if j.cur != nil {

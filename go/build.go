@@ -665,6 +665,11 @@ func shouldIgnoreCopyPath(name, rel string, exclude any, ignores []*regexp.Regex
 	if rel == "" {
 		rel = name
 	}
+	// A []string or []*regexp.Regexp is the same list a []any is. The
+	// shape check accepts all three, so the walk has to honour all three.
+	if list, ok := propList(exclude); ok {
+		exclude = list
+	}
 	switch v := exclude.(type) {
 	case nil, bool:
 	case string:

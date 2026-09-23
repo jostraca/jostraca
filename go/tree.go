@@ -415,6 +415,9 @@ func init() {
 			j.LineP(contentProps(p))
 		},
 		"Fragment": func(j *J, p map[string]any, c []treeThunk) {
+			if j.refuseProps("Fragment", "fragment", p) {
+				return
+			}
 			j.FragmentP(FragmentProps{
 				From:    propString(p, "from"),
 				Indent:  p["indent"],
@@ -433,6 +436,9 @@ func init() {
 			}, runChildren(c, nil))
 		},
 		"CopyFiles": func(j *J, p map[string]any, _ []treeThunk) {
+			if j.refuseProps("CopyFiles", "copy", p) {
+				return
+			}
 			j.CopyFiles(CopyFilesProps{
 				From:    propString(p, "from"),
 				To:      propString(p, "to"),
