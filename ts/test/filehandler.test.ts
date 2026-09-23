@@ -14,6 +14,8 @@ import {
   File,
   Content,
   Copy,
+  Inject,
+  cmpTree,
 } from '../'
 
 
@@ -76,6 +78,53 @@ describe('filehandler', () => {
       const entry = metaOf(fs).files['a.png']
       expect({ name, action: entry.action, protect: entry.protect })
         .equal({ name, action: 'skip', protect: true })
+    }
+  })
+
+
+  // Inject exclude is coerced with `!!props.exclude`: any truthy value
+  // skips the injection, whatever it names.
+  test('inject-exclude-truthy', async () => {
+    const seed = 'a\n#--START--#\nold\n#--END--#\nz\n'
+    const injected = 'a\n#--START--#\nNEW\n#--END--#\nz\n'
+
+    const typed = (ex: any) => () => Project({}, () => {
+      Inject({ name: 't.txt', exclude: ex }, () => Content('NEW'))
+    })
+    const tree = (ex: any) => cmpTree({
+      cmp: 'Project', props: {},
+      children: [{
+        cmp: 'Inject', props: { name: 't.txt', exclude: ex },
+        children: [{ cmp: 'Content', props: { src: 'NEW' } }],
+      }],
+    })
+
+    const run = async (root: any) => {
+      const { fs } = memfs({ '/out/t.txt': seed })
+      const res = await Jostraca({ now: () => NOW, log: quiet })
+        .generate({ fs: () => fs, folder: '/out' }, root)
+      return { res, fs }
+    }
+
+    for (const ex of [true, 'other', [], ['other'], {}, 1, -1]) {
+      for (const root of [typed(ex), tree(ex)]) {
+        const { res, fs } = await run(root)
+        expect({ ex, t: fs.readFileSync('/out/t.txt', 'utf8') })
+          .equal({ ex, t: seed })
+        expect(res.files.written).equal([])
+        expect(fs.existsSync('/out/.jostraca/generated/t.txt')).equal(false)
+        if (fs.existsSync(META)) {
+          expect(metaOf(fs).files['t.txt']).equal(undefined)
+        }
+      }
+    }
+
+    for (const ex of [false, '', 0]) {
+      for (const root of [typed(ex), tree(ex)]) {
+        const { fs } = await run(root)
+        expect({ ex, t: fs.readFileSync('/out/t.txt', 'utf8') })
+          .equal({ ex, t: injected })
+      }
     }
   })
 

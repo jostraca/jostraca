@@ -402,6 +402,11 @@ var scenarioRunners = map[string]func(j *J){
 			j.Inject("foo.txt", func(j *J) { j.Content("NEW") })
 		})
 	},
+	// Inject exclude is JavaScript truthiness: any truthy value skips it.
+	"inject_exclude_string":     injectExcludeRunner("other"),
+	"inject_exclude_emptyarray": injectExcludeRunner([]any{}),
+	"inject_exclude_list":       injectExcludeRunner([]any{"other"}),
+	"inject_exclude_object":     injectExcludeRunner(map[string]any{}),
 	"inject_no_markers": func(j *J) {
 		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
 			j.Inject("foo.txt", func(j *J) { j.Content("NEW") })
@@ -453,6 +458,15 @@ var scenarioRunners = map[string]func(j *J){
 			})
 		})
 	},
+}
+
+func injectExcludeRunner(exclude any) func(j *J) {
+	return func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.InjectP(InjectProps{Name: "t.txt", Exclude: exclude},
+				func(j *J) { j.Content("NEW") })
+		})
+	}
 }
 
 // scenarioOptions returns per-scenario Options additions; merged on top

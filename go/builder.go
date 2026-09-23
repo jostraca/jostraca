@@ -284,7 +284,9 @@ type InjectProps struct {
 	// pair means the default.
 	Markers [2]string
 
-	// Leave the target alone.
+	// Leave the target alone. Any truthy value excludes, by JavaScript's
+	// rules: nil, false, "", zero and NaN do not; any other value does,
+	// an empty list or map included, whatever it names.
 	Exclude any
 }
 

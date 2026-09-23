@@ -2,7 +2,9 @@ package jostraca
 
 import (
 	"fmt"
+	"math"
 	"path"
+	"reflect"
 	"regexp"
 	"runtime"
 	"strings"
@@ -629,40 +631,44 @@ var injectDlog = NewDLog("jostraca", "build.go")
 // ts/src/op/CopyOp.ts.
 var copyDlog = NewDLog("jostraca", "build.go")
 
-// injectExcluded reports whether name is excluded by the user's Inject
-// Exclude setting. Accepts bool (true → always exclude), string,
-// *regexp.Regexp, or a []any of those.
-func injectExcluded(name string, exclude any) bool {
-	switch v := exclude.(type) {
+// jsTruthy is JavaScript truthiness over a Go value: TS coerces an Inject
+// exclude with `!!props.exclude`. nil, false, "", numeric zero, NaN and a
+// nil pointer are falsy; everything else is truthy, an empty slice or map
+// included, as an empty array or object is in JS.
+func jsTruthy(v any) bool {
+	switch x := v.(type) {
 	case nil:
 		return false
 	case bool:
-		return v
+		return x
 	case string:
-		return v == name
+		return x != ""
+	case float64:
+		return x != 0 && !math.IsNaN(x)
+	case float32:
+		return x != 0 && !math.IsNaN(float64(x))
 	case *regexp.Regexp:
-		return v != nil && v.MatchString(name)
-	case []any:
-		for _, x := range v {
-			switch xv := x.(type) {
-			case string:
-				if xv == name {
-					return true
-				}
-			case *regexp.Regexp:
-				if xv != nil && xv.MatchString(name) {
-					return true
-				}
-			}
-		}
-	case []string:
-		for _, s := range v {
-			if s == name {
-				return true
-			}
-		}
+		return x != nil
 	}
-	return false
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return rv.Int() != 0
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32,
+		reflect.Uint64, reflect.Uintptr:
+		return rv.Uint() != 0
+	case reflect.Float32, reflect.Float64:
+		f := rv.Float()
+		return f != 0 && !math.IsNaN(f)
+	case reflect.Bool:
+		return rv.Bool()
+	case reflect.String:
+		return rv.Len() != 0
+	case reflect.Pointer, reflect.Interface, reflect.Func, reflect.Chan,
+		reflect.UnsafePointer:
+		return !rv.IsNil()
+	}
+	return true
 }
 
 // shouldIgnoreCopyPath decides whether a copy entry is skipped.
@@ -740,7 +746,7 @@ func injectAfter(n *Node, _ *jstate, b *buildCtx) error {
 	if b.fh == nil {
 		return nil
 	}
-	if injectExcluded(n.Name, n.Exclude) {
+	if jsTruthy(n.Exclude) {
 		return nil
 	}
 	var sb strings.Builder

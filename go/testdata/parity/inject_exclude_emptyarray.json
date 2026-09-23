@@ -1,0 +1,13 @@
+{
+  "scenario": "inject_exclude_emptyarray",
+  "opts": {},
+  "prepopulate": {
+    "/out/app/t.txt": "a\n#--START--#\nold\n#--END--#\nz\n"
+  },
+  "error": false,
+  "vol": {
+    "/out/app/t.txt": "a\n#--START--#\nold\n#--END--#\nz\n",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {}\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}

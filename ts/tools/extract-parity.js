@@ -892,6 +892,23 @@ async function main() {
     },
   )
 
+  // Inject exclude is JavaScript truthiness: any truthy value skips the
+  // injection, whatever it names, and a skipped target gets no write, no
+  // baseline and no meta entry.
+  const injectSeed = { '/out/app/t.txt': 'a\n#--START--#\nold\n#--END--#\nz\n' }
+  for (const [name, exclude] of [
+    ['inject_exclude_string', 'other'],
+    ['inject_exclude_emptyarray', []],
+    ['inject_exclude_list', ['other']],
+    ['inject_exclude_object', {}],
+  ]) {
+    await snapshot(name, {}, () => {
+      Project({ folder: 'app' }, () => {
+        Inject({ name: 't.txt', exclude }, () => Content('NEW'))
+      })
+    }, injectSeed)
+  }
+
   console.log('done')
 }
 
