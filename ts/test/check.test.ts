@@ -350,6 +350,23 @@ describe('check', () => {
   })
 
 
+  // A GLOBAL DRYRUN DOES NOT BLANK A CHECK. The check forces dryrun off
+  // for its own run and keeps every other global control key.
+  test('a-global-dryrun-does-not-blank-a-check', async () => {
+    const { fs } = memfs({ '/app/a.txt': 'STALE\n' })
+    const res = await Jostraca({ control: { dryrun: true } }).check(
+      { folder: '/app', fs: () => fs },
+      () => {
+        File({ name: 'a.txt' }, () => Content('A\n'))
+        File({ name: 'b.txt' }, () => Content('B\n'))
+      })
+
+    Assert.deepEqual(res.checked, ['a.txt', 'b.txt'])
+    Assert.deepEqual(shape(res).map((d: any) => d.path + ':' + d.kind),
+      ['a.txt:content', 'b.txt:missing'])
+  })
+
+
   // A CHECK WRITES NOTHING, ANYWHERE -- including the run that reports
   // drift, and including the meta folder a generate would leave. A
   // command that only asks a question must not be able to answer it by

@@ -462,6 +462,50 @@ func TestCheckAbsoluteProjectFolderOutsideRoot(t *testing.T) {
 	}
 }
 
+// memBase builds an in-memory committed tree.
+func memBase(t *testing.T, committed map[string][]byte) *MemFS {
+	t.Helper()
+	base := NewMemFS()
+	for p, data := range committed {
+		if err := base.MkdirAll(filepath.ToSlash(filepath.Dir(p))); err != nil {
+			t.Fatal(err)
+		}
+		if err := base.WriteFile(p, data); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return base
+}
+
+// driftKinds flattens drift to "path:kind" for a one-line assertion.
+func driftKinds(res CheckResult) string {
+	out := []string{}
+	for _, d := range res.Drift {
+		out = append(out, d.Path+":"+string(d.Kind))
+	}
+	return strings.Join(out, ",")
+}
+
+// A GLOBAL DRYRUN DOES NOT BLANK A CHECK. The check forces Dryrun off
+// for its own run, after the merge, and keeps every other global flag.
+func TestCheckIgnoresGlobalDryrun(t *testing.T) {
+	base := memBase(t, map[string][]byte{"/app/a.txt": []byte("STALE\n")})
+	res, err := New(WithControl(Control{Dryrun: true})).
+		Check(Options{Folder: "/app", FS: base}, func(j *J) {
+			j.File("a.txt", func(j *J) { j.Content("A\n") })
+			j.File("b.txt", func(j *J) { j.Content("B\n") })
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(res.Checked, ",") != "a.txt,b.txt" {
+		t.Fatalf("checked: %v", res.Checked)
+	}
+	if got := driftKinds(res); got != "a.txt:content,b.txt:missing" {
+		t.Fatalf("drift: %s", got)
+	}
+}
+
 // treeRoot decodes a component tree and returns its define-phase
 // callback, failing the test rather than returning an error.
 func treeRoot(t *testing.T, src string, opts ...CmpTreeOptions) func(*J) {

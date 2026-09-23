@@ -151,6 +151,28 @@ describe('control', () => {
         .equal(ALL.filter((p) => !p.endsWith('.gitignore')))
     })
 
+    // Control merges PER KEY: a per-call control that sets one key leaves
+    // every other global key in force.
+    test('global-dryrun-survives-per-call-version', async () => {
+      expect(await gen({ control: { dryrun: true } }, { control: { version: true } }))
+        .equal([])
+    })
+
+    test('global-dryrun-survives-per-call-duplicate-false', async () => {
+      expect(await gen({ control: { dryrun: true } }, { control: { duplicate: false } }))
+        .equal([])
+    })
+
+    test('global-version-survives-per-call-duplicate-false', async () => {
+      expect(await gen({ control: { version: true } }, { control: { duplicate: false } }))
+        .equal(['/out/.jostraca/jostraca.meta.log', '/out/a.txt'])
+    })
+
+    test('global-duplicate-false-survives-per-call-version', async () => {
+      expect(await gen({ control: { duplicate: false } }, { control: { version: true } }))
+        .equal(['/out/.jostraca/jostraca.meta.log', '/out/a.txt'])
+    })
+
   })
 
 })

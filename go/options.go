@@ -337,9 +337,9 @@ func decodeName(v any) (NameOptions, error) {
 }
 
 // mergeOptions applies the per-call options on top of the global ones.
-// Right-precedence per-field; matches the TS deep-merge surface for the
-// fields used today. Maps are not deep-merged in Phase 1; revisit when
-// the Deep utility lands in Phase 4.
+// A per-call field that is supplied (non-nil, non-empty) replaces the
+// global one. Control and Existing are merged per field, as TS deep-merges
+// them; Vol merges per key. Meta and Model are replaced whole.
 func mergeOptions(global, call Options) Options {
 	out := global
 	if call.Folder != "" {
@@ -388,8 +388,14 @@ func mergeOptions(global, call Options) Options {
 	if call.Existing != (Existing{}) {
 		out.Existing = call.Existing
 	}
-	if call.Control != (Control{}) {
-		out.Control = call.Control
+	// Control merges PER FIELD, as TS's `deep({}, CONTROL_DEFAULTS,
+	// gOpts.control, opts.control)` does: a per-call Control that sets one
+	// flag leaves every other global flag in force. A bool cannot say
+	// "unset", so a per-call false cannot clear a global true.
+	out.Control = Control{
+		Dryrun:      global.Control.Dryrun || call.Control.Dryrun,
+		NoDuplicate: global.Control.NoDuplicate || call.Control.NoDuplicate,
+		Version:     global.Control.Version || call.Control.Version,
 	}
 	if call.Exclude {
 		out.Exclude = true

@@ -9,13 +9,15 @@ import (
 // Global `control` precedence. The TS side had a defect here: OptionsShape
 // declared dryrun/duplicate/version as literal defaults, so shape injected them
 // into every per-call options object and the merge let the injected default
-// beat a global setting -- a global `dryrun: true` wrote the user's files. Go
-// was correct throughout, because mergeOptions only overrides Control when the
-// caller supplied a non-zero one.
+// beat a global setting -- a global `dryrun: true` wrote the user's files.
 //
-// These tests pin the Go side of that agreement so a future change to
-// mergeOptions cannot drift back. Mirrors the `global-control-precedence`
-// block in ts/test/control.test.ts. See docs/design/PARITY_PLAN.md 1.1.
+// Control merges PER FIELD, defaults < global < per-call, as TS's deep merge
+// does. A per-call Control that sets one flag leaves every other global flag
+// in force; Go used to replace the whole global Control with any non-zero
+// per-call one, which turned a global dryrun into a write.
+//
+// Mirrors the `global-control-precedence` block in ts/test/control.test.ts.
+// See docs/design/PARITY_PLAN.md 1.1.
 
 func controlVolKeys(m *MemFS) []string {
 	out := []string{}
@@ -97,10 +99,11 @@ func TestGlobalVersionSkipsGitignore(t *testing.T) {
 // KNOWN DEVIATION, pinned deliberately rather than fixed.
 //
 // TS can express "the global says dryrun, but re-enable writing for THIS call"
-// because `{dryrun: false}` is distinguishable from `{}`. Go cannot: Control is
-// a value struct, so a per-call Control{Dryrun: false} IS the zero value, and
-// mergeOptions (options.go, `if call.Control != (Control{})`) treats it as
-// "not supplied" and keeps the global.
+// because `{dryrun: false}` is distinguishable from `{}`. Go cannot: Control's
+// fields are plain bools, so a per-call false is indistinguishable from "not
+// supplied", and mergeOptions keeps the global true. The same holds for each
+// flag: a per-call Version false or NoDuplicate false cannot clear a global
+// true either.
 //
 // Closing this would mean pointer fields on Control, a breaking change to the
 // public API, for a narrow case: globally disabling writes and then re-enabling
@@ -115,17 +118,40 @@ func TestPerCallCannotClearGlobalDryrun(t *testing.T) {
 		"a per-call zero-value Control cannot clear a global dryrun in Go")
 }
 
-// A per-call Control that is NOT the zero value does override the global, so
-// the merge is only blind to the all-false case.
-func TestPerCallNonZeroControlOverridesGlobal(t *testing.T) {
+// A per-call Control never discards an unrelated global flag. Each case is
+// one the old wholesale replacement got wrong.
+func TestGlobalDryrunSurvivesPerCallVersion(t *testing.T) {
 	got := controlGen(t,
 		[]Option{WithControl(Control{Dryrun: true})},
 		Options{Control: Control{Version: true}})
+	controlWant(t, got, []string{},
+		"a global dryrun must survive a per-call version")
+}
 
-	want := []string{
-		"/out/.jostraca/generated/a.txt",
+func TestGlobalDryrunSurvivesPerCallNoDuplicate(t *testing.T) {
+	got := controlGen(t,
+		[]Option{WithControl(Control{Dryrun: true})},
+		Options{Control: Control{NoDuplicate: true}})
+	controlWant(t, got, []string{},
+		"a global dryrun must survive a per-call duplicate:false")
+}
+
+func TestGlobalVersionSurvivesPerCallNoDuplicate(t *testing.T) {
+	got := controlGen(t,
+		[]Option{WithControl(Control{Version: true})},
+		Options{Control: Control{NoDuplicate: true}})
+	controlWant(t, got, []string{
 		"/out/.jostraca/jostraca.meta.log",
 		"/out/a.txt",
-	}
-	controlWant(t, got, want, "a non-zero per-call Control must replace the global")
+	}, "a global version must survive a per-call duplicate:false")
+}
+
+func TestGlobalNoDuplicateSurvivesPerCallVersion(t *testing.T) {
+	got := controlGen(t,
+		[]Option{WithControl(Control{NoDuplicate: true})},
+		Options{Control: Control{Version: true}})
+	controlWant(t, got, []string{
+		"/out/.jostraca/jostraca.meta.log",
+		"/out/a.txt",
+	}, "a global duplicate:false must survive a per-call version")
 }

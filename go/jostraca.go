@@ -121,10 +121,22 @@ type AuditEntry struct {
 // build a node tree, then walks the tree in the build phase. The build
 // phase is a no-op until Phase 5/6 lands the ops.
 func (j *J) Generate(opts Options, root func(*J)) (Result, error) {
+	return j.generate(opts, root, nil)
+}
+
+// generate is Generate with a hook applied to the MERGED options, for a
+// caller that must force a field whatever the global options say. Check
+// uses it: a zero-value per-call field cannot override a global one.
+func (j *J) generate(
+	opts Options, root func(*J), force func(*Options),
+) (Result, error) {
 	if root == nil {
 		return Result{}, ErrNilRoot
 	}
 	merged := mergeOptions(j.st.opts, opts)
+	if force != nil {
+		force(&merged)
+	}
 
 	// A GLOBAL in-memory filesystem is reused across Generate calls, so a
 	// second run sees what the first wrote -- unless this call supplies its
