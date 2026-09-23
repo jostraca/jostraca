@@ -992,6 +992,17 @@ async function main() {
     '/out/x/b.txt': 'OLD',
   })
 
+  // A backslash in an output-path component is a separator: the folded
+  // path is the directory, the target, the baseline and the meta key.
+  await snapshot('backslash_names', {}, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'a\\b.txt' }, () => Content('B'))
+      Folder({ name: 'x\\y' }, () => File({ name: 'a.txt' }, () => Content('A')))
+      Inject({ name: 'a\\t.txt' }, () => Content('NEW'))
+    })
+    Project({ folder: 'p\\q' }, () => File({ name: 'c.txt' }, () => Content('C')))
+  }, { '/out/app/a/t.txt': '<\n#--START--#\nold\n#--END--#\n>' })
+
   console.log('done')
 }
 

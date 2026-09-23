@@ -475,6 +475,19 @@ var scenarioRunners = map[string]func(j *J){
 				func(j *J) { j.Content("NEW") })
 		})
 	},
+	// A backslash in an output-path component is a separator.
+	"backslash_names": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("a\\b.txt", func(j *J) { j.Content("B") })
+			j.Folder("x\\y", func(j *J) {
+				j.File("a.txt", func(j *J) { j.Content("A") })
+			})
+			j.Inject("a\\t.txt", func(j *J) { j.Content("NEW") })
+		})
+		j.Project(ProjectProps{Folder: "p\\q"}, func(j *J) {
+			j.File("c.txt", func(j *J) { j.Content("C") })
+		})
+	},
 	"inject_no_markers": func(j *J) {
 		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
 			j.Inject("foo.txt", func(j *J) { j.Content("NEW") })

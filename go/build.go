@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"path"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"runtime"
@@ -174,7 +175,9 @@ func resolveFragmentFrom(st *jstate, from string) string {
 	if folder == "" {
 		folder = "."
 	}
-	return path.Clean(fwd(folder + "/" + from))
+	// A source keeps its platform meaning: TS joins it with Path.join and
+	// folds nothing on POSIX.
+	return path.Clean(filepath.ToSlash(folder + "/" + from))
 }
 
 // isAbsPath reports whether p is an absolute canonical-/ path.
@@ -500,7 +503,7 @@ func copyBefore(n *Node, st *jstate, b *buildCtx) error {
 		dest = dest + "/" + dir
 	}
 	dest = dest + "/" + name
-	dest = fwd(dest)
+	dest = canonOutPath(dest)
 
 	body, err := b.fh.fs.ReadFile(from)
 	if err != nil {
@@ -776,7 +779,7 @@ func injectBefore(n *Node, _ *jstate, b *buildCtx) error {
 	} else {
 		n.FullPath = parent + "/" + n.Name
 	}
-	n.FullPath = fwd(n.FullPath)
+	n.FullPath = canonOutPath(n.FullPath)
 	b.current.file = n
 	return nil
 }

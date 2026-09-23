@@ -404,4 +404,79 @@ describe('filehandler', () => {
     }
   })
 
+
+  // A backslash in an output-path component is a separator on every
+  // platform: the folded path is used for the directory, the read, the
+  // write, the baseline, the meta key and the files lists, and no literal
+  // backslash directory is left behind.
+  test('backslash-in-output-names', async () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'jostraca-bs-'))
+    try {
+      const out = Path.join(dir, 'out').replace(/\\/g, '/')
+      Fs.mkdirSync(Path.join(dir, 'out', 'a'), { recursive: true })
+      Fs.writeFileSync(Path.join(dir, 'out', 'a', 't.txt'), '<\n#--START--#\nold\n#--END--#\n>')
+
+      const res = await Jostraca({ now: () => NOW, log: quiet })
+        .generate({ folder: out }, () => {
+          Project({}, () => {
+            File({ name: 'a\\b.txt' }, () => Content('B'))
+            Folder({ name: 'x\\y' }, () => File({ name: 'a.txt' }, () => Content('A')))
+            Inject({ name: 'a\\t.txt' }, () => Content('NEW'))
+          })
+          Project({ folder: 'p\\q' }, () => File({ name: 'c.txt' }, () => Content('C')))
+        })
+
+      const got: string[] = []
+      const walk = (d: string) => {
+        for (const e of Fs.readdirSync(d, { withFileTypes: true })) {
+          const p = Path.join(d, e.name)
+          const rel = Path.relative(dir, p).replace(/\\/g, '/')
+          got.push(rel + (e.isDirectory() ? '/' : ''))
+          if (e.isDirectory()) walk(p)
+        }
+      }
+      walk(dir)
+      got.sort()
+      expect(got).equal([
+        'out/',
+        'out/.jostraca/',
+        'out/.jostraca/.gitignore',
+        'out/.jostraca/generated/',
+        'out/.jostraca/generated/a/',
+        'out/.jostraca/generated/a/b.txt',
+        'out/.jostraca/generated/a/t.txt',
+        'out/.jostraca/generated/p/',
+        'out/.jostraca/generated/p/q/',
+        'out/.jostraca/generated/p/q/c.txt',
+        'out/.jostraca/generated/x/',
+        'out/.jostraca/generated/x/y/',
+        'out/.jostraca/generated/x/y/a.txt',
+        'out/.jostraca/jostraca.meta.log',
+        'out/a/',
+        'out/a/b.txt',
+        'out/a/t.txt',
+        'out/p/',
+        'out/p/q/',
+        'out/p/q/c.txt',
+        'out/x/',
+        'out/x/y/',
+        'out/x/y/a.txt',
+      ])
+
+      expect(Fs.readFileSync(Path.join(dir, 'out', 'a', 't.txt'), 'utf8'))
+        .equal('<\n#--START--#\nNEW\n#--END--#\n>')
+
+      const meta = JSON.parse(Fs.readFileSync(out + '/.jostraca/jostraca.meta.log', 'utf8'))
+      expect(Object.keys(meta.files).sort())
+        .equal(['a/b.txt', 'a/t.txt', 'p/q/c.txt', 'x/y/a.txt'])
+      expect(meta.files['a/t.txt'].exists).equal(true)
+      for (const w of ['/a/b.txt', '/x/y/a.txt', '/a/t.txt', '/p/q/c.txt']) {
+        expect({ w, has: res.files.written.includes(out + w) }).equal({ w, has: true })
+      }
+    }
+    finally {
+      Fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
 })

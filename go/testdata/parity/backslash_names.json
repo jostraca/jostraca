@@ -1,0 +1,20 @@
+{
+  "scenario": "backslash_names",
+  "opts": {},
+  "prepopulate": {
+    "/out/app/a/t.txt": "<\n#--START--#\nold\n#--END--#\n>"
+  },
+  "error": false,
+  "vol": {
+    "/out/app/a/t.txt": "<\n#--START--#\nNEW\n#--END--#\n>",
+    "/out/app/a/b.txt": "B",
+    "/out/app/x/y/a.txt": "A",
+    "/out/.jostraca/generated/app/a/b.txt": "B",
+    "/out/.jostraca/generated/app/a/t.txt": "<\n#--START--#\nNEW\n#--END--#\n>",
+    "/out/.jostraca/generated/app/x/y/a.txt": "A",
+    "/out/.jostraca/generated/p/q/c.txt": "C",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/a/b.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/a/b.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/x/y/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/x/y/a.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/a/t.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/a/t.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"p/q/c.txt\": {\n      \"action\": \"write\",\n      \"path\": \"p/q/c.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n",
+    "/out/p/q/c.txt": "C"
+  }
+}

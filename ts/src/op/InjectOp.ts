@@ -7,7 +7,7 @@ import { escre } from '../jostraca'
 
 import { getdlog } from '../util/basic'
 
-import { validName } from '../build/FileHandler'
+import { canonPath, validName } from '../build/FileHandler'
 
 const ON = 'InjectOp:'
 
@@ -31,7 +31,9 @@ const InjectOp = {
 
     validName(node.name, 'Inject', ON + 'before:')
 
-    cfile.fullpath = buildctx.folderPath() + '/' + node.name
+    // Canonical, as FileOp's is: the target is read and written at one
+    // path, never the raw one read and the folded one written.
+    cfile.fullpath = canonPath(buildctx.folderPath() + '/' + node.name)
     cfile.content = []
   },
 

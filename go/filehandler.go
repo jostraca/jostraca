@@ -118,10 +118,18 @@ func newFileHandler(b *buildCtx) *fileHandler {
 	return fh
 }
 
-// fwd normalises a path to canonical-/ form. (`filepath.ToSlash` only
-// affects Windows; safe to apply unconditionally.)
+// fwd normalises an OUTPUT path to canonical-/ form. A backslash is a
+// separator on every platform, as TS's fwd folds it unconditionally;
+// filepath.ToSlash does nothing off Windows. Source paths (Fragment and
+// Copy `from`) keep their platform meaning and do not come through here.
 func fwd(p string) string {
-	return filepath.ToSlash(p)
+	return strings.ReplaceAll(p, "\\", "/")
+}
+
+// canonOutPath is the one canonical form of an output path, TS's canonPath:
+// separators folded, `.` and `..` resolved.
+func canonOutPath(p string) string {
+	return path.Clean(fwd(p))
 }
 
 // save writes content under the configured existing-file mode.
@@ -161,7 +169,7 @@ func (fh *fileHandler) saveClassified(
 	if p == "" {
 		return ErrInvalidPath
 	}
-	p = fwd(p)
+	p = canonOutPath(p)
 	rpath := fh.relative(p)
 	modes := fh.modesFor(isText)
 
