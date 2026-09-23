@@ -139,13 +139,15 @@ func applyOptions(opts []Option) Options {
 // shape, so an unknown key at any depth or a mistyped value is refused
 // with TS's own message text: `control.dryrun: "yes"` is an error, not a
 // silent write. A `vol` value is a file (string or []byte) or an empty
-// directory (nil), the memfs seed convention.
+// directory (nil), the memfs seed convention. A `cmp.Copy.ignore` string
+// is a regular expression source. `fs`, `now` and `log` hold an FS, a
+// func() int64 and a Log; a nil `now` or `log` is not supplied.
 func OptionsFromMap(m map[string]any) (Options, error) {
 	if m == nil {
 		return Options{}, nil
 	}
 	m = volAsAny(m)
-	if _, err := optionsSchema.Validate(m); err != nil {
+	if _, err := optionsSchema.Validate(hostAsFunction(m)); err != nil {
 		return Options{}, fmt.Errorf("Jostraca Options: %w", err)
 	}
 	if ex, ok := m["existing"].(map[string]any); ok {
@@ -257,10 +259,12 @@ var optionsSchema = shape.MustShape(map[string]any{
 				`String, RegExp, ["One(String,)"]`,
 			shape.Check(isNameExclude))),
 	},
-	"meta":     map[string]any{},
-	"fs":       shape.Skip(shape.Any),
-	"now":      shape.Skip(shape.Any),
-	"log":      shape.Skip(shape.Any),
+	"meta": map[string]any{},
+	"fs":   shape.Skip(shape.Function),
+	"now":  shape.Skip(shape.Nullable(shape.Function)),
+	"log": shape.Skip(shape.Fault(
+		`Value "$VALUE" for property "$PATH" is not a logger with a debug function`,
+		shape.Check(isLogOption))),
 	"debug":    shape.Skip(shape.String),
 	"exclude":  shape.Skip(shape.Boolean),
 	"existing": map[string]any{"txt": map[string]any{}, "bin": map[string]any{}},
@@ -271,7 +275,9 @@ var optionsSchema = shape.MustShape(map[string]any{
 		`Value "$VALUE" for property "$PATH" does not satisfy one of: String, Buffer, null`,
 		shape.Check(isVolSeed)), map[string]any{})),
 	"cmp": map[string]any{
-		"Copy": map[string]any{"ignore": []any{}},
+		"Copy": map[string]any{"ignore": []any{shape.Fault(
+			`Value "$VALUE" for property "$PATH" does not satisfy one of: String, RegExp`,
+			shape.Check(isIgnoreEntry))}},
 	},
 	"control": map[string]any{
 		"dryrun":    shape.Skip(shape.Boolean),
@@ -296,6 +302,39 @@ var existingSchema = shape.MustShape(map[string]any{
 		"present":  false,
 	},
 })
+
+// hostAsFunction stands a function in for an FS, which is what TS's `fs`
+// holds, so the schema's Function check passes a provider and words its
+// refusal of anything else as TS does. The map itself is not changed.
+func hostAsFunction(m map[string]any) map[string]any {
+	if _, ok := m["fs"].(FS); !ok {
+		return m
+	}
+	out := make(map[string]any, len(m))
+	for k, v := range m {
+		out[k] = v
+	}
+	out["fs"] = func() {}
+	return out
+}
+
+func isLogOption(v any, _ *shape.Update, _ *shape.State) bool {
+	if v == nil {
+		return true
+	}
+	_, ok := v.(Log)
+	return ok
+}
+
+func isIgnoreEntry(v any, _ *shape.Update, _ *shape.State) bool {
+	switch x := v.(type) {
+	case string:
+		return x != ""
+	case *regexp.Regexp:
+		return true
+	}
+	return false
+}
 
 func isVolSeed(v any, _ *shape.Update, _ *shape.State) bool {
 	switch v.(type) {

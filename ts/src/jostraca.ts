@@ -8,7 +8,7 @@ import * as Fs from 'node:fs'
 
 import { AsyncLocalStorage } from 'node:async_hooks'
 
-import { Shape, Skip, One, Child, Empty } from 'shape'
+import { Shape, Skip, One, Child, Empty, Nullable, Fault, Check } from 'shape'
 
 import { memfs as MemFs } from './util/memfs'
 
@@ -128,6 +128,14 @@ const DEFAULT_LOGGER = {
 const dlog = getdlog('jostraca', __filename)
 
 
+// A `log` is replayed warnings through `debug`, so one without it failed
+// only after a build that had already written its files.
+const isLogger = (v: any) => null === v ||
+  (('object' === typeof v || 'function' === typeof v) && 'function' === typeof v.debug)
+
+const LOG_FAULT = 'Value "$VALUE" for property "$PATH" is not a logger with a debug function'
+
+
 const OptionsShape = Shape({
   folder: Skip(String), // Base output folder for generated files. Default: `.`.
 
@@ -148,9 +156,9 @@ const OptionsShape = Shape({
   meta: {} as any, // Provide meta data to the generation process. Default: `{}`
 
   fs: Skip(Function) as any, // File system API. Default: `node:fs`.
-  now: undefined as any, // Provide current time.
+  now: Skip(Nullable(Function)) as any, // Provide current time.
 
-  log: Skip() as any, // Logging interface.
+  log: Skip(Fault(LOG_FAULT, Check(isLogger))) as any, // Logging interface.
   debug: Skip('info'), // Generate additional debugging information.
 
   // Skip, like `control` below: a literal default would be injected into
@@ -170,10 +178,12 @@ const OptionsShape = Shape({
   // "[object Object]".
   vol: Skip(Child(One(Empty(String), Buffer, null), {})),
 
-  // Component specific options.
+  // Component specific options. A string `ignore` entry is a regular
+  // expression source, the one form JSON configuration can carry; any
+  // other entry failed only when a Copy walk reached it.
   cmp: {
     Copy: {
-      ignore: [] as any[]
+      ignore: [One(String, RegExp)] as any[]
     }
   },
 
@@ -215,6 +225,21 @@ const ExistingShape = Shape({
 
 }, { name: 'Jostraca Options (`existing` property)' })
 
+
+
+// A string `cmp.Copy.ignore` entry is a regular expression source. The
+// engine's own message follows the prefix, as it does in Go.
+function ignoreRegExp(re: string | RegExp): RegExp {
+  if ('string' !== typeof re) {
+    return re
+  }
+  try {
+    return new RegExp(re)
+  }
+  catch (err: any) {
+    throw new Error('Jostraca Options: property "cmp.Copy.ignore": ' + err.message)
+  }
+}
 
 
 // Copy an options object so shape's injection cannot reach the caller's own
@@ -385,6 +410,7 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
         ignore: [/~$/]
       }
     }, gOpts?.cmp, opts.cmp)
+    opts.cmp.Copy.ignore = opts.cmp.Copy.ignore.map(ignoreRegExp)
 
     // Synthetic top-level node so the user's first component has a parent
     // to append to, and so bare top-level SIBLINGS are children of a common

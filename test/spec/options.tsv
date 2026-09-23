@@ -30,3 +30,13 @@ options-cmp-unknown	options	[{"cmp":{"bogus":1}}]	-	Jostraca Options: Validation
 options-cmp-copy-ignore-string	options	[{"cmp":{"Copy":{"ignore":"x"}}}]	-	Jostraca Options: Validation failed for property "cmp.Copy.ignore" with string "x" because the string is not of type array.
 options-vol-number	options	[{"vol":{"a":5}}]	-	Jostraca Options: Value "5" for property "vol.a" does not satisfy one of: String, Buffer, null
 options-vol-object	options	[{"vol":{"a":{"b":1}}}]	-	Jostraca Options: Value "{b:1}" for property "vol.a" does not satisfy one of: String, Buffer, null
+options-cmp-copy-ignore-number	options	[{"cmp":{"Copy":{"ignore":[1]}}}]	-	Jostraca Options: Value "1" for property "cmp.Copy.ignore.0" does not satisfy one of: String, RegExp
+options-cmp-copy-ignore-empty-string	options	[{"cmp":{"Copy":{"ignore":[""]}}}]	-	Jostraca Options: Value "" for property "cmp.Copy.ignore.0" does not satisfy one of: String, RegExp
+options-cmp-copy-ignore-null	options	[{"cmp":{"Copy":{"ignore":[null]}}}]	-	Jostraca Options: Value "null" for property "cmp.Copy.ignore.0" does not satisfy one of: String, RegExp
+options-fs-number	options	[{"fs":5}]	-	Jostraca Options: Validation failed for property "fs" with number "5" because the number is not of type function.
+options-fs-null	options	[{"fs":null}]	-	Jostraca Options: Validation failed for property "fs" with value "null" because the value is not of type function.
+options-now-number	options	[{"now":5}]	-	Jostraca Options: Validation failed for property "now" with number "5" because the number is not of type function.
+options-now-null-is-unset	options	[{"now":null}]	"ok"	
+options-log-number	options	[{"log":5}]	-	Jostraca Options: Value "5" for property "log" is not a logger with a debug function
+options-log-object	options	[{"log":{}}]	-	Jostraca Options: Value "{}" for property "log" is not a logger with a debug function
+options-log-null-is-unset	options	[{"log":null}]	"ok"	

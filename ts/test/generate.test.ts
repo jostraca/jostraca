@@ -340,6 +340,42 @@ describe('generate', () => {
 
 
 
+  // Option values the map form can carry. The refusals of a value JSON can
+  // hold are corpus rows (test/spec/options.tsv); these hold what a row
+  // cannot. Go twins in go/options_map_values_test.go.
+  describe('option-values', () => {
+
+    // A string `cmp.Copy.ignore` entry is a regular expression source. It
+    // used to pass validation and fail with a TypeError once a Copy walk
+    // reached it, after the files before it were written.
+    test('a-string-ignore-entry-is-a-regexp-source', async () => {
+      const res: any = await Jostraca({
+        mem: true, folder: '/out', now: () => START_TIME,
+        vol: { '/src/keep.txt': 'K', '/src/skip.log': 'S' },
+        cmp: { Copy: { ignore: ['\\.log$'] } },
+      }).generate({}, () => Project({}, () => CopyFiles({ from: '/src' })))
+      const vol = res.vol().toJSON()
+      Assert.equal(vol['/out/keep.txt'], 'K')
+      Assert.equal(vol['/out/skip.log'], undefined)
+
+      await Assert.rejects(Jostraca({ mem: true, cmp: { Copy: { ignore: ['['] } } })
+        .generate({}, () => { }),
+        (err: any) => err.message.startsWith('Jostraca Options: property "cmp.Copy.ignore": '))
+    })
+
+    // A logger is called through `debug`, so one without it was refused
+    // only by the TypeError of the first warning it was sent.
+    test('a-logger-needs-a-debug-function', () => {
+      Assert.throws(() => Jostraca({ log: { info: () => { } } as any }),
+        { message: 'Jostraca Options: Value "{info:info}" for property "log" ' +
+          'is not a logger with a debug function' })
+      Jostraca({ log: { debug: () => { } } as any })
+    })
+
+  })
+
+
+
   // An empty folder is refused, global or per call, and nothing is
   // written. Go's typed Options cannot tell "" from unset and falls back
   // instead (TestEmptyFolderMeansUnset); its map form refuses it as here.
