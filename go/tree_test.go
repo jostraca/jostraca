@@ -401,7 +401,9 @@ func TestCmpTreeRawIsSafeOnEveryComponent(t *testing.T) {
 		t.Fatalf("a component joined the registry: give it a node below: %v", names)
 	}
 
-	// One node per component, each in a place its op accepts.
+	// One node per component, each in a place its op accepts. The Inject
+	// is a sibling of the Project, so it edits a file at the output root:
+	// a Project's folder does not outlive its subtree (#26).
 	const src = `[
 	  {"cmp":"Project","props":{"folder":"sdk"},"children":[
 	    {"cmp":"Folder","props":{"name":"f"},"children":[
@@ -430,9 +432,9 @@ func TestCmpTreeRawIsSafeOnEveryComponent(t *testing.T) {
 	}
 
 	seed := map[string][]byte{
-		"/frag.txt":           []byte("HEADER\n<[SLOT]>\nFOOTER\n"),
-		"/src/copied.txt":     []byte("COPIED\n"),
-		"/top/sdk/inject.txt": []byte("A\n#--START--#\n\n#--END--#\nB\n"),
+		"/frag.txt":       []byte("HEADER\n<[SLOT]>\nFOOTER\n"),
+		"/src/copied.txt": []byte("COPIED\n"),
+		"/top/inject.txt": []byte("A\n#--START--#\n\n#--END--#\nB\n"),
 	}
 	res, err := New(WithMem(), WithVol(seed), WithFolder("/top"),
 		WithNow(func() int64 { return 1 })).Generate(Options{}, root)
@@ -445,7 +447,7 @@ func TestCmpTreeRawIsSafeOnEveryComponent(t *testing.T) {
 	if got := string(vol["/top/sdk/f/x.txt"]); got != "cl\nHEADER\n\nFOOTER\ni\nCOPIED\n" {
 		t.Fatalf("x.txt: %q", got)
 	}
-	if got := string(vol["/top/sdk/inject.txt"]); got != "A\n#--START--#\nINJECTED\n\n#--END--#\nB\n" {
+	if got := string(vol["/top/inject.txt"]); got != "A\n#--START--#\nINJECTED\n\n#--END--#\nB\n" {
 		t.Fatalf("inject.txt: %q", got)
 	}
 }

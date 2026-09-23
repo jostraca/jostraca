@@ -295,7 +295,7 @@ describe('tree', () => {
     const seed = {
       [from]: 'HEADER\n<[SLOT]>\nFOOTER\n',
       '/src/copied.txt': 'COPIED\n',
-      '/top/sdk/inject.txt': 'A\n#--START--#\n\n#--END--#\nB\n',
+      '/top/inject.txt': 'A\n#--START--#\n\n#--END--#\nB\n',
     }
 
     // One node per component, each in a place its op accepts.
@@ -322,6 +322,8 @@ describe('tree', () => {
           }],
         }],
       },
+      // A sibling of the Project, so it edits a file at the output root:
+      // a Project's folder does not outlive its subtree (#26).
       {
         cmp: 'Inject', props: { name: 'inject.txt' },
         children: [{ cmp: 'Content', props: { src: 'INJECTED\n' } }],
@@ -342,7 +344,7 @@ describe('tree', () => {
     // The run completed, and `raw` reached the two that render text.
     Assert.equal(vol['/top/sdk/f/x.txt'],
       'cl\nHEADER\n\nFOOTER\ni\nCOPIED\n')
-    Assert.equal(vol['/top/sdk/inject.txt'],
+    Assert.equal(vol['/top/inject.txt'],
       'A\n#--START--#\nINJECTED\n\n#--END--#\nB\n')
   })
 

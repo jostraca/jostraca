@@ -2065,4 +2065,66 @@ describe('components', () => {
       .equal('[1][2] and bar\n World\nM=World\n and <w> World\n')
   })
 
+
+  // A Project's folder applies only to its own subtree. When it closes the
+  // enclosing folder state comes back, so a later sibling lands where it
+  // would have without the Project, and nothing is written outside the
+  // output folder. Go: go/project_scope_test.go.
+  const genIn = async (folder: string, def: any) => {
+    const { fs, vol } = memfs({})
+    const info = await Jostraca({ now: () => START_TIME })
+      .generate({ fs: () => fs, folder }, cmp(def))
+    const files = Object.keys(vol.toJSON() as any)
+      .filter((k: string) => !k.includes('/' + META_FOLDER + '/')).sort()
+    return { files, written: info.files.written.slice().sort() }
+  }
+
+  test('project-nested-in-folder', async () => {
+    const { files } = await genIn('/out', () => Project({ folder: '.' }, () => {
+      Folder({ name: 'a' }, () => {
+        Project({ folder: 'p2' }, () => File({ name: 'x.txt' }, () => Content('x')))
+      })
+      File({ name: 'y.txt' }, () => Content('y'))
+    }))
+    expect(files).equal(['/out/a', '/out/p2/x.txt', '/out/y.txt'])
+  })
+
+  test('project-nested-two-folders', async () => {
+    const { files } = await genIn('/w/out', () => Project({ folder: '.' }, () => {
+      Folder({ name: 'a' }, () => {
+        Folder({ name: 'b' }, () => {
+          Project({ folder: 'p2' }, () => File({ name: 'x.txt' }, () => Content('x')))
+        })
+        File({ name: 'z.txt' }, () => Content('z'))
+      })
+      File({ name: 'y.txt' }, () => Content('y'))
+    }))
+    expect(files).equal(
+      ['/w/out/a/b', '/w/out/a/z.txt', '/w/out/p2/x.txt', '/w/out/y.txt'])
+  })
+
+  // #26: a File after a sibling Project lands in the enclosing folder, not
+  // in the Project's.
+  test('project-then-sibling-file', async () => {
+    const nested = await genIn('/out', () => Project({ folder: '.' }, () => {
+      Project({ folder: 'p' }, () => File({ name: 'a.txt' }, () => Content('a')))
+      File({ name: 'y.txt' }, () => Content('y'))
+    }))
+    expect(nested.files).equal(['/out/p/a.txt', '/out/y.txt'])
+
+    const top = await genIn('/out', () => {
+      Project({ folder: 'p' }, () => File({ name: 'a.txt' }, () => Content('a')))
+      File({ name: 'y.txt' }, () => Content('y'))
+    })
+    expect(top.files).equal(['/out/p/a.txt', '/out/y.txt'])
+  })
+
+  test('two-sibling-projects', async () => {
+    const { files } = await genIn('/out', () => {
+      Project({ folder: 'a' }, () => File({ name: 'x.txt' }, () => Content('x')))
+      Project({ folder: 'b' }, () => File({ name: 'y.txt' }, () => Content('y')))
+    })
+    expect(files).equal(['/out/a/x.txt', '/out/b/y.txt'])
+  })
+
 })

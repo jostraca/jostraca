@@ -19,7 +19,7 @@ type op struct {
 
 var ops = [kindCount]op{
 	KindNone:     {},
-	KindProject:  {before: projectBefore},
+	KindProject:  {before: projectBefore, after: projectAfter},
 	KindFolder:   {before: folderBefore, after: folderAfter},
 	KindFile:     {before: fileBefore, after: fileAfter},
 	KindContent:  {before: contentBefore},
@@ -78,6 +78,15 @@ func runBuild(st *jstate) (*buildCtx, error) {
 // --- Op implementations (Phase 5 stubs unless noted). ---
 
 func projectBefore(n *Node, st *jstate, b *buildCtx) error {
+	// A Project's folder applies to its own subtree only: projectAfter puts
+	// the enclosing state back, so a later sibling, or the Folder around a
+	// nested Project, sees the path it had before. The path is copied
+	// because folderBefore appends to it.
+	prev := b.current.folder
+	prev.path = append([]string(nil), prev.path...)
+	n.Meta["projectPrevFolder"] = prev
+	n.Meta["projectPrevProject"] = b.current.project
+
 	b.current.project = n
 	folder := st.folder
 	if folder == "" {
@@ -107,6 +116,15 @@ func projectBefore(n *Node, st *jstate, b *buildCtx) error {
 	if b.fh != nil {
 		_ = b.fh.ensureFolder(parent)
 	}
+	return nil
+}
+
+func projectAfter(n *Node, _ *jstate, b *buildCtx) error {
+	if prev, ok := n.Meta["projectPrevFolder"].(folderRef); ok {
+		b.current.folder = prev
+	}
+	prevProject, _ := n.Meta["projectPrevProject"].(*Node)
+	b.current.project = prevProject
 	return nil
 }
 
