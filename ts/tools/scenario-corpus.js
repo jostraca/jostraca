@@ -254,6 +254,9 @@ const BIN_STATE = [
   { key: 'same', seed: 'same' },
   { key: 'changed', seed: 'changed' },
   { key: 'empty', seed: '' },
+  // A JOSTRACA_PROTECT marker protects a target whatever its
+  // classification, so every row here must leave the seed untouched.
+  { key: 'protected', seed: 'protected' },
 ]
 
 
@@ -298,6 +301,9 @@ function binSeed(state, file) {
   }
   if ('changed' === state.seed) {
     return Buffer.isBuffer(file.body) ? OLD_BIN_BYTES : 'USER EDITED\n'
+  }
+  if ('protected' === state.seed) {
+    return 'JOSTRACA_PROTECT\n'
   }
   return state.seed
 }
@@ -460,7 +466,7 @@ function buildCases() {
   // reach a `.txt` file, and a `txt`-only mode cannot tell the two
   // classification rules apart, so those products record nothing the `mix`
   // row does not already prove. Copy-routed rows lose the `same` state; see
-  // binStates(). 3 x 7 x (2 rows x 4 states + 3 rows x 3 states) = 357.
+  // binStates(). 3 x 7 x (2 rows x 5 states + 3 rows x 4 states) = 462.
   for (const f of BIN_FOLDERS) {
     for (const e of BIN_EXISTING) {
       for (const n of BIN_NAMES) {

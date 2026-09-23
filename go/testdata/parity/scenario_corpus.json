@@ -18773,6 +18773,36 @@
       "sources": {}
     },
     {
+      "name": "unset/bin-write/protected/png-file",
+      "folder": null,
+      "existing": {
+        "bin": {
+          "write": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png"
+      ],
+      "vol": {
+        "a.png": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/a.png": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "unset/bin-write/fresh/pngtxt-file",
       "folder": null,
       "existing": {
@@ -18914,6 +18944,45 @@
       "sources": {}
     },
     {
+      "name": "unset/bin-write/protected/pngtxt-file",
+      "folder": null,
+      "existing": {
+        "bin": {
+          "write": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.txt"
+      ],
+      "vol": {
+        "a.png": "JOSTRACA_PROTECT\n",
+        "a.txt": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/a.png": "GENERATED\n",
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "unset/bin-write/fresh/wasm-copy",
       "folder": null,
       "existing": {
@@ -19045,6 +19114,47 @@
       }
     },
     {
+      "name": "unset/bin-write/protected/wasm-copy",
+      "folder": null,
+      "existing": {
+        "bin": {
+          "write": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.wasm"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "a.wasm": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "unset/bin-write/fresh/png-copy",
       "folder": null,
       "existing": {
@@ -19167,6 +19277,47 @@
             "b64": "iVBORw0KGgokJHYkJAD/wA=="
           },
           "seed": ""
+        }
+      ],
+      "sources": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        }
+      }
+    },
+    {
+      "name": "unset/bin-write/protected/png-copy",
+      "folder": null,
+      "existing": {
+        "bin": {
+          "write": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "b.png"
+      ],
+      "vol": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "b.png": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"b.png\": {\n      \"action\": \"skip\",\n      \"path\": \"b.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "b.png",
+          "kind": "copy",
+          "body": {
+            "b64": "iVBORw0KGgokJHYkJAD/wA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {
@@ -19361,6 +19512,65 @@
       }
     },
     {
+      "name": "unset/bin-write/protected/mix",
+      "folder": null,
+      "existing": {
+        "bin": {
+          "write": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.wasm",
+        "a.txt"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "a.png": "JOSTRACA_PROTECT\n",
+        "a.wasm": "JOSTRACA_PROTECT\n",
+        "a.txt": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/a.png": "GENERATED\n",
+        ".jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "unset/bin-preserve/fresh/png-file",
       "folder": null,
       "existing": {
@@ -19469,6 +19679,36 @@
           "kind": "file",
           "body": "GENERATED\n",
           "seed": ""
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "unset/bin-preserve/protected/png-file",
+      "folder": null,
+      "existing": {
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png"
+      ],
+      "vol": {
+        "a.png": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/a.png": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {}
@@ -19617,6 +19857,45 @@
       "sources": {}
     },
     {
+      "name": "unset/bin-preserve/protected/pngtxt-file",
+      "folder": null,
+      "existing": {
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.txt"
+      ],
+      "vol": {
+        "a.png": "JOSTRACA_PROTECT\n",
+        "a.txt": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/a.png": "GENERATED\n",
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "unset/bin-preserve/fresh/wasm-copy",
       "folder": null,
       "existing": {
@@ -19752,6 +20031,47 @@
       }
     },
     {
+      "name": "unset/bin-preserve/protected/wasm-copy",
+      "folder": null,
+      "existing": {
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.wasm"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "a.wasm": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "unset/bin-preserve/fresh/png-copy",
       "folder": null,
       "existing": {
@@ -19878,6 +20198,47 @@
             "b64": "iVBORw0KGgokJHYkJAD/wA=="
           },
           "seed": ""
+        }
+      ],
+      "sources": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        }
+      }
+    },
+    {
+      "name": "unset/bin-preserve/protected/png-copy",
+      "folder": null,
+      "existing": {
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "b.png"
+      ],
+      "vol": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "b.png": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"b.png\": {\n      \"action\": \"skip\",\n      \"path\": \"b.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "b.png",
+          "kind": "copy",
+          "body": {
+            "b64": "iVBORw0KGgokJHYkJAD/wA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {
@@ -20078,6 +20439,65 @@
       }
     },
     {
+      "name": "unset/bin-preserve/protected/mix",
+      "folder": null,
+      "existing": {
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.wasm",
+        "a.txt"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "a.png": "JOSTRACA_PROTECT\n",
+        "a.wasm": "JOSTRACA_PROTECT\n",
+        "a.txt": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/a.png": "GENERATED\n",
+        ".jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "unset/bin-present/fresh/png-file",
       "folder": null,
       "existing": {
@@ -20190,6 +20610,38 @@
           "kind": "file",
           "body": "GENERATED\n",
           "seed": ""
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "unset/bin-present/protected/png-file",
+      "folder": null,
+      "existing": {
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png"
+      ],
+      "vol": {
+        "a.png": "JOSTRACA_PROTECT\n",
+        "a.new.png": "GENERATED\n",
+        ".jostraca/generated/a.png": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"present\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {}
@@ -20342,6 +20794,47 @@
       "sources": {}
     },
     {
+      "name": "unset/bin-present/protected/pngtxt-file",
+      "folder": null,
+      "existing": {
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.txt"
+      ],
+      "vol": {
+        "a.png": "JOSTRACA_PROTECT\n",
+        "a.txt": "JOSTRACA_PROTECT\n",
+        "a.new.png": "GENERATED\n",
+        ".jostraca/generated/a.png": "GENERATED\n",
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"present\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "unset/bin-present/fresh/wasm-copy",
       "folder": null,
       "existing": {
@@ -20480,6 +20973,51 @@
       }
     },
     {
+      "name": "unset/bin-present/protected/wasm-copy",
+      "folder": null,
+      "existing": {
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.wasm"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "a.wasm": "JOSTRACA_PROTECT\n",
+        "a.new.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        ".jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.wasm\": {\n      \"action\": \"present\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "unset/bin-present/fresh/png-copy",
       "folder": null,
       "existing": {
@@ -20609,6 +21147,51 @@
             "b64": "iVBORw0KGgokJHYkJAD/wA=="
           },
           "seed": ""
+        }
+      ],
+      "sources": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        }
+      }
+    },
+    {
+      "name": "unset/bin-present/protected/png-copy",
+      "folder": null,
+      "existing": {
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "b.png"
+      ],
+      "vol": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "b.png": "JOSTRACA_PROTECT\n",
+        "b.new.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        ".jostraca/generated/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"b.png\": {\n      \"action\": \"present\",\n      \"path\": \"b.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "b.png",
+          "kind": "copy",
+          "body": {
+            "b64": "iVBORw0KGgokJHYkJAD/wA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {
@@ -20812,6 +21395,70 @@
       }
     },
     {
+      "name": "unset/bin-present/protected/mix",
+      "folder": null,
+      "existing": {
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.wasm",
+        "a.txt"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "a.png": "JOSTRACA_PROTECT\n",
+        "a.wasm": "JOSTRACA_PROTECT\n",
+        "a.txt": "JOSTRACA_PROTECT\n",
+        "a.new.png": "GENERATED\n",
+        ".jostraca/generated/a.png": "GENERATED\n",
+        ".jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"present\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.wasm\": {\n      \"action\": \"present\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n",
+        "a.new.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "unset/bin-nowrite/fresh/png-file",
       "folder": null,
       "existing": {
@@ -20918,6 +21565,36 @@
           "kind": "file",
           "body": "GENERATED\n",
           "seed": ""
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "unset/bin-nowrite/protected/png-file",
+      "folder": null,
+      "existing": {
+        "bin": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png"
+      ],
+      "vol": {
+        "a.png": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/a.png": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {}
@@ -21064,6 +21741,45 @@
       "sources": {}
     },
     {
+      "name": "unset/bin-nowrite/protected/pngtxt-file",
+      "folder": null,
+      "existing": {
+        "bin": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.txt"
+      ],
+      "vol": {
+        "a.png": "JOSTRACA_PROTECT\n",
+        "a.txt": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/a.png": "GENERATED\n",
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "unset/bin-nowrite/fresh/wasm-copy",
       "folder": null,
       "existing": {
@@ -21193,6 +21909,47 @@
       }
     },
     {
+      "name": "unset/bin-nowrite/protected/wasm-copy",
+      "folder": null,
+      "existing": {
+        "bin": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.wasm"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "a.wasm": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "unset/bin-nowrite/fresh/png-copy",
       "folder": null,
       "existing": {
@@ -21313,6 +22070,47 @@
             "b64": "iVBORw0KGgokJHYkJAD/wA=="
           },
           "seed": ""
+        }
+      ],
+      "sources": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        }
+      }
+    },
+    {
+      "name": "unset/bin-nowrite/protected/png-copy",
+      "folder": null,
+      "existing": {
+        "bin": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "b.png"
+      ],
+      "vol": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "b.png": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"b.png\": {\n      \"action\": \"skip\",\n      \"path\": \"b.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "b.png",
+          "kind": "copy",
+          "body": {
+            "b64": "iVBORw0KGgokJHYkJAD/wA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {
@@ -21505,6 +22303,65 @@
       }
     },
     {
+      "name": "unset/bin-nowrite/protected/mix",
+      "folder": null,
+      "existing": {
+        "bin": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.wasm",
+        "a.txt"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "a.png": "JOSTRACA_PROTECT\n",
+        "a.wasm": "JOSTRACA_PROTECT\n",
+        "a.txt": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/a.png": "GENERATED\n",
+        ".jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "unset/txtdiff+binpreserve/fresh/png-file",
       "folder": null,
       "existing": {
@@ -21625,6 +22482,39 @@
           "kind": "file",
           "body": "GENERATED\n",
           "seed": ""
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "unset/txtdiff+binpreserve/protected/png-file",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "diff": true
+        },
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png"
+      ],
+      "vol": {
+        "a.png": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/a.png": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {}
@@ -21785,6 +22675,48 @@
       "sources": {}
     },
     {
+      "name": "unset/txtdiff+binpreserve/protected/pngtxt-file",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "diff": true
+        },
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.txt"
+      ],
+      "vol": {
+        "a.png": "JOSTRACA_PROTECT\n",
+        "a.txt": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/a.png": "GENERATED\n",
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "unset/txtdiff+binpreserve/fresh/wasm-copy",
       "folder": null,
       "existing": {
@@ -21929,6 +22861,50 @@
       }
     },
     {
+      "name": "unset/txtdiff+binpreserve/protected/wasm-copy",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "diff": true
+        },
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.wasm"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "a.wasm": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "unset/txtdiff+binpreserve/fresh/png-copy",
       "folder": null,
       "existing": {
@@ -22064,6 +23040,50 @@
             "b64": "iVBORw0KGgokJHYkJAD/wA=="
           },
           "seed": ""
+        }
+      ],
+      "sources": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        }
+      }
+    },
+    {
+      "name": "unset/txtdiff+binpreserve/protected/png-copy",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "diff": true
+        },
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "b.png"
+      ],
+      "vol": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "b.png": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"b.png\": {\n      \"action\": \"skip\",\n      \"path\": \"b.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "b.png",
+          "kind": "copy",
+          "body": {
+            "b64": "iVBORw0KGgokJHYkJAD/wA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {
@@ -22273,6 +23293,68 @@
       }
     },
     {
+      "name": "unset/txtdiff+binpreserve/protected/mix",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "diff": true
+        },
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.wasm",
+        "a.txt"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "a.png": "JOSTRACA_PROTECT\n",
+        "a.wasm": "JOSTRACA_PROTECT\n",
+        "a.txt": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/a.png": "GENERATED\n",
+        ".jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "unset/txtmerge+binpresent/fresh/png-file",
       "folder": null,
       "existing": {
@@ -22397,6 +23479,41 @@
           "kind": "file",
           "body": "GENERATED\n",
           "seed": ""
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "unset/txtmerge+binpresent/protected/png-file",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "merge": true
+        },
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.png"
+      ],
+      "vol": {
+        "a.png": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/a.png": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"present\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n",
+        "a.new.png": "GENERATED\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {}
@@ -22561,6 +23678,50 @@
       "sources": {}
     },
     {
+      "name": "unset/txtmerge+binpresent/protected/pngtxt-file",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "merge": true
+        },
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.png",
+        "a.txt"
+      ],
+      "vol": {
+        "a.png": "JOSTRACA_PROTECT\n",
+        "a.txt": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/a.png": "GENERATED\n",
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"present\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n",
+        "a.new.png": "GENERATED\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "unset/txtmerge+binpresent/fresh/wasm-copy",
       "folder": null,
       "existing": {
@@ -22708,6 +23869,54 @@
       }
     },
     {
+      "name": "unset/txtmerge+binpresent/protected/wasm-copy",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "merge": true
+        },
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.wasm"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "a.wasm": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.wasm\": {\n      \"action\": \"present\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n",
+        "a.new.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "unset/txtmerge+binpresent/fresh/png-copy",
       "folder": null,
       "existing": {
@@ -22846,6 +24055,54 @@
             "b64": "iVBORw0KGgokJHYkJAD/wA=="
           },
           "seed": ""
+        }
+      ],
+      "sources": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        }
+      }
+    },
+    {
+      "name": "unset/txtmerge+binpresent/protected/png-copy",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "merge": true
+        },
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "b.png"
+      ],
+      "vol": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "b.png": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"b.png\": {\n      \"action\": \"present\",\n      \"path\": \"b.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n",
+        "b.new.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        }
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "b.png",
+          "kind": "copy",
+          "body": {
+            "b64": "iVBORw0KGgokJHYkJAD/wA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {
@@ -23058,6 +24315,73 @@
       }
     },
     {
+      "name": "unset/txtmerge+binpresent/protected/mix",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "merge": true
+        },
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.png",
+        "a.wasm",
+        "a.txt"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "a.png": "JOSTRACA_PROTECT\n",
+        "a.wasm": "JOSTRACA_PROTECT\n",
+        "a.txt": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/a.png": "GENERATED\n",
+        ".jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"present\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.wasm\": {\n      \"action\": \"present\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n",
+        "a.new.png": "GENERATED\n",
+        "a.new.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "unset/txtpreserve+binwrite/fresh/png-file",
       "folder": null,
       "existing": {
@@ -23164,6 +24488,36 @@
           "kind": "file",
           "body": "GENERATED\n",
           "seed": ""
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "unset/txtpreserve+binwrite/protected/png-file",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png"
+      ],
+      "vol": {
+        "a.png": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/a.png": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {}
@@ -23312,6 +24666,45 @@
       "sources": {}
     },
     {
+      "name": "unset/txtpreserve+binwrite/protected/pngtxt-file",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.txt"
+      ],
+      "vol": {
+        "a.png": "JOSTRACA_PROTECT\n",
+        "a.txt": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/a.png": "GENERATED\n",
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "unset/txtpreserve+binwrite/fresh/wasm-copy",
       "folder": null,
       "existing": {
@@ -23443,6 +24836,47 @@
       }
     },
     {
+      "name": "unset/txtpreserve+binwrite/protected/wasm-copy",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.wasm"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "a.wasm": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "unset/txtpreserve+binwrite/fresh/png-copy",
       "folder": null,
       "existing": {
@@ -23565,6 +24999,47 @@
             "b64": "iVBORw0KGgokJHYkJAD/wA=="
           },
           "seed": ""
+        }
+      ],
+      "sources": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        }
+      }
+    },
+    {
+      "name": "unset/txtpreserve+binwrite/protected/png-copy",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "b.png"
+      ],
+      "vol": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "b.png": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"b.png\": {\n      \"action\": \"skip\",\n      \"path\": \"b.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "b.png",
+          "kind": "copy",
+          "body": {
+            "b64": "iVBORw0KGgokJHYkJAD/wA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {
@@ -23761,6 +25236,65 @@
       }
     },
     {
+      "name": "unset/txtpreserve+binwrite/protected/mix",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.wasm",
+        "a.txt"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "a.png": "JOSTRACA_PROTECT\n",
+        "a.wasm": "JOSTRACA_PROTECT\n",
+        "a.txt": "JOSTRACA_PROTECT\n",
+        ".jostraca/generated/a.png": "GENERATED\n",
+        ".jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "rel/bin-write/fresh/png-file",
       "folder": "out",
       "existing": {
@@ -23867,6 +25401,36 @@
           "kind": "file",
           "body": "GENERATED\n",
           "seed": ""
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "rel/bin-write/protected/png-file",
+      "folder": "out",
+      "existing": {
+        "bin": {
+          "write": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png"
+      ],
+      "vol": {
+        "out/a.png": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/a.png": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {}
@@ -24013,6 +25577,45 @@
       "sources": {}
     },
     {
+      "name": "rel/bin-write/protected/pngtxt-file",
+      "folder": "out",
+      "existing": {
+        "bin": {
+          "write": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.png": "JOSTRACA_PROTECT\n",
+        "out/a.txt": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/a.png": "GENERATED\n",
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "rel/bin-write/fresh/wasm-copy",
       "folder": "out",
       "existing": {
@@ -24144,6 +25747,47 @@
       }
     },
     {
+      "name": "rel/bin-write/protected/wasm-copy",
+      "folder": "out",
+      "existing": {
+        "bin": {
+          "write": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.wasm"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/a.wasm": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "rel/bin-write/fresh/png-copy",
       "folder": "out",
       "existing": {
@@ -24266,6 +25910,47 @@
             "b64": "iVBORw0KGgokJHYkJAD/wA=="
           },
           "seed": ""
+        }
+      ],
+      "sources": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        }
+      }
+    },
+    {
+      "name": "rel/bin-write/protected/png-copy",
+      "folder": "out",
+      "existing": {
+        "bin": {
+          "write": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "b.png"
+      ],
+      "vol": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "out/b.png": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"b.png\": {\n      \"action\": \"skip\",\n      \"path\": \"b.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "b.png",
+          "kind": "copy",
+          "body": {
+            "b64": "iVBORw0KGgokJHYkJAD/wA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {
@@ -24460,6 +26145,65 @@
       }
     },
     {
+      "name": "rel/bin-write/protected/mix",
+      "folder": "out",
+      "existing": {
+        "bin": {
+          "write": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.wasm",
+        "a.txt"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/a.png": "JOSTRACA_PROTECT\n",
+        "out/a.wasm": "JOSTRACA_PROTECT\n",
+        "out/a.txt": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/a.png": "GENERATED\n",
+        "out/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "rel/bin-preserve/fresh/png-file",
       "folder": "out",
       "existing": {
@@ -24568,6 +26312,36 @@
           "kind": "file",
           "body": "GENERATED\n",
           "seed": ""
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "rel/bin-preserve/protected/png-file",
+      "folder": "out",
+      "existing": {
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png"
+      ],
+      "vol": {
+        "out/a.png": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/a.png": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {}
@@ -24716,6 +26490,45 @@
       "sources": {}
     },
     {
+      "name": "rel/bin-preserve/protected/pngtxt-file",
+      "folder": "out",
+      "existing": {
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.png": "JOSTRACA_PROTECT\n",
+        "out/a.txt": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/a.png": "GENERATED\n",
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "rel/bin-preserve/fresh/wasm-copy",
       "folder": "out",
       "existing": {
@@ -24851,6 +26664,47 @@
       }
     },
     {
+      "name": "rel/bin-preserve/protected/wasm-copy",
+      "folder": "out",
+      "existing": {
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.wasm"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/a.wasm": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "rel/bin-preserve/fresh/png-copy",
       "folder": "out",
       "existing": {
@@ -24977,6 +26831,47 @@
             "b64": "iVBORw0KGgokJHYkJAD/wA=="
           },
           "seed": ""
+        }
+      ],
+      "sources": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        }
+      }
+    },
+    {
+      "name": "rel/bin-preserve/protected/png-copy",
+      "folder": "out",
+      "existing": {
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "b.png"
+      ],
+      "vol": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "out/b.png": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"b.png\": {\n      \"action\": \"skip\",\n      \"path\": \"b.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "b.png",
+          "kind": "copy",
+          "body": {
+            "b64": "iVBORw0KGgokJHYkJAD/wA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {
@@ -25177,6 +27072,65 @@
       }
     },
     {
+      "name": "rel/bin-preserve/protected/mix",
+      "folder": "out",
+      "existing": {
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.wasm",
+        "a.txt"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/a.png": "JOSTRACA_PROTECT\n",
+        "out/a.wasm": "JOSTRACA_PROTECT\n",
+        "out/a.txt": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/a.png": "GENERATED\n",
+        "out/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "rel/bin-present/fresh/png-file",
       "folder": "out",
       "existing": {
@@ -25289,6 +27243,38 @@
           "kind": "file",
           "body": "GENERATED\n",
           "seed": ""
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "rel/bin-present/protected/png-file",
+      "folder": "out",
+      "existing": {
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png"
+      ],
+      "vol": {
+        "out/a.png": "JOSTRACA_PROTECT\n",
+        "out/a.new.png": "GENERATED\n",
+        "out/.jostraca/generated/a.png": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"present\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {}
@@ -25441,6 +27427,47 @@
       "sources": {}
     },
     {
+      "name": "rel/bin-present/protected/pngtxt-file",
+      "folder": "out",
+      "existing": {
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.png": "JOSTRACA_PROTECT\n",
+        "out/a.txt": "JOSTRACA_PROTECT\n",
+        "out/a.new.png": "GENERATED\n",
+        "out/.jostraca/generated/a.png": "GENERATED\n",
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"present\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "rel/bin-present/fresh/wasm-copy",
       "folder": "out",
       "existing": {
@@ -25579,6 +27606,51 @@
       }
     },
     {
+      "name": "rel/bin-present/protected/wasm-copy",
+      "folder": "out",
+      "existing": {
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.wasm"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/a.wasm": "JOSTRACA_PROTECT\n",
+        "out/a.new.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.wasm\": {\n      \"action\": \"present\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "rel/bin-present/fresh/png-copy",
       "folder": "out",
       "existing": {
@@ -25708,6 +27780,51 @@
             "b64": "iVBORw0KGgokJHYkJAD/wA=="
           },
           "seed": ""
+        }
+      ],
+      "sources": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        }
+      }
+    },
+    {
+      "name": "rel/bin-present/protected/png-copy",
+      "folder": "out",
+      "existing": {
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "b.png"
+      ],
+      "vol": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "out/b.png": "JOSTRACA_PROTECT\n",
+        "out/b.new.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "out/.jostraca/generated/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"b.png\": {\n      \"action\": \"present\",\n      \"path\": \"b.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "b.png",
+          "kind": "copy",
+          "body": {
+            "b64": "iVBORw0KGgokJHYkJAD/wA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {
@@ -25911,6 +28028,70 @@
       }
     },
     {
+      "name": "rel/bin-present/protected/mix",
+      "folder": "out",
+      "existing": {
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.wasm",
+        "a.txt"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/a.png": "JOSTRACA_PROTECT\n",
+        "out/a.wasm": "JOSTRACA_PROTECT\n",
+        "out/a.txt": "JOSTRACA_PROTECT\n",
+        "out/a.new.png": "GENERATED\n",
+        "out/.jostraca/generated/a.png": "GENERATED\n",
+        "out/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"present\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.wasm\": {\n      \"action\": \"present\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n",
+        "out/a.new.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "rel/bin-nowrite/fresh/png-file",
       "folder": "out",
       "existing": {
@@ -26017,6 +28198,36 @@
           "kind": "file",
           "body": "GENERATED\n",
           "seed": ""
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "rel/bin-nowrite/protected/png-file",
+      "folder": "out",
+      "existing": {
+        "bin": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png"
+      ],
+      "vol": {
+        "out/a.png": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/a.png": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {}
@@ -26163,6 +28374,45 @@
       "sources": {}
     },
     {
+      "name": "rel/bin-nowrite/protected/pngtxt-file",
+      "folder": "out",
+      "existing": {
+        "bin": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.png": "JOSTRACA_PROTECT\n",
+        "out/a.txt": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/a.png": "GENERATED\n",
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "rel/bin-nowrite/fresh/wasm-copy",
       "folder": "out",
       "existing": {
@@ -26292,6 +28542,47 @@
       }
     },
     {
+      "name": "rel/bin-nowrite/protected/wasm-copy",
+      "folder": "out",
+      "existing": {
+        "bin": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.wasm"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/a.wasm": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "rel/bin-nowrite/fresh/png-copy",
       "folder": "out",
       "existing": {
@@ -26412,6 +28703,47 @@
             "b64": "iVBORw0KGgokJHYkJAD/wA=="
           },
           "seed": ""
+        }
+      ],
+      "sources": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        }
+      }
+    },
+    {
+      "name": "rel/bin-nowrite/protected/png-copy",
+      "folder": "out",
+      "existing": {
+        "bin": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "b.png"
+      ],
+      "vol": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "out/b.png": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"b.png\": {\n      \"action\": \"skip\",\n      \"path\": \"b.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "b.png",
+          "kind": "copy",
+          "body": {
+            "b64": "iVBORw0KGgokJHYkJAD/wA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {
@@ -26604,6 +28936,65 @@
       }
     },
     {
+      "name": "rel/bin-nowrite/protected/mix",
+      "folder": "out",
+      "existing": {
+        "bin": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.wasm",
+        "a.txt"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/a.png": "JOSTRACA_PROTECT\n",
+        "out/a.wasm": "JOSTRACA_PROTECT\n",
+        "out/a.txt": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/a.png": "GENERATED\n",
+        "out/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "rel/txtdiff+binpreserve/fresh/png-file",
       "folder": "out",
       "existing": {
@@ -26724,6 +29115,39 @@
           "kind": "file",
           "body": "GENERATED\n",
           "seed": ""
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "rel/txtdiff+binpreserve/protected/png-file",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "diff": true
+        },
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png"
+      ],
+      "vol": {
+        "out/a.png": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/a.png": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {}
@@ -26884,6 +29308,48 @@
       "sources": {}
     },
     {
+      "name": "rel/txtdiff+binpreserve/protected/pngtxt-file",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "diff": true
+        },
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.png": "JOSTRACA_PROTECT\n",
+        "out/a.txt": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/a.png": "GENERATED\n",
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "rel/txtdiff+binpreserve/fresh/wasm-copy",
       "folder": "out",
       "existing": {
@@ -27028,6 +29494,50 @@
       }
     },
     {
+      "name": "rel/txtdiff+binpreserve/protected/wasm-copy",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "diff": true
+        },
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.wasm"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/a.wasm": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "rel/txtdiff+binpreserve/fresh/png-copy",
       "folder": "out",
       "existing": {
@@ -27163,6 +29673,50 @@
             "b64": "iVBORw0KGgokJHYkJAD/wA=="
           },
           "seed": ""
+        }
+      ],
+      "sources": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        }
+      }
+    },
+    {
+      "name": "rel/txtdiff+binpreserve/protected/png-copy",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "diff": true
+        },
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "b.png"
+      ],
+      "vol": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "out/b.png": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"b.png\": {\n      \"action\": \"skip\",\n      \"path\": \"b.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "b.png",
+          "kind": "copy",
+          "body": {
+            "b64": "iVBORw0KGgokJHYkJAD/wA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {
@@ -27372,6 +29926,68 @@
       }
     },
     {
+      "name": "rel/txtdiff+binpreserve/protected/mix",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "diff": true
+        },
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.wasm",
+        "a.txt"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/a.png": "JOSTRACA_PROTECT\n",
+        "out/a.wasm": "JOSTRACA_PROTECT\n",
+        "out/a.txt": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/a.png": "GENERATED\n",
+        "out/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "rel/txtmerge+binpresent/fresh/png-file",
       "folder": "out",
       "existing": {
@@ -27496,6 +30112,41 @@
           "kind": "file",
           "body": "GENERATED\n",
           "seed": ""
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "rel/txtmerge+binpresent/protected/png-file",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "merge": true
+        },
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.png"
+      ],
+      "vol": {
+        "out/a.png": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/a.png": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"present\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n",
+        "out/a.new.png": "GENERATED\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {}
@@ -27660,6 +30311,50 @@
       "sources": {}
     },
     {
+      "name": "rel/txtmerge+binpresent/protected/pngtxt-file",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "merge": true
+        },
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.png",
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.png": "JOSTRACA_PROTECT\n",
+        "out/a.txt": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/a.png": "GENERATED\n",
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"present\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n",
+        "out/a.new.png": "GENERATED\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "rel/txtmerge+binpresent/fresh/wasm-copy",
       "folder": "out",
       "existing": {
@@ -27807,6 +30502,54 @@
       }
     },
     {
+      "name": "rel/txtmerge+binpresent/protected/wasm-copy",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "merge": true
+        },
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.wasm"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/a.wasm": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.wasm\": {\n      \"action\": \"present\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n",
+        "out/a.new.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "rel/txtmerge+binpresent/fresh/png-copy",
       "folder": "out",
       "existing": {
@@ -27945,6 +30688,54 @@
             "b64": "iVBORw0KGgokJHYkJAD/wA=="
           },
           "seed": ""
+        }
+      ],
+      "sources": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        }
+      }
+    },
+    {
+      "name": "rel/txtmerge+binpresent/protected/png-copy",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "merge": true
+        },
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "b.png"
+      ],
+      "vol": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "out/b.png": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"b.png\": {\n      \"action\": \"present\",\n      \"path\": \"b.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n",
+        "out/b.new.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        }
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "b.png",
+          "kind": "copy",
+          "body": {
+            "b64": "iVBORw0KGgokJHYkJAD/wA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {
@@ -28157,6 +30948,73 @@
       }
     },
     {
+      "name": "rel/txtmerge+binpresent/protected/mix",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "merge": true
+        },
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.png",
+        "a.wasm",
+        "a.txt"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/a.png": "JOSTRACA_PROTECT\n",
+        "out/a.wasm": "JOSTRACA_PROTECT\n",
+        "out/a.txt": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/a.png": "GENERATED\n",
+        "out/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"present\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.wasm\": {\n      \"action\": \"present\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n",
+        "out/a.new.png": "GENERATED\n",
+        "out/a.new.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "rel/txtpreserve+binwrite/fresh/png-file",
       "folder": "out",
       "existing": {
@@ -28263,6 +31121,36 @@
           "kind": "file",
           "body": "GENERATED\n",
           "seed": ""
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "rel/txtpreserve+binwrite/protected/png-file",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png"
+      ],
+      "vol": {
+        "out/a.png": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/a.png": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {}
@@ -28411,6 +31299,45 @@
       "sources": {}
     },
     {
+      "name": "rel/txtpreserve+binwrite/protected/pngtxt-file",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.png": "JOSTRACA_PROTECT\n",
+        "out/a.txt": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/a.png": "GENERATED\n",
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "rel/txtpreserve+binwrite/fresh/wasm-copy",
       "folder": "out",
       "existing": {
@@ -28542,6 +31469,47 @@
       }
     },
     {
+      "name": "rel/txtpreserve+binwrite/protected/wasm-copy",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.wasm"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/a.wasm": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "rel/txtpreserve+binwrite/fresh/png-copy",
       "folder": "out",
       "existing": {
@@ -28664,6 +31632,47 @@
             "b64": "iVBORw0KGgokJHYkJAD/wA=="
           },
           "seed": ""
+        }
+      ],
+      "sources": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        }
+      }
+    },
+    {
+      "name": "rel/txtpreserve+binwrite/protected/png-copy",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "b.png"
+      ],
+      "vol": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "out/b.png": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"b.png\": {\n      \"action\": \"skip\",\n      \"path\": \"b.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "b.png",
+          "kind": "copy",
+          "body": {
+            "b64": "iVBORw0KGgokJHYkJAD/wA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {
@@ -28860,6 +31869,65 @@
       }
     },
     {
+      "name": "rel/txtpreserve+binwrite/protected/mix",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.wasm",
+        "a.txt"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/a.png": "JOSTRACA_PROTECT\n",
+        "out/a.wasm": "JOSTRACA_PROTECT\n",
+        "out/a.txt": "JOSTRACA_PROTECT\n",
+        "out/.jostraca/generated/a.png": "GENERATED\n",
+        "out/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "abs/bin-write/fresh/png-file",
       "folder": "/abs",
       "existing": {
@@ -28966,6 +32034,36 @@
           "kind": "file",
           "body": "GENERATED\n",
           "seed": ""
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "abs/bin-write/protected/png-file",
+      "folder": "/abs",
+      "existing": {
+        "bin": {
+          "write": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png"
+      ],
+      "vol": {
+        "/abs/a.png": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/a.png": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {}
@@ -29112,6 +32210,45 @@
       "sources": {}
     },
     {
+      "name": "abs/bin-write/protected/pngtxt-file",
+      "folder": "/abs",
+      "existing": {
+        "bin": {
+          "write": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.txt"
+      ],
+      "vol": {
+        "/abs/a.png": "JOSTRACA_PROTECT\n",
+        "/abs/a.txt": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/a.png": "GENERATED\n",
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "abs/bin-write/fresh/wasm-copy",
       "folder": "/abs",
       "existing": {
@@ -29243,6 +32380,47 @@
       }
     },
     {
+      "name": "abs/bin-write/protected/wasm-copy",
+      "folder": "/abs",
+      "existing": {
+        "bin": {
+          "write": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.wasm"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/a.wasm": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "abs/bin-write/fresh/png-copy",
       "folder": "/abs",
       "existing": {
@@ -29365,6 +32543,47 @@
             "b64": "iVBORw0KGgokJHYkJAD/wA=="
           },
           "seed": ""
+        }
+      ],
+      "sources": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        }
+      }
+    },
+    {
+      "name": "abs/bin-write/protected/png-copy",
+      "folder": "/abs",
+      "existing": {
+        "bin": {
+          "write": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "b.png"
+      ],
+      "vol": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "/abs/b.png": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"b.png\": {\n      \"action\": \"skip\",\n      \"path\": \"b.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "b.png",
+          "kind": "copy",
+          "body": {
+            "b64": "iVBORw0KGgokJHYkJAD/wA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {
@@ -29559,6 +32778,65 @@
       }
     },
     {
+      "name": "abs/bin-write/protected/mix",
+      "folder": "/abs",
+      "existing": {
+        "bin": {
+          "write": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.wasm",
+        "a.txt"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/a.png": "JOSTRACA_PROTECT\n",
+        "/abs/a.wasm": "JOSTRACA_PROTECT\n",
+        "/abs/a.txt": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/a.png": "GENERATED\n",
+        "/abs/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "abs/bin-preserve/fresh/png-file",
       "folder": "/abs",
       "existing": {
@@ -29667,6 +32945,36 @@
           "kind": "file",
           "body": "GENERATED\n",
           "seed": ""
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "abs/bin-preserve/protected/png-file",
+      "folder": "/abs",
+      "existing": {
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png"
+      ],
+      "vol": {
+        "/abs/a.png": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/a.png": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {}
@@ -29815,6 +33123,45 @@
       "sources": {}
     },
     {
+      "name": "abs/bin-preserve/protected/pngtxt-file",
+      "folder": "/abs",
+      "existing": {
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.txt"
+      ],
+      "vol": {
+        "/abs/a.png": "JOSTRACA_PROTECT\n",
+        "/abs/a.txt": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/a.png": "GENERATED\n",
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "abs/bin-preserve/fresh/wasm-copy",
       "folder": "/abs",
       "existing": {
@@ -29950,6 +33297,47 @@
       }
     },
     {
+      "name": "abs/bin-preserve/protected/wasm-copy",
+      "folder": "/abs",
+      "existing": {
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.wasm"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/a.wasm": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "abs/bin-preserve/fresh/png-copy",
       "folder": "/abs",
       "existing": {
@@ -30076,6 +33464,47 @@
             "b64": "iVBORw0KGgokJHYkJAD/wA=="
           },
           "seed": ""
+        }
+      ],
+      "sources": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        }
+      }
+    },
+    {
+      "name": "abs/bin-preserve/protected/png-copy",
+      "folder": "/abs",
+      "existing": {
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "b.png"
+      ],
+      "vol": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "/abs/b.png": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"b.png\": {\n      \"action\": \"skip\",\n      \"path\": \"b.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "b.png",
+          "kind": "copy",
+          "body": {
+            "b64": "iVBORw0KGgokJHYkJAD/wA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {
@@ -30276,6 +33705,65 @@
       }
     },
     {
+      "name": "abs/bin-preserve/protected/mix",
+      "folder": "/abs",
+      "existing": {
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.wasm",
+        "a.txt"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/a.png": "JOSTRACA_PROTECT\n",
+        "/abs/a.wasm": "JOSTRACA_PROTECT\n",
+        "/abs/a.txt": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/a.png": "GENERATED\n",
+        "/abs/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "abs/bin-present/fresh/png-file",
       "folder": "/abs",
       "existing": {
@@ -30388,6 +33876,38 @@
           "kind": "file",
           "body": "GENERATED\n",
           "seed": ""
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "abs/bin-present/protected/png-file",
+      "folder": "/abs",
+      "existing": {
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png"
+      ],
+      "vol": {
+        "/abs/a.png": "JOSTRACA_PROTECT\n",
+        "/abs/a.new.png": "GENERATED\n",
+        "/abs/.jostraca/generated/a.png": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"present\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {}
@@ -30540,6 +34060,47 @@
       "sources": {}
     },
     {
+      "name": "abs/bin-present/protected/pngtxt-file",
+      "folder": "/abs",
+      "existing": {
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.txt"
+      ],
+      "vol": {
+        "/abs/a.png": "JOSTRACA_PROTECT\n",
+        "/abs/a.txt": "JOSTRACA_PROTECT\n",
+        "/abs/a.new.png": "GENERATED\n",
+        "/abs/.jostraca/generated/a.png": "GENERATED\n",
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"present\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "abs/bin-present/fresh/wasm-copy",
       "folder": "/abs",
       "existing": {
@@ -30678,6 +34239,51 @@
       }
     },
     {
+      "name": "abs/bin-present/protected/wasm-copy",
+      "folder": "/abs",
+      "existing": {
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.wasm"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/a.wasm": "JOSTRACA_PROTECT\n",
+        "/abs/a.new.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.wasm\": {\n      \"action\": \"present\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "abs/bin-present/fresh/png-copy",
       "folder": "/abs",
       "existing": {
@@ -30807,6 +34413,51 @@
             "b64": "iVBORw0KGgokJHYkJAD/wA=="
           },
           "seed": ""
+        }
+      ],
+      "sources": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        }
+      }
+    },
+    {
+      "name": "abs/bin-present/protected/png-copy",
+      "folder": "/abs",
+      "existing": {
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "b.png"
+      ],
+      "vol": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "/abs/b.png": "JOSTRACA_PROTECT\n",
+        "/abs/b.new.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "/abs/.jostraca/generated/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"b.png\": {\n      \"action\": \"present\",\n      \"path\": \"b.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "b.png",
+          "kind": "copy",
+          "body": {
+            "b64": "iVBORw0KGgokJHYkJAD/wA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {
@@ -31010,6 +34661,70 @@
       }
     },
     {
+      "name": "abs/bin-present/protected/mix",
+      "folder": "/abs",
+      "existing": {
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.wasm",
+        "a.txt"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/a.png": "JOSTRACA_PROTECT\n",
+        "/abs/a.wasm": "JOSTRACA_PROTECT\n",
+        "/abs/a.txt": "JOSTRACA_PROTECT\n",
+        "/abs/a.new.png": "GENERATED\n",
+        "/abs/.jostraca/generated/a.png": "GENERATED\n",
+        "/abs/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"present\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.wasm\": {\n      \"action\": \"present\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n",
+        "/abs/a.new.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "abs/bin-nowrite/fresh/png-file",
       "folder": "/abs",
       "existing": {
@@ -31116,6 +34831,36 @@
           "kind": "file",
           "body": "GENERATED\n",
           "seed": ""
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "abs/bin-nowrite/protected/png-file",
+      "folder": "/abs",
+      "existing": {
+        "bin": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png"
+      ],
+      "vol": {
+        "/abs/a.png": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/a.png": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {}
@@ -31262,6 +35007,45 @@
       "sources": {}
     },
     {
+      "name": "abs/bin-nowrite/protected/pngtxt-file",
+      "folder": "/abs",
+      "existing": {
+        "bin": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.txt"
+      ],
+      "vol": {
+        "/abs/a.png": "JOSTRACA_PROTECT\n",
+        "/abs/a.txt": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/a.png": "GENERATED\n",
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "abs/bin-nowrite/fresh/wasm-copy",
       "folder": "/abs",
       "existing": {
@@ -31391,6 +35175,47 @@
       }
     },
     {
+      "name": "abs/bin-nowrite/protected/wasm-copy",
+      "folder": "/abs",
+      "existing": {
+        "bin": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.wasm"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/a.wasm": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "abs/bin-nowrite/fresh/png-copy",
       "folder": "/abs",
       "existing": {
@@ -31511,6 +35336,47 @@
             "b64": "iVBORw0KGgokJHYkJAD/wA=="
           },
           "seed": ""
+        }
+      ],
+      "sources": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        }
+      }
+    },
+    {
+      "name": "abs/bin-nowrite/protected/png-copy",
+      "folder": "/abs",
+      "existing": {
+        "bin": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "b.png"
+      ],
+      "vol": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "/abs/b.png": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"b.png\": {\n      \"action\": \"skip\",\n      \"path\": \"b.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "b.png",
+          "kind": "copy",
+          "body": {
+            "b64": "iVBORw0KGgokJHYkJAD/wA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {
@@ -31703,6 +35569,65 @@
       }
     },
     {
+      "name": "abs/bin-nowrite/protected/mix",
+      "folder": "/abs",
+      "existing": {
+        "bin": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.wasm",
+        "a.txt"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/a.png": "JOSTRACA_PROTECT\n",
+        "/abs/a.wasm": "JOSTRACA_PROTECT\n",
+        "/abs/a.txt": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/a.png": "GENERATED\n",
+        "/abs/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "abs/txtdiff+binpreserve/fresh/png-file",
       "folder": "/abs",
       "existing": {
@@ -31823,6 +35748,39 @@
           "kind": "file",
           "body": "GENERATED\n",
           "seed": ""
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "abs/txtdiff+binpreserve/protected/png-file",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "diff": true
+        },
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png"
+      ],
+      "vol": {
+        "/abs/a.png": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/a.png": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {}
@@ -31983,6 +35941,48 @@
       "sources": {}
     },
     {
+      "name": "abs/txtdiff+binpreserve/protected/pngtxt-file",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "diff": true
+        },
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.txt"
+      ],
+      "vol": {
+        "/abs/a.png": "JOSTRACA_PROTECT\n",
+        "/abs/a.txt": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/a.png": "GENERATED\n",
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "abs/txtdiff+binpreserve/fresh/wasm-copy",
       "folder": "/abs",
       "existing": {
@@ -32127,6 +36127,50 @@
       }
     },
     {
+      "name": "abs/txtdiff+binpreserve/protected/wasm-copy",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "diff": true
+        },
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.wasm"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/a.wasm": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "abs/txtdiff+binpreserve/fresh/png-copy",
       "folder": "/abs",
       "existing": {
@@ -32262,6 +36306,50 @@
             "b64": "iVBORw0KGgokJHYkJAD/wA=="
           },
           "seed": ""
+        }
+      ],
+      "sources": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        }
+      }
+    },
+    {
+      "name": "abs/txtdiff+binpreserve/protected/png-copy",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "diff": true
+        },
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "b.png"
+      ],
+      "vol": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "/abs/b.png": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"b.png\": {\n      \"action\": \"skip\",\n      \"path\": \"b.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "b.png",
+          "kind": "copy",
+          "body": {
+            "b64": "iVBORw0KGgokJHYkJAD/wA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {
@@ -32471,6 +36559,68 @@
       }
     },
     {
+      "name": "abs/txtdiff+binpreserve/protected/mix",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "diff": true
+        },
+        "bin": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.wasm",
+        "a.txt"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/a.png": "JOSTRACA_PROTECT\n",
+        "/abs/a.wasm": "JOSTRACA_PROTECT\n",
+        "/abs/a.txt": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/a.png": "GENERATED\n",
+        "/abs/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "abs/txtmerge+binpresent/fresh/png-file",
       "folder": "/abs",
       "existing": {
@@ -32595,6 +36745,41 @@
           "kind": "file",
           "body": "GENERATED\n",
           "seed": ""
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "abs/txtmerge+binpresent/protected/png-file",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "merge": true
+        },
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.png"
+      ],
+      "vol": {
+        "/abs/a.png": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/a.png": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"present\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n",
+        "/abs/a.new.png": "GENERATED\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {}
@@ -32759,6 +36944,50 @@
       "sources": {}
     },
     {
+      "name": "abs/txtmerge+binpresent/protected/pngtxt-file",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "merge": true
+        },
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.png",
+        "a.txt"
+      ],
+      "vol": {
+        "/abs/a.png": "JOSTRACA_PROTECT\n",
+        "/abs/a.txt": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/a.png": "GENERATED\n",
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"present\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n",
+        "/abs/a.new.png": "GENERATED\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "abs/txtmerge+binpresent/fresh/wasm-copy",
       "folder": "/abs",
       "existing": {
@@ -32906,6 +37135,54 @@
       }
     },
     {
+      "name": "abs/txtmerge+binpresent/protected/wasm-copy",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "merge": true
+        },
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.wasm"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/a.wasm": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.wasm\": {\n      \"action\": \"present\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n",
+        "/abs/a.new.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "abs/txtmerge+binpresent/fresh/png-copy",
       "folder": "/abs",
       "existing": {
@@ -33044,6 +37321,54 @@
             "b64": "iVBORw0KGgokJHYkJAD/wA=="
           },
           "seed": ""
+        }
+      ],
+      "sources": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        }
+      }
+    },
+    {
+      "name": "abs/txtmerge+binpresent/protected/png-copy",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "merge": true
+        },
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "b.png"
+      ],
+      "vol": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "/abs/b.png": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"b.png\": {\n      \"action\": \"present\",\n      \"path\": \"b.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n",
+        "/abs/b.new.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        }
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "b.png",
+          "kind": "copy",
+          "body": {
+            "b64": "iVBORw0KGgokJHYkJAD/wA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {
@@ -33256,6 +37581,73 @@
       }
     },
     {
+      "name": "abs/txtmerge+binpresent/protected/mix",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "merge": true
+        },
+        "bin": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.png",
+        "a.wasm",
+        "a.txt"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/a.png": "JOSTRACA_PROTECT\n",
+        "/abs/a.wasm": "JOSTRACA_PROTECT\n",
+        "/abs/a.txt": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/a.png": "GENERATED\n",
+        "/abs/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"present\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.wasm\": {\n      \"action\": \"present\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n",
+        "/abs/a.new.png": "GENERATED\n",
+        "/abs/a.new.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "abs/txtpreserve+binwrite/fresh/png-file",
       "folder": "/abs",
       "existing": {
@@ -33362,6 +37754,36 @@
           "kind": "file",
           "body": "GENERATED\n",
           "seed": ""
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "abs/txtpreserve+binwrite/protected/png-file",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png"
+      ],
+      "vol": {
+        "/abs/a.png": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/a.png": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {}
@@ -33510,6 +37932,45 @@
       "sources": {}
     },
     {
+      "name": "abs/txtpreserve+binwrite/protected/pngtxt-file",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.txt"
+      ],
+      "vol": {
+        "/abs/a.png": "JOSTRACA_PROTECT\n",
+        "/abs/a.txt": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/a.png": "GENERATED\n",
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "abs/txtpreserve+binwrite/fresh/wasm-copy",
       "folder": "/abs",
       "existing": {
@@ -33641,6 +38102,47 @@
       }
     },
     {
+      "name": "abs/txtpreserve+binwrite/protected/wasm-copy",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.wasm"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/a.wasm": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
       "name": "abs/txtpreserve+binwrite/fresh/png-copy",
       "folder": "/abs",
       "existing": {
@@ -33763,6 +38265,47 @@
             "b64": "iVBORw0KGgokJHYkJAD/wA=="
           },
           "seed": ""
+        }
+      ],
+      "sources": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        }
+      }
+    },
+    {
+      "name": "abs/txtpreserve+binwrite/protected/png-copy",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "b.png"
+      ],
+      "vol": {
+        "/src/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "/abs/b.png": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/b.png": {
+          "b64": "iVBORw0KGgokJHYkJAD/wA=="
+        },
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"b.png\": {\n      \"action\": \"skip\",\n      \"path\": \"b.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "b.png",
+          "kind": "copy",
+          "body": {
+            "b64": "iVBORw0KGgokJHYkJAD/wA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {
@@ -33950,6 +38493,65 @@
           "kind": "file",
           "body": "GENERATED\n",
           "seed": ""
+        }
+      ],
+      "sources": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        }
+      }
+    },
+    {
+      "name": "abs/txtpreserve+binwrite/protected/mix",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.png",
+        "a.wasm",
+        "a.txt"
+      ],
+      "vol": {
+        "/src/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/a.png": "JOSTRACA_PROTECT\n",
+        "/abs/a.wasm": "JOSTRACA_PROTECT\n",
+        "/abs/a.txt": "JOSTRACA_PROTECT\n",
+        "/abs/.jostraca/generated/a.png": "GENERATED\n",
+        "/abs/.jostraca/generated/a.wasm": {
+          "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+        },
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.png\": {\n      \"action\": \"skip\",\n      \"path\": \"a.png\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.wasm\": {\n      \"action\": \"skip\",\n      \"path\": \"a.wasm\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": true,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "files": [
+        {
+          "name": "a.png",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.wasm",
+          "kind": "copy",
+          "body": {
+            "b64": "AGFzbQEAAAAkJHYkJP/+gA=="
+          },
+          "seed": "JOSTRACA_PROTECT\n"
+        },
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": "JOSTRACA_PROTECT\n"
         }
       ],
       "sources": {

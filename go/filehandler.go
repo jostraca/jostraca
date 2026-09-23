@@ -207,9 +207,9 @@ func (fh *fileHandler) saveClassified(
 		if err != nil {
 			return err
 		}
-		if isText {
-			protect = bytes.Contains(existing, []byte(protectMarker))
-		}
+		// Any classification: a binary target carrying the marker is as
+		// protected as a text one, as in TS.
+		protect = bytes.Contains(existing, []byte(protectMarker))
 		contentEqual = bytes.Equal(existing, content)
 
 		// preserve: keep a .old.<ext> copy of what is being replaced.
