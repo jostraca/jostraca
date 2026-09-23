@@ -249,8 +249,10 @@ func propMarkers(p map[string]any) [2]string {
 // already refused a ".." segment; `folder` had no such check because
 // nothing could reach it from data.
 func validFolder(props map[string]any, path string) error {
+	// A JSON null is absent, as `null == folder` is in TypeScript, and as
+	// a null `props` or `children` already is here.
 	raw, present := props["folder"]
-	if !present {
+	if !present || raw == nil {
 		return nil
 	}
 	folder, ok := raw.(string)

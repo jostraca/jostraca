@@ -4,6 +4,9 @@
 id	fn	args	expect	error
 tree-basic	cmptree	[[{"cmp":"Project","props":{"folder":"p"},"children":[{"cmp":"File","props":{"name":"a.txt"},"children":[{"cmp":"Content","props":{"arg":"A"}}]}]}]]	"ok"	
 tree-deprecated-names	cmptree	[[{"cmp":"File","props":{"name":"a.txt"},"children":[{"cmp":"List","props":{"item":[1]},"children":[{"cmp":"Content","props":{"src":"x"}}]}]},{"cmp":"Copy","props":{"from":"/nonexistent-is-checked-later"}}]]	"ok"	
+tree-folder-null-project	cmptree	[{"cmp":"Project","props":{"folder":null},"children":[{"cmp":"File","props":{"name":"a.txt"}}]}]	"ok"	
+tree-folder-null-folder	cmptree	[{"cmp":"Folder","props":{"name":"d","folder":null}}]	"ok"	
+tree-folder-null-file	cmptree	[{"cmp":"File","props":{"name":"a.txt","folder":null}}]	"ok"	
 tree-unknown-cmp	cmptree	[{"cmp":"Nope"}]	-	cmpTree: unknown component: Nope (at [0])
 tree-unknown-cmp-bad-child	cmptree	[[{"cmp":"Nope","children":[{"cmp":5}]}]]	-	cmpTree: unknown component: Nope (at [0])
 tree-unknown-cmp-bad-props	cmptree	[[{"cmp":"Nope","props":5}]]	-	cmpTree: unknown component: Nope (at [0])
