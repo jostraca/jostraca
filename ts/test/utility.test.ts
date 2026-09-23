@@ -5,6 +5,7 @@ import { expect } from './expect'
 
 import * as Package from '../'
 import { memfs } from '../dist/util/memfs'
+import { humanify } from '../dist/util/basic'
 
 
 import {
@@ -536,6 +537,25 @@ describe('util', () => {
   })
 
 })
+
+// humanify formats any number it is given, 0 included: only a missing
+// value means now. Past year 9007 the digit form exceeds 2^53 and rounds
+// here, where go/util_test.go TestHumanifyRangeTail pins Go's exact
+// 9999123123595999.
+describe('humanify', () => {
+
+  test('zero-is-the-epoch', () => {
+    expect(humanify(0)).equal(1970010100000000)
+    expect(humanify(0, { parts: true, terse: true }))
+      .equal({ ty: 1970, tm: 1, td: 1, th: 0, tn: 0, ts: 0, ti: 0 })
+  })
+
+  test('range-tail', () => {
+    expect(humanify(253402300799999)).equal(9999123123596000)
+  })
+
+})
+
 
 // FILTER(fn): fn's result is written, except that an array [flag, value]
 // drops the entry when flag is truthy and writes value otherwise. A bare

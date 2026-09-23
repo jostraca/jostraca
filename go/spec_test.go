@@ -88,6 +88,19 @@ var specFns = map[string]func(a []any) (any, error){
 		return VMap(o, specMapSpec(a[1])), nil
 	},
 
+	// [when, {parts, terse}], when an integer number of milliseconds.
+	"humanify": func(a []any) (any, error) {
+		flags := HumanifyFlags{}
+		if 2 <= len(a) {
+			if raw, ok := a[1].(map[string]any); ok {
+				flags.Parts, _ = raw["parts"].(bool)
+				flags.Terse, _ = raw["terse"].(bool)
+			}
+		}
+		when, _ := a[0].(float64)
+		return Humanify(int64(when), flags), nil
+	},
+
 	"omap": func(a []any) (any, error) {
 		m, _ := a[0].(map[string]any)
 		return OMap(m), nil

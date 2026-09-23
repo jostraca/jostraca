@@ -251,3 +251,31 @@ func TestMetaLogQuotesLikeJSONStringify(t *testing.T) {
 		t.Errorf("meta.log\n got  %q\n want %q", got, want)
 	}
 }
+
+// Mirrors ts/test/jostraca.test.ts now-zero-is-deterministic: a clock of
+// 0 is the epoch, so the meta log is byte-stable.
+func TestNowZeroIsDeterministic(t *testing.T) {
+	run := func() string {
+		mem := NewMemFS()
+		_, err := New(WithFS(mem), WithFolder("/out"), WithNow(func() int64 { return 0 })).
+			Generate(Options{}, func(j *J) {
+				j.Project(ProjectProps{Folder: "."}, func(j *J) {
+					j.File("a.txt", func(j *J) { j.Content("A\n") })
+				})
+			})
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, _ := mem.ReadFile("/out/.jostraca/jostraca.meta.log")
+		return string(b)
+	}
+	first := run()
+	for _, want := range []string{`"hlast": 1970010100000000,`, `"hwhen": 1970010100000000`} {
+		if !strings.Contains(first, want) {
+			t.Errorf("meta.log lacks %s:\n%s", want, first)
+		}
+	}
+	if second := run(); second != first {
+		t.Errorf("meta.log differs between runs:\n%s\n%s", first, second)
+	}
+}

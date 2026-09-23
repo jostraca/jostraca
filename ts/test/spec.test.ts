@@ -49,6 +49,7 @@ const FN: Record<string, (a: any[]) => any> = {
   // sentinels, which JSON cannot carry.
   cmap: (a) => (Basic as any).cmap(a[0], mapSpec(a[1], (Basic as any).cmap)),
   vmap: (a) => (Basic as any).vmap(a[0], mapSpec(a[1], (Basic as any).vmap)),
+  humanify: (a) => (Basic as any).humanify(a[0], a[1]),
   each: (a) => 1 === a.length
     ? (Basic as any).each(a[0])
     : (Basic as any).each(a[0], a[1]),

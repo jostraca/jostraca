@@ -908,3 +908,16 @@ func TestCMapFilterFn(t *testing.T) {
 		t.Errorf("bare CMapFilter keeps only truthy fields: %v", truthy)
 	}
 }
+
+// Past year 9007 the digit form exceeds 2^53. Go's int64 is exact where
+// TS's number rounds (ts/test/utility.test.ts pins 9999123123596000), and
+// beyond the Date range TS throws where Go formats. Documented, not
+// aligned: emulating the rounding would degrade the exact side.
+func TestHumanifyRangeTail(t *testing.T) {
+	if got := HumanifyDigits(253402300799999); got != 9999123123595999 {
+		t.Errorf("HumanifyDigits(253402300799999) = %d, want 9999123123595999", got)
+	}
+	if got := HumanifyDigits(0); got != 1970010100000000 {
+		t.Errorf("HumanifyDigits(0) = %d, want 1970010100000000", got)
+	}
+}

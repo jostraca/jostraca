@@ -666,6 +666,29 @@ describe('jostraca', () => {
   })
 
 
+  // A fixed clock of () => 0 is the natural golden-file choice, so it must
+  // give byte-stable output: humanify(0) is the epoch, not the wall clock.
+  // go/filehandler_test.go TestNowZeroIsDeterministic pins the same bytes.
+  test('now-zero-is-deterministic', async () => {
+    const run = async () => {
+      const { fs, vol } = memfs({})
+      await Jostraca({ now: () => 0 }).generate(
+        { fs: () => fs, folder: '/out' },
+        cmp(() => {
+          Project({ folder: '.' }, () => {
+            File({ name: 'a.txt' }, () => { Content('A\n') })
+          })
+        }))
+      return (vol.toJSON() as any)['/out/.jostraca/jostraca.meta.log']
+    }
+    const first = await run()
+    expect(first.includes('"hlast": 1970010100000000,')).equal(true)
+    expect(first.includes('"hwhen": 1970010100000000')).equal(true)
+    await new Promise((r) => setTimeout(r, 15))
+    expect(await run()).equal(first)
+  })
+
+
   test('fragment-basic', async () => {
     let nowI = 0
     const now = () => START_TIME + (++nowI * (60 * 1000))

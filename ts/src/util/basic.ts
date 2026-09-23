@@ -938,7 +938,9 @@ function humanify(when?: number, flags: {
   parts?: boolean
   terse?: boolean
 } = {}) {
-  const d = when ? new Date(when) : new Date()
+  // Only a missing value means now: 0 is the epoch, which a fixed clock of
+  // () => 0 relies on for byte-stable output.
+  const d = null == when ? new Date() : new Date(when)
   const iso = d.toISOString()
 
   if (flags.parts) {
