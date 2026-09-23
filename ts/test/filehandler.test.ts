@@ -501,4 +501,36 @@ describe('filehandler', () => {
     }
   })
 
+
+  // Every meta entry carries when/hwhen, skip entries included, whether or
+  // not a baseline copy is made.
+  test('skip-entry-when', async () => {
+    const nodup = { duplicate: false }
+    const rows: [string, any, any, () => void, string][] = [
+      ['write-off', { '/out/a.txt': 'OLD' },
+        { existing: { txt: { write: false } }, control: nodup },
+        () => Project({}, () => File({ name: 'a.txt' }, () => Content('NEW'))), 'a.txt'],
+      ['protected', { '/out/a.txt': 'JOSTRACA_PROTECT' }, { control: nodup },
+        () => Project({}, () => File({ name: 'a.txt' }, () => Content('NEW'))), 'a.txt'],
+      ['unchanged-merge', { '/out/a.txt': 'SAME' },
+        { existing: { txt: { merge: true } }, control: nodup },
+        () => Project({}, () => File({ name: 'a.txt' }, () => Content('SAME'))), 'a.txt'],
+      ['unchanged-diff', { '/out/a.txt': 'SAME' },
+        { existing: { txt: { diff: true } }, control: nodup },
+        () => Project({}, () => File({ name: 'a.txt' }, () => Content('SAME'))), 'a.txt'],
+      ['outside-folder', { '/elsewhere/a.txt': 'OLD' },
+        { existing: { txt: { write: false } } },
+        () => Project({ folder: '/elsewhere' }, () => File({ name: 'a.txt' }, () => Content('NEW'))),
+        '/elsewhere/a.txt'],
+    ]
+    for (const [name, seed, opts, root, key] of rows) {
+      const { fs } = memfs(seed)
+      await Jostraca({ now: () => NOW, log: quiet })
+        .generate({ fs: () => fs, folder: '/out', ...opts }, root)
+      const e = metaOf(fs).files[key]
+      expect({ name, action: e.action, when: e.when, hwhen: e.hwhen })
+        .equal({ name, action: 'skip', when: NOW, hwhen: 2025010100000000 })
+    }
+  })
+
 })

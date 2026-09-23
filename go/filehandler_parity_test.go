@@ -506,3 +506,53 @@ func TestMetaLastType(t *testing.T) {
 		}
 	}
 }
+
+// Every meta entry carries when/hwhen, skip entries included. Twin of
+// 'skip-entry-when' in ts/test/filehandler.test.ts.
+func TestSkipEntryWhen(t *testing.T) {
+	no, yes := false, true
+	nodup := Control{NoDuplicate: true}
+	file := func(folder, body string) func(*J) {
+		return func(j *J) {
+			j.Project(ProjectProps{Folder: folder}, func(j *J) {
+				j.File("a.txt", func(j *J) { j.Content(body) })
+			})
+		}
+	}
+	rows := []struct {
+		name string
+		seed map[string]string
+		opts Options
+		root func(*J)
+		key  string
+	}{
+		{"write-off", map[string]string{"/out/a.txt": "OLD"},
+			Options{Existing: Existing{Txt: ExistingTxt{Write: &no}}, Control: nodup},
+			file("", "NEW"), "a.txt"},
+		{"protected", map[string]string{"/out/a.txt": "JOSTRACA_PROTECT"},
+			Options{Control: nodup}, file("", "NEW"), "a.txt"},
+		{"unchanged-merge", map[string]string{"/out/a.txt": "SAME"},
+			Options{Existing: Existing{Txt: ExistingTxt{Merge: &yes}}, Control: nodup},
+			file("", "SAME"), "a.txt"},
+		{"unchanged-diff", map[string]string{"/out/a.txt": "SAME"},
+			Options{Existing: Existing{Txt: ExistingTxt{Diff: &yes}}, Control: nodup},
+			file("", "SAME"), "a.txt"},
+		{"outside-folder", map[string]string{"/elsewhere/a.txt": "OLD"},
+			Options{Existing: Existing{Txt: ExistingTxt{Write: &no}}},
+			file("/elsewhere", "NEW"), "/elsewhere/a.txt"},
+	}
+	for _, r := range rows {
+		mem := NewMemFS()
+		for k, v := range r.seed {
+			_ = mem.WriteFile(k, []byte(v))
+		}
+		if _, err := New(WithFS(mem), WithFolder("/out"), WithNow(func() int64 { return fhNow })).
+			Generate(r.opts, r.root); err != nil {
+			t.Fatalf("%s: %v", r.name, err)
+		}
+		e := fhMetaEntry(t, mem, "/out/.jostraca/jostraca.meta.log", r.key)
+		if e["action"] != "skip" || e["when"] != float64(fhNow) || e["hwhen"] != float64(2025010100000000) {
+			t.Errorf("%s: meta = %v, want skip stamped %d", r.name, e, fhNow)
+		}
+	}
+}

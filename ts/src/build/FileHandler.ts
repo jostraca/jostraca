@@ -598,6 +598,7 @@ class FileHandler {
       why.push('skip-0')
       meta.action = 'skip'
       meta.actions.push(meta.action)
+      whenify(meta, this.now())
       this.audit.push([CN + FN + wstr + meta.action,
       { ...meta, why, action: meta.action, path }])
     }
@@ -614,10 +615,6 @@ class FileHandler {
         if (!this.control.dryrun) {
           this.ensureDir(fwd(Path.dirname(dpath)))
           this.writeFileAtomic(dpath, newContentSource, { flush: true })
-        }
-
-        if (null == meta.when) {
-          whenify(meta, this.now())
         }
       }
     }
