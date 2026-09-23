@@ -317,9 +317,14 @@ func (b *buildCtx) claimFile(fullpath, where string) error {
 // tree instead, so this walk has to do what TS's ambient buffer did for free
 // -- otherwise wrapping content in a user component emitted nothing at all.
 // See #29.
+//
+// KindSlot is walked through the same way. A Slot outside a Fragment is
+// transparent in TS: its children render in place in the enclosing File or
+// Inject. Inside a Fragment the replay renders it, and the walk never
+// reaches it from here because a Fragment contributes its rendered Content.
 func collectInPlace(sb *strings.Builder, parent *Node, want func(Kind) bool) {
 	for _, c := range parent.Children {
-		if c.Kind == KindNone {
+		if c.Kind == KindNone || c.Kind == KindSlot {
 			collectInPlace(sb, c, want)
 			continue
 		}
@@ -331,19 +336,25 @@ func collectInPlace(sb *strings.Builder, parent *Node, want func(Kind) bool) {
 	}
 }
 
+// inPlaceKind is the set of kinds whose Content a File or an Inject
+// splices into its body, in source order. One predicate for both, because
+// an Inject's children build the injected region exactly as they would
+// build a File.
+func inPlaceKind(k Kind) bool {
+	switch k {
+	case KindContent, KindFragment, KindInject, KindCopy:
+		return true
+	}
+	return false
+}
+
 func fileAfter(n *Node, st *jstate, b *buildCtx) error {
-	// In-place content emission. Fragment/Inject/Copy/Slot ops stash their
-	// accumulated text in n.Content during their after-hooks; this splices
-	// it into the parent file's stream at the position where the child sat
-	// in source order.
+	// In-place content emission. Fragment/Inject/Copy ops stash their
+	// accumulated text in n.Content during their hooks; this splices it into
+	// the parent file's stream at the position where the child sat in source
+	// order.
 	var sb strings.Builder
-	collectInPlace(&sb, n, func(k Kind) bool {
-		switch k {
-		case KindContent, KindFragment, KindInject, KindCopy, KindSlot:
-			return true
-		}
-		return false
-	})
+	collectInPlace(&sb, n, inPlaceKind)
 	body := sb.String()
 	n.Content = []string{body}
 
@@ -750,7 +761,7 @@ func injectAfter(n *Node, _ *jstate, b *buildCtx) error {
 		return nil
 	}
 	var sb strings.Builder
-	collectInPlace(&sb, n, func(k Kind) bool { return k == KindContent })
+	collectInPlace(&sb, n, inPlaceKind)
 	body := sb.String()
 
 	// Inject rewrites a region of an existing file; a missing target is a

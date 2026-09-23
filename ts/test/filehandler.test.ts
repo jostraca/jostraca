@@ -15,6 +15,10 @@ import {
   Content,
   Copy,
   Inject,
+  Fragment,
+  Slot,
+  cmp,
+  each,
   cmpTree,
 } from '../'
 
@@ -126,6 +130,97 @@ describe('filehandler', () => {
           .equal({ ex, t: injected })
       }
     }
+  })
+
+
+  // An Inject's children build the injected region exactly as they would
+  // build a File: Fragment output and a single-file Copy's spliced text
+  // included, in source order.
+  test('inject-fragment-and-copy-children', async () => {
+    const marked = 'A\n#--START--#\nold1\n#--END--#\nB\n#--START--#\nold2\n#--END--#\nC\n'
+    const block = (body: string) => 'A\n#--START--#\n' + body +
+      '\n#--END--#\nB\n#--START--#\n' + body + '\n#--END--#\nC\n'
+
+    const run = async (root: any) => {
+      const { fs } = memfs({
+        '/tpl/model.txt': 'M=$$name$$\n',
+        '/tpl/single.txt': 'single $$name$$ FOO\n',
+        '/out/t.txt': marked,
+      })
+      await Jostraca({ now: () => NOW, log: quiet, model: { name: 'World' } })
+        .generate({ fs: () => fs, folder: '/out' }, root)
+      return fs
+    }
+
+    const fs0 = await run(() => Project({}, () => {
+      Inject({ name: 't.txt' }, () => {
+        Content('c1;')
+        Fragment({ from: '/tpl/model.txt' })
+        Content('c2;')
+      })
+    }))
+    expect(fs0.readFileSync('/out/t.txt', 'utf8')).equal(block('c1;M=World\nc2;'))
+
+    const fs1 = await run(() => Project({}, () => {
+      Inject({ name: 't.txt' }, () => {
+        Content('pre;')
+        Copy({ from: '/tpl/single.txt', to: 'copied.txt' })
+        Content('post;')
+      })
+    }))
+    expect(fs1.readFileSync('/out/t.txt', 'utf8'))
+      .equal(block('pre;single World FOO\npost;'))
+    expect(fs1.readFileSync('/out/copied.txt', 'utf8')).equal('single World FOO\n')
+  })
+
+
+  // A Slot outside a Fragment is transparent: its children render in
+  // place in the enclosing File or Inject.
+  test('slot-outside-fragment', async () => {
+    const Wrap = cmp(function Wrap(_props: any, children: any) {
+      each(children, { call: true })
+    })
+
+    const cases: [string, () => void, string][] = [
+      ['named', () => {
+        Content('a'); Slot({ name: 'x' }, () => Content('S')); Content('b')
+      }, 'aSb'],
+      ['unnamed', () => {
+        Content('a'); Slot({}, () => Content('S')); Content('b')
+      }, 'aSb'],
+      ['nested', () => {
+        Content('a')
+        Slot({ name: 'x' }, () => {
+          Content('S')
+          Slot({ name: 'y' }, () => Content('T'))
+        })
+        Content('b')
+      }, 'aSTb'],
+      ['cmp-wrapped', () => {
+        Content('a')
+        Wrap(() => { Slot({ name: 'x' }, () => Content('S')) })
+        Content('b')
+      }, 'aSb'],
+    ]
+
+    for (const [name, body, want] of cases) {
+      const { fs } = memfs({})
+      await Jostraca({ now: () => NOW, log: quiet })
+        .generate({ fs: () => fs, folder: '/out' },
+          () => Project({}, () => File({ name: 's.txt' }, body)))
+      expect({ name, s: fs.readFileSync('/out/s.txt', 'utf8') })
+        .equal({ name, s: want })
+    }
+
+    const { fs } = memfs({ '/out/t.txt': '<\n#--START--#\nold\n#--END--#\n>' })
+    await Jostraca({ now: () => NOW, log: quiet })
+      .generate({ fs: () => fs, folder: '/out' }, () => Project({}, () => {
+        Inject({ name: 't.txt' }, () => {
+          Content('a'); Slot({ name: 'x' }, () => Content('S')); Content('b')
+        })
+      }))
+    expect(fs.readFileSync('/out/t.txt', 'utf8'))
+      .equal('<\n#--START--#\naSb\n#--END--#\n>')
   })
 
 })

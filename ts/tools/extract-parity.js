@@ -11,6 +11,7 @@ const path = require('node:path')
 
 const {
   Jostraca, Project, Folder, File, Content, Inject, Fragment, Slot, Copy, Line, List, cmp,
+  each,
 } = require('../dist/jostraca')
 
 const { memfs } = require('../dist/util/memfs')
@@ -908,6 +909,57 @@ async function main() {
       })
     }, injectSeed)
   }
+
+  // An Inject's children build the injected region as they would build a
+  // File, so a Fragment and a single-file Copy contribute their text.
+  const twoBlocks = {
+    '/out/app/t.txt':
+      'A\n#--START--#\nold1\n#--END--#\nB\n#--START--#\nold2\n#--END--#\nC\n',
+  }
+  await snapshot('inject_fragment_child', { model: { name: 'World' } }, () => {
+    Project({ folder: 'app' }, () => {
+      Inject({ name: 't.txt' }, () => {
+        Content('c1;')
+        Fragment({ from: '/tpl/model.txt' })
+        Content('c2;')
+      })
+    })
+  }, { ...twoBlocks, '/tpl/model.txt': 'M=$$name$$\n' })
+
+  await snapshot('inject_copy_child', { model: { name: 'World' } }, () => {
+    Project({ folder: 'app' }, () => {
+      Inject({ name: 't.txt' }, () => {
+        Content('pre;')
+        Copy({ from: '/tpl/single.txt', to: 'copied.txt' })
+        Content('post;')
+      })
+    })
+  }, { ...twoBlocks, '/tpl/single.txt': 'single $$name$$ FOO\n' })
+
+  // A Slot outside a Fragment is transparent: its children render in place.
+  const Wrap = cmp(function Wrap(_props, children) {
+    each(children, { call: true })
+  })
+  await snapshot('slot_outside_fragment', {}, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 's.txt' }, () => {
+        Content('a')
+        Slot({ name: 'x' }, () => Content('S'))
+        Content('b')
+        Slot({}, () => Content('U'))
+        Slot({ name: 'n' }, () => {
+          Content('N')
+          Slot({ name: 'm' }, () => Content('M'))
+        })
+        Wrap(() => { Slot({ name: 'w' }, () => Content('W')) })
+      })
+      Inject({ name: 't.txt' }, () => {
+        Content('i')
+        Slot({ name: 'x' }, () => Content('S'))
+        Content('j')
+      })
+    })
+  }, { '/out/app/t.txt': '<\n#--START--#\nold\n#--END--#\n>' })
 
   console.log('done')
 }

@@ -213,3 +213,134 @@ func TestJSTruthy(t *testing.T) {
 		}
 	}
 }
+
+// An Inject's children build the injected region exactly as they would
+// build a File: Fragment output and a single-file Copy's spliced text
+// included, in source order.
+func TestInjectFragmentAndCopyChildren(t *testing.T) {
+	const marked = "A\n#--START--#\nold1\n#--END--#\nB\n#--START--#\nold2\n#--END--#\nC\n"
+	block := func(body string) string {
+		return "A\n#--START--#\n" + body + "\n#--END--#\nB\n#--START--#\n" +
+			body + "\n#--END--#\nC\n"
+	}
+	run := func(t *testing.T, root func(*J)) *MemFS {
+		t.Helper()
+		mem := NewMemFS()
+		_ = mem.WriteFile("/tpl/model.txt", []byte("M=$$name$$\n"))
+		_ = mem.WriteFile("/tpl/single.txt", []byte("single $$name$$ FOO\n"))
+		_ = mem.WriteFile("/out/t.txt", []byte(marked))
+		_, err := New(WithFS(mem), WithFolder("/out"),
+			WithModel(map[string]any{"name": "World"}),
+			WithNow(func() int64 { return fhNow })).Generate(Options{}, root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return mem
+	}
+
+	t.Run("fragment", func(t *testing.T) {
+		mem := run(t, func(j *J) {
+			j.Project(ProjectProps{}, func(j *J) {
+				j.Inject("t.txt", func(j *J) {
+					j.Content("c1;")
+					j.Fragment(FragmentProps{From: "/tpl/model.txt"}, nil)
+					j.Content("c2;")
+				})
+			})
+		})
+		if got, _ := mem.ReadFile("/out/t.txt"); string(got) != block("c1;M=World\nc2;") {
+			t.Errorf("t.txt = %q", got)
+		}
+	})
+
+	t.Run("copy", func(t *testing.T) {
+		mem := run(t, func(j *J) {
+			j.Project(ProjectProps{}, func(j *J) {
+				j.Inject("t.txt", func(j *J) {
+					j.Content("pre;")
+					j.CopyFiles(CopyFilesProps{From: "/tpl/single.txt", To: "copied.txt"})
+					j.Content("post;")
+				})
+			})
+		})
+		if got, _ := mem.ReadFile("/out/t.txt"); string(got) != block("pre;single World FOO\npost;") {
+			t.Errorf("t.txt = %q", got)
+		}
+		if got, _ := mem.ReadFile("/out/copied.txt"); string(got) != "single World FOO\n" {
+			t.Errorf("copied.txt = %q", got)
+		}
+	})
+}
+
+// A Slot outside a Fragment is transparent: its children render in place
+// in the enclosing File or Inject.
+func TestSlotOutsideFragment(t *testing.T) {
+	wrap := func(j *J, body func(*J)) { j.Cmp("Wrap", body) }
+	cases := []struct {
+		name string
+		body func(j *J)
+		want string
+	}{
+		{"named", func(j *J) {
+			j.Content("a")
+			j.SlotP(SlotProps{Name: "x"}, func(j *J) { j.Content("S") })
+			j.Content("b")
+		}, "aSb"},
+		{"unnamed", func(j *J) {
+			j.Content("a")
+			j.SlotP(SlotProps{}, func(j *J) { j.Content("S") })
+			j.Content("b")
+		}, "aSb"},
+		{"nested", func(j *J) {
+			j.Content("a")
+			j.SlotP(SlotProps{Name: "x"}, func(j *J) {
+				j.Content("S")
+				j.SlotP(SlotProps{Name: "y"}, func(j *J) { j.Content("T") })
+			})
+			j.Content("b")
+		}, "aSTb"},
+		{"cmp-wrapped", func(j *J) {
+			j.Content("a")
+			wrap(j, func(j *J) {
+				j.SlotP(SlotProps{Name: "x"}, func(j *J) { j.Content("S") })
+			})
+			j.Content("b")
+		}, "aSb"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			mem := NewMemFS()
+			_, err := New(WithFS(mem), WithFolder("/out"),
+				WithNow(func() int64 { return fhNow })).Generate(Options{}, func(j *J) {
+				j.Project(ProjectProps{}, func(j *J) { j.File("s.txt", c.body) })
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got, _ := mem.ReadFile("/out/s.txt"); string(got) != c.want {
+				t.Errorf("s.txt = %q, want %q", got, c.want)
+			}
+		})
+	}
+
+	t.Run("inside-inject", func(t *testing.T) {
+		mem := NewMemFS()
+		_ = mem.WriteFile("/out/t.txt", []byte("<\n#--START--#\nold\n#--END--#\n>"))
+		_, err := New(WithFS(mem), WithFolder("/out"),
+			WithNow(func() int64 { return fhNow })).Generate(Options{}, func(j *J) {
+			j.Project(ProjectProps{}, func(j *J) {
+				j.Inject("t.txt", func(j *J) {
+					j.Content("a")
+					j.SlotP(SlotProps{Name: "x"}, func(j *J) { j.Content("S") })
+					j.Content("b")
+				})
+			})
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, _ := mem.ReadFile("/out/t.txt"); string(got) != "<\n#--START--#\naSb\n#--END--#\n>" {
+			t.Errorf("t.txt = %q", got)
+		}
+	})
+}

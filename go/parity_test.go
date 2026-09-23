@@ -407,6 +407,48 @@ var scenarioRunners = map[string]func(j *J){
 	"inject_exclude_emptyarray": injectExcludeRunner([]any{}),
 	"inject_exclude_list":       injectExcludeRunner([]any{"other"}),
 	"inject_exclude_object":     injectExcludeRunner(map[string]any{}),
+	// An Inject's children build the region as they would build a File.
+	"inject_fragment_child": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.Inject("t.txt", func(j *J) {
+				j.Content("c1;")
+				j.Fragment(FragmentProps{From: "/tpl/model.txt"}, nil)
+				j.Content("c2;")
+			})
+		})
+	},
+	"inject_copy_child": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.Inject("t.txt", func(j *J) {
+				j.Content("pre;")
+				j.CopyFiles(CopyFilesProps{From: "/tpl/single.txt", To: "copied.txt"})
+				j.Content("post;")
+			})
+		})
+	},
+	// A Slot outside a Fragment is transparent.
+	"slot_outside_fragment": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("s.txt", func(j *J) {
+				j.Content("a")
+				j.SlotP(SlotProps{Name: "x"}, func(j *J) { j.Content("S") })
+				j.Content("b")
+				j.SlotP(SlotProps{}, func(j *J) { j.Content("U") })
+				j.SlotP(SlotProps{Name: "n"}, func(j *J) {
+					j.Content("N")
+					j.SlotP(SlotProps{Name: "m"}, func(j *J) { j.Content("M") })
+				})
+				j.Cmp("Wrap", func(j *J) {
+					j.SlotP(SlotProps{Name: "w"}, func(j *J) { j.Content("W") })
+				})
+			})
+			j.Inject("t.txt", func(j *J) {
+				j.Content("i")
+				j.SlotP(SlotProps{Name: "x"}, func(j *J) { j.Content("S") })
+				j.Content("j")
+			})
+		})
+	},
 	"inject_no_markers": func(j *J) {
 		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
 			j.Inject("foo.txt", func(j *J) { j.Content("NEW") })
@@ -477,7 +519,7 @@ func scenarioOptions(scenario string) []Option {
 		return []Option{WithModel(map[string]any{
 			"app": map[string]any{"name": "Acme", "version": "1.0.0"},
 		})}
-	case "copy_file", "copy_in_file":
+	case "copy_file", "copy_in_file", "inject_fragment_child", "inject_copy_child":
 		return []Option{WithModel(map[string]any{"name": "World"})}
 	case "preserve_mode", "dotfile_preserve":
 		t := true
