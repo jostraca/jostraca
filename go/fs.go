@@ -77,18 +77,20 @@ type OsFS struct{}
 func (OsFS) sys(p string) string { return filepath.FromSlash(p) }
 
 func (o OsFS) ReadFile(p string) ([]byte, error)  { return os.ReadFile(o.sys(p)) }
-func (o OsFS) WriteFile(p string, b []byte) error { return os.WriteFile(o.sys(p), b, 0o644) }
+// New files and directories take 0666 and 0777 less the process umask, as
+// Node's defaults do.
+func (o OsFS) WriteFile(p string, b []byte) error { return os.WriteFile(o.sys(p), b, 0o666) }
 func (o OsFS) Exists(p string) bool {
 	_, err := os.Stat(o.sys(p))
 	return err == nil
 }
-func (o OsFS) MkdirAll(p string) error { return os.MkdirAll(o.sys(p), 0o755) }
+func (o OsFS) MkdirAll(p string) error { return os.MkdirAll(o.sys(p), 0o777) }
 
 // WriteFileExcl implements exclusiveFS: O_EXCL fails with fs.ErrExist
 // rather than truncating an existing file.
 func (o OsFS) WriteFileExcl(p string, b []byte) error {
 	sp := o.sys(p)
-	f, err := os.OpenFile(sp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	f, err := os.OpenFile(sp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o666)
 	if err != nil {
 		return err
 	}
@@ -146,6 +148,13 @@ func (o OsFS) ReadDir(p string) ([]DirEntry, error) {
 	}
 	return out, nil
 }
+
+// memFileMode and memDirMode are the modes MemFS reports for its entries,
+// the in-memory provider's defaults in ts/src/util/memfs.ts.
+const (
+	memFileMode fs.FileMode = 0o666
+	memDirMode  fs.FileMode = 0o777
+)
 
 // MemFS is an in-process filesystem backed by a string-keyed map. Safe
 // for concurrent use. Paths are canonical-/ throughout.
@@ -265,13 +274,13 @@ func (m *MemFS) Stat(p string) (FileInfo, error) {
 	defer m.mu.RUnlock()
 	cp := memClean(p)
 	if cp == "" {
-		return FileInfo{Name: "", IsDir: true, Mode: fs.ModeDir | 0o755}, nil
+		return FileInfo{Name: "", IsDir: true, Mode: fs.ModeDir | memDirMode}, nil
 	}
 	if b, ok := m.files[cp]; ok {
 		return FileInfo{
 			Name:    pathBase(cp),
 			Size:    int64(len(b)),
-			Mode:    0o644,
+			Mode:    memFileMode,
 			ModTime: m.times[cp],
 			IsDir:   false,
 		}, nil
@@ -279,7 +288,7 @@ func (m *MemFS) Stat(p string) (FileInfo, error) {
 	if m.dirs[cp] {
 		return FileInfo{
 			Name:  pathBase(cp),
-			Mode:  fs.ModeDir | 0o755,
+			Mode:  fs.ModeDir | memDirMode,
 			IsDir: true,
 		}, nil
 	}

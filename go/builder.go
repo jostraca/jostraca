@@ -75,8 +75,8 @@ type FileProps struct {
 	Exclude any
 
 	// Mode sets POSIX permission bits on the generated file, e.g. 0o755 to
-	// make a script executable. Zero leaves the platform default (or, when
-	// the file already exists, its current mode).
+	// make a script executable. Zero leaves the platform default, 0666 less
+	// the umask (or, when the file already exists, its current mode).
 	Mode fs.FileMode
 }
 

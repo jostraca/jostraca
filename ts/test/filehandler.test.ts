@@ -2,6 +2,10 @@
 // File-handler behaviour pinned across both stacks. Each test here has a
 // Go twin; the names match the regression rows recorded for the port.
 
+import Fs from 'node:fs'
+import Os from 'node:os'
+import Path from 'node:path'
+
 import { test, describe } from 'node:test'
 import { expect } from './expect'
 
@@ -281,6 +285,42 @@ describe('filehandler', () => {
           { name, content: 'NEW', written: 1, baseline: true, meta: true })
       }
     }
+  })
+
+
+  // New files and directories take 0666 and 0777 less the process umask.
+  test('umask-default-modes', { skip: 'win32' === process.platform }, async () => {
+    const old = process.umask(0o002)
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'jostraca-umask-'))
+    try {
+      const out = Path.join(dir, 'out')
+      await Jostraca({ now: () => NOW, log: quiet })
+        .generate({ folder: out }, () => Project({}, () => {
+          Folder({ name: 'sub' }, () => File({ name: 'a.txt' }, () => Content('A')))
+        }))
+      const want: Record<string, number> = {
+        'sub/a.txt': 0o664,
+        'sub': 0o775,
+        '.jostraca/generated/sub/a.txt': 0o664,
+        '.jostraca/generated/sub': 0o775,
+        '.jostraca/jostraca.meta.log': 0o664,
+        '.jostraca/.gitignore': 0o664,
+        '.jostraca': 0o775,
+      }
+      const got: Record<string, number> = {}
+      for (const rel of Object.keys(want)) {
+        got[rel] = Fs.statSync(Path.join(out, rel)).mode & 0o777
+      }
+      expect(got).equal(want)
+    }
+    finally {
+      process.umask(old)
+      Fs.rmSync(dir, { recursive: true, force: true })
+    }
+
+    const { fs } = memfs({ '/d/a.txt': 'A' })
+    expect(fs.statSync('/d/a.txt').mode & 0o777).equal(0o666)
+    expect(fs.statSync('/d').mode & 0o777).equal(0o777)
   })
 
 })
