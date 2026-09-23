@@ -360,12 +360,9 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
 
 
     const existing = ExistingShape({
-      // FIX: this does not work as generate opts get defaults from OptionsShape
       txt: deep({}, gOpts.existing.txt, opts.existing.txt),
       bin: deep({}, gOpts.existing.bin, opts.existing.bin),
     })
-
-    // console.log('EXISTING', existing)
 
     const control = deep({}, CONTROL_DEFAULTS, gOpts.control, opts.control)
 

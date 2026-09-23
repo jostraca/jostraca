@@ -175,4 +175,81 @@ describe('control', () => {
 
   })
 
+
+  // `existing.txt` and `existing.bin` deep-merge PER KEY over the global
+  // values: every key a call omits inherits the global one. Each case is a
+  // generate, a user edit, and a regenerate under a global and a per-call
+  // `existing`.
+  describe('global-existing-precedence', () => {
+
+    const run = async (gexisting: any, cexisting: any,
+      first: string, user: string, second: string) => {
+      const j = Jostraca({
+        mem: true, folder: '/out', now: () => START_TIME, existing: gexisting
+      })
+      const gen = (body: string) => () =>
+        Project({}, () => File({ name: 'a.txt' }, () => Content(body)))
+
+      const res0: any = await j.generate({}, gen(first))
+      res0.fs().writeFileSync('/out/a.txt', user)
+
+      const res: any = await j.generate({ existing: cexisting }, gen(second))
+      const fs = res.fs()
+      const meta = JSON.parse(fs.readFileSync('/out/.jostraca/jostraca.meta.log', 'utf8'))
+      return {
+        files: res.files,
+        text: fs.readFileSync('/out/a.txt', 'utf8'),
+        vol: Object.keys(res.vol().toJSON()).filter((p) => !p.includes('.jostraca')).sort(),
+        actions: meta.files['a.txt'].actions,
+      }
+    }
+
+    test('global-merge-with-per-call-preserve-merges', async () => {
+      const r = await run({ txt: { merge: true } }, { txt: { preserve: true } },
+        'L1\nL2\nL3\n', 'L1\nUSER\nL3\n', 'L1\nGEN\nL3\n')
+      expect(r.text).equal('L1\n' +
+        '<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\n' +
+        'GEN\n=======\nUSER\n' +
+        '>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n' +
+        'L3\n')
+      expect(r.files.merged).equal(['/out/a.txt'])
+      expect(r.files.conflicted).equal(['/out/a.txt'])
+      expect(r.files.written).equal([])
+      expect(r.files.preserved.length).equal(1)
+      expect(r.actions).equal(['preserve', 'merge'])
+      expect(r.vol).equal(['/out/a.old.txt', '/out/a.txt'])
+    })
+
+    test('global-merge-with-per-call-write-still-merges', async () => {
+      const r = await run({ txt: { merge: true } }, { txt: { write: true } },
+        'L1\nL2\nL3\n', 'L1\nUSER\nL3\n', 'L1\nL2\nL3\nL4\n')
+      expect(r.text).equal('L1\nUSER\nL3\nL4\n')
+      expect(r.files.merged).equal(['/out/a.txt'])
+      expect(r.files.conflicted).equal([])
+      expect(r.files.written).equal([])
+      expect(r.actions).equal(['merge'])
+    })
+
+    test('global-txt-write-false-with-per-call-bin-skips', async () => {
+      const r = await run({ txt: { write: false } }, { bin: { preserve: true } },
+        'A1\n', 'USER\n', 'A2\n')
+      expect(r.text).equal('USER\n')
+      expect(r.files.written).equal([])
+      expect(r.files.preserved).equal([])
+      expect(r.actions).equal(['skip'])
+      expect(r.vol).equal(['/out/a.txt'])
+    })
+
+    test('global-txt-preserve-with-per-call-bin-preserves', async () => {
+      const r = await run({ txt: { preserve: true } }, { bin: { write: true } },
+        'A1\n', 'USER\n', 'A2\n')
+      expect(r.text).equal('A2\n')
+      expect(r.files.written).equal(['/out/a.txt'])
+      expect(r.files.preserved.length).equal(1)
+      expect(r.actions).equal(['preserve', 'write'])
+      expect(r.vol).equal(['/out/a.old.txt', '/out/a.txt'])
+    })
+
+  })
+
 })

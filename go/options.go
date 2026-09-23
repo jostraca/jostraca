@@ -385,8 +385,21 @@ func mergeOptions(global, call Options) Options {
 		}
 		out.Vol = merged
 	}
-	if call.Existing != (Existing{}) {
-		out.Existing = call.Existing
+	// Existing overlays PER FLAG, as TS deep-merges existing.txt and
+	// existing.bin: a nil per-call pointer inherits the global flag.
+	out.Existing = Existing{
+		Txt: ExistingTxt{
+			Write:    overBool(global.Existing.Txt.Write, call.Existing.Txt.Write),
+			Preserve: overBool(global.Existing.Txt.Preserve, call.Existing.Txt.Preserve),
+			Present:  overBool(global.Existing.Txt.Present, call.Existing.Txt.Present),
+			Diff:     overBool(global.Existing.Txt.Diff, call.Existing.Txt.Diff),
+			Merge:    overBool(global.Existing.Txt.Merge, call.Existing.Txt.Merge),
+		},
+		Bin: ExistingBin{
+			Write:    overBool(global.Existing.Bin.Write, call.Existing.Bin.Write),
+			Preserve: overBool(global.Existing.Bin.Preserve, call.Existing.Bin.Preserve),
+			Present:  overBool(global.Existing.Bin.Present, call.Existing.Bin.Present),
+		},
 	}
 	// Control merges PER FIELD, as TS's `deep({}, CONTROL_DEFAULTS,
 	// gOpts.control, opts.control)` does: a per-call Control that sets one
@@ -401,4 +414,12 @@ func mergeOptions(global, call Options) Options {
 		out.Exclude = true
 	}
 	return out
+}
+
+// overBool is the per-call flag when supplied, else the global one.
+func overBool(global, call *bool) *bool {
+	if call != nil {
+		return call
+	}
+	return global
 }
