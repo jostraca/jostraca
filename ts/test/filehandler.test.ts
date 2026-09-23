@@ -479,4 +479,26 @@ describe('filehandler', () => {
     }
   })
 
+
+  // A previous meta log's `last` is used only when it is a finite number a
+  // Date can carry; anything else is treated as absent (-1), so a merge
+  // labels EXISTING with the epoch minus one millisecond.
+  test('meta-last-type', async () => {
+    for (const last of ['"1735689600000"', 'true', '"2025-01-01"', '{}', '1e20', '[]', 'null']) {
+      const { fs } = memfs({
+        '/out/.jostraca/jostraca.meta.log': '{"last":' + last + ',"hlast":"x","files":[1]}',
+        '/out/.jostraca/generated/a.txt': 'L1\nL2\n',
+        '/out/a.txt': 'L1\nU\n',
+      })
+      const res = await Jostraca({ now: () => NOW, log: quiet }).generate({
+        fs: () => fs, folder: '/out', existing: { txt: { merge: true } },
+      }, () => Project({}, () => File({ name: 'a.txt' }, () => Content('L1\nG\n'))))
+      expect({ last, merged: res.files.merged, conflicted: res.files.conflicted })
+        .equal({ last, merged: ['/out/a.txt'], conflicted: ['/out/a.txt'] })
+      const text = fs.readFileSync('/out/a.txt', 'utf8')
+      expect({ last, label: text.includes('>>>>>>> EXISTING: 1969-12-31T23:59:59.999Z/merge') })
+        .equal({ last, label: true })
+    }
+  })
+
 })

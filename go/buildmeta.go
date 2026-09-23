@@ -71,11 +71,16 @@ func (bm *buildMeta) last() int64 {
 	if bm == nil || bm.prev == nil {
 		return -1
 	}
-	if v, ok := bm.prev["last"].(float64); ok {
+	// Only a value a JS Date can carry, as TS's loadMetaData requires:
+	// int64(1e20) is a garbage timestamp.
+	if v, ok := bm.prev["last"].(float64); ok && v >= -maxJSTime && v <= maxJSTime {
 		return int64(v)
 	}
 	return -1
 }
+
+// maxJSTime is the largest absolute epoch-ms a JS Date holds.
+const maxJSTime = 8.64e15
 
 func (bm *buildMeta) load() {
 	if bm == nil {

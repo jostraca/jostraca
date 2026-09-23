@@ -475,3 +475,34 @@ func TestFolderTrailingSlash(t *testing.T) {
 		}
 	}
 }
+
+// A previous meta log's `last` is used only when it is a finite number a
+// JS Date can carry; anything else is treated as absent (-1). Twin of
+// 'meta-last-type' in ts/test/filehandler.test.ts.
+func TestMetaLastType(t *testing.T) {
+	merge := true
+	for _, last := range []string{`"1735689600000"`, `true`, `"2025-01-01"`, `{}`, `1e20`, `[]`, `null`} {
+		mem := NewMemFS()
+		_ = mem.WriteFile("/out/.jostraca/jostraca.meta.log",
+			[]byte(`{"last":`+last+`,"hlast":"x","files":[1]}`))
+		_ = mem.WriteFile("/out/.jostraca/generated/a.txt", []byte("L1\nL2\n"))
+		_ = mem.WriteFile("/out/a.txt", []byte("L1\nU\n"))
+		res, err := New(WithFS(mem), WithFolder("/out"), WithNow(func() int64 { return fhNow })).
+			Generate(Options{Existing: Existing{Txt: ExistingTxt{Merge: &merge}}}, func(j *J) {
+				j.Project(ProjectProps{}, func(j *J) {
+					j.File("a.txt", func(j *J) { j.Content("L1\nG\n") })
+				})
+			})
+		if err != nil {
+			t.Fatalf("last=%s: %v", last, err)
+		}
+		if strings.Join(res.Files.Merged, ",") != "/out/a.txt" ||
+			strings.Join(res.Files.Conflicted, ",") != "/out/a.txt" {
+			t.Errorf("last=%s: merged=%v conflicted=%v", last, res.Files.Merged, res.Files.Conflicted)
+		}
+		got, _ := mem.ReadFile("/out/a.txt")
+		if !strings.Contains(string(got), ">>>>>>> EXISTING: 1969-12-31T23:59:59.999Z/merge") {
+			t.Errorf("last=%s: a.txt = %q", last, got)
+		}
+	}
+}
