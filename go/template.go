@@ -285,96 +285,73 @@ func quotedRef(ref string) (string, bool) {
 // scalar) for the matched context.
 func invokeReplace(val any, groups map[string]string, match string) string {
 	switch v := val.(type) {
-	case nil:
-		return ""
-	case string:
-		return v
 	case ReplaceFunc:
 		return v(groups, match)
 	case func(map[string]string, string) string:
 		return v(groups, match)
 	case func() any:
-		return formatValue(v(), match)
+		return formatReplaceValue(v())
 	case func() string:
 		return v()
-	default:
-		return fmt.Sprintf("%v", v)
 	}
+	return formatReplaceValue(val)
 }
 
-// formatValue stringifies a value found by model lookup. Strings pass
-// through; nil/NaN-equivalent leaves the macro untouched (caller passes
-// the full match to keep behaviour); maps/slices/structs JSON-marshal;
-// numbers/bools format with Go's %v which matches TS in the common case.
+// formatValue stringifies a value found by a model lookup, leaving the
+// macro (fallback) in place when there is none. A function is called and
+// its result formatted like any other value.
 func formatValue(v any, fallback string) string {
-	switch v := v.(type) {
+	switch f := v.(type) {
 	case nil:
 		return fallback
-	case string:
-		return v
-	case fmt.Stringer:
-		return v.String()
-	case bool:
-		if v {
-			return "true"
-		}
-		return "false"
 	case func() any:
-		return formatValue(v(), fallback)
+		return formatReplaceValue(f())
 	case func() string:
-		return v()
-	case map[string]any, []any, []string, map[string]string:
-		b, err := marshalJSLikeSorted(v)
-		if err != nil {
-			return fmt.Sprintf("%v", v)
-		}
-		return b
+		return f()
+	}
+	return formatReplaceValue(v)
+}
 
-	// Numbers must format the way JavaScript formats them, since TS is the
-	// canonical implementation and its numbers are all float64. Go's %v
-	// differs on exponent padding and on when it switches to exponential
-	// notation.
-	case float64:
-		return formatJSNumber(v)
-	case float32:
-		return formatJSNumber(float64(v))
+// formatReplaceValue formats one inserted value the way TS does, whether
+// it is a plain replace value, a function's return or a model value: nil
+// is empty, a composite is JSON (see jsJSON), and anything else is JS
+// String(), so 0 and false print, 1e6 is "1000000" and NaN is "NaN".
+//
+// Two exceptions keep Go's own rendering: a []byte (encoding/json would
+// give base64 and TS gives a Buffer's toJSON, and neither is the obvious
+// answer) and a pointer (what a nil pointer renders as, and whether a
+// pointer is a value or a reference, are left undecided). A fmt.Stringer
+// keeps its String(), so a time.Time is not turned into a JSON object.
+func formatReplaceValue(v any) string {
+	switch x := v.(type) {
+	case nil:
+		return ""
+	case string:
+		return x
+	case fmt.Stringer:
+		return x.String()
+	case bool, float64, float32:
+		return jsString(x)
 	}
 
-	// The four cases above are the fast path for the shapes that arrive from
-	// JSON or YAML. Any OTHER composite has to reach the same formatter, or
-	// ordinary typed Go data renders in Go's debug syntax: a
-	// map[string]int{"a": 1} came out as `map[a:1]`, a []int as `[1 2]` and
-	// a struct as `{1 x}`, where TS - which has one object type and JSONifies
-	// all of it - gives {"a":1}, [1,2] and {"a":1,"b":"x"}. Only the TOP
-	// level was affected, since encoding/json handles a typed value nested
-	// inside a recognised one.
-	//
-	// The kind test runs after the type switch, so fmt.Stringer still wins:
-	// a time.Time keeps its String() form rather than becoming a JSON
-	// timestamp.
-	if rv := reflect.ValueOf(v); rv.IsValid() {
-		switch rv.Kind() {
-		case reflect.Map, reflect.Array, reflect.Struct:
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Map, reflect.Array, reflect.Struct:
+		if b, err := marshalJSLikeSorted(v); err == nil {
+			return b
+		}
+	case reflect.Slice:
+		if rv.Type().Elem().Kind() != reflect.Uint8 {
 			if b, err := marshalJSLikeSorted(v); err == nil {
 				return b
 			}
-		case reflect.Slice:
-			// []byte deliberately excluded, and left exactly as it was.
-			// encoding/json renders a byte slice as base64, while TS renders
-			// a Buffer through its toJSON as {"type":"Buffer","data":[...]}.
-			// Neither matches the other, so this fix does not pretend to
-			// settle it - that needs its own decision.
-			if rv.Type().Elem().Kind() != reflect.Uint8 {
-				if b, err := marshalJSLikeSorted(v); err == nil {
-					return b
-				}
-			}
 		}
+	case reflect.String, reflect.Bool,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
+		reflect.Float32, reflect.Float64:
+		return jsString(v)
 	}
-
-	// Pointers are also left alone. Dereferencing one raises questions this
-	// fix should not answer on its own - what a nil pointer renders as, and
-	// whether a pointer is a value or a reference to the caller.
 	return fmt.Sprintf("%v", v)
 }
 

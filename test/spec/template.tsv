@@ -83,3 +83,14 @@ template-replace-order-dash-tag-first-reversed	template	["   // #X-Bb\n",{},{"re
 template-ref-matches-empty	template	["x<>y",{"a":1},{"open":"<","close":">","ref":"[^>]*"}]	-	empty
 template-ref-matches-empty-default-delims	template	["x$$$$y",{"a":1},{"ref":"[a-z]*"}]	-	empty
 template-custom-delims	template	["x<a>y",{"a":1},{"open":"<","close":">","ref":"[^>]*"}]	"x1y"	
+template-replace-value-zero	template	["aQb",{},{"replace":{"Q":0}}]	"a0b"	
+template-replace-value-false	template	["aQb",{},{"replace":{"Q":false}}]	"afalseb"	
+template-replace-value-null	template	["aQb",{},{"replace":{"Q":null}}]	"ab"	
+template-replace-value-million	template	["aQb",{},{"replace":{"Q":1000000}}]	"a1000000b"	
+template-replace-value-small	template	["aQb",{},{"replace":{"Q":1e-7}}]	"a1e-7b"	
+template-replace-value-hundred-thousandth	template	["aQb",{},{"replace":{"Q":0.00001}}]	"a0.00001b"	
+template-replace-value-epoch-ms	template	["aQb",{},{"replace":{"Q":1735689600000}}]	"a1735689600000b"	
+template-replace-value-past-2e53	template	["aQb",{},{"replace":{"Q":123456789012345680}}]	"a123456789012345680b"	
+template-replace-value-object	template	["aQb",{},{"replace":{"Q":{"b":1,"a":[2,"x"]}}}]	"a{\"a\":[2,\"x\"],\"b\":1}b"	
+template-replace-value-array	template	["aQb",{},{"replace":{"Q":[1,"a"]}}]	"a[1,\"a\"]b"	
+template-replace-value-empty-object	template	["aQb",{},{"replace":{"Q":{}}}]	"a{}b"	

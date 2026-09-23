@@ -219,6 +219,15 @@ B
   })
 
 
+  // A plain replace value formats as a function's return does: NaN prints,
+  // where only an unresolved $$path$$ is left in place.
+  test('replace-value-nan', () => {
+    expect(template('aQb', {}, { replace: { Q: NaN } })).equal('aNaNb')
+    expect(template('aQb', {}, { replace: { Q: () => NaN } })).equal('aNaNb')
+    expect(template('a$$q$$b', { q: NaN })).equal('a$$q$$b')
+  })
+
+
   // The groups a replace function receives. go/template_test.go
   // TestReplaceFunctionGroups asserts the same JSON.
   test('replace-function-groups', () => {

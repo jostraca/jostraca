@@ -633,6 +633,39 @@ describe('jostraca', () => {
   })
 
 
+  // A plain replace value formats as a function's return does, in every
+  // component that takes a replace map: 0 and false print instead of
+  // collapsing to '', and objects are JSON. go/template_test.go
+  // TestReplaceValuesFormatInComponents expects the same bytes.
+  test('replace-values-format-in-components', async () => {
+    const { fs, vol } = memfs({
+      '/tpl/frag.txt': 'FOO and BAR\n',
+      '/tpl/copy.txt': 'copy FOO\n',
+    })
+    await Jostraca({ now: () => START_TIME }).generate(
+      { fs: () => fs, folder: '/out' },
+      cmp(() => {
+        Project({ folder: '.' }, () => {
+          File({ name: 'c.txt' }, () => {
+            Content({ src: 'zero=FOO;', replace: { FOO: 0 } })
+            Content({ src: 'false=FOO;', replace: { FOO: false } })
+            Content({ src: 'big=FOO;', replace: { FOO: 1e6 } })
+            Content({ src: 'obj=FOO\n', replace: { FOO: { b: 1, a: [2, 'x'] } } })
+          })
+          File({ name: 'f.txt' }, () => {
+            Fragment({ from: '/tpl/frag.txt', replace: { FOO: false, BAR: 2.5e-8 } })
+          })
+          Copy({ from: '/tpl/copy.txt', replace: { FOO: 123456789012 } })
+        })
+      }))
+    const out: any = vol.toJSON()
+    expect(out['/out/c.txt'])
+      .equal('zero=0;false=false;big=1000000;obj={"a":[2,"x"],"b":1}\n')
+    expect(out['/out/f.txt']).equal('false and 2.5e-8\n')
+    expect(out['/out/copy.txt']).equal('copy 123456789012\n')
+  })
+
+
   test('fragment-basic', async () => {
     let nowI = 0
     const now = () => START_TIME + (++nowI * (60 * 1000))

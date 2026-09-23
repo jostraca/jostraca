@@ -551,9 +551,10 @@ function template(
       let insert
       let skip = 0
       let ref = mg.J_R // m[2]
+      const isref = null != ref
 
       // Get replacement from model path.
-      if (null != ref) {
+      if (isref) {
         const qm = ref.match(/^"(.+)"$/)
         if (qm) {
           insert = qm[1]
@@ -579,7 +580,8 @@ function template(
           filter(k => k.startsWith('J_K') && null != mg[k])[0]
         if (null != key) {
           ref = mg[key] || ''
-          insert = specReplaceMap[groupKey[key]] || ''
+          const value = specReplaceMap[groupKey[key]]
+          insert = null == value ? '' : value
         }
       }
 
@@ -590,10 +592,11 @@ function template(
       else {
         let ti = typeof insert
 
-        // Leave unmatched model paths in place so they can be debugged.
-        if (null == insert || ('number' === ti && isNaN(insert))) {
-          handle((0 === skip ? '' : mg.J_O) + ref +
-            (0 === skip ? '' : mg.J_C))
+        // Leave unmatched model paths in place so they can be debugged. A
+        // plain replace value never takes this branch: it formats like a
+        // function's return, so NaN prints as 'NaN'.
+        if (isref && (null == insert || ('number' === ti && isNaN(insert)))) {
+          handle(mg.J_O + ref + mg.J_C)
         }
 
         // Replacement is a function, so call it to generate a dynamic replacement string.
@@ -628,13 +631,14 @@ function template(
           // where an unresolved $$path$$ stays visible for debugging. That
           // asymmetry is the documented contract for `{item.path}` (see
           // docs/reference-components.md, List) and predates this.
-          handle(null == fnval ? '' :
-            'object' === typeof fnval ? jsonify(fnval) : fnval)
+          handle(formatInsert(fnval))
         }
 
-        // Insert a plain replacement value, JSONifying if necessary.
+        // Insert a plain replacement value: formatted exactly as a
+        // function's return value is, so 0 and false print rather than
+        // collapsing to the empty string.
         else {
-          handle(('object' === ti ? jsonify(insert) : insert))
+          handle(formatInsert(insert))
         }
 
         remain = remain.substring(mi + skip + ref.length)
@@ -659,6 +663,13 @@ function template(
 function replaceKeyOrder(a: string, b: string): number {
   const rank = (k: string) => k.startsWith('#') && k.includes('-') ? 0 : 1
   return rank(a) - rank(b) || b.length - a.length || (a < b ? -1 : a > b ? 1 : 0)
+}
+
+
+// One inserted value, however it was supplied: null and undefined are
+// empty, objects are JSON, and anything else is String(v).
+function formatInsert(v: any): string {
+  return null == v ? '' : 'object' === typeof v ? jsonify(v) : String(v)
 }
 
 
