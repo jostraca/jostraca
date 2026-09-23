@@ -94,8 +94,8 @@ func (bm *buildMeta) load() {
 		// the file is bookkeeping, regenerated on every run. Reset to empty
 		// rather than carrying a half-decoded map forward. Mirrors the
 		// recovery in ts/src/build/BuildMeta.ts.
-		metaDlog.Log("meta", "unreadable meta log, continuing with empty state: "+
-			bm.metaPath()+" err="+err.Error())
+		bm.fh.st.warn(metaDlog, "meta", "unreadable meta log, continuing with empty state: "+
+			bm.metaPath()+" err=FileHandler:loadJSON: path="+bm.metaPath()+" err="+err.Error())
 		bm.prev = map[string]any{}
 	}
 }

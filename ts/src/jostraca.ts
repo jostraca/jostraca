@@ -401,15 +401,13 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
       node: rootnode,
       children: rootnode.children,
       root: rootnode,
-    }
 
-    // Only report warnings raised by *this* generate: the dlog buffer is
-    // process-global, so reading all of it re-emitted every warning from
-    // every earlier run.
-    // A monotonic sequence, NOT the buffer length: the buffer is capped
-    // and evicts, so a length-based mark goes permanently stale once a
-    // long-lived process fills it (see getdlog).
-    const dlogMark = dlog.seq()
+      // Warnings raised by THIS generate, collected by getdlog through the
+      // async store. The process-global dlog buffer is shared by every
+      // call, so selecting from it replayed one concurrent call's warnings
+      // to another's logger.
+      dlogs: [] as any[],
+    }
 
     return GLOBAL.jostraca.run(ctx$, async () => {
       // Define phase.
@@ -446,10 +444,8 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
         res.fs = () => fs
       }
 
-      const alldlogs = dlog.log()
-      const dlogs = alldlogs.filter((entry: any) => (entry.seq || 0) > dlogMark)
-      if (0 < dlogs.length) {
-        for (let dlogentry of dlogs) {
+      for (const dlogentry of ctx$.dlogs) {
+        if (dlog.tag === dlogentry[0]) {
           log.debug({ point: 'jostraca-warning', dlogentry, note: String(dlogentry) })
         }
       }

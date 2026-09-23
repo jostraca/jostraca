@@ -553,7 +553,7 @@ func walkCopyDepth(b *buildCtx, st *jstate, from, to string, n *Node,
 	// dropped. Mirrors ts/src/op/CopyOp.ts.
 	real := realpathOf(b.fh.fs, from)
 	if _, seen := visited[real]; seen {
-		copyDlog.Log("copy", "symlink cycle, not descending: "+from+" -> "+real)
+		st.warn(copyDlog, "copy", "symlink cycle, not descending: "+from+" -> "+real)
 		return nil
 	}
 	visited[real] = struct{}{}
@@ -807,7 +807,9 @@ func injectAfter(n *Node, _ *jstate, b *buildCtx) error {
 	if !matched {
 		// Nothing to inject into. Not fatal — the target may not be marked
 		// up yet — but it should not be invisible.
-		injectDlog.Log("inject", "markers not found, nothing injected: path="+n.FullPath)
+		pair, _ := marshalJSLike(n.Markers[:])
+		b.st.warn(injectDlog, "inject", "markers not found, nothing injected: path="+
+			n.FullPath+" markers="+pair)
 		return b.fh.save(n.FullPath, src, "InjectOp:after")
 	}
 	out.WriteString(s[pos:])

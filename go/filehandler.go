@@ -33,6 +33,11 @@ type fileHandler struct {
 	bmeta           *buildMeta
 	duplicateFolder string
 	maxDepth        int
+
+	// st receives this run's warnings; savedPaths detects a second save
+	// of one path.
+	st         *jstate
+	savedPaths map[string]struct{}
 }
 
 const protectMarker = "JOSTRACA_PROTECT"
@@ -106,6 +111,8 @@ func newFileHandler(b *buildCtx) *fileHandler {
 		createdDirs:     map[string]struct{}{},
 		duplicateFolder: dup,
 		maxDepth:        22,
+		st:              st,
+		savedPaths:      map[string]struct{}{},
 	}
 	fh.bmeta = newBuildMeta(fh)
 	return fh
@@ -157,6 +164,14 @@ func (fh *fileHandler) saveClassified(
 	p = fwd(p)
 	rpath := fh.relative(p)
 	modes := fh.modesFor(isText)
+
+	// Two components resolving to one output path is almost always a
+	// mistake, and the second silently wins. Mirrors TS save().
+	if _, again := fh.savedPaths[p]; again {
+		fh.st.warn(fhDlog, "save", "duplicate save, later content wins: "+p)
+	} else if fh.savedPaths != nil {
+		fh.savedPaths[p] = struct{}{}
+	}
 
 	exists := fh.fs.Exists(p)
 	// why captures the mode-dispatch breadcrumbs accumulated during this
@@ -718,7 +733,11 @@ func (fh *fileHandler) chmodUnchanged(p string, mode fs.FileMode) bool {
 	if fi, err := fh.fs.Stat(p); err == nil && fi.Mode&chmodBits == mode&chmodBits {
 		return false
 	}
-	return cf.Chmod(p, mode) == nil
+	if err := cf.Chmod(p, mode); err != nil {
+		fh.st.warn(fhDlog, "save", "chmod of unchanged file failed: "+p)
+		return false
+	}
+	return true
 }
 
 // writeAtomicMode is writeAtomic with explicit permission bits; zero means
@@ -795,7 +814,9 @@ func (fh *fileHandler) writeAtomicMode(p string, content []byte, mode fs.FileMod
 	}
 
 	if err := fh.fs.Rename(tmp, p); err != nil {
-		_ = fh.fs.Remove(tmp)
+		if rerr := fh.fs.Remove(tmp); rerr != nil {
+			fh.st.warn(fhDlog, "writeFileAtomic", "temp cleanup failed: "+tmp)
+		}
 		return err
 	}
 	return nil
@@ -831,7 +852,7 @@ func (fh *fileHandler) writeDuplicate(rpath string, content []byte) error {
 	root := path.Clean(fh.duplicateFolder)
 	if cleaned := path.Clean(dup); cleaned != root &&
 		!strings.HasPrefix(cleaned, root+"/") {
-		fhDlog.Log("save",
+		fh.st.warn(fhDlog, "save",
 			"baseline path escapes the duplicate folder, skipping: "+dup)
 		return nil
 	}

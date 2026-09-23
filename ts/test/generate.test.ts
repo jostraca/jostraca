@@ -20,6 +20,7 @@ import {
   Content,
   Fragment,
   CopyFiles,
+  Inject,
 } from '../'
 
 
@@ -132,6 +133,132 @@ describe('generate', () => {
       Assert.deepEqual((await j.generate({}, () => { })).files, EMPTY)
       Assert.deepEqual((await j.generate({}, root)).files,
         { ...EMPTY, written: ['/out/a.txt'] })
+    })
+
+  })
+
+
+
+  // After a successful generate, each non-fatal warning raised during THAT
+  // call is replayed to that call's `log.debug`, one call per warning. A
+  // refused run replays nothing, and a concurrent call's warnings never
+  // reach this call's logger. Go twins in go/warning_replay_test.go.
+  describe('warnings', () => {
+
+    const capture = () => {
+      const calls: any[][] = []
+      const log: any = {}
+      for (const level of ['trace', 'debug', 'info', 'warn', 'error', 'fatal']) {
+        log[level] = (...args: any[]) => calls.push([level, ...args])
+      }
+      return { log, calls }
+    }
+
+    // [kind, text...] of each replayed warning: the dlog entry is
+    // [tag, file, when, ...args, stack], and only the args are portable.
+    const warned = (calls: any[][]) => calls.map(([level, payload]) => {
+      Assert.equal(level, 'debug')
+      Assert.equal(payload.point, 'jostraca-warning')
+      Assert.equal(payload.dlogentry[0], 'jostraca')
+      Assert.equal('string', typeof payload.note)
+      return payload.dlogentry.slice(3, -1)
+    })
+
+    const gen = async (vol: any, root: () => void, log: any) =>
+      Jostraca({ mem: true, vol, folder: '/out', now: () => START_TIME, log })
+        .generate({}, root)
+
+    test('inject-into-an-unmarked-file-warns-once', async () => {
+      const { log, calls } = capture()
+      await gen({ '/out/t.txt': 'no markers here\n' },
+        () => Project({}, () => Inject({ name: 't.txt' }, () => Content('X'))), log)
+      Assert.deepEqual(warned(calls), [[
+        'inject',
+        'markers not found, nothing injected: path=/out/t.txt ' +
+        'markers=["#--START--#\\n","\\n#--END--#"]',
+      ]])
+    })
+
+    test('an-unreadable-meta-log-warns-once', async () => {
+      const { log, calls } = capture()
+      await gen({ '/out/.jostraca/jostraca.meta.log': '{not json' },
+        () => Project({}, () => File({ name: 'a.txt' }, () => Content('A'))), log)
+      const w = warned(calls)
+      Assert.equal(w.length, 1)
+      Assert.equal(w[0][0], 'meta')
+      // The parser's own message after the last err= is the runtime's.
+      Assert.ok(w[0][1].startsWith('unreadable meta log, continuing with empty state: ' +
+        '/out/.jostraca/jostraca.meta.log err=FileHandler:loadJSON: ' +
+        'path=/out/.jostraca/jostraca.meta.log err='), w[0][1])
+    })
+
+    test('a-second-save-of-one-path-warns', async () => {
+      const { log, calls } = capture()
+      await gen({}, () => Project({}, () => {
+        File({ name: 't.txt' }, () => Content('a\n#--START--#\nold\n#--END--#\nz\n'))
+        Inject({ name: 't.txt' }, () => Content('NEW'))
+      }), log)
+      Assert.deepEqual(warned(calls), [
+        ['save', 'duplicate save, later content wins: /out/t.txt'],
+        ['filelog', 'written', 'duplicate: /out/t.txt'],
+      ])
+    })
+
+    test('a-failed-chmod-of-an-unchanged-file-warns', async () => {
+      const { fs } = memfs({})
+      let fail = false
+      const provider: any = {
+        ...fs,
+        chmodSync: (p: string, mode: number) => {
+          if (fail) {
+            throw new Error('EPERM')
+          }
+          return fs.chmodSync(p, mode)
+        },
+      }
+      const j = Jostraca({ fs: () => provider, folder: '/out', now: () => START_TIME })
+      const root = (mode: number) => () =>
+        Project({}, () => File({ name: 'a.sh', mode }, () => Content('X')))
+
+      await j.generate({}, root(0o755))
+      fail = true
+      const { log, calls } = capture()
+      const res = await j.generate({ log }, root(0o700))
+      Assert.deepEqual(res.files.unchanged, ['/out/a.sh'])
+      Assert.deepEqual(warned(calls), [
+        ['save', 'chmod of unchanged file failed: /out/a.sh'],
+      ])
+    })
+
+    test('a-refused-run-replays-nothing', async () => {
+      const { log, calls } = capture()
+      await Assert.rejects(gen({ '/out/t.txt': 'no markers here\n' },
+        () => Project({}, () => {
+          Inject({ name: 't.txt' }, () => Content('X'))
+          Inject({ name: 'missing.txt' }, () => Content('X'))
+        }), log))
+      Assert.deepEqual(calls, [])
+    })
+
+    test('a-concurrent-call-keeps-its-own-warnings', async () => {
+      const one = capture()
+      const two = capture()
+      const j = Jostraca({
+        mem: true, vol: { '/one/t.txt': 'no markers\n' }, now: () => START_TIME
+      })
+      await Promise.all([
+        j.generate({ folder: '/one', log: one.log }, () => Project({}, () => {
+          File({ name: 'x.txt' }, () => Content('x'))
+          Inject({ name: 't.txt' }, () => Content('X'))
+        })),
+        j.generate({ folder: '/two', log: two.log }, () => Project({}, () => {
+          for (let i = 0; i < 5; i++) {
+            File({ name: 'f' + i + '.txt' }, () => Content('y'))
+          }
+        })),
+      ])
+      Assert.equal(warned(one.calls).length, 1)
+      Assert.deepEqual(two.calls, [])
     })
 
   })

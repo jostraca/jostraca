@@ -1,0 +1,234 @@
+package jostraca
+
+import (
+	"errors"
+	"fmt"
+	"io/fs"
+	"reflect"
+	"strings"
+	"sync"
+	"testing"
+)
+
+// After a successful Generate, each non-fatal warning raised during THAT
+// call is replayed to that call's Log.Debug, one call per warning, with
+// TS's payload {point, dlogentry, note}. A refused run replays nothing,
+// and a concurrent call's warnings never reach this call's log.
+//
+// Go assigned the Log option and never called it, so a caller's logger saw
+// nothing at all. Mirrors the `warnings` block in ts/test/generate.test.ts.
+
+type warnLog struct {
+	mu    sync.Mutex
+	calls [][]any
+}
+
+func (l *warnLog) add(level string, args []any) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.calls = append(l.calls, append([]any{level}, args...))
+}
+
+func (l *warnLog) Trace(a ...any) { l.add("trace", a) }
+func (l *warnLog) Debug(a ...any) { l.add("debug", a) }
+func (l *warnLog) Info(a ...any)  { l.add("info", a) }
+func (l *warnLog) Warn(a ...any)  { l.add("warn", a) }
+func (l *warnLog) Error(a ...any) { l.add("error", a) }
+func (l *warnLog) Fatal(a ...any) { l.add("fatal", a) }
+
+// warned is the args of each replayed warning, checking the payload shape
+// on the way: only the args are portable, the rest of the entry is the
+// runtime's own.
+func (l *warnLog) warned(t *testing.T) [][]any {
+	t.Helper()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	out := [][]any{}
+	for _, c := range l.calls {
+		if c[0] != "debug" || len(c) != 2 {
+			t.Fatalf("not one debug payload: %v", c)
+		}
+		payload, ok := c[1].(map[string]any)
+		if !ok || payload["point"] != "jostraca-warning" {
+			t.Fatalf("payload: %#v", c[1])
+		}
+		entry, ok := payload["dlogentry"].(dLogEntry)
+		if !ok || entry.Tag != "jostraca" {
+			t.Fatalf("dlogentry: %#v", payload["dlogentry"])
+		}
+		if note, _ := payload["note"].(string); note != entry.String() {
+			t.Fatalf("note: %q", payload["note"])
+		}
+		out = append(out, entry.Args)
+	}
+	return out
+}
+
+func warnGen(vol map[string][]byte, root func(*J), log Log) error {
+	_, err := New(WithMem(), WithVol(vol), WithFolder("/out"),
+		WithNow(func() int64 { return 1735689600000 }), WithLog(log)).
+		Generate(Options{}, root)
+	return err
+}
+
+func TestInjectIntoUnmarkedFileWarnsOnce(t *testing.T) {
+	log := &warnLog{}
+	if err := warnGen(map[string][]byte{"/out/t.txt": []byte("no markers here\n")},
+		func(j *J) {
+			j.Project(ProjectProps{}, func(j *J) {
+				j.Inject("t.txt", func(j *J) { j.Content("X") })
+			})
+		}, log); err != nil {
+		t.Fatal(err)
+	}
+	want := [][]any{{"inject", `markers not found, nothing injected: path=/out/t.txt ` +
+		`markers=["#--START--#\n","\n#--END--#"]`}}
+	if got := log.warned(t); !reflect.DeepEqual(got, want) {
+		t.Fatalf("\n got: %q\nwant: %q", got, want)
+	}
+}
+
+func TestUnreadableMetaLogWarnsOnce(t *testing.T) {
+	log := &warnLog{}
+	if err := warnGen(
+		map[string][]byte{"/out/.jostraca/jostraca.meta.log": []byte("{not json")},
+		func(j *J) {
+			j.Project(ProjectProps{}, func(j *J) {
+				j.File("a.txt", func(j *J) { j.Content("A") })
+			})
+		}, log); err != nil {
+		t.Fatal(err)
+	}
+	got := log.warned(t)
+	if len(got) != 1 || len(got[0]) != 2 || got[0][0] != "meta" {
+		t.Fatalf("warned: %q", got)
+	}
+	text := fmt.Sprint(got[0][1])
+	// The parser's own message after the last err= is the runtime's.
+	if !strings.HasPrefix(text, "unreadable meta log, continuing with empty state: "+
+		"/out/.jostraca/jostraca.meta.log err=FileHandler:loadJSON: "+
+		"path=/out/.jostraca/jostraca.meta.log err=") {
+		t.Fatalf("text: %q", text)
+	}
+}
+
+// TS also warns `filelog written duplicate: <path>` here; that entry
+// belongs to the files-list de-duplication, so only the first is held.
+func TestSecondSaveOfOnePathWarns(t *testing.T) {
+	log := &warnLog{}
+	if err := warnGen(nil, func(j *J) {
+		j.Project(ProjectProps{}, func(j *J) {
+			j.File("t.txt", func(j *J) { j.Content("a\n#--START--#\nold\n#--END--#\nz\n") })
+			j.Inject("t.txt", func(j *J) { j.Content("NEW") })
+		})
+	}, log); err != nil {
+		t.Fatal(err)
+	}
+	got := log.warned(t)
+	want := []any{"save", "duplicate save, later content wins: /out/t.txt"}
+	if len(got) == 0 || !reflect.DeepEqual(got[0], want) {
+		t.Fatalf("warned: %q", got)
+	}
+}
+
+// failChmodFS is a MemFS whose Chmod fails once told to.
+type failChmodFS struct {
+	*MemFS
+	fail bool
+}
+
+func (f *failChmodFS) Chmod(p string, mode fs.FileMode) error {
+	if f.fail {
+		return errors.New("EPERM")
+	}
+	return nil
+}
+
+func TestFailedChmodOfUnchangedFileWarns(t *testing.T) {
+	provider := &failChmodFS{MemFS: NewMemFS()}
+	j := New(WithFS(provider), WithFolder("/out"),
+		WithNow(func() int64 { return 1735689600000 }))
+	root := func(mode fs.FileMode) func(*J) {
+		return func(j *J) {
+			j.Project(ProjectProps{}, func(j *J) {
+				j.FileP(FileProps{Name: "a.sh", Mode: mode}, func(j *J) { j.Content("X") })
+			})
+		}
+	}
+
+	if _, err := j.Generate(Options{}, root(0o755)); err != nil {
+		t.Fatal(err)
+	}
+	provider.fail = true
+	log := &warnLog{}
+	res, err := j.Generate(Options{Log: log}, root(0o700))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(res.Files.Unchanged, []string{"/out/a.sh"}) {
+		t.Fatalf("unchanged: %v", res.Files.Unchanged)
+	}
+	want := [][]any{{"save", "chmod of unchanged file failed: /out/a.sh"}}
+	if got := log.warned(t); !reflect.DeepEqual(got, want) {
+		t.Fatalf("\n got: %q\nwant: %q", got, want)
+	}
+}
+
+func TestRefusedRunReplaysNothing(t *testing.T) {
+	log := &warnLog{}
+	err := warnGen(map[string][]byte{"/out/t.txt": []byte("no markers here\n")},
+		func(j *J) {
+			j.Project(ProjectProps{}, func(j *J) {
+				j.Inject("t.txt", func(j *J) { j.Content("X") })
+				j.Inject("missing.txt", func(j *J) { j.Content("X") })
+			})
+		}, log)
+	if err == nil {
+		t.Fatal("an Inject into a missing file must be refused")
+	}
+	if len(log.calls) != 0 {
+		t.Fatalf("a refused run logged: %v", log.calls)
+	}
+}
+
+func TestConcurrentCallKeepsItsOwnWarnings(t *testing.T) {
+	j := New(WithMem(), WithVol(map[string][]byte{"/one/t.txt": []byte("no markers\n")}),
+		WithNow(func() int64 { return 1735689600000 }))
+	one, two := &warnLog{}, &warnLog{}
+
+	var wg sync.WaitGroup
+	errs := make([]error, 2)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		_, errs[0] = j.Generate(Options{Folder: "/one", Log: one}, func(j *J) {
+			j.Project(ProjectProps{}, func(j *J) {
+				j.File("x.txt", func(j *J) { j.Content("x") })
+				j.Inject("t.txt", func(j *J) { j.Content("X") })
+			})
+		})
+	}()
+	go func() {
+		defer wg.Done()
+		_, errs[1] = j.Generate(Options{Folder: "/two", Log: two}, func(j *J) {
+			j.Project(ProjectProps{}, func(j *J) {
+				for i := 0; i < 5; i++ {
+					j.File(fmt.Sprintf("f%d.txt", i), func(j *J) { j.Content("y") })
+				}
+			})
+		})
+	}()
+	wg.Wait()
+
+	for _, err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := one.warned(t); len(got) != 1 {
+		t.Fatalf("one: %q", got)
+	}
+	if len(two.calls) != 0 {
+		t.Fatalf("two received another call's warnings: %v", two.calls)
+	}
+}

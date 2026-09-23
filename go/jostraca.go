@@ -33,6 +33,9 @@ type jstate struct {
 	// when the global Mem is on. Generate calls share it.
 	mem *MemFS
 
+	// warnings raised by THIS Generate, replayed to its log on success.
+	warnings []dLogEntry
+
 	root *Node
 	err  error
 }
@@ -88,6 +91,27 @@ func newJstateFromOptions(o Options) *jstate {
 	}
 
 	return st
+}
+
+// warn records a non-fatal warning in the package buffer and against this
+// Generate, so it is replayed to this call's log and no other's.
+func (st *jstate) warn(d *DLog, args ...any) {
+	e := d.record(args...)
+	if st != nil {
+		st.warnings = append(st.warnings, e)
+	}
+}
+
+// replayWarnings sends each warning this Generate raised to its log, one
+// Debug call apiece, with TS's payload.
+func (st *jstate) replayWarnings() {
+	for _, e := range st.warnings {
+		st.log.Debug(map[string]any{
+			"point":     "jostraca-warning",
+			"dlogentry": e,
+			"note":      e.String(),
+		})
+	}
 }
 
 // newSeededMemFS builds an in-memory filesystem pre-populated from a Vol
@@ -231,20 +255,23 @@ func (j *J) generate(
 		res.FS = func() FS { return fsRef }
 	}
 
-	if !doBuild {
-		return res, nil
-	}
-	b, err := runBuild(st)
-	if err != nil {
-		return res, err
-	}
-	if b != nil {
-		res.When = b.when
-		audit := b.audit
-		res.Audit = func() Audit { return audit }
-		if b.fh != nil {
-			res.Files = b.fh.files
+	if doBuild {
+		b, err := runBuild(st)
+		if err != nil {
+			return res, err
+		}
+		if b != nil {
+			res.When = b.when
+			audit := b.audit
+			res.Audit = func() Audit { return audit }
+			if b.fh != nil {
+				res.Files = b.fh.files
+			}
 		}
 	}
+
+	// Only after a run that succeeded, as in TS: a refused run returns its
+	// error and replays nothing.
+	st.replayWarnings()
 	return res, nil
 }
