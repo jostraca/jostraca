@@ -1,0 +1,16 @@
+{
+  "scenario": "file_exclude_project_folder",
+  "opts": {},
+  "prepopulate": {
+    "/out/x/a.txt": "OLD",
+    "/out/x/b.txt": "OLD"
+  },
+  "error": false,
+  "vol": {
+    "/out/x/a.txt": "NEW",
+    "/out/x/b.txt": "OLD",
+    "/out/.jostraca/generated/x/a.txt": "NEW",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"x/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"x/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}

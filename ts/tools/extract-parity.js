@@ -961,6 +961,37 @@ async function main() {
     })
   }, { '/out/app/t.txt': '<\n#--START--#\nold\n#--END--#\n>' })
 
+  // A File exclude names the component path: the Project name, then the
+  // Folder names, then the File name. The Project folder is not part of it,
+  // and a RegExp entry matches nothing.
+  await snapshot('file_exclude', {}, () => {
+    Project({ name: 'pn' }, () => {
+      File({ name: 'keep.txt', exclude: 'pn/keep.txt' }, () => Content('NEW'))
+      Folder({ name: 'sub' }, () => {
+        File({ name: 'keep2.txt', exclude: ['pn/sub/keep2.txt'] }, () => Content('NEW'))
+      })
+      File({ name: 'a.txt', exclude: 'a.txt' }, () => Content('NEW'))
+      File({ name: 'b.txt', exclude: [/b/] }, () => Content('NEW'))
+      File({ name: 'c.txt', exclude: true }, () => Content('NEW'))
+    })
+  }, {
+    '/out/keep.txt': 'OLD',
+    '/out/sub/keep2.txt': 'OLD',
+    '/out/a.txt': 'OLD',
+    '/out/b.txt': 'OLD',
+    '/out/c.txt': 'OLD',
+  })
+
+  await snapshot('file_exclude_project_folder', {}, () => {
+    Project({ folder: 'x' }, () => {
+      File({ name: 'a.txt', exclude: 'x/a.txt' }, () => Content('NEW'))
+      File({ name: 'b.txt', exclude: 'b.txt' }, () => Content('NEW'))
+    })
+  }, {
+    '/out/x/a.txt': 'OLD',
+    '/out/x/b.txt': 'OLD',
+  })
+
   console.log('done')
 }
 

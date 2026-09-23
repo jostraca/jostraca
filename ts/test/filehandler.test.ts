@@ -223,4 +223,64 @@ describe('filehandler', () => {
       .equal('<\n#--START--#\naSb\n#--END--#\n>')
   })
 
+
+  // A File exclude applies only when the target exists. true skips it; a
+  // string, or a list holding a string, skips it when equal to the
+  // component path: the Project name, the Folder names, the File name.
+  // Never the Project folder. A RegExp entry matches nothing.
+  test('file-exclude-string-and-list', async () => {
+    const file = (name: string, exclude: any) => ({
+      cmp: 'File', props: { name, exclude },
+      children: [{ cmp: 'Content', props: { src: 'NEW' } }],
+    })
+    const rows: [string, string, boolean, () => void, any][] = [
+      ['string', '/out/keep.txt', true, () => Project({}, () => {
+        File({ name: 'keep.txt', exclude: 'keep.txt' }, () => Content('NEW'))
+      }), { cmp: 'Project', props: {}, children: [file('keep.txt', 'keep.txt')] }],
+      ['list-in-folder', '/out/sub/keep2.txt', true, () => Project({}, () => {
+        Folder({ name: 'sub' }, () => {
+          File({ name: 'keep2.txt', exclude: ['sub/keep2.txt'] }, () => Content('NEW'))
+        })
+      }), {
+        cmp: 'Project', props: {}, children: [{
+          cmp: 'Folder', props: { name: 'sub' },
+          children: [file('keep2.txt', ['sub/keep2.txt'])],
+        }]
+      }],
+      ['named-project', '/out/a.txt', true, () => Project({ name: 'pn' }, () => {
+        File({ name: 'a.txt', exclude: 'pn/a.txt' }, () => Content('NEW'))
+      }), { cmp: 'Project', props: { name: 'pn' }, children: [file('a.txt', 'pn/a.txt')] }],
+      ['project-folder-is-not-the-path', '/out/x/a.txt', false,
+        () => Project({ folder: 'x' }, () => {
+          File({ name: 'a.txt', exclude: 'x/a.txt' }, () => Content('NEW'))
+        }), { cmp: 'Project', props: { folder: 'x' }, children: [file('a.txt', 'x/a.txt')] }],
+      ['regexp-matches-nothing', '/out/a.txt', false, () => Project({}, () => {
+        File({ name: 'a.txt', exclude: [/a/] }, () => Content('NEW'))
+      }), null],
+      ['other-values-do-not-exclude', '/out/a.txt', false, () => Project({}, () => {
+        File({ name: 'a.txt', exclude: [] }, () => Content('NEW'))
+      }), { cmp: 'Project', props: {}, children: [file('a.txt', [])] }],
+    ]
+
+    for (const [name, out, excluded, typed, tree] of rows) {
+      for (const root of [typed, null == tree ? null : cmpTree(tree)]) {
+        if (null == root) continue
+        const { fs } = memfs({ [out]: 'OLD' })
+        const res = await Jostraca({ now: () => NOW, log: quiet })
+          .generate({ fs: () => fs, folder: '/out' }, root)
+        const rel = out.substring('/out/'.length)
+        const got = {
+          name,
+          content: fs.readFileSync(out, 'utf8'),
+          written: res.files.written.length,
+          baseline: fs.existsSync('/out/.jostraca/generated/' + rel),
+          meta: null != metaOf(fs).files[rel],
+        }
+        expect(got).equal(excluded ?
+          { name, content: 'OLD', written: 0, baseline: false, meta: false } :
+          { name, content: 'NEW', written: 1, baseline: true, meta: true })
+      }
+    }
+  })
+
 })

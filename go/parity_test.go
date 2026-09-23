@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -447,6 +448,31 @@ var scenarioRunners = map[string]func(j *J){
 				j.SlotP(SlotProps{Name: "x"}, func(j *J) { j.Content("S") })
 				j.Content("j")
 			})
+		})
+	},
+	// A File exclude names the component path, never the Project folder.
+	"file_exclude": func(j *J) {
+		j.Project(ProjectProps{Name: "pn"}, func(j *J) {
+			j.FileP(FileProps{Name: "keep.txt", Exclude: "pn/keep.txt"},
+				func(j *J) { j.Content("NEW") })
+			j.Folder("sub", func(j *J) {
+				j.FileP(FileProps{Name: "keep2.txt", Exclude: []any{"pn/sub/keep2.txt"}},
+					func(j *J) { j.Content("NEW") })
+			})
+			j.FileP(FileProps{Name: "a.txt", Exclude: "a.txt"},
+				func(j *J) { j.Content("NEW") })
+			j.FileP(FileProps{Name: "b.txt", Exclude: []any{regexp.MustCompile("b")}},
+				func(j *J) { j.Content("NEW") })
+			j.FileP(FileProps{Name: "c.txt", Exclude: true},
+				func(j *J) { j.Content("NEW") })
+		})
+	},
+	"file_exclude_project_folder": func(j *J) {
+		j.Project(ProjectProps{Folder: "x"}, func(j *J) {
+			j.FileP(FileProps{Name: "a.txt", Exclude: "x/a.txt"},
+				func(j *J) { j.Content("NEW") })
+			j.FileP(FileProps{Name: "b.txt", Exclude: "b.txt"},
+				func(j *J) { j.Content("NEW") })
 		})
 	},
 	"inject_no_markers": func(j *J) {

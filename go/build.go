@@ -364,8 +364,10 @@ func fileAfter(n *Node, st *jstate, b *buildCtx) error {
 	if n.FullPath == "" {
 		return nil
 	}
-	// Honour Exclude=true (skip).
-	if ex, ok := n.Exclude.(bool); ok && ex && b.fh.fs.Exists(n.FullPath) {
+	// An existing file is left alone when its exclude names it: true, or a
+	// string or list of strings equal to its component path. Mirrors
+	// FileOp.after in TS.
+	if fileExcluded(n) && b.fh.fs.Exists(n.FullPath) {
 		return nil
 	}
 	// Honour global Options.Exclude time-window: skip files modified on
@@ -379,6 +381,34 @@ func fileAfter(n *Node, st *jstate, b *buildCtx) error {
 		}
 	}
 	return b.fh.saveMode(n.FullPath, []byte(body), "FileOp:after", n.Mode)
+}
+
+// fileExcluded reports whether a File's exclude prop names it. The value
+// is compared with the component path, node.path.join('/') in TS: true
+// always matches, a string by equality, a list when it holds an equal
+// string. Anything else, a regexp entry included, matches nothing, as
+// Array.includes compares by equality.
+func fileExcluded(n *Node) bool {
+	rpath := strings.Join(n.Path, "/")
+	switch v := n.Exclude.(type) {
+	case bool:
+		return v
+	case string:
+		return v == rpath
+	case []string:
+		for _, s := range v {
+			if s == rpath {
+				return true
+			}
+		}
+	case []any:
+		for _, x := range v {
+			if s, ok := x.(string); ok && s == rpath {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // nodeText renders a node from a *replayed* subtree to its text.

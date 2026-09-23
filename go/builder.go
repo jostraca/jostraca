@@ -34,15 +34,14 @@ func (j *J) Project(p ProjectProps, body func(*J)) {
 	if j.st.err != nil {
 		return
 	}
+	// The node path takes the Project NAME, never its folder, as TS's cmp()
+	// pushes props.name. A File exclude names this path.
 	n := &Node{
 		Kind:   KindProject,
 		Name:   p.Name,
 		Folder: p.Folder,
-		Path:   []string{},
+		Path:   childPath(j.cur, p.Name),
 		Meta:   map[string]any{},
-	}
-	if p.Folder != "" {
-		n.Path = append(n.Path, p.Folder)
 	}
 	j.attachAndDescend(n, body)
 }
@@ -69,8 +68,10 @@ type FileProps struct {
 	Name string
 
 	// Leave the file alone when it already exists. true always skips it;
-	// a string, or a list of strings, names paths relative to the output
-	// folder.
+	// a string, or a list of strings, names the file's component path:
+	// the Project name if any, then the Folder names, then the File name,
+	// joined with "/" (never the Project folder). Any other value does not
+	// exclude.
 	Exclude any
 
 	// Mode sets POSIX permission bits on the generated file, e.g. 0o755 to

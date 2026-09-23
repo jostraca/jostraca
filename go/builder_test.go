@@ -68,9 +68,10 @@ func TestBuilderPathAccumulates(t *testing.T) {
 		})
 		captured = j.st.root
 	})
-	// Walk to the file.
+	// Walk to the file. A Project contributes its NAME to the path, never
+	// its folder, as TS's cmp() pushes props.name.
 	file := captured.Children[0].Children[0].Children[0]
-	wantPath := []string{"p", "a", "b", "c.txt"}
+	wantPath := []string{"a", "b", "c.txt"}
 	if len(file.Path) != len(wantPath) {
 		t.Fatalf("Path = %v, want %v", file.Path, wantPath)
 	}
