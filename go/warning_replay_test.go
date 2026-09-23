@@ -191,16 +191,41 @@ func TestRefusedRunReplaysNothing(t *testing.T) {
 	}
 }
 
+// gateFS is a MemFS whose first WriteFile announces itself on reached and
+// then waits for release.
+type gateFS struct {
+	*MemFS
+	once    sync.Once
+	reached chan struct{}
+	release chan struct{}
+}
+
+func (g *gateFS) WriteFile(path string, data []byte) error {
+	g.once.Do(func() {
+		close(g.reached)
+		<-g.release
+	})
+	return g.MemFS.WriteFile(path, data)
+}
+
+// The calls are forced to overlap: call two is held inside its build until
+// call one, started only once call two is held, has raised its warning and
+// returned. A replay scoped by a mark in a shared buffer then leaks into
+// call two every time, not only when the scheduler happens to interleave.
 func TestConcurrentCallKeepsItsOwnWarnings(t *testing.T) {
 	j := New(WithMem(), WithVol(map[string][]byte{"/one/t.txt": []byte("no markers\n")}),
 		WithNow(func() int64 { return 1735689600000 }))
 	one, two := &warnLog{}, &warnLog{}
+	gate := &gateFS{MemFS: NewMemFS(),
+		reached: make(chan struct{}), release: make(chan struct{})}
 
 	var wg sync.WaitGroup
 	errs := make([]error, 2)
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
+		defer close(gate.release)
+		<-gate.reached
 		_, errs[0] = j.Generate(Options{Folder: "/one", Log: one}, func(j *J) {
 			j.Project(ProjectProps{}, func(j *J) {
 				j.File("x.txt", func(j *J) { j.Content("x") })
@@ -210,7 +235,7 @@ func TestConcurrentCallKeepsItsOwnWarnings(t *testing.T) {
 	}()
 	go func() {
 		defer wg.Done()
-		_, errs[1] = j.Generate(Options{Folder: "/two", Log: two}, func(j *J) {
+		_, errs[1] = j.Generate(Options{Folder: "/two", Log: two, FS: gate}, func(j *J) {
 			j.Project(ProjectProps{}, func(j *J) {
 				for i := 0; i < 5; i++ {
 					j.File(fmt.Sprintf("f%d.txt", i), func(j *J) { j.Content("y") })
