@@ -1,6 +1,9 @@
 
 import { test, describe } from 'node:test'
 import * as Assert from 'node:assert'
+import * as Fs from 'node:fs'
+import * as Os from 'node:os'
+import * as Path from 'node:path'
 import { expect } from './expect'
 
 import { memfs } from '../dist/util/memfs'
@@ -540,6 +543,49 @@ describe('jostraca', () => {
     // Naming a directory prunes its whole subtree, and the built-in `~`
     // rule still applies alongside the caller's list.
     expect(copied).equal(['/top/sdk/keep.txt', '/top/sdk/sub/keep.txt'])
+  })
+
+
+  // A directory Copy walks its source in readdirSync().sort() order, which
+  // is JavaScript's UTF-16 code unit order: a name starting with U+1F600
+  // (a surrogate pair) sorts BEFORE one starting with U+FF5A, where byte
+  // order puts it after. files.written and the meta log follow the walk,
+  // so the order is pinned on memfs and on the real filesystem, and
+  // go/copy_test.go pins the same list.
+  const COPY_ORDER = [
+    '10.txt', '9.txt', 'B.txt', 'Z.txt', '_x.txt', 'a.txt',
+    '\u00e9.txt', '\u{1F600}.txt', '\uFF5A.txt',
+  ]
+
+  async function copyOrder(fs: any, src: string, out: string, join: Function) {
+    const info = await Jostraca({ now: () => 0 }).generate(
+      { fs: () => fs, folder: out },
+      cmp(() => { Project({ folder: '.' }, () => { Copy({ from: src }) }) }))
+    expect(info.files.written.map((p: string) => Path.basename(p)))
+      .equal(COPY_ORDER)
+    const meta = JSON.parse(fs.readFileSync(
+      join(out, '.jostraca', 'jostraca.meta.log'), 'utf8'))
+    expect(Object.keys(meta.files)).equal(COPY_ORDER)
+  }
+
+  test('copy-order-utf16-memfs', async () => {
+    const files: any = {}
+    for (const n of COPY_ORDER) { files['/tpl/order/' + n] = n + '\n' }
+    await copyOrder(memfs(files).fs, '/tpl/order', '/out', Path.posix.join)
+  })
+
+  test('copy-order-utf16-realfs', async () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'jostraca-order-'))
+    try {
+      Fs.mkdirSync(Path.join(dir, 'tpl'))
+      for (const n of COPY_ORDER) {
+        Fs.writeFileSync(Path.join(dir, 'tpl', n), n + '\n')
+      }
+      await copyOrder(Fs, Path.join(dir, 'tpl'), Path.join(dir, 'out'), Path.join)
+    }
+    finally {
+      Fs.rmSync(dir, { recursive: true, force: true })
+    }
   })
 
 

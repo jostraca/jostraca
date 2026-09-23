@@ -3,7 +3,6 @@ package jostraca
 import (
 	"fmt"
 	"io/fs"
-	"sort"
 )
 
 // fmtErrorf wraps fmt.Errorf so other files can use it without importing fmt.
@@ -443,7 +442,7 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 	for k := range slotNames {
 		names = append(names, k)
 	}
-	sort.Strings(names)
+	sortJS(names)
 	n.Meta["slotNames"] = names
 }
 

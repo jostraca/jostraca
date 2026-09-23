@@ -563,6 +563,9 @@ func walkCopyDepth(b *buildCtx, st *jstate, from, to string, n *Node,
 	if err != nil {
 		return err
 	}
+	// TS sorts readdirSync() with the default comparator, so a provider's
+	// own byte order is not enough once a name leaves the BMP.
+	sortDirEntriesJS(entries)
 	for _, e := range entries {
 		src := from + "/" + e.Name
 		dst := to + "/" + e.Name

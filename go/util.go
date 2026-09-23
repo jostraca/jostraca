@@ -166,7 +166,7 @@ func EachKV(m any, fn func(val any, key string, idx int) any) []any {
 	for _, k := range rv.MapKeys() {
 		keys = append(keys, fmt.Sprint(k.Interface()))
 	}
-	sort.Strings(keys)
+	sortJS(keys)
 	out := make([]any, 0, len(keys))
 	for i, k := range keys {
 		v := rv.MapIndex(reflect.ValueOf(k)).Interface()
@@ -190,7 +190,7 @@ func EachKVRaw(m any, fn func(val any, key string, idx int) any) []any {
 	for _, k := range rv.MapKeys() {
 		keys = append(keys, fmt.Sprint(k.Interface()))
 	}
-	sort.Strings(keys)
+	sortJS(keys)
 	out := make([]any, 0, len(keys))
 	for i, k := range keys {
 		v := rv.MapIndex(reflect.ValueOf(k)).Interface()
@@ -554,28 +554,29 @@ func Indent(src string, ind any) string {
 	return b.String()
 }
 
-// sortedStringKeys returns the alphabetically sorted keys of a map[string]V
-// via reflection. Used everywhere we iterate user-facing maps so output
-// is deterministic regardless of Go's randomised map iteration. Mirrors
-// the sort applied to TS Object.entries() iteration in this codebase.
+// sortedStringKeys returns the keys of a map[string]V via reflection, in
+// JavaScript's string order (see jsLess). Used everywhere we iterate
+// user-facing maps so output is deterministic regardless of Go's
+// randomised map iteration. Mirrors the sort applied to TS
+// Object.entries() iteration in this codebase.
 func sortedStringKeys(rv reflect.Value) []string {
 	keys := rv.MapKeys()
 	out := make([]string, 0, len(keys))
 	for _, k := range keys {
 		out = append(out, fmt.Sprint(k.Interface()))
 	}
-	sort.Strings(out)
+	sortJS(out)
 	return out
 }
 
-// sortedKeys returns the alphabetically sorted keys of m. Convenience
-// for typed map[string]V iterations.
+// sortedKeys returns the keys of m in JavaScript's string order.
+// Convenience for typed map[string]V iterations.
 func sortedKeys[V any](m map[string]V) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
 		out = append(out, k)
 	}
-	sort.Strings(out)
+	sortJS(out)
 	return out
 }
 
@@ -898,7 +899,8 @@ func OMap(m map[string]any) [][2]any {
 
 // jsKeyOrder returns m's keys in the order a JavaScript object would
 // enumerate them after TS `omap` has rebuilt it: array-index-like keys
-// first in ascending numeric order, then the remaining keys sorted.
+// first in ascending numeric order, then the remaining keys in
+// JavaScript's string order (jsLess).
 //
 // TS `omap` sorts its entries before assigning them, so the string keys
 // come out sorted -- but assignment is to a plain object, and the JS
@@ -928,7 +930,7 @@ func jsKeyOrder(m map[string]any) []string {
 		y, _ := strconv.ParseUint(idx[b], 10, 64)
 		return x < y
 	})
-	sort.Strings(rest)
+	sortJS(rest)
 
 	return append(idx, rest...)
 }

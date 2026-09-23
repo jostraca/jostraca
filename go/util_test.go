@@ -747,3 +747,42 @@ func TestDeepTypedSliceReplaces(t *testing.T) {
 		t.Errorf("Deep got %v, want %v", got, want)
 	}
 }
+
+// JavaScript compares strings by UTF-16 code unit. That is code-point
+// order everywhere except where a supplementary-plane character (a
+// surrogate pair) meets one in U+E000..U+FFFF, which is exactly where
+// UTF-8 byte order disagrees.
+func TestJSLess(t *testing.T) {
+	cases := []struct {
+		a, b string
+		want bool
+	}{
+		{"\U0001F600", "ｚ", true},
+		{"ｚ", "\U0001F600", false},
+		{"é", "ｚ", true},
+		{"é", "\U0001F600", true},
+		{"a", "b", true},
+		{"B", "a", true},
+		{"10", "9", true},
+		{"_", "a", true},
+		{"a", "ab", true},
+		{"ab", "a", false},
+		{"", "a", true},
+		{"a", "a", false},
+		{"", "", false},
+		{"\U0001F600", "\U0001F601", true},
+		{"\U00010000", "퟿", false},
+	}
+	for _, c := range cases {
+		if got := jsLess(c.a, c.b); got != c.want {
+			t.Errorf("jsLess(%q, %q) = %v, want %v", c.a, c.b, got, c.want)
+		}
+	}
+
+	keys := []string{"ｚ", "\U0001F600", "é", "a", "Z"}
+	sortJS(keys)
+	want := []string{"Z", "a", "é", "\U0001F600", "ｚ"}
+	if !reflect.DeepEqual(keys, want) {
+		t.Errorf("sortJS = %q, want %q", keys, want)
+	}
+}
