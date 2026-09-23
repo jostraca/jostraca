@@ -372,6 +372,9 @@ class FileHandler {
     // already on disk, so the write path can skip a no-op rewrite.
     let unchanged = false
 
+    // Whether the save ends in a write or skip record.
+    let final = false
+
     if (exists) {
       why.push('exists-0')
       // The existing file is handled as BYTES, text included, as Go does.
@@ -406,8 +409,7 @@ class FileHandler {
           whenify(meta, this.now())
           meta.actions.push(meta.action)
 
-          this.audit.push([CN + FN + wstr + meta.action,
-          { ...meta, why, action: meta.action, path }])
+          this.decision(CN + FN + wstr, meta, why, path)
         }
       }
 
@@ -429,8 +431,7 @@ class FileHandler {
           whenify(meta, this.now())
           meta.actions.push(meta.action)
 
-          this.audit.push([CN + FN + wstr + meta.action,
-          { ...meta, why, action: meta.action, path }])
+          this.decision(CN + FN + wstr, meta, why, path)
         }
       }
 
@@ -467,8 +468,7 @@ class FileHandler {
             meta.actions.push(meta.action)
             meta.conflict = conflict
 
-            this.audit.push([CN + FN + wstr + meta.action,
-            { ...meta, why, action: meta.action, path }])
+            this.decision(CN + FN + wstr, meta, why, path)
           }
           else {
             // Equal content is still not a no-op when an explicit mode was
@@ -539,8 +539,7 @@ class FileHandler {
                 meta.actions.push(meta.action)
                 meta.conflict = conflict
 
-                this.audit.push([CN + FN + wstr + meta.action,
-                { ...meta, why, action: meta.action, path }])
+                this.decision(CN + FN + wstr, meta, why, path)
               }
             }
           }
@@ -593,16 +592,14 @@ class FileHandler {
 
       meta.actions.push(meta.action)
       whenify(meta, this.now())
-      this.audit.push([CN + FN + wstr + meta.action,
-      { ...meta, why, action: meta.action, path }])
+      final = true
     }
     else if (0 === meta.actions.length) {
       why.push('skip-0')
       meta.action = 'skip'
       meta.actions.push(meta.action)
       whenify(meta, this.now())
-      this.audit.push([CN + FN + wstr + meta.action,
-      { ...meta, why, action: meta.action, path }])
+      final = true
     }
 
     if (this.control.duplicate) {
@@ -621,9 +618,23 @@ class FileHandler {
       }
     }
 
-    // console.log('WHY', path, why)
+    // The write or skip record is the save's last word, so it carries the
+    // baseline breadcrumbs too.
+    if (final) {
+      this.decision(CN + FN + wstr, meta, why, path)
+    }
 
     this.addmeta(path, meta)
+  }
+
+
+  // Push a decision record as a SNAPSHOT. The record used to share the live
+  // `why` and `meta.actions` arrays, so an early record (a preserve) later
+  // reported the whole save's actions and breadcrumbs.
+  private decision(tag: string, meta: any, why: string[], path: string) {
+    this.audit.push([tag + meta.action, {
+      ...meta, actions: [...meta.actions], why: [...why], action: meta.action, path,
+    }])
   }
 
 
@@ -821,7 +832,7 @@ class FileHandler {
       const cstr = 'string' === typeof content ? content : content.toString(opts.encoding)
       const json = JSON.parse(cstr)
       this.audit.push([CN + FN + wstr,
-      { path, when, size: content.length }])
+      { path, when, size: byteLength(content) }])
       return json
     }
     catch (err: any) {
@@ -852,7 +863,7 @@ class FileHandler {
       const jstr = 'string' === typeof json ? json : JSON.stringify(json, null, 2)
       this.saveFile(path, jstr, opts, whence)
       this.audit.push([CN + FN + wstr,
-      { path, when, size: jstr.length }])
+      { path, when, size: byteLength(jstr) }])
       return jstr
     }
     catch (err: any) {
@@ -887,7 +898,7 @@ class FileHandler {
       const fullpath = fwd(Path.normalize(path))
       const content = fs.readFileSync(fullpath, opts)
       this.audit.push([CN + FN + wstr,
-      { path, when, size: content.length }])
+      { path, when, size: byteLength(content) }])
       return content
     }
     catch (err: any) {
@@ -1106,11 +1117,11 @@ class FileHandler {
       }
 
       this.audit.push([CN + FN + wstr,
-      { path, when, existed, size: content.length }])
+      { path, when, existed, size: byteLength(content) }])
     }
     catch (err: any) {
       this.audit.push(['ERROR:' + CN + FN + wstr,
-      { path, when, size: content.length, err }])
+      { path, when, size: byteLength(content), err }])
       err.message = CN + FN + wstr + ' path=' + path + ':' + err.message
       throw err
     }
@@ -1147,6 +1158,13 @@ class FileHandler {
 function latin1(content: string | Buffer): string {
   return (Buffer.isBuffer(content) ? content : Buffer.from(content, 'utf8'))
     .toString('latin1')
+}
+
+
+// Audit sizes are byte lengths, whether the content is a string or a
+// Buffer; `length` counted UTF-16 units for a string.
+function byteLength(content: string | Buffer): number {
+  return 'string' === typeof content ? Buffer.byteLength(content, 'utf8') : content.length
 }
 
 

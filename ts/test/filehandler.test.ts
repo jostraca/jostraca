@@ -727,4 +727,27 @@ describe('filehandler', () => {
     expect(fw.bytes.toString('hex')).equal(Buffer.from('A\n�\n').toString('hex'))
   })
 
+
+  // A decision record is a snapshot taken when it is pushed, and an audit
+  // size is a byte count.
+  test('audit-snapshots-and-byte-sizes', async () => {
+    const { fs } = memfs({ '/out/a.txt': 'OLD\n' })
+    const res: any = await Jostraca({ now: () => NOW, log: quiet }).generate({
+      fs: () => fs, folder: '/out', existing: { txt: { preserve: true } },
+    }, () => Project({}, () => {
+      File({ name: 'a.txt' }, () => Content('NEW\n'))
+      File({ name: 'u.txt' }, () => Content('é\u{1F600}'))
+    }))
+    const audit = res.audit()
+    const preserve = audit.find((e: any) => 'FileHandler:save:preserve' === e[0])
+    expect(preserve[1].actions).equal(['preserve'])
+    expect(preserve[1].why).equal(['start<Wx>', 'exists-0', 'preserve-0', 'content-0'])
+    const write = audit.find((e: any) =>
+      'FileHandler:save:write' === e[0] && '/out/a.txt' === e[1].path)
+    expect(write[1].actions).equal(['preserve', 'write'])
+    const u = audit.find((e: any) =>
+      e[0].startsWith('FileHandler:saveFile:') && '/out/u.txt' === e[1].path)
+    expect(u[1].size).equal(6)
+  })
+
 })
