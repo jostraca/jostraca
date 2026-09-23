@@ -12,6 +12,7 @@ import * as Os from 'node:os'
 import * as Path from 'node:path'
 
 import { memfs } from '../dist/util/memfs'
+import { getdlog } from '../dist/util/basic'
 
 import {
   Jostraca,
@@ -244,6 +245,62 @@ describe('generate', () => {
       Assert.deepEqual(warned(calls), [
         ['save', 'chmod of unchanged file failed: /out/a.sh'],
       ])
+    })
+
+    // A failed write refuses the run, so a temp file it could not remove
+    // is recorded in the debug buffer and replayed to no logger. A temp
+    // file that is already gone was not left behind, so is not reported.
+    test('a-failed-temp-cleanup-is-recorded', async () => {
+      const dlog = getdlog('jostraca')
+      const fail = (code: string) => Object.assign(new Error(code), { code })
+      const isTmp = (p: string) => p.includes('.jostraca-tmp-')
+      const TMP = ['writeFileAtomic', 'temp cleanup failed: /out/a.txt.jostraca-tmp-*']
+
+      const cases: [string, (fs: any) => any, any[]][] = [
+        ['partial-write-unremovable', (fs) => ({
+          writeFileSync: (p: string, c: any, o: any) => {
+            if (isTmp(p)) {
+              fs.writeFileSync(p, 'partial')
+              throw fail('EIO')
+            }
+            return fs.writeFileSync(p, c, o)
+          },
+          unlinkSync: () => { throw fail('EPERM') },
+        }), [TMP]],
+        ['create-failed-nothing-to-remove', (fs) => ({
+          writeFileSync: (p: string, c: any, o: any) => {
+            if (isTmp(p)) {
+              throw fail('EACCES')
+            }
+            return fs.writeFileSync(p, c, o)
+          },
+        }), []],
+        ['rename-failed-unremovable', () => ({
+          renameSync: () => { throw fail('EXDEV') },
+          unlinkSync: () => { throw fail('EPERM') },
+        }), [TMP]],
+        ['rename-failed-removed', () => ({
+          renameSync: () => { throw fail('EXDEV') },
+        }), []],
+      ]
+
+      for (const [name, override, want] of cases) {
+        const { fs, vol } = memfs({})
+        const { log, calls } = capture()
+        const mark = dlog.seq()
+        await Assert.rejects(Jostraca({
+          fs: () => ({ ...fs, ...override(fs) }), folder: '/out', now: () => START_TIME, log,
+        }).generate({}, () => Project({}, () => File({ name: 'a.txt' }, () => Content('A')))),
+          name)
+        const got = dlog.log()
+          .filter((e: any) => e.seq > mark && 'writeFileAtomic' === e[3])
+          .map((e: any) => [e[3], e[4].replace(/\.jostraca-tmp-.*$/, '.jostraca-tmp-*')])
+        Assert.deepEqual(got, want, name)
+        Assert.deepEqual(calls, [], name)
+        if (0 === want.length) {
+          Assert.deepEqual(Object.keys(vol.toJSON()).filter(isTmp), [], name)
+        }
+      }
     })
 
     test('a-refused-run-replays-nothing', async () => {

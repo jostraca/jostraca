@@ -994,9 +994,10 @@ class FileHandler {
           // is the R12 case, and `created` must stay false so the cleanup
           // does not delete somebody else's file.
           //
-          // Any OTHER error (ENOSPC, EIO) happened AFTER the create
-          // succeeded, so a partial temp file is on disk and is ours to
-          // remove. Without this it survived the failed build.
+          // Any OTHER error may have come AFTER the create succeeded
+          // (ENOSPC, EIO), leaving a partial temp file that is ours to
+          // remove. Without this it survived the failed build. If the
+          // create itself failed (EACCES), the cleanup finds nothing.
           if ('EEXIST' !== err?.code) {
             created = true
           }
@@ -1039,7 +1040,10 @@ class FileHandler {
         }
       }
       catch (cleanuperr: any) {
-        dlog('writeFileAtomic', 'temp cleanup failed: ' + tmppath)
+        // Already gone is not a failed cleanup: nothing was left behind.
+        if ('ENOENT' !== cleanuperr?.code) {
+          dlog('writeFileAtomic', 'temp cleanup failed: ' + tmppath)
+        }
       }
       throw err
     }

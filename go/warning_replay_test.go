@@ -174,6 +174,124 @@ func TestFailedChmodOfUnchangedFileWarns(t *testing.T) {
 	}
 }
 
+// cleanupFS fails a temp write or the rename, and optionally the removal
+// of the temp file.
+type cleanupFS struct {
+	*MemFS
+	writeErr  error
+	partial   bool
+	renameErr error
+	removeErr error
+}
+
+func isTmp(p string) bool { return strings.Contains(p, ".jostraca-tmp-") }
+
+func (c *cleanupFS) failWrite(p string) error {
+	if c.partial {
+		_ = c.MemFS.WriteFile(p, []byte("partial"))
+	}
+	return c.writeErr
+}
+
+func (c *cleanupFS) WriteFileExcl(p string, b []byte) error {
+	if c.writeErr != nil && isTmp(p) {
+		return c.failWrite(p)
+	}
+	return c.MemFS.WriteFileExcl(p, b)
+}
+
+func (c *cleanupFS) WriteFile(p string, b []byte) error {
+	if c.writeErr != nil && isTmp(p) {
+		return c.failWrite(p)
+	}
+	return c.MemFS.WriteFile(p, b)
+}
+
+func (c *cleanupFS) Rename(from, to string) error {
+	if c.renameErr != nil {
+		return c.renameErr
+	}
+	return c.MemFS.Rename(from, to)
+}
+
+func (c *cleanupFS) Remove(p string) error {
+	if c.removeErr != nil && isTmp(p) {
+		return c.removeErr
+	}
+	return c.MemFS.Remove(p)
+}
+
+// plainFS hides the exclusive create, so the write takes the
+// check-then-write branch.
+type plainFS struct{ FS }
+
+// A failed write refuses the run, so a temp file it could not remove is
+// recorded in the package buffer and replayed to no logger. A temp file
+// that is already gone was not left behind, so is not reported. TS twin:
+// a-failed-temp-cleanup-is-recorded.
+func TestFailedTempCleanupIsRecorded(t *testing.T) {
+	eio, eperm, eacces := errors.New("EIO"), errors.New("EPERM"), fs.ErrPermission
+	exdev := errors.New("EXDEV")
+
+	cases := []struct {
+		name  string
+		fs    *cleanupFS
+		warns bool
+	}{
+		{"partial-write-unremovable",
+			&cleanupFS{writeErr: eio, partial: true, removeErr: eperm}, true},
+		{"create-failed-nothing-to-remove",
+			&cleanupFS{writeErr: eacces}, false},
+		{"rename-failed-unremovable",
+			&cleanupFS{renameErr: exdev, removeErr: eperm}, true},
+		{"rename-failed-removed",
+			&cleanupFS{renameErr: exdev}, false},
+	}
+
+	for _, c := range cases {
+		for _, branch := range []string{"exclusive", "plain"} {
+			name := c.name + "-" + branch
+			cfs := *c.fs
+			cfs.MemFS = NewMemFS()
+			var provider FS = &cfs
+			if branch == "plain" {
+				provider = plainFS{&cfs}
+			}
+			folder := "/" + name
+			log := &warnLog{}
+
+			_, err := New(WithFS(provider), WithFolder(folder), WithLog(log),
+				WithNow(func() int64 { return 1735689600000 })).
+				Generate(Options{}, memTree("a.txt", "A"))
+			if err == nil {
+				t.Fatalf("%s: the failed write must refuse the run", name)
+			}
+
+			prefix := "temp cleanup failed: " + folder + "/p/a.txt.jostraca-tmp-"
+			got := 0
+			for _, e := range DLogSnapshot(false) {
+				if len(e.Args) == 2 && e.Args[0] == "writeFileAtomic" &&
+					strings.HasPrefix(fmt.Sprint(e.Args[1]), prefix) {
+					got++
+				}
+			}
+			if want := map[bool]int{true: 1, false: 0}[c.warns]; got != want {
+				t.Errorf("%s: %d cleanup warnings, want %d", name, got, want)
+			}
+			if len(log.calls) != 0 {
+				t.Errorf("%s: a refused run logged: %v", name, log.calls)
+			}
+			if !c.warns {
+				for k := range cfs.MemFS.Vol() {
+					if isTmp(k) {
+						t.Errorf("%s: a temp file was left behind: %s", name, k)
+					}
+				}
+			}
+		}
+	}
+}
+
 func TestRefusedRunReplaysNothing(t *testing.T) {
 	log := &warnLog{}
 	err := warnGen(map[string][]byte{"/out/t.txt": []byte("no markers here\n")},

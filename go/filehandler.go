@@ -772,7 +772,7 @@ func (fh *fileHandler) writeAtomicMode(p string, content []byte, mode fs.FileMod
 				// not, and this is the last point that knows the path —
 				// the error returns before `tmp` is assigned, so the
 				// cleanup below can never see it.
-				_ = fh.fs.Remove(cand)
+				fh.removeTemp(cand)
 				return werr
 			}
 			continue
@@ -787,7 +787,7 @@ func (fh *fileHandler) writeAtomicMode(p string, content []byte, mode fs.FileMod
 		if err := fh.fs.WriteFile(cand, content); err != nil {
 			// WriteFile creates before writing, so a mid-write failure
 			// leaves a partial temp file that only this call knows about.
-			_ = fh.fs.Remove(cand)
+			fh.removeTemp(cand)
 			return err
 		}
 		tmp = cand
@@ -814,12 +814,19 @@ func (fh *fileHandler) writeAtomicMode(p string, content []byte, mode fs.FileMod
 	}
 
 	if err := fh.fs.Rename(tmp, p); err != nil {
-		if rerr := fh.fs.Remove(tmp); rerr != nil {
-			fh.st.warn(fhDlog, "writeFileAtomic", "temp cleanup failed: "+tmp)
-		}
+		fh.removeTemp(tmp)
 		return err
 	}
 	return nil
+}
+
+// removeTemp removes a failed write's temp file, warning when one is left
+// behind. Already gone is not a failed cleanup: a create that failed, or an
+// OsFS write that cleaned up after itself, left nothing.
+func (fh *fileHandler) removeTemp(tmp string) {
+	if err := fh.fs.Remove(tmp); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		fh.st.warn(fhDlog, "writeFileAtomic", "temp cleanup failed: "+tmp)
+	}
 }
 
 // writeDuplicate refreshes the merge baseline under
