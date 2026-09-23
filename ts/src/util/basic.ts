@@ -251,34 +251,17 @@ function getx(root: any, path: string | string[]): any {
       }
       ftokens.length = j
 
-      // `each` stamps key$/index$ onto the children IN PLACE, and those
-      // children are the caller's own objects. The cleanup below only ever
-      // reached the survivors, so a child the filter REJECTED kept the stamp
-      // and the caller's model was left polluted -- observable in generated
-      // output, because Content shallow-copies the model and every nested
-      // object is shared across the run. See docs/design/PARITY_PLAN.md 2.3. Go does not
-      // mutate here (it rebuilds), so TS was the side that was wrong.
-      const stamped: any[] = each(node)
-      out = stamped
-        .filter((child: any) => undefined != getx(child, ftokens))
-
-      if (null != node && 'object' === typeof node) {
-        if (Array.isArray(node)) {
-          out = out.map((n: any) => (delete n.index$, n))
-        }
-        else {
-          out = out.reduce((a: any, n: any) => (a[n.key$] = n, delete n.key$, a), {})
-        }
-
-        // Sweep the rejected children too. Survivors have already had theirs
-        // removed above, so this is a no-op for them.
-        for (const n of stamped) {
-          if (null != n && 'object' === typeof n) {
-            delete n.key$
-            delete n.index$
-          }
-        }
-      }
+      // The children are filtered as they are, not through each(): a
+      // scalar child is not wrapped, nothing is stamped on the caller's
+      // objects, and a filter over anything but an object or array is a
+      // miss rather than an empty list.
+      out =
+        null == node || 'object' !== typeof node ? undefined :
+          Array.isArray(node) ?
+            node.filter((child: any) => undefined != getx(child, ftokens)) :
+            Object.keys(node).sort()
+              .filter((k: string) => undefined != getx(node[k], ftokens))
+              .reduce((a: any, k: string) => (a[k] = node[k], a), {})
 
       node = out
       i += ftokens.length

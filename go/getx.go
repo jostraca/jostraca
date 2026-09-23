@@ -125,14 +125,7 @@ func getxWalk(root any, tokens []string) any {
 			}
 			ftokens = ftokens[:j]
 
-			children := getxIterChildren(node)
-			var filtered []getxItem
-			for _, c := range children {
-				if GetX(c.v, ftokens) != nil {
-					filtered = append(filtered, c)
-				}
-			}
-			node = getxRebuild(node, filtered)
+			node = getxFilter(node, ftokens)
 			out = node
 			i += len(ftokens)
 			continue
@@ -215,17 +208,17 @@ func getxIsCompareOp(t string) bool {
 	return false
 }
 
+// getxIsIdent is TS's filter-end test, /[\w\d_]+/ unanchored: the token
+// CONTAINS an ASCII word character, so 't-w' counts.
 func getxIsIdent(t string) bool {
-	if t == "" {
-		return false
-	}
-	for _, r := range t {
-		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
-			(r >= '0' && r <= '9') || r == '_') {
-			return false
+	for i := 0; i < len(t); i++ {
+		c := t[i]
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+			(c >= '0' && c <= '9') || c == '_' {
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 // getxArg coerces a comparison argument as TS does: only 'true' and
@@ -282,81 +275,50 @@ func getxCompare(val any, op string, arg any) bool {
 	return false
 }
 
-// getxItem records a single child entry plus its origin key/index
-// for rebuilding maps and slices after filtering.
-type getxItem struct {
-	key string
-	idx int
-	v   any
-}
-
-func getxIterChildren(node any) []getxItem {
+// getxFilter keeps the RAW children of a map or slice for which the
+// filter path resolves to something other than nil, as TS getx '?' does:
+// a slice gives a []any in order, a map a map[string]any. Filtering
+// anything else is a miss.
+func getxFilter(node any, ftokens []string) any {
 	switch v := node.(type) {
 	case map[string]any:
-		keys := sortedKeys(v)
-		out := make([]getxItem, 0, len(keys))
-		for _, k := range keys {
-			out = append(out, getxItem{key: k, v: v[k]})
+		out := map[string]any{}
+		for k, c := range v {
+			if GetX(c, ftokens) != nil {
+				out[k] = c
+			}
 		}
 		return out
 	case []any:
-		out := make([]getxItem, len(v))
-		for i, x := range v {
-			out[i] = getxItem{idx: i, v: x}
+		out := make([]any, 0, len(v))
+		for _, c := range v {
+			if GetX(c, ftokens) != nil {
+				out = append(out, c)
+			}
 		}
 		return out
 	}
 	rv := reflect.ValueOf(node)
 	switch rv.Kind() {
 	case reflect.Map:
-		ks := sortedStringKeys(rv)
-		out := make([]getxItem, 0, len(ks))
-		for _, k := range ks {
-			v := rv.MapIndex(reflect.ValueOf(k)).Interface()
-			out = append(out, getxItem{key: k, v: v})
+		out := map[string]any{}
+		iter := rv.MapRange()
+		for iter.Next() {
+			c := iter.Value().Interface()
+			if GetX(c, ftokens) != nil {
+				out[jsJSONMapKey(iter.Key())] = c
+			}
 		}
 		return out
 	case reflect.Slice, reflect.Array:
-		out := make([]getxItem, rv.Len())
+		out := make([]any, 0, rv.Len())
 		for i := 0; i < rv.Len(); i++ {
-			out[i] = getxItem{idx: i, v: rv.Index(i).Interface()}
+			c := rv.Index(i).Interface()
+			if GetX(c, ftokens) != nil {
+				out = append(out, c)
+			}
 		}
 		return out
 	}
-	return nil
-}
-
-// getxRebuild reconstructs a container of the same kind as node from
-// the filtered items.
-func getxRebuild(node any, items []getxItem) any {
-	switch node.(type) {
-	case map[string]any:
-		out := map[string]any{}
-		for _, it := range items {
-			out[it.key] = it.v
-		}
-		return out
-	case []any:
-		out := make([]any, 0, len(items))
-		for _, it := range items {
-			out = append(out, it.v)
-		}
-		return out
-	}
-	rv := reflect.ValueOf(node)
-	switch rv.Kind() {
-	case reflect.Map:
-		out := map[string]any{}
-		for _, it := range items {
-			out[it.key] = it.v
-		}
-		return out
-	case reflect.Slice, reflect.Array:
-		out := make([]any, 0, len(items))
-		for _, it := range items {
-			out = append(out, it.v)
-		}
-		return out
-	}
-	return nil
+	return jsUndefined
 }

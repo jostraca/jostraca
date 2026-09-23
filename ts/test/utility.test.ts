@@ -577,6 +577,27 @@ describe('caller-state', () => {
   })
 
 
+  // The filter reads the RAW children, so nothing is stamped at all: not on
+  // a survivor, not on a rejected child, and not on a scalar's wrapper,
+  // because there is none.
+  test('getx-filter-stamps-nothing', () => {
+    const model: any = {
+      o: { x: { v: 1 }, y: { v: 2 }, n: 3 },
+      a: [{ v: 1 }, { v: 2 }, 3],
+    }
+    const before = JSON.stringify(model)
+
+    expect(getx(model, 'o?v=1')).equal({ x: { v: 1 } })
+    expect(getx(model, 'a?v=1')).equal([{ v: 1 }])
+    expect(getx(model, 'o?q~u')).equal({ x: { v: 1 }, y: { v: 2 } })
+
+    for (const c of [model.o.x, model.o.y, model.a[0], model.a[1], model.a]) {
+      expect(Object.keys(c).filter((k: string) => k.endsWith('$'))).equal([])
+    }
+    expect(JSON.stringify(model)).equal(before)
+  })
+
+
   // The third instance of the same class, and the one a user hits without
   // reaching for an internal: `OptionsShape` injects its defaults into the
   // object it is handed and returns that same object, so `generate` used to

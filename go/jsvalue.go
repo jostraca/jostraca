@@ -222,14 +222,17 @@ func jsJSONValue(v any, seen map[uintptr]bool) (out any, ok bool, err error) {
 
 var errJSONCycle = fmt.Errorf("jostraca: converting circular structure to JSON")
 
+// jsJSONMapKey is the property name a Go map key becomes.
 func jsJSONMapKey(k reflect.Value) string {
 	switch k.Kind() {
 	case reflect.String:
 		return k.String()
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(k.Int(), 10)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 		return strconv.FormatUint(k.Uint(), 10)
 	}
-	return strconv.FormatInt(k.Int(), 10)
+	return jsString(k.Interface())
 }
 
 // jsJSONFloat applies JSON.stringify's number rules: -0 is 0, and a

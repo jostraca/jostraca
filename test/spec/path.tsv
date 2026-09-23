@@ -108,3 +108,11 @@ getx-js-a-x-ne-none	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d"
 getx-js-a-b-le-1	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"a.b<=1"]	{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}}	
 getx-js-a-b-ge-2	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"a.b>=2"]	null	
 getx-js-a-t-lt-2	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"a.t<2"]	{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}}	
+getx-filter-raw-children	getx	[{"obj":{"x":{"k":1},"y":{"k":2},"w":7}},"obj?q~u"]	{"x":{"k":1},"y":{"k":2}}	
+getx-filter-over-number	getx	[{"num":5},"num?k=1"]	null	
+getx-filter-over-null	getx	[{"nul":null},"nul?k=1"]	null	
+getx-filter-over-string	getx	[{"s":"abc"},"s?length=1"]	null	
+getx-filter-scalar-children-never-pass	getx	[{"l":[1,2]},["l","?","val$","=","1"]]	[]	
+getx-filter-key-not-stamped	getx	[{"o":{"x":{"k":1},"y":{"k":2}}},["o","?","key$","=","x"]]	{}	
+getx-filter-end-unanchored	getx	[{"list":[{"v":"t-w","k":"K1"},{"v":"o","k":"K2"}]},["list","?","v","=","t-w","k"]]	null	
+getx-filter-end-unanchored-index	getx	[{"list":[{"v":"t-w","k":"K1"},{"v":"o","k":"K2"}]},["list","?","v","=","t-w","0","k"]]	"K1"	
