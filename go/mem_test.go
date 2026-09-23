@@ -65,9 +65,11 @@ func TestWithMemDoesNotTouchTheRealFilesystem(t *testing.T) {
 		t.Error("Result.FS is nil")
 	}
 
+	// Keys are absolute, resolved against the working directory, as in
+	// the TS in-memory provider.
 	found := false
 	for _, k := range volKeys(t, res) {
-		if k == "out/p/a.txt" {
+		if k == memClean("out/p/a.txt") {
 			found = true
 		}
 	}

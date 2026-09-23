@@ -9,7 +9,7 @@ import Path from 'node:path'
 import { test, describe } from 'node:test'
 import { expect } from './expect'
 
-import { memfs } from '../dist/util/memfs'
+import { memfs, memClean } from '../dist/util/memfs'
 
 import {
   Jostraca,
@@ -321,6 +321,49 @@ describe('filehandler', () => {
     const { fs } = memfs({ '/d/a.txt': 'A' })
     expect(fs.statSync('/d/a.txt').mode & 0o777).equal(0o666)
     expect(fs.statSync('/d').mode & 0o777).equal(0o777)
+  })
+
+
+  // In-memory keys are canonical absolute paths: backslashes folded, `.`
+  // and `..` resolved, a relative path resolved against the working
+  // directory. A vol seeded with the cwd-absolute key and generated with a
+  // relative folder addresses the same file.
+  test('memfs-keys-resolve-against-cwd', async () => {
+    const cwd = process.cwd().replace(/\\/g, '/')
+    const parent = cwd.substring(0, cwd.lastIndexOf('/')) || '/'
+    const join = (dir: string, rest: string) => ('/' === dir ? '' : dir) + '/' + rest
+    const cases: [string, string][] = [
+      ['a.txt', join(cwd, 'a.txt')],
+      ['', cwd],
+      ['.', cwd],
+      ['./out/a.txt', join(cwd, 'out/a.txt')],
+      ['a\\b.txt', join(cwd, 'a/b.txt')],
+      ['../z', join(parent, 'z')],
+      ['/', '/'],
+      ['/x/../y', '/y'],
+      ['/a\\b', '/a/b'],
+      ['/out//a/./b', '/out/a/b'],
+      ['C:\\x\\y', 'C:/x/y'],
+      ['C:/x/../y', 'C:/y'],
+    ]
+    for (const [p, want] of cases) {
+      expect({ p, got: memClean(p) }).equal({ p, got: want })
+    }
+
+    const abs = cwd + '/out/a.txt'
+    const j = Jostraca({ mem: true, vol: { [abs]: 'OLD' }, now: () => NOW, log: quiet })
+    const res: any = await j.generate({
+      folder: 'out', existing: { txt: { write: false } },
+    }, () => Project({}, () => File({ name: 'a.txt' }, () => Content('NEW'))))
+    expect(res.files.written).equal([])
+    const vol = res.vol().toJSON()
+    const keys = Object.keys(vol).filter((k) =>
+      k.endsWith('/a.txt') && !k.includes('.jostraca'))
+    expect(keys).equal([abs])
+    expect(vol[abs]).equal('OLD')
+    for (const k of Object.keys(vol)) {
+      expect({ k, under: k.startsWith(cwd + '/out/') }).equal({ k, under: true })
+    }
   })
 
 })

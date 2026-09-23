@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"math"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -343,4 +344,76 @@ func TestSlotOutsideFragment(t *testing.T) {
 			t.Errorf("t.txt = %q", got)
 		}
 	})
+}
+
+// In-memory keys are canonical absolute paths: backslashes folded, `.` and
+// `..` resolved, a relative path resolved against the working directory.
+// Twin of 'memfs-keys-resolve-against-cwd' in ts/test/filehandler.test.ts.
+func TestMemCleanResolvesAgainstCwd(t *testing.T) {
+	cwd := memCwd()
+	parent := cwd[:strings.LastIndex(cwd, "/")]
+	if parent == "" {
+		parent = "/"
+	}
+	join := func(dir, rest string) string {
+		if dir == "/" {
+			return "/" + rest
+		}
+		return dir + "/" + rest
+	}
+	cases := [][2]string{
+		{"a.txt", join(cwd, "a.txt")},
+		{"", cwd},
+		{".", cwd},
+		{"./out/a.txt", join(cwd, "out/a.txt")},
+		{"a\\b.txt", join(cwd, "a/b.txt")},
+		{"../z", join(parent, "z")},
+		{"/", "/"},
+		{"/x/../y", "/y"},
+		{"/a\\b", "/a/b"},
+		{"/out//a/./b", "/out/a/b"},
+		{"C:\\x\\y", "C:/x/y"},
+		{"C:/x/../y", "C:/y"},
+	}
+	for _, c := range cases {
+		if got := memClean(c[0]); got != c[1] {
+			t.Errorf("memClean(%q) = %q, want %q", c[0], got, c[1])
+		}
+	}
+}
+
+// A vol seeded with the cwd-absolute key and generated with a relative
+// folder addresses the same file: one key, the seed kept.
+func TestMemRelativeFolderAddressesAbsoluteSeed(t *testing.T) {
+	no := false
+	abs := memCwd() + "/out/a.txt"
+	res, err := New(WithMem(), WithVol(map[string][]byte{abs: []byte("OLD")}),
+		WithFolder("out"), WithNow(func() int64 { return fhNow })).
+		Generate(Options{Existing: Existing{Txt: ExistingTxt{Write: &no}}},
+			func(j *J) {
+				j.Project(ProjectProps{}, func(j *J) {
+					j.File("a.txt", func(j *J) { j.Content("NEW") })
+				})
+			})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Files.Written) != 0 {
+		t.Errorf("written = %v, want none", res.Files.Written)
+	}
+	n := 0
+	for k, v := range res.Vol() {
+		if strings.HasSuffix(k, "/a.txt") && !strings.Contains(k, ".jostraca") {
+			n++
+			if k != abs || string(v) != "OLD" {
+				t.Errorf("%s = %q, want %s = OLD", k, v, abs)
+			}
+		}
+		if !strings.HasPrefix(k, memCwd()+"/out/") {
+			t.Errorf("key %s is not under %s/out/", k, memCwd())
+		}
+	}
+	if n != 1 {
+		t.Errorf("%d keys for a.txt, want 1", n)
+	}
 }

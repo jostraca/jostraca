@@ -138,9 +138,9 @@ func TestScenarioCorpusMatchesTS(t *testing.T) {
 		mem := NewMemFS()
 
 		// A relative folder is passed through exactly as recorded — that is
-		// the point of the axis. TS strips memfs's process.cwd() prefix
-		// when generating, so the recorded keys are already relative and
-		// line up with what Go's MemFS (which has no cwd) produces.
+		// the point of the axis. Both in-memory providers resolve a relative
+		// key against the working directory, and TS strips that prefix when
+		// generating, so the Go keys are stripped the same way below.
 		folder := "."
 		if c.Folder != nil {
 			folder = *c.Folder
@@ -257,9 +257,10 @@ func TestScenarioCorpusMatchesTS(t *testing.T) {
 		// map[string]string is lossless even for the binary cases — and it
 		// keeps sameTree/showTree at the signatures the other corpora in
 		// this package share.
+		cwd := memCwd() + "/"
 		got := map[string]string{}
 		for k, v := range mem.Vol() {
-			got[k] = string(v)
+			got[strings.TrimPrefix(k, cwd)] = string(v)
 		}
 		want := map[string]string{}
 		for k, v := range c.Vol {
