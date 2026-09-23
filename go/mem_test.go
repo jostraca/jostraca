@@ -184,6 +184,33 @@ func TestGlobalMemBeatsGlobalFS(t *testing.T) {
 	}
 }
 
+// The instance volume is built from Mem alone, whatever FS says, so calls
+// share it; a fresh volume per call would lose the first call's output.
+// TS twin: global-mem-beside-global-fs-is-shared-across-calls.
+func TestGlobalMemBesideGlobalFSIsSharedAcrossCalls(t *testing.T) {
+	own := NewMemFS()
+	j := New(WithMem(), WithFS(own), WithFolder("/out"), WithNow(func() int64 { return 1 }))
+	one, err := j.Generate(Options{}, memTree("a.txt", "A"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	two, err := j.Generate(Options{}, memTree("b.txt", "B"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	vol := two.Vol()
+	if string(vol["/out/p/a.txt"]) != "A" || string(vol["/out/p/b.txt"]) != "B" {
+		t.Fatalf("the second call did not see the first call's output: %v", keysOf(vol))
+	}
+	if two.FS() != one.FS() {
+		t.Error("the two calls used different volumes")
+	}
+	if len(own.Vol()) != 0 {
+		t.Errorf("the global FS was written: %v", keysOf(own.Vol()))
+	}
+}
+
 // A per-call Mem:true beats a global FS the same way.
 func TestPerCallMemBeatsGlobalFS(t *testing.T) {
 	own := NewMemFS()

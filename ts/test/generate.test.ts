@@ -104,6 +104,21 @@ describe('generate', () => {
       Assert.notEqual(res.fs(), own.fs)
     })
 
+    // The instance volume is built from `mem` alone, whatever `fs` says, so
+    // calls share it: a fresh volume per call would lose the first output.
+    test('global-mem-beside-global-fs-is-shared-across-calls', async () => {
+      const own = memfs({})
+      const j = Jostraca({ mem: true, fs: () => own.fs, folder: '/out', now: () => START_TIME })
+      const one: any = await j.generate({}, root)
+      const two: any = await j.generate({}, () =>
+        Project({}, () => File({ name: 'b.txt' }, () => Content('B'))))
+      const vol = two.vol().toJSON()
+      Assert.equal(vol['/out/a.txt'], 'A')
+      Assert.equal(vol['/out/b.txt'], 'B')
+      Assert.equal(two.fs(), one.fs())
+      Assert.deepEqual(own.vol.toJSON(), {})
+    })
+
     test('per-call-fs-beats-global-mem', async () => {
       const own = memfs({})
       const res: any = await Jostraca({ mem: true, now: () => START_TIME })
