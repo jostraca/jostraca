@@ -12,6 +12,8 @@ import {
   cmpTree,
   TREE_CMP,
   cmp,
+  File,
+  Content,
 } from '../'
 import { TREE_CMP_DEPRECATED, TREE_RAW_CMP } from '../dist/tree'
 
@@ -720,6 +722,47 @@ describe('tree', () => {
     Object.freeze(replace)
     const second = await gen(tree, undefined, seed)
     Assert.equal(second.vol['/top/f.txt'], 'HEADER\nBODY\n\nFOOTER\n')
+  })
+
+
+
+  // A node's component is resolved by the name AS WRITTEN: the caller's
+  // override, then the built-in, then the deprecated alias of a built-in.
+  // Go twins in go/tree_resolution_test.go; the refusals, with their
+  // paths, are rows in test/spec/tree.tsv.
+  describe('tree-resolution', () => {
+
+    test('an-override-of-deprecated-copy-runs', async () => {
+      const Custom = cmp(function Custom(props: any) {
+        File({ name: 'custom.txt' }, () => Content('CUSTOM ' + props.tag))
+      })
+      const { vol } = await gen({ cmp: 'Copy', props: { tag: 'T' } },
+        { cmp: { Copy: Custom } })
+      Assert.equal(vol['/top/custom.txt'], 'CUSTOM T')
+    })
+
+    test('an-override-of-deprecated-list-runs', async () => {
+      const Custom = cmp(function Custom(props: any) {
+        Content('LIST ' + props.n)
+      })
+      const { vol } = await gen({
+        cmp: 'File', props: { name: 'x.txt' },
+        children: [{ cmp: 'List', props: { n: 'L' } }],
+      }, { cmp: { List: Custom } })
+      Assert.equal(vol['/top/x.txt'], 'LIST L')
+    })
+
+    // An override keyed only by the canonical name does not capture the
+    // deprecated spelling: `Copy` still runs the built-in, closed prop
+    // set and all.
+    test('a-canonical-override-leaves-the-alias-built-in', async () => {
+      const Custom = cmp(function Custom() { })
+      await Assert.rejects(
+        async () => gen({ cmp: 'Copy', props: { tag: 'T' } },
+          { cmp: { CopyFiles: Custom } }),
+        /tag/)
+    })
+
   })
 
 })

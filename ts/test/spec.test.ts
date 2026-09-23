@@ -8,7 +8,7 @@ import Path from 'node:path'
 // already reaches into dist/ the same way.
 import * as Basic from '../dist/util/basic'
 import * as DiffUtil from '../dist/diff'
-import { Jostraca } from '../'
+import { Jostraca, cmpTree } from '../'
 
 
 // The shared corpus, driven by both stacks. See test/spec/README.md.
@@ -60,6 +60,9 @@ const FN: Record<string, (a: any[]) => any> = {
       .generate({ ...structuredClone(a[0]), build: false }, () => { })
     return 'ok'
   },
+
+  // cmpTree refuses a malformed tree when it builds the callback.
+  cmptree: (a) => (cmpTree(a[0]), 'ok'),
 }
 
 

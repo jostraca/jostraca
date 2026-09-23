@@ -318,8 +318,22 @@ func nodeThunk(
 	if !ok || name == "" {
 		return nil, treeErr("node has no cmp name", path)
 	}
-	if canon, dep := treeCmpDeprecated[name]; dep {
-		name = canon
+
+	// Resolved by the name AS WRITTEN, in TypeScript's order: the caller's
+	// override, the built-in, then the deprecated alias of a built-in. So
+	// an override keyed `Copy` runs, and a `Copy` node with an override
+	// keyed only `CopyFiles` runs the built-in. An unknown name is refused
+	// HERE, before its props or children are looked at.
+	custom, hasCustom := cmps[name]
+	builtin := ""
+	if !hasCustom {
+		if treeBuild[name] != nil {
+			builtin = name
+		} else if canon, dep := treeCmpDeprecated[name]; dep {
+			builtin = canon
+		} else {
+			return nil, treeErr("unknown component: "+name, path)
+		}
 	}
 
 	props := map[string]any{}
@@ -332,14 +346,13 @@ func nodeThunk(
 	if err := validFolder(props, path); err != nil {
 		return nil, err
 	}
-	// The closed prop set is the BUILT-IN component's, so a caller who
-	// replaces that component through CmpTreeOptions.Cmp is not bound by
-	// it: their Fragment may take whatever props it likes. TypeScript
-	// gets this for free -- an override replaces the component, and
-	// FragmentShape goes with it -- and checking here regardless
-	// refused a tree TypeScript generates.
-	if _, overridden := cmps[name]; !overridden {
-		if err := validClosedProps(name, props, path); err != nil {
+	// The closed prop set is the BUILT-IN component's, so it applies to
+	// what the name resolved to, alias included, and not to a caller's
+	// override: their Fragment may take whatever props it likes, as in
+	// TypeScript, where FragmentShape goes with the component it
+	// validates.
+	if builtin != "" {
+		if err := validClosedProps(builtin, props, path); err != nil {
 			return nil, err
 		}
 	}
@@ -362,7 +375,7 @@ func nodeThunk(
 		children = append(children, th)
 	}
 
-	if custom, has := cmps[name]; has {
+	if hasCustom {
 		return func(j *J, inherit map[string]any) {
 			p := propsMerge(nil, inherit, props)
 			plain := make([]func(*J), 0, len(children))
@@ -374,12 +387,9 @@ func nodeThunk(
 		}, nil
 	}
 
-	build := treeBuild[name]
-	if build == nil {
-		return nil, treeErr("unknown component: "+name, path)
-	}
+	build := treeBuild[builtin]
 	nodeDefaults := defaults
-	if !treeRawCmp[name] {
+	if !treeRawCmp[builtin] {
 		nodeDefaults = nil
 	}
 	return func(j *J, inherit map[string]any) {
