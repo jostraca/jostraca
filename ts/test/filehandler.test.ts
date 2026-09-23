@@ -376,6 +376,7 @@ describe('filehandler', () => {
       ['out/', cwd + '/out'],
       ['./out/', cwd + '/out'],
       ['out//', cwd + '/out'],
+      ['out\\', cwd + '/out'],
       ['/abs/out/', '/abs/out'],
     ]) {
       const { fs } = memfs({})

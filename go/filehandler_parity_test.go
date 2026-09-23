@@ -428,6 +428,7 @@ func TestFolderTrailingSlash(t *testing.T) {
 		{"out/", cwd + "/out"},
 		{"./out/", cwd + "/out"},
 		{"out//", cwd + "/out"},
+		{"out\\", cwd + "/out"},
 		{"/abs/out/", "/abs/out"},
 	} {
 		folder, base := c[0], c[1]

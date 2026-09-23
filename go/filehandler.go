@@ -99,10 +99,7 @@ func newFileHandler(b *buildCtx) (*fileHandler, error) {
 	if fs == nil {
 		fs = OsFS{}
 	}
-	folder := fwd(filepath.Clean(st.folder))
-	if folder == "" {
-		folder = "."
-	}
+	folder := canonFolder(st.folder)
 	fh := &fileHandler{
 		fs:              fs,
 		now:             st.now,
@@ -125,6 +122,21 @@ func newFileHandler(b *buildCtx) (*fileHandler, error) {
 	return fh, nil
 }
 
+// canonFolder is the output folder canonicalised once, as TS's canonFolder:
+// cleaned, separators folded, and trailing separators stripped except
+// from a filesystem root. A folder ending in a backslash kept it through
+// filepath.Clean off Windows, and folding it left a trailing slash.
+func canonFolder(folder string) string {
+	norm := fwd(filepath.Clean(folder))
+	if norm == "/" || isDriveKey(norm) && len(norm) == 3 {
+		return norm
+	}
+	if s := strings.TrimRight(norm, "/"); s != "" {
+		return s
+	}
+	return "."
+}
+
 // fwd normalises an OUTPUT path to canonical-/ form. A backslash is a
 // separator on every platform, as TS's fwd folds it unconditionally;
 // filepath.ToSlash does nothing off Windows. Source paths (Fragment and
@@ -139,8 +151,8 @@ func canonOutPath(p string) string {
 	return path.Clean(fwd(p))
 }
 
-// wstrOf is TS's `null == whence ? '' : whence + ':'`, with "" standing
-// for an absent whence.
+// wstrOf is TS's whence suffix: the whence and a colon, or nothing for an
+// absent whence, which "" stands for here.
 func wstrOf(whence string) string {
 	if whence == "" {
 		return ""
