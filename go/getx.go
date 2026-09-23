@@ -173,29 +173,43 @@ func getxStep(node any, key string) any {
 	return jsUndefined
 }
 
-// getxTokenize implements the regex-driven splitter from
-// src/util/basic.ts:120, dropping pure-whitespace and dot tokens and
-// stripping surrounding quotes from quoted segments.
-var getxTokenRE = regexp.MustCompile(`\s*("(\\.|[^"\\])*"|[\w\d_]+|\s+|[^\w\d_]+)\s*`)
+// jsSpaceClass is JavaScript's \s, which RE2's ASCII \s is not: it adds
+// \v, U+00A0, U+1680, U+2000..U+200A, U+2028, U+2029, U+202F, U+205F,
+// U+3000 and U+FEFF.
+const jsSpaceClass = `[\t\n\x0B\f\r \x{a0}\x{1680}\x{2000}-\x{200a}\x{2028}\x{2029}\x{202f}\x{205f}\x{3000}\x{feff}]`
 
+// getxTokenRE is GETX_TOKEN_RE from ts/src/util/basic.ts with JavaScript's
+// \s spelled out, and JavaScript's '.' (which excludes \r, U+2028 and
+// U+2029 as well as \n) in the quoted-string escape.
+var getxTokenRE = regexp.MustCompile(jsSpaceClass + `*("(\\[^\n\r\x{2028}\x{2029}]|[^"\\])*"|[\w\d_]+|` +
+	jsSpaceClass + `+|[^\w\d_]+)` + jsSpaceClass + `*`)
+
+var jsSpaceRE = regexp.MustCompile(jsSpaceClass)
+
+// getxTokenize splits a string path as TS getx does: a token that
+// CONTAINS whitespace or a '.' is dropped, so 'a. b', 'a.?b' and 'a.$'
+// all read as 'a b' or 'a', and quotes are stripped only from a token
+// matching ^"[^"]+"$.
 func getxTokenize(p string) []string {
 	out := []string{}
 	for _, m := range getxTokenRE.FindAllStringSubmatch(p, -1) {
 		tok := m[1]
-		if tok == "" {
+		if strings.Contains(tok, ".") || jsSpaceRE.MatchString(tok) {
 			continue
 		}
-		// Skip whitespace-only or dot-only tokens.
-		if strings.TrimSpace(tok) == "" || strings.Trim(tok, ".") == "" {
-			continue
-		}
-		// Strip surrounding quotes.
-		if len(tok) >= 2 && tok[0] == '"' && tok[len(tok)-1] == '"' {
-			tok = tok[1 : len(tok)-1]
-		}
-		out = append(out, tok)
+		out = append(out, jsUnquote(tok))
 	}
 	return out
+}
+
+// jsUnquote strips the quotes from a token matching ^"[^"]+"$, and returns
+// anything else unchanged.
+func jsUnquote(tok string) string {
+	if len(tok) >= 3 && tok[0] == '"' && tok[len(tok)-1] == '"' &&
+		!strings.Contains(tok[1:len(tok)-1], `"`) {
+		return tok[1 : len(tok)-1]
+	}
+	return tok
 }
 
 func getxIsCompareOp(t string) bool {
