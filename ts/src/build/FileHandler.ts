@@ -374,21 +374,13 @@ class FileHandler {
 
     if (exists) {
       why.push('exists-0')
-      // Load the existing bytes in the SAME SHAPE as the incoming content.
-      // `loadFile` decodes utf8 by default, so a Copy-routed binary file --
-      // whose content arrives here as a Buffer -- was compared as
-      // `string === Buffer`, which is false whatever the bytes are. A target
-      // already holding exactly those bytes was therefore "changed" on every
-      // run: `bin.preserve` wrote a `.old` backup of a file about to be
-      // rewritten identically, `bin.present` wrote a `.new` sidecar of the
-      // same bytes, and the unchanged-file optimisation was defeated for
-      // every binary. Issue #30. Go has always used bytes.Equal.
-      //
-      // Decoding cannot be fixed by converting one side afterwards: utf8
-      // decoding is lossy for binary, so the string no longer carries the
-      // bytes to compare.
-      let currentContent = this.loadFile(
-        path, isTextFile ? undefined : { encoding: null })
+      // The existing file is handled as BYTES, text included, as Go does.
+      // Decoding it as UTF-8 turned every invalid byte into U+FFFD, so a
+      // file the user saved in Latin-1 was judged "unchanged" against a
+      // generate holding U+FFFD, and diff and merge wrote the replacement
+      // characters back over the user's bytes. Every comparison below is
+      // on bytes; diff and merge run over a byte-transparent latin1 form.
+      const currentContent = this.loadFile(path, { encoding: null }) as Buffer
 
       const protect = 0 <= currentContent.indexOf(JOSTRACA_PROTECT)
       meta.protect = protect
@@ -402,7 +394,7 @@ class FileHandler {
           why.push('protect-0')
           write = false
         }
-        else if (!sameContent(currentContent, newContentSource)) {
+        else if (!unchanged) {
           why.push('content-0')
 
           let oldpath = annotatedPath(path, 'old')
@@ -426,7 +418,7 @@ class FileHandler {
       else if (existing.present) {
         why.push('present-0')
 
-        if (!sameContent(currentContent, newContentSource)) {
+        if (!unchanged) {
           why.push('content-1')
 
           let newpath = annotatedPath(path, 'new')
@@ -450,19 +442,17 @@ class FileHandler {
 
           write = false
 
-          if (!sameContent(currentContent, newContentSource)) {
+          if (!unchanged) {
             why.push('content-2')
 
             meta.action = 'diff'
 
-            const newContent =
-              'string' === typeof newContentSource ? newContentSource :
-                newContentSource.toString('utf8')
+            const newContent = latin1(newContentSource)
 
-            const diffContent = this.diff(newContent, currentContent.toString())
+            const diffContent = this.diff(newContent, latin1(currentContent))
 
-            this.saveFile(path, diffContent,
-              { encoding: 'utf8', ...modeopts() }, whence + meta.action)
+            this.saveFile(path, Buffer.from(diffContent, 'latin1'),
+              modeopts(), whence + meta.action)
 
             // this.files.diffed.push(path)
             this.filelog('diffed', path)
@@ -494,7 +484,7 @@ class FileHandler {
         else if (existing.merge) {
           why.push('merge-0')
 
-          if (!sameContent(currentContent, newContentSource)) {
+          if (!unchanged) {
             why.push('content-3')
 
             if (this.control.duplicate) {
@@ -509,16 +499,12 @@ class FileHandler {
                 write = false
                 meta.action = 'merge'
 
-                const newContent =
-                  'string' === typeof newContentSource ? newContentSource :
-                    newContentSource.toString('utf8')
-
-                const prevGenContent = this.loadFile(dpath, { encoding: 'utf8' }) as string
+                const prevGenContent = this.loadFile(dpath, { encoding: null }) as Buffer
 
                 const mergeres = this.merge(
-                  newContent,                    // generated
-                  prevGenContent,                // baseline (last generate)
-                  currentContent.toString(),     // existing (on disk)
+                  latin1(newContentSource),      // generated
+                  latin1(prevGenContent),        // baseline (last generate)
+                  latin1(currentContent),        // existing (on disk)
                   why
                 )
                 const diffcontent = mergeres.content
@@ -537,8 +523,8 @@ class FileHandler {
                   }
                 }
                 else {
-                  this.saveFile(path, diffcontent,
-                    { encoding: 'utf8', ...modeopts() }, whence + meta.action)
+                  this.saveFile(path, Buffer.from(diffcontent, 'latin1'),
+                    modeopts(), whence + meta.action)
                 }
 
                 // this.files.merged.push(path)
@@ -1151,6 +1137,16 @@ class FileHandler {
       dlog('filelog', 'invalid kind: ' + kind)
     }
   }
+}
+
+
+// The byte-transparent string form of content: one char per byte, so the
+// diff engine's line splitting and equality are byte-exact and a round trip
+// through Buffer.from(s, 'latin1') restores every byte. For valid UTF-8 the
+// engine's output is byte-identical to running it on the decoded text.
+function latin1(content: string | Buffer): string {
+  return (Buffer.isBuffer(content) ? content : Buffer.from(content, 'utf8'))
+    .toString('latin1')
 }
 
 

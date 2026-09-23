@@ -681,4 +681,50 @@ describe('filehandler', () => {
     }
   })
 
+
+  // The existing file is handled as bytes: bytes a user saved in Latin-1
+  // survive merge and diff exactly, and a file holding 0xFF where the
+  // generator emits U+FFFD counts as changed.
+  test('utf8-lossy', async () => {
+    const run = async (steps: any[]) => {
+      const { fs } = memfs({})
+      let res: any
+      for (const st of steps) {
+        if (Buffer.isBuffer(st)) {
+          fs.writeFileSync('/out/a.txt', st)
+          continue
+        }
+        const [body, existing] = st
+        res = await Jostraca({ now: () => NOW, log: quiet }).generate({
+          fs: () => fs, folder: '/out', existing,
+        }, () => Project({}, () => File({ name: 'a.txt' }, () => Content(body))))
+      }
+      return { res, bytes: fs.readFileSync('/out/a.txt') as Buffer }
+    }
+    const latin1 = Buffer.from([0x41, 0x0a, 0xe9, 0x74, 0xe9, 0x0a, 0x42, 0x0a])
+
+    // (1) merge keeps the user's Latin-1 bytes.
+    const m = await run([['A\nB\n'], latin1, ['A\nB\nC\n', { txt: { merge: true } }]])
+    expect(m.bytes.toString('hex'))
+      .equal(Buffer.from([0x41, 0x0a, 0xe9, 0x74, 0xe9, 0x0a, 0x42, 0x0a, 0x43, 0x0a])
+        .toString('hex'))
+
+    // (2) diff keeps them in the EXISTING block.
+    const d = await run([['A\nB\n'], latin1, ['A\nB\nC\n', { txt: { diff: true } }]])
+    expect(d.bytes.includes(Buffer.from([0xe9, 0x74, 0xe9]))).equal(true)
+    expect(d.res.files.conflicted).equal(['/out/a.txt'])
+
+    // (3) 0xFF against a generated U+FFFD is a change, merged.
+    const ff = Buffer.from([0x41, 0x0a, 0xff, 0x0a])
+    const fm = await run([['A\n�\n'], ff, ['A\n�\n', { txt: { merge: true } }]])
+    expect(fm.res.files.merged).equal(['/out/a.txt'])
+    expect(fm.res.files.unchanged).equal([])
+    expect(fm.bytes.toString('hex')).equal(ff.toString('hex'))
+
+    // (4) and written, in write mode, as U+FFFD.
+    const fw = await run([['A\n�\n'], ff, ['A\n�\n']])
+    expect(fw.res.files.written).equal(['/out/a.txt'])
+    expect(fw.bytes.toString('hex')).equal(Buffer.from('A\n�\n').toString('hex'))
+  })
+
 })

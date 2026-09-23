@@ -156,3 +156,63 @@ func TestMergeMarkerFiles(t *testing.T) {
 		t.Errorf("latin1: %q, want %q", after, marked)
 	}
 }
+
+// The existing file is handled as bytes: bytes a user saved in Latin-1
+// survive merge and diff exactly, and a file holding 0xFF where the
+// generator emits U+FFFD counts as changed. Twin of 'utf8-lossy' in
+// ts/test/filehandler.test.ts.
+func TestUTF8Lossy(t *testing.T) {
+	yes := true
+	merge := Existing{Txt: ExistingTxt{Merge: &yes}}
+	diff := Existing{Txt: ExistingTxt{Diff: &yes}}
+	type gen struct {
+		body string
+		ex   Existing
+	}
+	run := func(steps ...any) (Result, []byte) {
+		mem := NewMemFS()
+		var res Result
+		for _, st := range steps {
+			switch v := st.(type) {
+			case []byte:
+				_ = mem.WriteFile("/out/a.txt", v)
+			case gen:
+				var err error
+				res, err = New(WithFS(mem), WithFolder("/out"), WithNow(func() int64 { return fhNow })).
+					Generate(Options{Existing: v.ex}, func(j *J) {
+						j.Project(ProjectProps{}, func(j *J) {
+							j.File("a.txt", func(j *J) { j.Content(v.body) })
+						})
+					})
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+		b, _ := mem.ReadFile("/out/a.txt")
+		return res, b
+	}
+	latin1 := []byte{0x41, 0x0a, 0xe9, 0x74, 0xe9, 0x0a, 0x42, 0x0a}
+
+	if _, b := run(gen{"A\nB\n", Existing{}}, latin1, gen{"A\nB\nC\n", merge}); !bytes.Equal(b,
+		[]byte{0x41, 0x0a, 0xe9, 0x74, 0xe9, 0x0a, 0x42, 0x0a, 0x43, 0x0a}) {
+		t.Errorf("merge: %q", b)
+	}
+
+	res, b := run(gen{"A\nB\n", Existing{}}, latin1, gen{"A\nB\nC\n", diff})
+	if !bytes.Contains(b, []byte{0xe9, 0x74, 0xe9}) || strings.Join(res.Files.Conflicted, ",") != "/out/a.txt" {
+		t.Errorf("diff: %q conflicted=%v", b, res.Files.Conflicted)
+	}
+
+	ff := []byte{0x41, 0x0a, 0xff, 0x0a}
+	res, b = run(gen{"A\n�\n", Existing{}}, ff, gen{"A\n�\n", merge})
+	if strings.Join(res.Files.Merged, ",") != "/out/a.txt" || len(res.Files.Unchanged) != 0 ||
+		!bytes.Equal(b, ff) {
+		t.Errorf("ffsame merge: merged=%v unchanged=%v %q", res.Files.Merged, res.Files.Unchanged, b)
+	}
+
+	res, b = run(gen{"A\n�\n", Existing{}}, ff, gen{"A\n�\n", Existing{}})
+	if strings.Join(res.Files.Written, ",") != "/out/a.txt" || string(b) != "A\n�\n" {
+		t.Errorf("ffsame write: written=%v %q", res.Files.Written, b)
+	}
+}

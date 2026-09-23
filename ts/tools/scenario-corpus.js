@@ -87,6 +87,13 @@ const STATE = [
   { key: 'same', seed: 'GENERATED\n' },
   { key: 'changed', seed: 'USER EDITED\n' },
   { key: 'empty', seed: '' },
+  // Bytes that are not valid UTF-8, as a user saving in Latin-1 leaves
+  // them. The existing file is handled as bytes, so diff and merge keep
+  // them exactly. Crossed with two name shapes only.
+  {
+    key: 'latin1', names: ['plain', 'nested'],
+    seed: Buffer.from([0x55, 0x53, 0xc9, 0x52, 0x0a, 0xe9, 0x0a]),
+  },
   // Still holding an earlier merge's markers. Crossed with the merge mode
   // only: the file is left untouched and reported merged and conflicted.
   {
@@ -456,11 +463,15 @@ function buildCases() {
           continue
         }
         for (const n of NAMES) {
+          if (null != st.names && !st.names.includes(n.key)) {
+            continue
+          }
           cases.push({
             name: [f.key, e.key, st.key, n.key].join('/'),
             folder: f.folder,
             existing: e.existing,
-            seed: st.seed,
+            // Bytes travel per file, through the b64 escape.
+            seed: Buffer.isBuffer(st.seed) ? null : st.seed,
             baseline: 'merge' === e.key ? 'BASELINE\n' : null,
             names: n.names,
             files: n.names.map((name) => ({

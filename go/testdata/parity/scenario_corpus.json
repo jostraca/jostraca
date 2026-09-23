@@ -594,6 +594,84 @@
       }
     },
     {
+      "name": "unset/write/latin1/plain",
+      "folder": null,
+      "existing": null,
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "a.txt": "GENERATED\n",
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [
+          "a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "unset/write/latin1/nested",
+      "folder": null,
+      "existing": null,
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "sub/a.txt": "GENERATED\n",
+        ".jostraca/generated/sub/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [
+          "sub/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "unset/preserve/fresh/plain",
       "folder": null,
       "existing": {
@@ -1304,6 +1382,102 @@
       }
     },
     {
+      "name": "unset/preserve/latin1/plain",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "a.txt": "GENERATED\n",
+        "a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "a.txt"
+        ],
+        "written": [
+          "a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "unset/preserve/latin1/nested",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "sub/a.txt": "GENERATED\n",
+        "sub/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        ".jostraca/generated/sub/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "sub/a.txt"
+        ],
+        "written": [
+          "sub/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "unset/diff/fresh/plain",
       "folder": null,
       "existing": {
@@ -2000,6 +2174,100 @@
       }
     },
     {
+      "name": "unset/diff/latin1/plain",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "unset/diff/latin1/nested",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "sub/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        ".jostraca/generated/sub/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "sub/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "sub/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "unset/merge/fresh/plain",
       "folder": null,
       "existing": {
@@ -2694,6 +2962,100 @@
         ],
         "unchanged": []
       }
+    },
+    {
+      "name": "unset/merge/latin1/plain",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "a.txt": {
+          "b64": "PDw8PDw8PCBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9tZXJnZQpHRU5FUkFURUQKPT09PT09PQpVU8lSCukKPj4+Pj4+PiBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL21lcmdlCg=="
+        },
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "a.txt"
+        ],
+        "conflicted": [
+          "a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "unset/merge/latin1/nested",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "sub/a.txt": {
+          "b64": "PDw8PDw8PCBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9tZXJnZQpHRU5FUkFURUQKPT09PT09PQpVU8lSCukKPj4+Pj4+PiBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL21lcmdlCg=="
+        },
+        ".jostraca/generated/sub/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "sub/a.txt"
+        ],
+        "conflicted": [
+          "sub/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
     },
     {
       "name": "unset/merge/unresolved/plain",
@@ -3570,6 +3932,100 @@
       }
     },
     {
+      "name": "unset/present/latin1/plain",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "a.new.txt": "GENERATED\n",
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"present\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [
+          "a.txt"
+        ],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "unset/present/latin1/nested",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "sub/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "sub/a.new.txt": "GENERATED\n",
+        ".jostraca/generated/sub/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"present\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [
+          "sub/a.txt"
+        ],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "unset/nowrite/fresh/plain",
       "folder": null,
       "existing": {
@@ -4204,6 +4660,92 @@
         "conflicted": [],
         "unchanged": []
       }
+    },
+    {
+      "name": "unset/nowrite/latin1/plain",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "unset/nowrite/latin1/nested",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "sub/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        ".jostraca/generated/sub/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
     },
     {
       "name": "unset/preserve+diff/fresh/plain",
@@ -4960,6 +5502,112 @@
       }
     },
     {
+      "name": "unset/preserve+diff/latin1/plain",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "preserve": true,
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "a.txt"
+        ],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "unset/preserve+diff/latin1/nested",
+      "folder": null,
+      "existing": {
+        "txt": {
+          "preserve": true,
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "sub/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "sub/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        ".jostraca/generated/sub/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "sub/a.txt"
+        ],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "sub/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "sub/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "dot/write/fresh/plain",
       "folder": ".",
       "existing": null,
@@ -5550,6 +6198,84 @@
         "conflicted": [],
         "unchanged": []
       }
+    },
+    {
+      "name": "dot/write/latin1/plain",
+      "folder": ".",
+      "existing": null,
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "a.txt": "GENERATED\n",
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [
+          "a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "dot/write/latin1/nested",
+      "folder": ".",
+      "existing": null,
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "sub/a.txt": "GENERATED\n",
+        ".jostraca/generated/sub/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [
+          "sub/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
     },
     {
       "name": "dot/preserve/fresh/plain",
@@ -6262,6 +6988,102 @@
       }
     },
     {
+      "name": "dot/preserve/latin1/plain",
+      "folder": ".",
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "a.txt": "GENERATED\n",
+        "a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "a.txt"
+        ],
+        "written": [
+          "a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "dot/preserve/latin1/nested",
+      "folder": ".",
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "sub/a.txt": "GENERATED\n",
+        "sub/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        ".jostraca/generated/sub/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "sub/a.txt"
+        ],
+        "written": [
+          "sub/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "dot/diff/fresh/plain",
       "folder": ".",
       "existing": {
@@ -6958,6 +7780,100 @@
       }
     },
     {
+      "name": "dot/diff/latin1/plain",
+      "folder": ".",
+      "existing": {
+        "txt": {
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "dot/diff/latin1/nested",
+      "folder": ".",
+      "existing": {
+        "txt": {
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "sub/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        ".jostraca/generated/sub/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "sub/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "sub/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "dot/merge/fresh/plain",
       "folder": ".",
       "existing": {
@@ -7652,6 +8568,100 @@
         ],
         "unchanged": []
       }
+    },
+    {
+      "name": "dot/merge/latin1/plain",
+      "folder": ".",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "a.txt": {
+          "b64": "PDw8PDw8PCBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9tZXJnZQpHRU5FUkFURUQKPT09PT09PQpVU8lSCukKPj4+Pj4+PiBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL21lcmdlCg=="
+        },
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "a.txt"
+        ],
+        "conflicted": [
+          "a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "dot/merge/latin1/nested",
+      "folder": ".",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "sub/a.txt": {
+          "b64": "PDw8PDw8PCBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9tZXJnZQpHRU5FUkFURUQKPT09PT09PQpVU8lSCukKPj4+Pj4+PiBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL21lcmdlCg=="
+        },
+        ".jostraca/generated/sub/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "sub/a.txt"
+        ],
+        "conflicted": [
+          "sub/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
     },
     {
       "name": "dot/merge/unresolved/plain",
@@ -8528,6 +9538,100 @@
       }
     },
     {
+      "name": "dot/present/latin1/plain",
+      "folder": ".",
+      "existing": {
+        "txt": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "a.new.txt": "GENERATED\n",
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"present\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [
+          "a.txt"
+        ],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "dot/present/latin1/nested",
+      "folder": ".",
+      "existing": {
+        "txt": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "sub/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "sub/a.new.txt": "GENERATED\n",
+        ".jostraca/generated/sub/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"present\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [
+          "sub/a.txt"
+        ],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "dot/nowrite/fresh/plain",
       "folder": ".",
       "existing": {
@@ -9162,6 +10266,92 @@
         "conflicted": [],
         "unchanged": []
       }
+    },
+    {
+      "name": "dot/nowrite/latin1/plain",
+      "folder": ".",
+      "existing": {
+        "txt": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "dot/nowrite/latin1/nested",
+      "folder": ".",
+      "existing": {
+        "txt": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "sub/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        ".jostraca/generated/sub/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
     },
     {
       "name": "dot/preserve+diff/fresh/plain",
@@ -9918,6 +11108,112 @@
       }
     },
     {
+      "name": "dot/preserve+diff/latin1/plain",
+      "folder": ".",
+      "existing": {
+        "txt": {
+          "preserve": true,
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        ".jostraca/generated/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "a.txt"
+        ],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "dot/preserve+diff/latin1/nested",
+      "folder": ".",
+      "existing": {
+        "txt": {
+          "preserve": true,
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "sub/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "sub/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        ".jostraca/generated/sub/a.txt": "GENERATED\n",
+        ".jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        ".jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "sub/a.txt"
+        ],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "sub/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "sub/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "rel/write/fresh/plain",
       "folder": "out",
       "existing": null,
@@ -10508,6 +11804,84 @@
         "conflicted": [],
         "unchanged": []
       }
+    },
+    {
+      "name": "rel/write/latin1/plain",
+      "folder": "out",
+      "existing": null,
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.txt": "GENERATED\n",
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [
+          "out/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "rel/write/latin1/nested",
+      "folder": "out",
+      "existing": null,
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "out/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [
+          "out/sub/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
     },
     {
       "name": "rel/preserve/fresh/plain",
@@ -11220,6 +12594,102 @@
       }
     },
     {
+      "name": "rel/preserve/latin1/plain",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.txt": "GENERATED\n",
+        "out/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "out/a.txt"
+        ],
+        "written": [
+          "out/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "rel/preserve/latin1/nested",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "out/sub/a.txt": "GENERATED\n",
+        "out/sub/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "out/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "out/sub/a.txt"
+        ],
+        "written": [
+          "out/sub/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "rel/diff/fresh/plain",
       "folder": "out",
       "existing": {
@@ -11916,6 +13386,100 @@
       }
     },
     {
+      "name": "rel/diff/latin1/plain",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "out/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "out/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "rel/diff/latin1/nested",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "out/sub/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "out/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "out/sub/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "out/sub/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "rel/merge/fresh/plain",
       "folder": "out",
       "existing": {
@@ -12610,6 +14174,100 @@
         ],
         "unchanged": []
       }
+    },
+    {
+      "name": "rel/merge/latin1/plain",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.txt": {
+          "b64": "PDw8PDw8PCBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9tZXJnZQpHRU5FUkFURUQKPT09PT09PQpVU8lSCukKPj4+Pj4+PiBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL21lcmdlCg=="
+        },
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "out/a.txt"
+        ],
+        "conflicted": [
+          "out/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "rel/merge/latin1/nested",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "out/sub/a.txt": {
+          "b64": "PDw8PDw8PCBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9tZXJnZQpHRU5FUkFURUQKPT09PT09PQpVU8lSCukKPj4+Pj4+PiBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL21lcmdlCg=="
+        },
+        "out/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "out/sub/a.txt"
+        ],
+        "conflicted": [
+          "out/sub/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
     },
     {
       "name": "rel/merge/unresolved/plain",
@@ -13486,6 +15144,100 @@
       }
     },
     {
+      "name": "rel/present/latin1/plain",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "out/a.new.txt": "GENERATED\n",
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"present\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [
+          "out/a.txt"
+        ],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "rel/present/latin1/nested",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "out/sub/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "out/sub/a.new.txt": "GENERATED\n",
+        "out/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"present\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [
+          "out/sub/a.txt"
+        ],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "rel/nowrite/fresh/plain",
       "folder": "out",
       "existing": {
@@ -14120,6 +15872,92 @@
         "conflicted": [],
         "unchanged": []
       }
+    },
+    {
+      "name": "rel/nowrite/latin1/plain",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "rel/nowrite/latin1/nested",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "out/sub/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "out/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
     },
     {
       "name": "rel/preserve+diff/fresh/plain",
@@ -14876,6 +16714,112 @@
       }
     },
     {
+      "name": "rel/preserve+diff/latin1/plain",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "preserve": true,
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "out/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "out/a.txt"
+        ],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "out/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "out/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "rel/preserve+diff/latin1/nested",
+      "folder": "out",
+      "existing": {
+        "txt": {
+          "preserve": true,
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "out/sub/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "out/sub/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "out/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "out/sub/a.txt"
+        ],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "out/sub/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "out/sub/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "dotrel/write/fresh/plain",
       "folder": "./out",
       "existing": null,
@@ -15466,6 +17410,84 @@
         "conflicted": [],
         "unchanged": []
       }
+    },
+    {
+      "name": "dotrel/write/latin1/plain",
+      "folder": "./out",
+      "existing": null,
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.txt": "GENERATED\n",
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [
+          "out/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "dotrel/write/latin1/nested",
+      "folder": "./out",
+      "existing": null,
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "out/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [
+          "out/sub/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
     },
     {
       "name": "dotrel/preserve/fresh/plain",
@@ -16178,6 +18200,102 @@
       }
     },
     {
+      "name": "dotrel/preserve/latin1/plain",
+      "folder": "./out",
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.txt": "GENERATED\n",
+        "out/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "out/a.txt"
+        ],
+        "written": [
+          "out/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "dotrel/preserve/latin1/nested",
+      "folder": "./out",
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "out/sub/a.txt": "GENERATED\n",
+        "out/sub/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "out/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "out/sub/a.txt"
+        ],
+        "written": [
+          "out/sub/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "dotrel/diff/fresh/plain",
       "folder": "./out",
       "existing": {
@@ -16874,6 +18992,100 @@
       }
     },
     {
+      "name": "dotrel/diff/latin1/plain",
+      "folder": "./out",
+      "existing": {
+        "txt": {
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "out/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "out/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "dotrel/diff/latin1/nested",
+      "folder": "./out",
+      "existing": {
+        "txt": {
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "out/sub/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "out/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "out/sub/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "out/sub/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "dotrel/merge/fresh/plain",
       "folder": "./out",
       "existing": {
@@ -17568,6 +19780,100 @@
         ],
         "unchanged": []
       }
+    },
+    {
+      "name": "dotrel/merge/latin1/plain",
+      "folder": "./out",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.txt": {
+          "b64": "PDw8PDw8PCBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9tZXJnZQpHRU5FUkFURUQKPT09PT09PQpVU8lSCukKPj4+Pj4+PiBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL21lcmdlCg=="
+        },
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "out/a.txt"
+        ],
+        "conflicted": [
+          "out/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "dotrel/merge/latin1/nested",
+      "folder": "./out",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "out/sub/a.txt": {
+          "b64": "PDw8PDw8PCBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9tZXJnZQpHRU5FUkFURUQKPT09PT09PQpVU8lSCukKPj4+Pj4+PiBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL21lcmdlCg=="
+        },
+        "out/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "out/sub/a.txt"
+        ],
+        "conflicted": [
+          "out/sub/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
     },
     {
       "name": "dotrel/merge/unresolved/plain",
@@ -18444,6 +20750,100 @@
       }
     },
     {
+      "name": "dotrel/present/latin1/plain",
+      "folder": "./out",
+      "existing": {
+        "txt": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "out/a.new.txt": "GENERATED\n",
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"present\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [
+          "out/a.txt"
+        ],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "dotrel/present/latin1/nested",
+      "folder": "./out",
+      "existing": {
+        "txt": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "out/sub/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "out/sub/a.new.txt": "GENERATED\n",
+        "out/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"present\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [
+          "out/sub/a.txt"
+        ],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "dotrel/nowrite/fresh/plain",
       "folder": "./out",
       "existing": {
@@ -19078,6 +21478,92 @@
         "conflicted": [],
         "unchanged": []
       }
+    },
+    {
+      "name": "dotrel/nowrite/latin1/plain",
+      "folder": "./out",
+      "existing": {
+        "txt": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "dotrel/nowrite/latin1/nested",
+      "folder": "./out",
+      "existing": {
+        "txt": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "out/sub/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "out/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
     },
     {
       "name": "dotrel/preserve+diff/fresh/plain",
@@ -19834,6 +22320,112 @@
       }
     },
     {
+      "name": "dotrel/preserve+diff/latin1/plain",
+      "folder": "./out",
+      "existing": {
+        "txt": {
+          "preserve": true,
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "out/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "out/a.txt"
+        ],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "out/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "out/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "dotrel/preserve+diff/latin1/nested",
+      "folder": "./out",
+      "existing": {
+        "txt": {
+          "preserve": true,
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "out/sub/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "out/sub/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "out/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "out/sub/a.txt"
+        ],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "out/sub/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "out/sub/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "abs/write/fresh/plain",
       "folder": "/abs",
       "existing": null,
@@ -20424,6 +23016,84 @@
         "conflicted": [],
         "unchanged": []
       }
+    },
+    {
+      "name": "abs/write/latin1/plain",
+      "folder": "/abs",
+      "existing": null,
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "/abs/a.txt": "GENERATED\n",
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [
+          "/abs/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "abs/write/latin1/nested",
+      "folder": "/abs",
+      "existing": null,
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "/abs/sub/a.txt": "GENERATED\n",
+        "/abs/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [
+          "/abs/sub/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
     },
     {
       "name": "abs/preserve/fresh/plain",
@@ -21136,6 +23806,102 @@
       }
     },
     {
+      "name": "abs/preserve/latin1/plain",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "/abs/a.txt": "GENERATED\n",
+        "/abs/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "/abs/a.txt"
+        ],
+        "written": [
+          "/abs/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "abs/preserve/latin1/nested",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "/abs/sub/a.txt": "GENERATED\n",
+        "/abs/sub/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "/abs/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "/abs/sub/a.txt"
+        ],
+        "written": [
+          "/abs/sub/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "abs/diff/fresh/plain",
       "folder": "/abs",
       "existing": {
@@ -21832,6 +24598,100 @@
       }
     },
     {
+      "name": "abs/diff/latin1/plain",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "/abs/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "/abs/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "/abs/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "abs/diff/latin1/nested",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "/abs/sub/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "/abs/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "/abs/sub/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "/abs/sub/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "abs/merge/fresh/plain",
       "folder": "/abs",
       "existing": {
@@ -22526,6 +25386,100 @@
         ],
         "unchanged": []
       }
+    },
+    {
+      "name": "abs/merge/latin1/plain",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "/abs/a.txt": {
+          "b64": "PDw8PDw8PCBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9tZXJnZQpHRU5FUkFURUQKPT09PT09PQpVU8lSCukKPj4+Pj4+PiBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL21lcmdlCg=="
+        },
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "/abs/a.txt"
+        ],
+        "conflicted": [
+          "/abs/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "abs/merge/latin1/nested",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "/abs/sub/a.txt": {
+          "b64": "PDw8PDw8PCBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9tZXJnZQpHRU5FUkFURUQKPT09PT09PQpVU8lSCukKPj4+Pj4+PiBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL21lcmdlCg=="
+        },
+        "/abs/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "/abs/sub/a.txt"
+        ],
+        "conflicted": [
+          "/abs/sub/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
     },
     {
       "name": "abs/merge/unresolved/plain",
@@ -23402,6 +26356,100 @@
       }
     },
     {
+      "name": "abs/present/latin1/plain",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "/abs/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "/abs/a.new.txt": "GENERATED\n",
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"present\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [
+          "/abs/a.txt"
+        ],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "abs/present/latin1/nested",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "/abs/sub/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "/abs/sub/a.new.txt": "GENERATED\n",
+        "/abs/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"present\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [
+          "/abs/sub/a.txt"
+        ],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "abs/nowrite/fresh/plain",
       "folder": "/abs",
       "existing": {
@@ -24036,6 +27084,92 @@
         "conflicted": [],
         "unchanged": []
       }
+    },
+    {
+      "name": "abs/nowrite/latin1/plain",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "/abs/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "abs/nowrite/latin1/nested",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "/abs/sub/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "/abs/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
     },
     {
       "name": "abs/preserve+diff/fresh/plain",
@@ -24792,6 +27926,112 @@
       }
     },
     {
+      "name": "abs/preserve+diff/latin1/plain",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "preserve": true,
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "/abs/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "/abs/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "/abs/a.txt"
+        ],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "/abs/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "/abs/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "abs/preserve+diff/latin1/nested",
+      "folder": "/abs",
+      "existing": {
+        "txt": {
+          "preserve": true,
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "/abs/sub/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "/abs/sub/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "/abs/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "/abs/sub/a.txt"
+        ],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "/abs/sub/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "/abs/sub/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "nested/write/fresh/plain",
       "folder": "a/b",
       "existing": null,
@@ -25382,6 +28622,84 @@
         "conflicted": [],
         "unchanged": []
       }
+    },
+    {
+      "name": "nested/write/latin1/plain",
+      "folder": "a/b",
+      "existing": null,
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "a/b/a.txt": "GENERATED\n",
+        "a/b/.jostraca/generated/a.txt": "GENERATED\n",
+        "a/b/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "a/b/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [
+          "a/b/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "nested/write/latin1/nested",
+      "folder": "a/b",
+      "existing": null,
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "a/b/sub/a.txt": "GENERATED\n",
+        "a/b/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "a/b/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "a/b/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [
+          "a/b/sub/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
     },
     {
       "name": "nested/preserve/fresh/plain",
@@ -26094,6 +29412,102 @@
       }
     },
     {
+      "name": "nested/preserve/latin1/plain",
+      "folder": "a/b",
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "a/b/a.txt": "GENERATED\n",
+        "a/b/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "a/b/.jostraca/generated/a.txt": "GENERATED\n",
+        "a/b/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "a/b/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "a/b/a.txt"
+        ],
+        "written": [
+          "a/b/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "nested/preserve/latin1/nested",
+      "folder": "a/b",
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "a/b/sub/a.txt": "GENERATED\n",
+        "a/b/sub/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "a/b/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "a/b/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "a/b/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "a/b/sub/a.txt"
+        ],
+        "written": [
+          "a/b/sub/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "nested/diff/fresh/plain",
       "folder": "a/b",
       "existing": {
@@ -26790,6 +30204,100 @@
       }
     },
     {
+      "name": "nested/diff/latin1/plain",
+      "folder": "a/b",
+      "existing": {
+        "txt": {
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "a/b/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "a/b/.jostraca/generated/a.txt": "GENERATED\n",
+        "a/b/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "a/b/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "a/b/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "a/b/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "nested/diff/latin1/nested",
+      "folder": "a/b",
+      "existing": {
+        "txt": {
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "a/b/sub/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "a/b/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "a/b/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "a/b/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "a/b/sub/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "a/b/sub/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "nested/merge/fresh/plain",
       "folder": "a/b",
       "existing": {
@@ -27484,6 +30992,100 @@
         ],
         "unchanged": []
       }
+    },
+    {
+      "name": "nested/merge/latin1/plain",
+      "folder": "a/b",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "a/b/a.txt": {
+          "b64": "PDw8PDw8PCBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9tZXJnZQpHRU5FUkFURUQKPT09PT09PQpVU8lSCukKPj4+Pj4+PiBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL21lcmdlCg=="
+        },
+        "a/b/.jostraca/generated/a.txt": "GENERATED\n",
+        "a/b/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "a/b/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "a/b/a.txt"
+        ],
+        "conflicted": [
+          "a/b/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "nested/merge/latin1/nested",
+      "folder": "a/b",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "a/b/sub/a.txt": {
+          "b64": "PDw8PDw8PCBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9tZXJnZQpHRU5FUkFURUQKPT09PT09PQpVU8lSCukKPj4+Pj4+PiBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL21lcmdlCg=="
+        },
+        "a/b/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "a/b/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "a/b/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "a/b/sub/a.txt"
+        ],
+        "conflicted": [
+          "a/b/sub/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
     },
     {
       "name": "nested/merge/unresolved/plain",
@@ -28360,6 +31962,100 @@
       }
     },
     {
+      "name": "nested/present/latin1/plain",
+      "folder": "a/b",
+      "existing": {
+        "txt": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "a/b/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "a/b/a.new.txt": "GENERATED\n",
+        "a/b/.jostraca/generated/a.txt": "GENERATED\n",
+        "a/b/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"present\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "a/b/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [
+          "a/b/a.txt"
+        ],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "nested/present/latin1/nested",
+      "folder": "a/b",
+      "existing": {
+        "txt": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "a/b/sub/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "a/b/sub/a.new.txt": "GENERATED\n",
+        "a/b/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "a/b/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"present\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "a/b/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [
+          "a/b/sub/a.txt"
+        ],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "nested/nowrite/fresh/plain",
       "folder": "a/b",
       "existing": {
@@ -28994,6 +32690,92 @@
         "conflicted": [],
         "unchanged": []
       }
+    },
+    {
+      "name": "nested/nowrite/latin1/plain",
+      "folder": "a/b",
+      "existing": {
+        "txt": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "a/b/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "a/b/.jostraca/generated/a.txt": "GENERATED\n",
+        "a/b/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "a/b/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "nested/nowrite/latin1/nested",
+      "folder": "a/b",
+      "existing": {
+        "txt": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "a/b/sub/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "a/b/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "a/b/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "a/b/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
     },
     {
       "name": "nested/preserve+diff/fresh/plain",
@@ -29750,6 +33532,112 @@
       }
     },
     {
+      "name": "nested/preserve+diff/latin1/plain",
+      "folder": "a/b",
+      "existing": {
+        "txt": {
+          "preserve": true,
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "a/b/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "a/b/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "a/b/.jostraca/generated/a.txt": "GENERATED\n",
+        "a/b/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "a/b/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "a/b/a.txt"
+        ],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "a/b/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "a/b/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "nested/preserve+diff/latin1/nested",
+      "folder": "a/b",
+      "existing": {
+        "txt": {
+          "preserve": true,
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "a/b/sub/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "a/b/sub/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "a/b/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "a/b/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "a/b/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "a/b/sub/a.txt"
+        ],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "a/b/sub/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "a/b/sub/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "trailing/write/fresh/plain",
       "folder": "out/",
       "existing": null,
@@ -30340,6 +34228,84 @@
         "conflicted": [],
         "unchanged": []
       }
+    },
+    {
+      "name": "trailing/write/latin1/plain",
+      "folder": "out/",
+      "existing": null,
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.txt": "GENERATED\n",
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [
+          "out/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "trailing/write/latin1/nested",
+      "folder": "out/",
+      "existing": null,
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "out/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [
+          "out/sub/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
     },
     {
       "name": "trailing/preserve/fresh/plain",
@@ -31052,6 +35018,102 @@
       }
     },
     {
+      "name": "trailing/preserve/latin1/plain",
+      "folder": "out/",
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.txt": "GENERATED\n",
+        "out/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "out/a.txt"
+        ],
+        "written": [
+          "out/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "trailing/preserve/latin1/nested",
+      "folder": "out/",
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "out/sub/a.txt": "GENERATED\n",
+        "out/sub/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "out/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "out/sub/a.txt"
+        ],
+        "written": [
+          "out/sub/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "trailing/diff/fresh/plain",
       "folder": "out/",
       "existing": {
@@ -31748,6 +35810,100 @@
       }
     },
     {
+      "name": "trailing/diff/latin1/plain",
+      "folder": "out/",
+      "existing": {
+        "txt": {
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "out/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "out/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "trailing/diff/latin1/nested",
+      "folder": "out/",
+      "existing": {
+        "txt": {
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "out/sub/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "out/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "out/sub/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "out/sub/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "trailing/merge/fresh/plain",
       "folder": "out/",
       "existing": {
@@ -32442,6 +36598,100 @@
         ],
         "unchanged": []
       }
+    },
+    {
+      "name": "trailing/merge/latin1/plain",
+      "folder": "out/",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.txt": {
+          "b64": "PDw8PDw8PCBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9tZXJnZQpHRU5FUkFURUQKPT09PT09PQpVU8lSCukKPj4+Pj4+PiBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL21lcmdlCg=="
+        },
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "out/a.txt"
+        ],
+        "conflicted": [
+          "out/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "trailing/merge/latin1/nested",
+      "folder": "out/",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "out/sub/a.txt": {
+          "b64": "PDw8PDw8PCBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9tZXJnZQpHRU5FUkFURUQKPT09PT09PQpVU8lSCukKPj4+Pj4+PiBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL21lcmdlCg=="
+        },
+        "out/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "out/sub/a.txt"
+        ],
+        "conflicted": [
+          "out/sub/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
     },
     {
       "name": "trailing/merge/unresolved/plain",
@@ -33318,6 +37568,100 @@
       }
     },
     {
+      "name": "trailing/present/latin1/plain",
+      "folder": "out/",
+      "existing": {
+        "txt": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "out/a.new.txt": "GENERATED\n",
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"present\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [
+          "out/a.txt"
+        ],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "trailing/present/latin1/nested",
+      "folder": "out/",
+      "existing": {
+        "txt": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "out/sub/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "out/sub/a.new.txt": "GENERATED\n",
+        "out/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"present\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [
+          "out/sub/a.txt"
+        ],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "trailing/nowrite/fresh/plain",
       "folder": "out/",
       "existing": {
@@ -33952,6 +38296,92 @@
         "conflicted": [],
         "unchanged": []
       }
+    },
+    {
+      "name": "trailing/nowrite/latin1/plain",
+      "folder": "out/",
+      "existing": {
+        "txt": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "trailing/nowrite/latin1/nested",
+      "folder": "out/",
+      "existing": {
+        "txt": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "out/sub/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "out/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
     },
     {
       "name": "trailing/preserve+diff/fresh/plain",
@@ -34708,6 +39138,112 @@
       }
     },
     {
+      "name": "trailing/preserve+diff/latin1/plain",
+      "folder": "out/",
+      "existing": {
+        "txt": {
+          "preserve": true,
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "out/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "out/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "out/.jostraca/generated/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "out/a.txt"
+        ],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "out/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "out/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "trailing/preserve+diff/latin1/nested",
+      "folder": "out/",
+      "existing": {
+        "txt": {
+          "preserve": true,
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "out/sub/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "out/sub/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "out/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "out/sub/a.txt"
+        ],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "out/sub/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "out/sub/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "abstrailing/write/fresh/plain",
       "folder": "/abs/",
       "existing": null,
@@ -35298,6 +39834,84 @@
         "conflicted": [],
         "unchanged": []
       }
+    },
+    {
+      "name": "abstrailing/write/latin1/plain",
+      "folder": "/abs/",
+      "existing": null,
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "/abs/a.txt": "GENERATED\n",
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [
+          "/abs/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "abstrailing/write/latin1/nested",
+      "folder": "/abs/",
+      "existing": null,
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "/abs/sub/a.txt": "GENERATED\n",
+        "/abs/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [
+          "/abs/sub/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
     },
     {
       "name": "abstrailing/preserve/fresh/plain",
@@ -36010,6 +40624,102 @@
       }
     },
     {
+      "name": "abstrailing/preserve/latin1/plain",
+      "folder": "/abs/",
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "/abs/a.txt": "GENERATED\n",
+        "/abs/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "/abs/a.txt"
+        ],
+        "written": [
+          "/abs/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "abstrailing/preserve/latin1/nested",
+      "folder": "/abs/",
+      "existing": {
+        "txt": {
+          "preserve": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "/abs/sub/a.txt": "GENERATED\n",
+        "/abs/sub/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "/abs/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "/abs/sub/a.txt"
+        ],
+        "written": [
+          "/abs/sub/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "abstrailing/diff/fresh/plain",
       "folder": "/abs/",
       "existing": {
@@ -36706,6 +41416,100 @@
       }
     },
     {
+      "name": "abstrailing/diff/latin1/plain",
+      "folder": "/abs/",
+      "existing": {
+        "txt": {
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "/abs/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "/abs/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "/abs/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "abstrailing/diff/latin1/nested",
+      "folder": "/abs/",
+      "existing": {
+        "txt": {
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "/abs/sub/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "/abs/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "/abs/sub/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "/abs/sub/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "abstrailing/merge/fresh/plain",
       "folder": "/abs/",
       "existing": {
@@ -37400,6 +42204,100 @@
         ],
         "unchanged": []
       }
+    },
+    {
+      "name": "abstrailing/merge/latin1/plain",
+      "folder": "/abs/",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "/abs/a.txt": {
+          "b64": "PDw8PDw8PCBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9tZXJnZQpHRU5FUkFURUQKPT09PT09PQpVU8lSCukKPj4+Pj4+PiBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL21lcmdlCg=="
+        },
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "/abs/a.txt"
+        ],
+        "conflicted": [
+          "/abs/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "abstrailing/merge/latin1/nested",
+      "folder": "/abs/",
+      "existing": {
+        "txt": {
+          "merge": true
+        }
+      },
+      "seed": null,
+      "baseline": "BASELINE\n",
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "/abs/sub/a.txt": {
+          "b64": "PDw8PDw8PCBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9tZXJnZQpHRU5FUkFURUQKPT09PT09PQpVU8lSCukKPj4+Pj4+PiBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL21lcmdlCg=="
+        },
+        "/abs/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "/abs/sub/a.txt"
+        ],
+        "conflicted": [
+          "/abs/sub/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
     },
     {
       "name": "abstrailing/merge/unresolved/plain",
@@ -38276,6 +43174,100 @@
       }
     },
     {
+      "name": "abstrailing/present/latin1/plain",
+      "folder": "/abs/",
+      "existing": {
+        "txt": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "/abs/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "/abs/a.new.txt": "GENERATED\n",
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"present\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [
+          "/abs/a.txt"
+        ],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "abstrailing/present/latin1/nested",
+      "folder": "/abs/",
+      "existing": {
+        "txt": {
+          "write": false,
+          "present": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "/abs/sub/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "/abs/sub/a.new.txt": "GENERATED\n",
+        "/abs/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"present\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"present\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [
+          "/abs/sub/a.txt"
+        ],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
       "name": "abstrailing/nowrite/fresh/plain",
       "folder": "/abs/",
       "existing": {
@@ -38910,6 +43902,92 @@
         "conflicted": [],
         "unchanged": []
       }
+    },
+    {
+      "name": "abstrailing/nowrite/latin1/plain",
+      "folder": "/abs/",
+      "existing": {
+        "txt": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "/abs/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "abstrailing/nowrite/latin1/nested",
+      "folder": "/abs/",
+      "existing": {
+        "txt": {
+          "write": false
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "/abs/sub/a.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "/abs/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"skip\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"skip\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
     },
     {
       "name": "abstrailing/preserve+diff/fresh/plain",
@@ -39664,6 +44742,112 @@
         ],
         "unchanged": []
       }
+    },
+    {
+      "name": "abstrailing/preserve+diff/latin1/plain",
+      "folder": "/abs/",
+      "existing": {
+        "txt": {
+          "preserve": true,
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "a.txt"
+      ],
+      "vol": {
+        "/abs/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "/abs/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "/abs/.jostraca/generated/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "/abs/a.txt"
+        ],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "/abs/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "/abs/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
+    },
+    {
+      "name": "abstrailing/preserve+diff/latin1/nested",
+      "folder": "/abs/",
+      "existing": {
+        "txt": {
+          "preserve": true,
+          "diff": true
+        }
+      },
+      "seed": null,
+      "baseline": null,
+      "names": [
+        "sub/a.txt"
+      ],
+      "vol": {
+        "/abs/sub/a.txt": {
+          "b64": "PDw8PDw8PCBFWElTVElORzogMTk2OS0xMi0zMVQyMzo1OTo1OS45OTlaL2RpZmYKVVPJUgrpCj4+Pj4+Pj4gRVhJU1RJTkc6IDE5NjktMTItMzFUMjM6NTk6NTkuOTk5Wi9kaWZmCjw8PDw8PDwgR0VORVJBVEVEOiAyMDI1LTAxLTAxVDAwOjAwOjAwLjAwMFovZGlmZgpHRU5FUkFURUQKPj4+Pj4+PiBHRU5FUkFURUQ6IDIwMjUtMDEtMDFUMDA6MDA6MDAuMDAwWi9kaWZmCg=="
+        },
+        "/abs/sub/a.old.txt": {
+          "b64": "VVPJUgrpCg=="
+        },
+        "/abs/.jostraca/generated/sub/a.txt": "GENERATED\n",
+        "/abs/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"sub/a.txt\": {\n      \"action\": \"diff\",\n      \"path\": \"sub/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"preserve\",\n        \"diff\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/abs/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+      },
+      "error": false,
+      "lists": {
+        "preserved": [
+          "/abs/sub/a.txt"
+        ],
+        "written": [],
+        "presented": [],
+        "diffed": [
+          "/abs/sub/a.txt"
+        ],
+        "merged": [],
+        "conflicted": [
+          "/abs/sub/a.txt"
+        ],
+        "unchanged": []
+      },
+      "files": [
+        {
+          "name": "sub/a.txt",
+          "kind": "file",
+          "body": "GENERATED\n",
+          "seed": {
+            "b64": "VVPJUgrpCg=="
+          }
+        }
+      ],
+      "sources": {}
     },
     {
       "name": "unset/bin-write/fresh/png-file",
