@@ -261,3 +261,40 @@ func TestFragmentUnderCheck(t *testing.T) {
 		t.Fatalf("drift: %+v", res.Drift)
 	}
 }
+
+// Content inside a Folder or a Project in a Slot lands at the marker: in TS
+// neither becomes the current file, so the text goes to the Slot's buffer,
+// and the Folder and Project still make their directories. The render move
+// had walked through Slots and user components only.
+func TestFragmentFolderAndProjectInASlot(t *testing.T) {
+	m := fragTimingFS(t, map[string]string{"/tm/s2.txt": "A<[SLOT:s]>B<[SLOT]>C\n"})
+	if err := fragTimingGen(t, m, nil, func(j *J) {
+		j.File("f.txt", func(j *J) {
+			j.Fragment(FragmentProps{From: "/tm/s2.txt"}, func(j *J) {
+				j.Slot("s", func(j *J) { j.Folder("d", func(j *J) { j.Content("x") }) })
+				j.Folder("e", func(j *J) { j.Content("y") })
+			})
+		})
+		j.File("g.txt", func(j *J) {
+			j.Fragment(FragmentProps{From: "/tm/s2.txt"}, func(j *J) {
+				j.Slot("s", func(j *J) {
+					j.Project(ProjectProps{Folder: "p"}, func(j *J) { j.Content("x") })
+				})
+			})
+		})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := readOut(t, m, "/out/f.txt"); got != "AxByC\n" {
+		t.Errorf("f.txt: got %q", got)
+	}
+	if got := readOut(t, m, "/out/g.txt"); got != "AxBC\n" {
+		t.Errorf("g.txt: got %q", got)
+	}
+	vol := m.Vol()
+	for _, d := range []string{"/out/d", "/out/e", "/out/p"} {
+		if v, ok := vol[d]; !ok || v != nil {
+			t.Errorf("%s is not an empty directory", d)
+		}
+	}
+}

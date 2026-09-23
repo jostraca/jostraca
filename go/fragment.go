@@ -143,12 +143,14 @@ func renderFragment(st *jstate, n *Node, body func(*J), eject any) {
 }
 
 // collectFragment appends the text of a rendered Fragment's children in
-// source order. A Slot, like a user component's KindNone node, is walked
-// through: in TS both hand their buffer to the enclosing one.
+// source order. A Slot hands its buffer to the enclosing one in TS, and a
+// user component's KindNone node, a Folder and a Project never become the
+// current file at all, so all four are walked through. A File, an Inject
+// and a directory copy write their own targets.
 func collectFragment(sb *strings.Builder, parent *Node) {
 	for _, c := range parent.Children {
 		switch c.Kind {
-		case KindNone, KindSlot:
+		case KindNone, KindSlot, KindFolder, KindProject:
 			collectFragment(sb, c)
 		case KindContent, KindFragment, KindInject, KindCopy:
 			for _, s := range c.Content {

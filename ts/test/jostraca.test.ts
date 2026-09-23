@@ -2067,6 +2067,28 @@ describe('components', () => {
   })
 
 
+  // A Folder or a Project in a Slot never becomes the current file, so
+  // the Content inside it lands at the marker, and the directories are
+  // still made. Go: TestFragmentFolderAndProjectInASlot.
+  test('fragment-folder-and-project-in-a-slot', async () => {
+    const { fs, vol } = memfs({ '/tm/s2.txt': 'A<[SLOT:s]>B<[SLOT]>C\n' })
+    await Jostraca({ now: () => START_TIME }).generate({ fs: () => fs, folder: '/out' },
+      cmp(() => Project({}, () => {
+        File({ name: 'f.txt' }, () => Fragment({ from: '/tm/s2.txt' }, () => {
+          Slot({ name: 's' }, () => Folder({ name: 'd' }, () => Content('x')))
+          Folder({ name: 'e' }, () => Content('y'))
+        }))
+        File({ name: 'g.txt' }, () => Fragment({ from: '/tm/s2.txt' }, () => {
+          Slot({ name: 's' }, () => Project({ folder: 'p' }, () => Content('x')))
+        }))
+      })))
+    const out: any = vol.toJSON()
+    expect(out['/out/f.txt']).equal('AxByC\n')
+    expect(out['/out/g.txt']).equal('AxBC\n')
+    expect([out['/out/d'], out['/out/e'], out['/out/p']]).equal([null, null, null])
+  })
+
+
   // A Project's folder applies only to its own subtree. When it closes the
   // enclosing folder state comes back, so a later sibling lands where it
   // would have without the Project, and nothing is written outside the
