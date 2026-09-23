@@ -436,7 +436,7 @@ func (fh *fileHandler) savePresent(p string, content []byte, rpath, whence strin
 			return err
 		}
 	}
-	fh.filelog(&fh.files.Presented, out)
+	fh.filelog(&fh.files.Presented, p)
 	fh.appendAudit("save:present", map[string]any{
 		"action":  "present",
 		"path":    rpath,
@@ -581,7 +581,7 @@ func (fh *fileHandler) savePreserveBackup(p string, existing []byte, rpath, when
 			return err
 		}
 	}
-	fh.filelog(&fh.files.Preserved, backup)
+	fh.filelog(&fh.files.Preserved, p)
 	fh.appendAudit("preserve", map[string]any{
 		"path":   rpath,
 		"backup": fh.relative(backup),
