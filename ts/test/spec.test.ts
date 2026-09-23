@@ -8,6 +8,7 @@ import Path from 'node:path'
 // already reaches into dist/ the same way.
 import * as Basic from '../dist/util/basic'
 import * as DiffUtil from '../dist/diff'
+import { Jostraca } from '../'
 
 
 // The shared corpus, driven by both stacks. See test/spec/README.md.
@@ -50,6 +51,15 @@ const FN: Record<string, (a: any[]) => any> = {
     : (Basic as any).names(a[0], a[1], a[2]),
   lines: (a) => (DiffUtil as any).lines(a[0]),
   lcs: (a) => (DiffUtil as any).lcs(a[0], a[1]),
+
+  // Option validation. Jostraca() runs OptionsShape; ExistingShape runs
+  // only inside generate, so a define-only generate follows.
+  options: async (a) => {
+    Jostraca(structuredClone(a[0]))
+    await Jostraca({ mem: true })
+      .generate({ ...structuredClone(a[0]), build: false }, () => { })
+    return 'ok'
+  },
 }
 
 
@@ -171,13 +181,15 @@ describe('spec-corpus', () => {
     }
   })
 
+  // Async, because an adapter may return a promise (`options` validates
+  // through generate); a synchronous throw becomes a rejection here.
   for (const c of cases) {
-    test(`${c.file}/${c.id}`, () => {
+    test(`${c.file}/${c.id}`, async () => {
       const where = `${c.file}:${c.line} ${c.id}`
 
       if ('' !== c.error) {
-        Assert.throws(
-          () => FN[c.fn](c.args),
+        await Assert.rejects(
+          async () => FN[c.fn](c.args),
           (err: any) => {
             Assert.ok(String(err.message).includes(c.error),
               `${where}: message ${JSON.stringify(err.message)} ` +
@@ -188,7 +200,7 @@ describe('spec-corpus', () => {
         return
       }
 
-      const actual = FN[c.fn](c.args)
+      const actual = await FN[c.fn](c.args)
       Assert.equal(canon(actual), canon(c.expect), where)
     })
   }

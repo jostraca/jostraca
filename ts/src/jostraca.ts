@@ -8,7 +8,7 @@ import * as Fs from 'node:fs'
 
 import { AsyncLocalStorage } from 'node:async_hooks'
 
-import { Shape, Skip, One } from 'shape'
+import { Shape, Skip, One, Child, Empty } from 'shape'
 
 import { memfs as MemFs } from './util/memfs'
 
@@ -163,7 +163,12 @@ const OptionsShape = Shape({
   model: Skip({}) as any,
   build: Skip(Boolean), // Run the build phase. Default: `true`.
   mem: Skip(Boolean),
-  vol: Skip({}),
+
+  // Each value is a file (string or Buffer, empty allowed) or an empty
+  // directory (null), the memfs seed convention. Anything else was seeded
+  // as its String() form: `5` became a file holding "5", an object
+  // "[object Object]".
+  vol: Skip(Child(One(Empty(String), Buffer, null), {})),
 
   // Component specific options.
   cmp: {

@@ -115,10 +115,15 @@ func (st *jstate) replayWarnings() {
 }
 
 // newSeededMemFS builds an in-memory filesystem pre-populated from a Vol
-// map. Mirrors TS's `MemFs(vol)`.
+// map. Mirrors TS's `MemFs(vol)`: a nil value is an empty directory, the
+// convention Vol() itself reports one with, and any other value a file.
 func newSeededMemFS(vol map[string][]byte) *MemFS {
 	mem := NewMemFS()
 	for path, body := range vol {
+		if body == nil {
+			_ = mem.MkdirAll(path)
+			continue
+		}
 		_ = mem.WriteFile(path, body)
 	}
 	return mem

@@ -1,0 +1,32 @@
+# Option validation: TS OptionsShape and ExistingShape against Go
+# OptionsFromMap. `options` returns "ok" for a map both accept; an
+# error row holds the full message, which is shape's own text in both
+# ports. See test/spec/README.md.
+id	fn	args	expect	error
+options-empty	options	[{}]	"ok"	
+options-full	options	[{"folder":"/out","debug":"info","mem":true,"exclude":true,"build":true,"control":{"dryrun":true,"duplicate":false,"version":true},"existing":{"txt":{"write":false,"merge":true},"bin":{"present":true}},"cmp":{"Copy":{"ignore":["~$"]}},"name":{"file":{"prefix":"p","suffix":"s"},"folder":{"prefix":"q"},"exclude":"x"},"meta":{"x":1},"model":{"a":1}}]	"ok"	
+options-vol-files	options	[{"vol":{"/a.txt":"A","/empty.txt":""}}]	"ok"	
+options-vol-null-is-a-directory	options	[{"vol":{"/d":null}}]	"ok"	
+options-unknown-key	options	[{"bogus":1}]	-	Jostraca Options: Validation failed for object "{bogus:1}" because the property "bogus" is not allowed.
+options-control-dryrun-string	options	[{"control":{"dryrun":"yes"}}]	-	Jostraca Options: Validation failed for property "control.dryrun" with string "yes" because the string is not of type boolean.
+options-control-duplicate-number	options	[{"control":{"duplicate":1}}]	-	Jostraca Options: Validation failed for property "control.duplicate" with number "1" because the number is not of type boolean.
+options-control-unknown	options	[{"control":{"bogus":true}}]	-	Jostraca Options: Validation failed for property "control" with object "{bogus:true}" because the property "bogus" is not allowed.
+options-name-unknown	options	[{"name":{"bogus":1}}]	-	Jostraca Options: Validation failed for property "name" with object "{bogus:1}" because the property "bogus" is not allowed.
+options-name-file-prefix-number	options	[{"name":{"file":{"prefix":1}}}]	-	Jostraca Options: Validation failed for property "name.file.prefix" with number "1" because the number is not of type string.
+options-existing-unknown	options	[{"existing":{"bogus":{}}}]	-	Jostraca Options: Validation failed for property "existing" with object "{bogus:{}}" because the property "bogus" is not allowed.
+options-existing-txt-number	options	[{"existing":{"txt":5}}]	-	Jostraca Options: Validation failed for property "existing.txt" with number "5" because the number is not of type object.
+options-existing-txt-write-string	options	[{"existing":{"txt":{"write":"yes"}}}]	-	Jostraca Options (`existing` property): Validation failed for property "txt.write" with string "yes" because the string is not of type boolean.
+options-existing-txt-unknown	options	[{"existing":{"txt":{"bogus":1}}}]	-	Jostraca Options (`existing` property): Validation failed for property "txt" with object "{bogus:1}" because the property "bogus" is not allowed.
+options-existing-bin-diff	options	[{"existing":{"bin":{"diff":true}}}]	-	Jostraca Options (`existing` property): Validation failed for property "bin" with object "{diff:true}" because the property "diff" is not allowed.
+options-folder-empty	options	[{"folder":""}]	-	Jostraca Options: Validation failed for property "folder" with string "" because an empty string is not allowed.
+options-folder-number	options	[{"folder":1}]	-	Jostraca Options: Validation failed for property "folder" with number "1" because the number is not of type string.
+options-debug-boolean	options	[{"debug":true}]	-	Jostraca Options: Validation failed for property "debug" with boolean "true" because the boolean is not of type string.
+options-mem-string	options	[{"mem":"yes"}]	-	Jostraca Options: Validation failed for property "mem" with string "yes" because the string is not of type boolean.
+options-build-number	options	[{"build":1}]	-	Jostraca Options: Validation failed for property "build" with number "1" because the number is not of type boolean.
+options-exclude-string	options	[{"exclude":"x"}]	-	Jostraca Options: Validation failed for property "exclude" with string "x" because the string is not of type boolean.
+options-model-array	options	[{"model":[]}]	-	Jostraca Options: Validation failed for index "model" with array "[]" because the array is not of type object.
+options-meta-number	options	[{"meta":5}]	-	Jostraca Options: Validation failed for property "meta" with number "5" because the number is not of type object.
+options-cmp-unknown	options	[{"cmp":{"bogus":1}}]	-	Jostraca Options: Validation failed for property "cmp" with object "{bogus:1}" because the property "bogus" is not allowed.
+options-cmp-copy-ignore-string	options	[{"cmp":{"Copy":{"ignore":"x"}}}]	-	Jostraca Options: Validation failed for property "cmp.Copy.ignore" with string "x" because the string is not of type array.
+options-vol-number	options	[{"vol":{"a":5}}]	-	Jostraca Options: Value "5" for property "vol.a" does not satisfy one of: String, Buffer, null
+options-vol-object	options	[{"vol":{"a":{"b":1}}}]	-	Jostraca Options: Value "{b:1}" for property "vol.a" does not satisfy one of: String, Buffer, null
