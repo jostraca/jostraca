@@ -186,3 +186,28 @@ func TestBinaryCopyInsideFileSplicesBytes(t *testing.T) {
 		t.Errorf("/out/i.png: got %v, want %v", m.Vol()["/out/i.png"], raw)
 	}
 }
+
+// nestedGenModel is nestedGen with a model.
+func nestedGenModel(t *testing.T, seed map[string]string, model map[string]any,
+	body func(*J)) map[string]string {
+	t.Helper()
+	m := NewMemFS()
+	keys := make([]string, 0, len(seed))
+	for k := range seed {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		if err := m.WriteFile(k, []byte(seed[k])); err != nil {
+			t.Fatal(err)
+		}
+	}
+	j := New(WithFS(m), WithFolder("/out"), WithModel(model),
+		WithNow(func() int64 { return 1735689600000 }))
+	if _, err := j.Generate(Options{}, func(j *J) {
+		j.Project(ProjectProps{}, body)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	return nestedVol(m)
+}

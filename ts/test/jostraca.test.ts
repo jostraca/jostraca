@@ -1887,3 +1887,49 @@ describe('list-string-child', () => {
   })
 
 })
+
+
+// Component behaviour both ports pin with the same expected output. The Go
+// mirrors live beside the tests each one names.
+describe('components', () => {
+
+  const gen = async (fsdef: any, def: any, gopts?: any) => {
+    const { fs, vol } = memfs(fsdef)
+    await Jostraca({ now: () => START_TIME, ...(gopts || {}) })
+      .generate({ fs: () => fs, folder: '/out' }, cmp(def))
+    const out: any = {}
+    for (const [k, v] of Object.entries(vol.toJSON() as any)) {
+      if (k.startsWith('/out/' + META_FOLDER)) continue
+      out[k] = v
+    }
+    return out
+  }
+
+
+  // A Fragment is templated once. A `$$x$$` that arrives inside a model
+  // value, a plain replace value or a replace function's return is text,
+  // as it is in a plain Content. Go: TestFragmentTemplatesOnce.
+  test('fragment-templates-once', async () => {
+    const out = await gen({
+      '/tm/double.txt': '[$$a$$]\n',
+      '/tm/replace.txt': 'FOO and BAR $$name$$\n',
+    }, () => Project({}, () => {
+      File({ name: 'double.txt' }, () => {
+        Fragment({ from: '/tm/double.txt' })
+        Content('content:$$a$$\n')
+      })
+      File({ name: 'r1.txt' }, () => Fragment({
+        from: '/tm/replace.txt', replace: { FOO: '$$b$$', BAR: 'bar' }
+      }))
+      File({ name: 'r2.txt' }, () => Fragment({
+        from: '/tm/replace.txt',
+        replace: { FOO: '$$"q"$$', BAR: () => '$$name$$' }
+      }))
+    }), { model: { a: '$$b$$', b: 'X', name: 'N' } })
+
+    expect(out['/out/double.txt']).equal('[$$b$$]\ncontent:$$b$$\n')
+    expect(out['/out/r1.txt']).equal('$$b$$ and bar N\n')
+    expect(out['/out/r2.txt']).equal('$$"q"$$ and $$name$$ N\n')
+  })
+
+})

@@ -70,3 +70,42 @@ func TestFragmentReplaceSubcmp(t *testing.T) {
 	}
 	_ = strings.Contains // keep import
 }
+
+// A Fragment is templated once: a `$$x$$` inside a model value, a plain
+// replace value or a replace function's return is inserted as text, as it
+// is in a plain Content. TS templated every segment a second time through
+// Content and moved to a raw Content to match. Mirrors
+// ts/test/jostraca.test.ts 'fragment-templates-once'.
+func TestFragmentTemplatesOnce(t *testing.T) {
+	out := nestedGenModel(t, map[string]string{
+		"/tm/double.txt":  "[$$a$$]\n",
+		"/tm/replace.txt": "FOO and BAR $$name$$\n",
+	}, map[string]any{"a": "$$b$$", "b": "X", "name": "N"}, func(j *J) {
+		j.File("double.txt", func(j *J) {
+			j.Fragment(FragmentProps{From: "/tm/double.txt"}, nil)
+			j.Content("content:$$a$$\n")
+		})
+		j.File("r1.txt", func(j *J) {
+			j.Fragment(FragmentProps{From: "/tm/replace.txt",
+				Replace: map[string]any{"FOO": "$$b$$", "BAR": "bar"}}, nil)
+		})
+		j.File("r2.txt", func(j *J) {
+			j.Fragment(FragmentProps{From: "/tm/replace.txt",
+				Replace: map[string]any{
+					"FOO": `$$"q"$$`,
+					"BAR": func() string { return "$$name$$" },
+				}}, nil)
+		})
+	})
+
+	want := map[string]string{
+		"/out/double.txt": "[$$b$$]\ncontent:$$b$$\n",
+		"/out/r1.txt":     "$$b$$ and bar N\n",
+		"/out/r2.txt":     "$$\"q\"$$ and $$name$$ N\n",
+	}
+	for k, w := range want {
+		if out[k] != w {
+			t.Errorf("%s: got %q, want %q", k, out[k], w)
+		}
+	}
+}

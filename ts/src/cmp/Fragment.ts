@@ -207,10 +207,15 @@ const Fragment = cmp<FragmentProps>(function Fragment(props, children) {
     }
   })
 
+  // RAW: `template` has already substituted the model and the replace
+  // values, so each segment is final text. Templating it again expanded a
+  // `$$x$$` that arrived inside a model value, a replace value or a replace
+  // function's return, which is the injection `raw` exists to prevent. A
+  // plain Content is one pass, and so is a Fragment.
   template(src, model, {
     replace,
     eject: props?.eject,
-    handle: (s?: string) => null == s ? null : Content(s)
+    handle: (s?: string) => null == s ? null : Content({ src: s, raw: true })
   })
 
   if (sawnonslot && !defaultslot) {
