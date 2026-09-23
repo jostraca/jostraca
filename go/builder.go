@@ -10,6 +10,19 @@ func fmtErrorf(format string, args ...any) error {
 	return fmt.Errorf(format, args...)
 }
 
+// mustBeInGenerate panics when a component is called on the *J that New
+// returned, which belongs to no Generate: it has no node to attach to, so a
+// File or a Content dereferenced nil and a Project built a tree that was
+// then thrown away. TS's cmp() throws the same text for a component called
+// outside generate(). A panic, because a component method has no error
+// return and this is a mistake in the calling code, not in its data.
+func (j *J) mustBeInGenerate(name string) {
+	if j.cur == nil {
+		panic(fmt.Sprintf("jostraca: component %s called outside Generate(); "+
+			"components can only be used inside the callback passed to Generate()", name))
+	}
+}
+
 // Builder methods on *J. Each follows the 5-step template from
 // PORT_PLAN §5: short-circuit on j.st.err, allocate node, append to
 // parent, set root if first call, recurse with a child *J bound to the
@@ -30,6 +43,7 @@ type ProjectProps struct {
 // Project marks the root of an output tree. Folder is the destination
 // directory under Options.Folder.
 func (j *J) Project(p ProjectProps, body func(*J)) {
+	j.mustBeInGenerate("Project")
 	if j.st.err != nil {
 		return
 	}
@@ -48,6 +62,7 @@ func (j *J) Project(p ProjectProps, body func(*J)) {
 
 // Folder represents a sub-directory under the current project/folder.
 func (j *J) Folder(name string, body func(*J)) {
+	j.mustBeInGenerate("Folder")
 	if j.st.err != nil {
 		return
 	}
@@ -85,6 +100,7 @@ func (j *J) File(name string, body func(*J)) {
 }
 
 func (j *J) FileP(p FileProps, body func(*J)) {
+	j.mustBeInGenerate("File")
 	if j.st.err != nil {
 		return
 	}
@@ -145,6 +161,7 @@ func (j *J) Content(src string) {
 }
 
 func (j *J) ContentP(p ContentProps) {
+	j.mustBeInGenerate("Content")
 	if j.st.err != nil {
 		return
 	}
@@ -204,6 +221,7 @@ func (j *J) Line(src string) {
 // `Line("")` and `Line()` still write one newline, since there was
 // nothing to append to.
 func (j *J) LineP(p ContentProps) {
+	j.mustBeInGenerate("Line")
 	p.Src = p.Src + "\n"
 	j.ContentP(p)
 }
@@ -223,6 +241,7 @@ func (j *J) Slot(name string, body func(*J)) {
 }
 
 func (j *J) SlotP(p SlotProps, body func(*J)) {
+	j.mustBeInGenerate("Slot")
 	if j.st.err != nil {
 		return
 	}
@@ -249,6 +268,11 @@ func (j *J) SlotP(p SlotProps, body func(*J)) {
 // collectors walk straight through it, so nesting changes no output on its
 // own. See #29.
 func (j *J) Cmp(name string, fn func(*J)) {
+	if name == "" {
+		j.mustBeInGenerate("<anon>")
+	} else {
+		j.mustBeInGenerate(name)
+	}
 	if j.st.err != nil || fn == nil {
 		return
 	}
@@ -295,6 +319,7 @@ func (j *J) Inject(name string, body func(*J)) {
 }
 
 func (j *J) InjectP(p InjectProps, body func(*J)) {
+	j.mustBeInGenerate("Inject")
 	if j.st.err != nil {
 		return
 	}
@@ -358,6 +383,7 @@ func (j *J) Fragment(p FragmentProps, body func(*J)) {
 }
 
 func (j *J) FragmentP(p FragmentProps, body func(*J)) {
+	j.mustBeInGenerate("Fragment")
 	if j.st.err != nil {
 		return
 	}
@@ -442,6 +468,7 @@ type CopyFilesProps struct {
 // source/dest; the heavy lifting (read, template, walk, write) happens
 // in CopyOp. `From` may name a single file or a whole directory tree.
 func (j *J) CopyFiles(p CopyFilesProps) {
+	j.mustBeInGenerate("CopyFiles")
 	if j.st.err != nil {
 		return
 	}
@@ -578,6 +605,7 @@ func (j *J) ListItems(items any, body func(j *J, it ListItemProps)) {
 }
 
 func (j *J) ListItemsP(p ListItemsProps, body func(j *J, it ListItemProps)) {
+	j.mustBeInGenerate("ListItems")
 	if j.st.err != nil || body == nil {
 		return
 	}

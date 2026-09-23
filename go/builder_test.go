@@ -1,6 +1,7 @@
 package jostraca
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -221,4 +222,90 @@ func TestBuildPhaseRunsWithNoOps(t *testing.T) {
 	if err != nil {
 		t.Errorf("Generate err = %v, want nil", err)
 	}
+}
+
+// A component called on the *J that New returned, outside any Generate,
+// fails at once with a message naming it. It used to dereference nil, and
+// Project built and discarded a tree with no error at all. TS's cmp()
+// throws the same text for a component called outside generate(). Mirrors
+// 'component-outside-generate' in ts/test/jostraca.test.ts; the audit case
+// was err-outside-generate.
+func TestComponentOutsideGenerate(t *testing.T) {
+	mem := NewMemFS()
+	_ = mem.WriteFile("/f.txt", []byte("F\n"))
+	j := New(WithFS(mem), WithFolder("/out"),
+		WithNow(func() int64 { return 1735689600000 }))
+
+	ran := false
+	body := func(*J) { ran = true }
+
+	for _, c := range []struct {
+		name string
+		call func()
+	}{
+		{"Project", func() { j.Project(ProjectProps{Folder: "p"}, body) }},
+		{"Folder", func() { j.Folder("d", body) }},
+		{"File", func() { j.File("x.txt", body) }},
+		{"File", func() { j.FileP(FileProps{Name: "x.txt"}, body) }},
+		{"Content", func() { j.Content("x") }},
+		{"Content", func() { j.ContentP(ContentProps{Src: "x"}) }},
+		{"Line", func() { j.Line("x") }},
+		{"Line", func() { j.LineP(ContentProps{Src: "x"}) }},
+		{"Slot", func() { j.Slot("s", body) }},
+		{"Slot", func() { j.SlotP(SlotProps{Name: "s"}, body) }},
+		{"Inject", func() { j.Inject("t.txt", body) }},
+		{"Inject", func() { j.InjectP(InjectProps{Name: "t.txt"}, body) }},
+		{"Fragment", func() { j.Fragment(FragmentProps{From: "/f.txt"}, body) }},
+		{"Fragment", func() { j.FragmentP(FragmentProps{From: "/f.txt"}, body) }},
+		{"CopyFiles", func() { j.CopyFiles(CopyFilesProps{From: "/f.txt"}) }},
+		{"CopyFiles", func() { j.Copy(CopyProps{From: "/f.txt"}) }},
+		{"ListItems", func() { j.ListItems([]any{1}, func(*J, ListItemProps) { ran = true }) }},
+		{"ListItems", func() { j.List([]any{1}, func(*J, ListItemProps) { ran = true }) }},
+		{"Wrap", func() { j.Cmp("Wrap", body) }},
+		{"<anon>", func() { j.Cmp("", body) }},
+	} {
+		msg := func() (msg string) {
+			defer func() {
+				if r := recover(); r != nil {
+					msg, _ = r.(string)
+				}
+			}()
+			c.call()
+			return ""
+		}()
+		want := "jostraca: component " + c.name + " called outside Generate(); " +
+			"components can only be used inside the callback passed to Generate()"
+		if msg != want {
+			t.Errorf("%s: panic = %q\nwant %q", c.name, msg, want)
+		}
+	}
+	if ran {
+		t.Error("a component body ran outside Generate")
+	}
+
+	// The builder is not poisoned: a Generate on it still works, and
+	// nothing the refused calls built leaks into it.
+	if _, err := j.Generate(Options{}, func(j *J) {
+		j.File("ok.txt", func(j *J) { j.Content("OK") })
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for k := range mem.Vol() {
+		if k != "/f.txt" && k != "/out/ok.txt" && !strings.HasPrefix(k, "/out/.jostraca") {
+			t.Errorf("unexpected output: %s", k)
+		}
+	}
+	if b, _ := mem.ReadFile("/out/ok.txt"); string(b) != "OK" {
+		t.Errorf("ok.txt = %q", b)
+	}
+
+	// After a Generate has finished, the top-level *J still refuses.
+	func() {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("File after Generate did not panic")
+			}
+		}()
+		j.File("late.txt", body)
+	}()
 }

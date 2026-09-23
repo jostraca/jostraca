@@ -2264,4 +2264,50 @@ describe('components', () => {
     expect(out['/out/c.txt']).equal('truex\ntruey\n')
   })
 
+
+  // A component used outside a generate callback throws at once, naming
+  // itself, before and after a generate has run. Go panics with the same
+  // text on the *J that New returned: TestComponentOutsideGenerate.
+  test('component-outside-generate', async () => {
+    const Wrap = cmp(function Wrap() { Content('w') })
+    const Anon = cmp(() => { Content('a') })
+    let ran = false
+    const body = () => { ran = true }
+
+    const calls: [string, () => any][] = [
+      ['Project', () => Project({ folder: 'p' }, body)],
+      ['Folder', () => Folder({ name: 'd' }, body)],
+      ['File', () => File({ name: 'x.txt' }, body)],
+      ['Content', () => Content('x')],
+      ['Line', () => Line('x')],
+      ['Slot', () => Slot({ name: 's' }, body)],
+      ['Inject', () => Inject({ name: 't.txt' }, body)],
+      ['Fragment', () => Fragment({ from: '/f.txt' }, body)],
+      ['CopyFiles', () => CopyFiles({ from: '/f.txt' })],
+      ['CopyFiles', () => Copy({ from: '/f.txt' })],
+      ['ListItems', () => List({ item: [1] }, body)],
+      ['Wrap', () => Wrap({})],
+      ['<anon>', () => Anon({})],
+    ]
+
+    const check = () => {
+      for (const [name, call] of calls) {
+        Assert.throws(call, {
+          message: 'jostraca: component ' + name + ' called outside generate(); ' +
+            'components can only be used inside the callback passed to ' +
+            'Jostraca().generate()'
+        })
+      }
+      expect(ran).equal(false)
+    }
+
+    check()
+
+    const out = await gen({ '/f.txt': 'F\n' }, () =>
+      File({ name: 'ok.txt' }, () => Content('OK')))
+    expect(out['/out/ok.txt']).equal('OK')
+
+    check()
+  })
+
 })
