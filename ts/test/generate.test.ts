@@ -23,6 +23,7 @@ import {
   Fragment,
   CopyFiles,
   Inject,
+  Copy,
   cmp,
 } from '../'
 
@@ -492,6 +493,39 @@ describe('generate', () => {
       Assert.ok(copy.message.startsWith('CopyFiles: '), copy.message)
       Assert.ok(copy.message.includes('Validation failed for property "from" ' +
         'with string "/nope" because check "From" failed (threw: '), copy.message)
+    })
+
+    // The trees of three parity-corpus scenarios, whose corpus rows record
+    // only that they fail. The body is held here, with the host's error
+    // after `(threw: ` normalised, and with the decoration TS's CopyFiles
+    // adds (a `(model: path): ` prefix and a call-site suffix) removed.
+    // Go twin: TestParityErrorScenarioBodies, on the corpus runners.
+    test('parity-error-scenarios', async () => {
+      const cases: [() => void, string][] = [
+        [() => Project({ folder: 'app' }, () => File({ name: 'index.html' }, () =>
+          Fragment({ from: '/templates/does-not-exist.html' }))),
+        'Fragment: Validation failed for property "from" with string ' +
+        '"/templates/does-not-exist.html" because check "From" failed (threw: <os>)'],
+        [() => Project({ folder: 'app' }, () =>
+          Copy({ from: '/src/does-not-exist.txt', to: 'a.txt' })),
+        'CopyFiles: Validation failed for property "from" with string ' +
+        '"/src/does-not-exist.txt" because check "From" failed (threw: <os>)'],
+        [() => Project({ folder: 'app' }, () =>
+          Inject({ name: 'does-not-exist.txt' }, () => Content('new content'))),
+        'inject target does not exist, path=/out/app/does-not-exist.txt ' +
+        '(Inject rewrites an existing file; use File to create one)'],
+      ]
+      for (const [root, want] of cases) {
+        const { fs } = memfs({})
+        const err: any = await Jostraca({})
+          .generate({ fs: () => fs, folder: '/out', now: () => START_TIME }, root)
+          .then(() => null, (e: any) => e)
+        Assert.ok(err, want)
+        Assert.equal(body(err)
+          .replace(/^CopyFiles: \([^)]*\): /, 'CopyFiles: ')
+          .replace(/ \[at [^\]]*\]$/, '')
+          .replace(/\(threw: .*$/s, '(threw: <os>)'), want)
+      }
     })
 
     // A filesystem failure embeds the host's error, so these hold the
