@@ -367,6 +367,32 @@ describe('check', () => {
   })
 
 
+  // A CHECK ALWAYS BUILDS. `build: false`, per call or global, would
+  // never reach the file handler and report every folder clean.
+  test('build-false-cannot-blank-a-check', async () => {
+    const root = () => File({ name: 'a.txt' }, () => Content('A\n'))
+    const runs = [
+      [{}, { build: false }],
+      [{ build: false }, {}],
+    ]
+    for (const [gopts, opts] of runs) {
+      for (const [committed, want] of [
+        [{}, 'a.txt:missing'],
+        [{ '/app/a.txt': 'STALE\n' }, 'a.txt:content'],
+      ] as [any, string][]) {
+        const { fs } = memfs(committed)
+        const res = await Jostraca(gopts).check(
+          { folder: '/app', fs: () => fs, ...opts }, root)
+        const what = JSON.stringify([gopts, opts, committed])
+        Assert.deepEqual(res.checked, ['a.txt'], what)
+        Assert.deepEqual(shape(res).map((d: any) => d.path + ':' + d.kind),
+          [want], what)
+        Assert.deepEqual(res.files.written, ['/app/a.txt'], what)
+      }
+    }
+  })
+
+
   // A CHECK WRITES NOTHING, ANYWHERE -- including the run that reports
   // drift, and including the meta folder a generate would leave. A
   // command that only asks a question must not be able to answer it by

@@ -506,6 +506,50 @@ func TestCheckIgnoresGlobalDryrun(t *testing.T) {
 	}
 }
 
+// A CHECK ALWAYS BUILDS. Build false, per call or global, would never
+// reach the file handler and report every folder clean -- the one answer
+// a gate must never give. Each case runs on an empty folder and on a
+// stale committed file.
+func TestCheckForcesBuildPerCall(t *testing.T) {
+	off := false
+	checkForcesBuild(t, New(), Options{Build: &off})
+}
+
+func TestCheckForcesBuildGlobal(t *testing.T) {
+	checkForcesBuild(t, New(WithBuild(false)), Options{})
+}
+
+func checkForcesBuild(t *testing.T, j *J, opts Options) {
+	t.Helper()
+	root := func(j *J) { j.File("a.txt", func(j *J) { j.Content("A\n") }) }
+
+	for _, tc := range []struct {
+		name      string
+		committed map[string][]byte
+		want      string
+	}{
+		{"empty", map[string][]byte{}, "a.txt:missing"},
+		{"stale", map[string][]byte{"/app/a.txt": []byte("STALE\n")}, "a.txt:content"},
+	} {
+		run := opts
+		run.Folder = "/app"
+		run.FS = memBase(t, tc.committed)
+		res, err := j.Check(run, root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Join(res.Checked, ",") != "a.txt" {
+			t.Fatalf("%s: checked: %v", tc.name, res.Checked)
+		}
+		if got := driftKinds(res); got != tc.want {
+			t.Fatalf("%s: drift: %s", tc.name, got)
+		}
+		if strings.Join(res.Files.Written, ",") != "/app/a.txt" {
+			t.Fatalf("%s: files: %+v", tc.name, res.Files)
+		}
+	}
+}
+
 // treeRoot decodes a component tree and returns its define-phase
 // callback, failing the test rather than returning an error.
 func treeRoot(t *testing.T, src string, opts ...CmpTreeOptions) func(*J) {

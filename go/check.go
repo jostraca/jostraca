@@ -267,11 +267,14 @@ func (j *J) Check(opts Options, root func(*J)) (CheckResult, error) {
 	// one asked. NoDuplicate off would write a `.jostraca/generated`
 	// baseline for a later merge, and a check makes no next run to
 	// merge into; a dry run would write nothing to the volume, leaving
-	// nothing to compare. Applied AFTER the merge, because a per-call
-	// false cannot clear a global true.
+	// nothing to compare; Build false never reaches the file handler.
+	// Applied AFTER the merge, because a per-call false cannot clear a
+	// global true.
 	res, err := j.generate(run, root, func(o *Options) {
 		o.Control.NoDuplicate = true
 		o.Control.Dryrun = false
+		build := true
+		o.Build = &build
 	})
 	if err != nil {
 		return CheckResult{}, err
