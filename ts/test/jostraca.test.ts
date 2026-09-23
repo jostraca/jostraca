@@ -589,6 +589,28 @@ describe('jostraca', () => {
   })
 
 
+  // The meta log is JSON.stringify output, so '&', '<', '>' and U+2028 in
+  // a path are written raw. go/filehandler_test.go
+  // TestMetaLogQuotesLikeJSONStringify holds these bytes as its golden.
+  test('meta-log-quotes-raw', async () => {
+    const { fs, vol } = memfs({})
+    await Jostraca({ now: () => START_TIME }).generate(
+      { fs: () => fs, folder: '/out' },
+      cmp(() => {
+        Project({ folder: '.' }, () => {
+          for (const n of ['a&b.txt', 'x<y>.txt', 'u\u2028v.txt']) {
+            File({ name: n }, () => { Content('A\n') })
+          }
+        })
+      }))
+    const meta = (vol.toJSON() as any)['/out/.jostraca/jostraca.meta.log']
+    for (const raw of ['"a&b.txt": {', '"path": "x<y>.txt"', '"u\u2028v.txt": {']) {
+      expect(meta.includes(raw)).equal(true)
+    }
+    expect(/\\u(0026|003c|003e|2028)/.test(meta)).equal(false)
+  })
+
+
   test('fragment-basic', async () => {
     let nowI = 0
     const now = () => START_TIME + (++nowI * (60 * 1000))

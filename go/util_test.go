@@ -757,10 +757,10 @@ func TestJSLess(t *testing.T) {
 		a, b string
 		want bool
 	}{
-		{"\U0001F600", "ｚ", true},
-		{"ｚ", "\U0001F600", false},
-		{"é", "ｚ", true},
-		{"é", "\U0001F600", true},
+		{"\U0001F600", "\uff5a", true},
+		{"\uff5a", "\U0001F600", false},
+		{"\u00e9", "\uff5a", true},
+		{"\u00e9", "\U0001F600", true},
 		{"a", "b", true},
 		{"B", "a", true},
 		{"10", "9", true},
@@ -771,7 +771,7 @@ func TestJSLess(t *testing.T) {
 		{"a", "a", false},
 		{"", "", false},
 		{"\U0001F600", "\U0001F601", true},
-		{"\U00010000", "퟿", false},
+		{"\U00010000", "\ud7ff", false},
 	}
 	for _, c := range cases {
 		if got := jsLess(c.a, c.b); got != c.want {
@@ -779,9 +779,9 @@ func TestJSLess(t *testing.T) {
 		}
 	}
 
-	keys := []string{"ｚ", "\U0001F600", "é", "a", "Z"}
+	keys := []string{"\uff5a", "\U0001F600", "\u00e9", "a", "Z"}
 	sortJS(keys)
-	want := []string{"Z", "a", "é", "\U0001F600", "ｚ"}
+	want := []string{"Z", "a", "\u00e9", "\U0001F600", "\uff5a"}
 	if !reflect.DeepEqual(keys, want) {
 		t.Errorf("sortJS = %q, want %q", keys, want)
 	}

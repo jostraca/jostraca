@@ -181,3 +181,73 @@ func TestBuildMetaPersisted(t *testing.T) {
 		t.Error(".gitignore not written")
 	}
 }
+
+// The meta log quotes paths as JSON.stringify does, so '&', '<', '>' and
+// U+2028 are written raw. encoding/json escaped all four, which gave a
+// different meta.log from TS for the same tree. The expected bytes are
+// TS's own output for this tree.
+func TestMetaLogQuotesLikeJSONStringify(t *testing.T) {
+	mem := NewMemFS()
+	_, err := New(WithFS(mem), WithFolder("/out"), WithNow(func() int64 { return 1735689600000 })).
+		Generate(Options{}, func(j *J) {
+			j.Project(ProjectProps{Folder: "."}, func(j *J) {
+				for _, n := range []string{"a&b.txt", "x<y>.txt", "u\u2028v.txt"} {
+					j.File(n, func(j *J) { j.Content("A\n") })
+				}
+			})
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := mem.ReadFile("/out/.jostraca/jostraca.meta.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "{\n" +
+		"  \"foldername\": \".jostraca\",\n" +
+		"  \"filename\": \"jostraca.meta.log\",\n" +
+		"  \"last\": 1735689600000,\n" +
+		"  \"hlast\": 2025010100000000,\n" +
+		"  \"files\": {\n" +
+		"    \"a&b.txt\": {\n" +
+		"      \"action\": \"write\",\n" +
+		"      \"path\": \"a&b.txt\",\n" +
+		"      \"exists\": false,\n" +
+		"      \"actions\": [\n" +
+		"        \"write\"\n" +
+		"      ],\n" +
+		"      \"protect\": false,\n" +
+		"      \"conflict\": false,\n" +
+		"      \"when\": 1735689600000,\n" +
+		"      \"hwhen\": 2025010100000000\n" +
+		"    },\n" +
+		"    \"x<y>.txt\": {\n" +
+		"      \"action\": \"write\",\n" +
+		"      \"path\": \"x<y>.txt\",\n" +
+		"      \"exists\": false,\n" +
+		"      \"actions\": [\n" +
+		"        \"write\"\n" +
+		"      ],\n" +
+		"      \"protect\": false,\n" +
+		"      \"conflict\": false,\n" +
+		"      \"when\": 1735689600000,\n" +
+		"      \"hwhen\": 2025010100000000\n" +
+		"    },\n" +
+		"    \"u\u2028v.txt\": {\n" +
+		"      \"action\": \"write\",\n" +
+		"      \"path\": \"u\u2028v.txt\",\n" +
+		"      \"exists\": false,\n" +
+		"      \"actions\": [\n" +
+		"        \"write\"\n" +
+		"      ],\n" +
+		"      \"protect\": false,\n" +
+		"      \"conflict\": false,\n" +
+		"      \"when\": 1735689600000,\n" +
+		"      \"hwhen\": 2025010100000000\n" +
+		"    }\n" +
+		"  }\n" +
+		"}"
+	if string(got) != want {
+		t.Errorf("meta.log\n got  %q\n want %q", got, want)
+	}
+}

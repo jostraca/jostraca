@@ -160,3 +160,60 @@ func TestFormatValueSortsObjectKeys(t *testing.T) {
 		t.Errorf("formatValue = %s, want %s", got, want)
 	}
 }
+
+// jsQuote is JSON.stringify's string quoting, written by hand because
+// encoding/json escapes U+2028 and U+2029 even with SetEscapeHTML(false),
+// and a post-replace of the escape would also rewrite a literal backslash
+// followed by the text u2028.
+func TestJSQuote(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"a&b", `"a&b"`},
+		{"x<y>", `"x<y>"`},
+		{"a\u2028b\u2029c", "\"a\u2028b\u2029c\""},
+		{`\u2028`, `"\\u2028"`},
+		{`say "hi"`, `"say \"hi\""`},
+		{"t\tn\nr\rb\bf\f", `"t\tn\nr\rb\bf\f"`},
+		{"\u0001\u001f", `"\u0001\u001f"`},
+		{"\u007f", "\"\u007f\""},
+		{"\u00e9\U0001F600", "\"\u00e9\U0001F600\""},
+		{"", `""`},
+	}
+	for _, c := range cases {
+		if got := jsQuote(c.in); got != c.want {
+			t.Errorf("jsQuote(%q) = %s, want %s", c.in, got, c.want)
+		}
+	}
+}
+
+// JSON.stringify writes NaN and the infinities as null and -0 as 0.
+// encoding/json refuses NaN outright, and the old %v fallback then printed
+// Go syntax such as map[a:NaN].
+func TestFormatValueNonFiniteInComposite(t *testing.T) {
+	got := formatValue(map[string]any{
+		"n": math.NaN(), "p": math.Inf(1), "m": math.Inf(-1), "z": math.Copysign(0, -1),
+		"l": []any{math.NaN(), float32(0.1)},
+	}, "")
+	if want := `{"l":[null,0.1],"m":null,"n":null,"p":null,"z":0}`; got != want {
+		t.Errorf("formatValue = %s, want %s", got, want)
+	}
+	typed := formatValue(map[string]float64{"n": math.NaN()}, "")
+	if want := `{"n":null}`; typed != want {
+		t.Errorf("formatValue(typed) = %s, want %s", typed, want)
+	}
+}
+
+// Object keys enumerate as JavaScript enumerates them: canonical array
+// indices first in numeric order, then the rest by UTF-16 code unit.
+func TestFormatValueJSKeyOrder(t *testing.T) {
+	got := formatValue(map[string]any{
+		"10": 1, "2": 2, "b": 3, "01": 4, "-1": 5, "\uff01": 6, "\U0001F600": 7,
+	}, "")
+	want := `{"2":2,"10":1,"-1":5,"01":4,"b":3,"` + "\U0001F600" + `":7,"` + "\uff01" + `":6}`
+	if got != want {
+		t.Errorf("formatValue = %s, want %s", got, want)
+	}
+	typed := formatValue(map[int]string{10: "a", 2: "b"}, "")
+	if want := `{"2":"b","10":"a"}`; typed != want {
+		t.Errorf("formatValue(map[int]string) = %s, want %s", typed, want)
+	}
+}

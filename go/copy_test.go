@@ -98,7 +98,7 @@ func TestCopyBinaryUntouched(t *testing.T) {
 // both providers are pinned.
 var copyOrderNames = []string{
 	"10.txt", "9.txt", "B.txt", "Z.txt", "_x.txt", "a.txt",
-	"é.txt", "\U0001F600.txt", "ｚ.txt",
+	"\u00e9.txt", "\U0001F600.txt", "\uff5a.txt",
 }
 
 func checkCopyOrder(t *testing.T, fsys FS, out string, res Result) {

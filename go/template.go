@@ -399,12 +399,9 @@ func formatValue(v any, fallback string) string {
 	return fmt.Sprintf("%v", v)
 }
 
-// marshalJSLike renders JSON the way JSON.stringify does: no HTML escaping.
-// Go's encoding/json escapes <, > and & to \u003c etc by default, which JS
-// does not.
-//
-// Key order is Go's (sorted). TS sorts too — see the note on `jsonify` in
-// ts/src/util/basic.ts for why that is the project's convention.
+// marshalJSLike is encoding/json with HTML escaping off. It is only the
+// normalising first pass for structs and marshalers (see jsJSON): its key
+// order and its escaping of U+2028/U+2029 are not JSON.stringify's.
 func marshalJSLike(v any) (string, error) {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
@@ -416,40 +413,10 @@ func marshalJSLike(v any) (string, error) {
 	return strings.TrimSuffix(buf.String(), "\n"), nil
 }
 
-// marshalJSLikeSorted renders v with every object key sorted, at every
-// depth, by taking it through a generic decode.
-//
-// encoding/json sorts MAP keys but emits STRUCT fields in DECLARATION
-// order, while TS's jsonify sorts every object - so without this a struct
-// would be the one shape whose key order depended on how the Go side
-// happened to declare it. Every composite goes through it, not only a
-// struct at the top: a struct nested inside a map[string]any took the fast
-// path and kept its declaration order, which would have left the two
-// spellings of the same value disagreeing. See the note on jsonify in
-// ts/src/util/basic.ts for why sorting is the convention here.
-//
-// UseNumber keeps integers exact: decoding into `any` would route every
-// number through float64 and silently round anything past 2^53, which is
-// the one thing Go can represent here that TS cannot.
-//
-// The round trip costs about 7.9us against 2.1us for a plain marshal, on
-// the model object from test/spec/perf/workloads.tsv. Taken deliberately:
-// it is paid only when a macro resolves to a COMPOSITE, which is rare -
-// the scalar path is 5.9ns and untouched, and neither template workload
-// resolves a macro to a composite at all. Deterministic key order is worth
-// more here than microseconds on an uncommon branch.
+// marshalJSLikeSorted renders v as TS's jsonify does:
+// JSON.stringify(sortKeys(v)). See jsJSON.
 func marshalJSLikeSorted(v any) (string, error) {
-	first, err := marshalJSLike(v)
-	if err != nil {
-		return "", err
-	}
-	dec := json.NewDecoder(strings.NewReader(first))
-	dec.UseNumber()
-	var generic any
-	if err := dec.Decode(&generic); err != nil {
-		return "", err
-	}
-	return marshalJSLike(generic)
+	return jsJSON(v)
 }
 
 // formatJSNumber renders a float the way ECMAScript's Number::toString
