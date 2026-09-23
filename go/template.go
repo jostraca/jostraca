@@ -789,7 +789,9 @@ func applyEject(src string, eject any) (string, error) {
 		return src, nil
 	}
 	starts, ends, ok := decomposeEject(eject)
-	if !ok {
+	// Both markers or neither, as TS requires both non-null before it
+	// ejects: one nil marker leaves the source alone.
+	if !ok || isNilMarker(starts) || isNilMarker(ends) {
 		return src, nil
 	}
 	startIdx := 0
@@ -816,6 +818,16 @@ func applyEject(src string, eject any) (string, error) {
 		return src, nil
 	}
 	return src[startIdx:endIdx], nil
+}
+
+// isNilMarker reports an absent marker: nil, or a typed nil
+// *regexp.Regexp.
+func isNilMarker(v any) bool {
+	if v == nil {
+		return true
+	}
+	re, ok := v.(*regexp.Regexp)
+	return ok && re == nil
 }
 
 // decomposeEject extracts the start and end markers from any of the
@@ -854,13 +866,11 @@ func compileEjectMarker(v any) (*regexp.Regexp, error) {
 	case *regexp.Regexp:
 		return v, nil
 	case string:
-		if v == "" {
-			return nil, nil
-		}
-		// A STRING MARKER IS LITERAL, slashes and all. Go used to
-		// unwrap "/START/" as a regex body on a citation that pointed
-		// at the function-replacement branch instead; TS's eject path
-		// always escapes, so the two disagreed on exactly that shape.
+		// A STRING MARKER IS LITERAL, slashes and all, and the empty
+		// string included (TS getCachedEjectRE('') is `[ \t]*[ \t]*\n?`).
+		// Go used to unwrap "/START/" as a regex body on a citation that
+		// pointed at the function-replacement branch instead; TS's eject
+		// path always escapes, so the two disagreed on exactly that shape.
 		// Regex ejection is still genuine API, through a *regexp.Regexp
 		// above, which both ports take (DEPENDENCY_PLAN.md 9.3).
 		//
