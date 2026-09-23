@@ -14,6 +14,9 @@ import (
 // Go's unicode tables and Node's ICU can differ by Unicode version for
 // characters assigned since, which is a documented residual.
 func jsToUpper(s string) string {
+	if isASCII(s) {
+		return strings.ToUpper(s)
+	}
 	var sb strings.Builder
 	sb.Grow(len(s))
 	for _, r := range s {
@@ -32,6 +35,9 @@ func jsToUpper(s string) string {
 // mapping, dotted capital I to i + U+0307, and capital sigma to final
 // sigma where Unicode's Final_Sigma condition holds.
 func jsToLower(s string) string {
+	if isASCII(s) {
+		return strings.ToLower(s)
+	}
 	var sb strings.Builder
 	sb.Grow(len(s))
 	for i, r := range s {
@@ -49,6 +55,15 @@ func jsToLower(s string) string {
 		}
 	}
 	return sb.String()
+}
+
+func isASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= utf8.RuneSelf {
+			return false
+		}
+	}
+	return true
 }
 
 // jsFinalSigma is Unicode's Final_Sigma condition for the sigma at byte

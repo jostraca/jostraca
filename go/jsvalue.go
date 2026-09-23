@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf16"
-	"unicode/utf8"
 )
 
 // jsLess reports whether a sorts before b under JavaScript's `<` on
@@ -22,30 +21,32 @@ import (
 // U+E000..U+FFFF: JS puts the supplementary character first, UTF-8 byte
 // order puts it last.
 func jsLess(a, b string) bool {
-	for a != "" && b != "" {
-		ra, na := utf8.DecodeRuneInString(a)
-		rb, nb := utf8.DecodeRuneInString(b)
-		if ra != rb {
-			ua, ub := utf16Lead(ra), utf16Lead(rb)
-			if ua != ub {
-				return ua < ub
-			}
-			return ra < rb
-		}
-		if ra == utf8.RuneError && a[:na] != b[:nb] {
-			return a[:na] < b[:nb]
-		}
-		a, b = a[na:], b[nb:]
+	n := len(a)
+	if len(b) < n {
+		n = len(b)
 	}
-	return a == "" && b != ""
-}
-
-// utf16Lead is the first UTF-16 code unit of r.
-func utf16Lead(r rune) rune {
-	if r >= 0x10000 {
-		return 0xD800 + ((r - 0x10000) >> 10)
+	i := 0
+	for i < n && a[i] == b[i] {
+		i++
 	}
-	return r
+	if i == n {
+		return len(a) < len(b)
+	}
+	// UTF-8 byte order is code point order, which is UTF-16 order except
+	// where the first differing character is a 4-byte (supplementary) one
+	// against a 3-byte one in U+E000..U+FFFF (lead byte 0xEE or 0xEF).
+	// Only a differing LEAD byte can be that case: inside a character the
+	// two leads are equal.
+	if a[i]&0xC0 != 0x80 {
+		ca, cb := a[i], b[i]
+		if ca >= 0xF0 && (cb == 0xEE || cb == 0xEF) {
+			return true
+		}
+		if cb >= 0xF0 && (ca == 0xEE || ca == 0xEF) {
+			return false
+		}
+	}
+	return a[i] < b[i]
 }
 
 // utf16Len is JavaScript's String.prototype.length for s.

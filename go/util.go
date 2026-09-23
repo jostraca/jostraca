@@ -467,6 +467,12 @@ func UCF(s any) string {
 	if str == "" {
 		return ""
 	}
+	if c := str[0]; c < utf8.RuneSelf {
+		if 'a' <= c && c <= 'z' {
+			return string(c-('a'-'A')) + str[1:]
+		}
+		return str
+	}
 	_, n := utf8.DecodeRuneInString(str)
 	return jsToUpper(str[:n]) + str[n:]
 }
