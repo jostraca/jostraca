@@ -588,6 +588,68 @@ func TestCheckGlobalFS(t *testing.T) {
 	}
 }
 
+// CheckResult.Files IS THE RUN REPORT OF A PLAIN GENERATE, path form
+// included: a relative folder reports relative paths, as TypeScript
+// does. The committed file is PROTECTED, so the case also holds the
+// routing: under a relative folder the shadow must still send the run's
+// reads to memory, or the protect marker would suppress its own write.
+//
+// A REAL FILESYSTEM, because a relative folder means nothing without a
+// working directory to be relative to.
+func TestCheckFilesPathsAsGiven(t *testing.T) {
+	for _, tc := range []struct{ spelling, prefix string }{
+		{"rel", "rel/"},
+		{"./rel", "rel/"},
+		{".", ""},
+	} {
+		t.Run(tc.spelling, func(t *testing.T) {
+			tmp := t.TempDir()
+			rel := filepath.Join(tmp, "rel")
+			if err := os.MkdirAll(rel, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(rel, "a.txt"),
+				[]byte("# JOSTRACA_PROTECT\nSTALE\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			at := tmp
+			if tc.spelling == "." {
+				at = rel
+			}
+			prev, err := os.Getwd()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Chdir(at); err != nil {
+				t.Fatal(err)
+			}
+			defer os.Chdir(prev)
+
+			res, err := New().Check(Options{Folder: tc.spelling}, func(j *J) {
+				j.File("a.txt", func(j *J) { j.Content("A\n") })
+				j.Folder("sub", func(j *J) {
+					j.File("b.txt", func(j *J) { j.Content("B\n") })
+				})
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			want := tc.prefix + "a.txt," + tc.prefix + "sub/b.txt"
+			if got := strings.Join(res.Files.Written, ","); got != want {
+				t.Fatalf("files.written: %s, want %s", got, want)
+			}
+			if res.Folder != tc.spelling {
+				t.Fatalf("folder: %q", res.Folder)
+			}
+			if got := driftKinds(res); got != "a.txt:content,sub/b.txt:missing" {
+				t.Fatalf("drift: %s", got)
+			}
+		})
+	}
+}
+
 // treeRoot decodes a component tree and returns its define-phase
 // callback, failing the test rather than returning an error.
 func treeRoot(t *testing.T, src string, opts ...CmpTreeOptions) func(*J) {

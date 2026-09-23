@@ -307,6 +307,40 @@ describe('check', () => {
   })
 
 
+  // `files` IS THE RUN REPORT OF A PLAIN GENERATE, path form included: a
+  // relative folder reports relative paths. The committed file is
+  // PROTECTED, so the case also holds the routing: the run's reads under
+  // a relative folder must go to memory, or the marker would suppress
+  // its own write.
+  test('files-keep-the-folder-as-given', async () => {
+    for (const [spelling, prefix] of [['rel', 'rel/'], ['./rel', 'rel/'], ['.', '']]) {
+      const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'jostraca-check-'))
+      const rel = Path.join(dir, 'rel')
+      const prev = process.cwd()
+      try {
+        Fs.mkdirSync(rel, { recursive: true })
+        Fs.writeFileSync(Path.join(rel, 'a.txt'), '# JOSTRACA_PROTECT\nSTALE\n')
+        process.chdir('.' === spelling ? rel : dir)
+
+        const res = await Jostraca().check({ folder: spelling }, () => {
+          File({ name: 'a.txt' }, () => Content('A\n'))
+          Folder({ name: 'sub' }, () => File({ name: 'b.txt' }, () => Content('B\n')))
+        })
+
+        Assert.deepEqual(res.files.written,
+          [prefix + 'a.txt', prefix + 'sub/b.txt'], spelling)
+        Assert.equal(res.folder, spelling)
+        Assert.deepEqual(res.drift.map((d: any) => d.path + ':' + d.kind),
+          ['a.txt:content', 'sub/b.txt:missing'], spelling)
+      }
+      finally {
+        process.chdir(prev)
+        Fs.rmSync(dir, { recursive: true, force: true })
+      }
+    }
+  })
+
+
   // A MODE IS OUTPUT TOO, where the tree stated one. The bytes match
   // and the bits do not, which no byte comparison can see: a real
   // generate would chmod the file and the gate would have said clean.
