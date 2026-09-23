@@ -9,6 +9,18 @@
     "/tpl/hello.txt": "Hello $$name$$\n"
   },
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/hello.txt",
+      "/out/app/a.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
   "vol": {
     "/tpl/hello.txt": "Hello $$name$$\n",
     "/out/app/hello.txt": "Hello World\n",

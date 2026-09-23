@@ -70,6 +70,10 @@ type parityCase struct {
 	// parity failure like any output difference. See docs/design/PARITY_PLAN.md 2.1.
 	Error bool                   `json:"error"`
 	Vol   map[string]corpusBytes `json:"vol"`
+
+	// Files is the seven files lists the TS run reported, or nil when it
+	// threw.
+	Files *Files `json:"files"`
 }
 
 // scenarioRunner builds the component tree for a named scenario. The
@@ -488,6 +492,38 @@ var scenarioRunners = map[string]func(j *J){
 			j.File("c.txt", func(j *J) { j.Content("C") })
 		})
 	},
+	// One path saved twice in a run.
+	"inject_after_file": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("t.txt", func(j *J) { j.Content(parityMarked) })
+			j.Inject("t.txt", func(j *J) { j.Content("NEW") })
+		})
+	},
+	"inject_twice_same_file": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.Inject("t.txt", func(j *J) { j.Content("ONE") })
+			j.Inject("t.txt", func(j *J) { j.Content("TWO") })
+		})
+	},
+	"copy_then_file_same": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.CopyFiles(CopyFilesProps{From: "/src/single.txt"})
+			j.File("single.txt", func(j *J) { j.Content("F\n") })
+		})
+	},
+	"file_then_copy_same": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("single.txt", func(j *J) { j.Content("F\n") })
+			j.CopyFiles(CopyFilesProps{From: "/src/single.txt"})
+		})
+	},
+	"file_g_h_inject_g": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("g.txt", func(j *J) { j.Content(parityMarked) })
+			j.File("h.txt", func(j *J) { j.Content("H") })
+			j.Inject("g.txt", func(j *J) { j.Content("NEW") })
+		})
+	},
 	"inject_no_markers": func(j *J) {
 		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
 			j.Inject("foo.txt", func(j *J) { j.Content("NEW") })
@@ -540,6 +576,8 @@ var scenarioRunners = map[string]func(j *J){
 		})
 	},
 }
+
+const parityMarked = "a\n#--START--#\nold\n#--END--#\nz\n"
 
 func injectExcludeRunner(exclude any) func(j *J) {
 	return func(j *J) {
@@ -663,7 +701,7 @@ func runParityCase(t *testing.T, path, name string) {
 	opts = append(opts, scenarioOptions(name)...)
 	j := New(opts...)
 
-	_, gerr := j.Generate(Options{}, runner)
+	res, gerr := j.Generate(Options{}, runner)
 
 	if c.Error {
 		if gerr == nil {
@@ -673,7 +711,20 @@ func runParityCase(t *testing.T, path, name string) {
 		t.Fatalf("TS succeeded but Go failed: %v", gerr)
 	}
 
+	if c.Files != nil {
+		assertFiles(t, res.Files, *c.Files)
+	}
 	assertVol(t, mem, c.Vol)
+}
+
+// assertFiles compares the seven files lists with the TS run's, in order.
+func assertFiles(t *testing.T, got, want Files) {
+	t.Helper()
+	g, _ := json.Marshal(got.listed())
+	w, _ := json.Marshal(want.listed())
+	if string(g) != string(w) {
+		t.Errorf("files lists differ\nGo: %s\nTS: %s", g, w)
+	}
 }
 
 func assertVol(t *testing.T, mem *MemFS, want map[string]corpusBytes) {

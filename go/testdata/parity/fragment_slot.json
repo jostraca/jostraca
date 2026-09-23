@@ -5,6 +5,17 @@
     "/templates/page.html": "<html>\n<!-- <[SLOT:head]> -->\n<body>\n<!-- <[SLOT:body]> -->\n</body>\n</html>\n"
   },
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/index.html"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
   "vol": {
     "/templates/page.html": "<html>\n<!-- <[SLOT:head]> -->\n<body>\n<!-- <[SLOT:body]> -->\n</body>\n</html>\n",
     "/out/app/index.html": "<html>\n<title>X</title>\n<body>\n<h1>Hello</h1>\n</body>\n</html>\n",

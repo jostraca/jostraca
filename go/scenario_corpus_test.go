@@ -47,6 +47,7 @@ type scenarioCorpusCase struct {
 	Sources  map[string]corpusBytes   `json:"sources"`
 	Vol      map[string]corpusBytes   `json:"vol"`
 	Error    bool                     `json:"error"`
+	Lists    *Files                   `json:"lists"`
 }
 
 type scenarioCorpusFile struct {
@@ -197,7 +198,7 @@ func TestScenarioCorpusMatchesTS(t *testing.T) {
 		}
 		j := New(opts...)
 
-		_, gerr := j.Generate(Options{
+		res, gerr := j.Generate(Options{
 			Existing: existingFromCorpus(t, c.Existing),
 			// Matches MODEL in ts/tools/scenario-corpus.js. Only the binary
 			// payloads carry a `$$v$$` marker, where substituting it is the
@@ -272,6 +273,15 @@ func TestScenarioCorpusMatchesTS(t *testing.T) {
 			if mismatch <= 12 {
 				t.Errorf("%s: output tree differs\n go=%s\n ts=%s",
 					c.Name, showTree(got), showTree(want))
+			}
+		} else if c.Lists != nil {
+			g, _ := json.Marshal(res.Files.listed())
+			w, _ := json.Marshal(c.Lists.listed())
+			if string(g) != string(w) {
+				mismatch++
+				if mismatch <= 12 {
+					t.Errorf("%s: files lists differ\n go=%s\n ts=%s", c.Name, g, w)
+				}
 			}
 		}
 	}

@@ -10,6 +10,18 @@
     "/tpl/single.txt": "single $$name$$ FOO\n"
   },
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/copied.txt",
+      "/out/app/t.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
   "vol": {
     "/out/app/t.txt": "A\n#--START--#\npre;single World FOO\npost;\n#--END--#\nB\n#--START--#\npre;single World FOO\npost;\n#--END--#\nC\n",
     "/out/app/copied.txt": "single World FOO\n",

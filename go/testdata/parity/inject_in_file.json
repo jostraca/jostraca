@@ -5,6 +5,18 @@
     "/out/app/foo.txt": "HEADER\n#--START--#\nold\n#--END--#\nFOOTER\n"
   },
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/foo.txt",
+      "/out/app/a.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
   "vol": {
     "/out/app/foo.txt": "HEADER\n#--START--#\nnew content\n#--END--#\nFOOTER\n",
     "/out/app/a.txt": "BEFORE\nAFTER\n",

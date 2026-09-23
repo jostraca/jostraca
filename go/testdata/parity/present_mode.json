@@ -11,6 +11,17 @@
     "/out/app/a.txt": "OLD"
   },
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/a.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
   "vol": {
     "/out/app/a.txt": "NEW",
     "/out/.jostraca/generated/app/a.txt": "NEW",

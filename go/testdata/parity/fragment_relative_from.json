@@ -5,6 +5,17 @@
     "/out/frag.txt": "FRAG\n"
   },
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/sub/out.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
   "vol": {
     "/out/frag.txt": "FRAG\n",
     "/out/app/sub/out.txt": "FRAG\n",

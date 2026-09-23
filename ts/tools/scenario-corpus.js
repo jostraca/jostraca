@@ -416,8 +416,9 @@ async function runCase(spec) {
   const jostraca = Jostraca({})
 
   let error = false
+  let res = null
   try {
-    await jostraca.generate(opts, treeFor(spec.files))
+    res = await jostraca.generate(opts, treeFor(spec.files))
   }
   catch (err) {
     error = true
@@ -434,7 +435,7 @@ async function runCase(spec) {
     out[key] = null == v ? '' : enc(fs.readFileSync(k))
   }
 
-  return { out, error }
+  return { out, error, lists: null == res ? null : res.files }
 }
 
 
@@ -511,6 +512,8 @@ function encodeCase(spec, res) {
     names: spec.names,
     vol: res.out,
     error: res.error,
+    // The seven files lists the run reported.
+    lists: res.lists,
   }
 
   // Only the binary block needs per-file seeds/bodies/routes; the text

@@ -16,6 +16,17 @@
     }
   },
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": [
+      "/out/app/mod.wasm"
+    ]
+  },
   "vol": {
     "/src/mod.wasm": {
       "b64": "AAH//ok="

@@ -1,0 +1,26 @@
+{
+  "scenario": "file_g_h_inject_g",
+  "opts": {},
+  "prepopulate": {},
+  "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/g.txt",
+      "/out/app/h.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
+  "vol": {
+    "/out/app/g.txt": "a\n#--START--#\nNEW\n#--END--#\nz\n",
+    "/out/app/h.txt": "H",
+    "/out/.jostraca/generated/app/g.txt": "a\n#--START--#\nNEW\n#--END--#\nz\n",
+    "/out/.jostraca/generated/app/h.txt": "H",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/g.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/g.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/h.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/h.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}

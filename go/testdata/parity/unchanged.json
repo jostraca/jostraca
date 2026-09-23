@@ -6,6 +6,17 @@
     "/out/.jostraca/generated/app/a.txt": "A"
   },
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": [
+      "/out/app/a.txt"
+    ]
+  },
   "vol": {
     "/out/app/a.txt": "A",
     "/out/.jostraca/generated/app/a.txt": "A",

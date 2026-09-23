@@ -5,6 +5,17 @@
     "/out/app/foo.txt": "no markers here\n"
   },
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": [
+      "/out/app/foo.txt"
+    ]
+  },
   "vol": {
     "/out/app/foo.txt": "no markers here\n",
     "/out/.jostraca/generated/app/foo.txt": "no markers here\n",

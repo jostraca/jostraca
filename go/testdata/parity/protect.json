@@ -5,6 +5,15 @@
     "/out/app/cfg.txt": "# JOSTRACA_PROTECT\nuser-edit\n"
   },
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
   "vol": {
     "/out/app/cfg.txt": "# JOSTRACA_PROTECT\nuser-edit\n",
     "/out/.jostraca/generated/app/cfg.txt": "regenerated\n",

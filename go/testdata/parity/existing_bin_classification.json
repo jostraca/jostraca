@@ -25,6 +25,27 @@
     "/out/p/icon.png": "OLD-ICON\n"
   },
   "error": false,
+  "files": {
+    "preserved": [
+      "/out/p/logo.png",
+      "/out/p/mod.wasm",
+      "/out/p/icon.png"
+    ],
+    "written": [
+      "/out/p/logo.png",
+      "/out/p/mod.wasm",
+      "/out/p/icon.png"
+    ],
+    "presented": [],
+    "diffed": [
+      "/out/p/readme.txt"
+    ],
+    "merged": [],
+    "conflicted": [
+      "/out/p/readme.txt"
+    ],
+    "unchanged": []
+  },
   "vol": {
     "/tm/logo.png": "hello $$v$$\n",
     "/tm/mod.wasm": {

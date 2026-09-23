@@ -3,6 +3,7 @@
   "opts": {},
   "prepopulate": {},
   "error": true,
+  "files": null,
   "vol": {
     "/out/app": null
   }

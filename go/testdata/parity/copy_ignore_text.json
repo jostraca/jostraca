@@ -11,6 +11,17 @@
     "/tm/backup.txt~": "BACKUP\n"
   },
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/readme.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
   "vol": {
     "/tm/readme.txt": "hello $$v$$\n",
     "/tm/skip.txt-jostraca-off": "SKIP\n",

@@ -5,6 +5,20 @@
     "/out/app/a/t.txt": "<\n#--START--#\nold\n#--END--#\n>"
   },
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/a/b.txt",
+      "/out/app/x/y/a.txt",
+      "/out/app/a/t.txt",
+      "/out/p/q/c.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
   "vol": {
     "/out/app/a/t.txt": "<\n#--START--#\nNEW\n#--END--#\n>",
     "/out/app/a/b.txt": "B",

@@ -16,6 +16,21 @@
     "/tm/sub/c/d.txt": "// SUB-C-D $$x.y$$ $$x.z$$ TXT\n"
   },
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/sdk/js/foo.js",
+      "/out/sdk/js/bar.txt",
+      "/out/sdk/js/a.txt",
+      "/out/sdk/js/b.txt",
+      "/out/sdk/js/c/d.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
   "vol": {
     "/tm/bar.txt": "// BAR $$x.z$$ TXT\n",
     "/tm/bar.txt~": "// BAR TXT\n",

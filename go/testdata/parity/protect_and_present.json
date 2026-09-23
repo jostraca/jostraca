@@ -12,6 +12,17 @@
     "/out/app/a.txt": "# JOSTRACA_PROTECT\nkeep me\n"
   },
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [],
+    "presented": [
+      "/out/app/a.txt"
+    ],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
   "vol": {
     "/out/app/a.txt": "# JOSTRACA_PROTECT\nkeep me\n",
     "/out/app/a.new.txt": "NEW\n",

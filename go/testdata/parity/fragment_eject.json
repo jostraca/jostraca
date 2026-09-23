@@ -5,6 +5,17 @@
     "/templates/whole.txt": "PRE\nSTART\nKEEP\nEND\nPOST\n"
   },
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/part.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
   "vol": {
     "/templates/whole.txt": "PRE\nSTART\nKEEP\nEND\nPOST\n",
     "/out/app/part.txt": "KEEP\n",

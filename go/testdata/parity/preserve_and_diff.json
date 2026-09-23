@@ -12,6 +12,21 @@
     "/out/app/a.txt": "OLD\n"
   },
   "error": false,
+  "files": {
+    "preserved": [
+      "/out/app/a.txt"
+    ],
+    "written": [],
+    "presented": [],
+    "diffed": [
+      "/out/app/a.txt"
+    ],
+    "merged": [],
+    "conflicted": [
+      "/out/app/a.txt"
+    ],
+    "unchanged": []
+  },
   "vol": {
     "/out/app/a.txt": "<<<<<<< EXISTING: 1969-12-31T23:59:59.999Z/diff\nOLD\n>>>>>>> EXISTING: 1969-12-31T23:59:59.999Z/diff\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/diff\nNEW\n>>>>>>> GENERATED: 2025-01-01T00:00:00.000Z/diff\n",
     "/out/app/a.old.txt": "OLD\n",

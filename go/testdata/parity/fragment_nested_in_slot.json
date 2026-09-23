@@ -6,6 +6,17 @@
     "/f2.txt": "NESTED"
   },
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/out.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
   "vol": {
     "/f.txt": "A<[SLOT:s]>B\n",
     "/f2.txt": "NESTED",

@@ -5,6 +5,18 @@
     "/out/app/t.txt": "<\n#--START--#\nold\n#--END--#\n>"
   },
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/s.txt",
+      "/out/app/t.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
   "vol": {
     "/out/app/t.txt": "<\n#--START--#\niSj\n#--END--#\n>",
     "/out/app/s.txt": "aSbUNMW",

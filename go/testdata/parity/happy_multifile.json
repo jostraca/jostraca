@@ -3,6 +3,19 @@
   "opts": {},
   "prepopulate": {},
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/sdk/js/foo.js",
+      "/out/sdk/js/bar.js",
+      "/out/sdk/go/zed.go"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
   "vol": {
     "/out/sdk/js/foo.js": "// custom-foo\n",
     "/out/sdk/js/bar.js": "// custom-bar\n",

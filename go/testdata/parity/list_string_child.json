@@ -3,6 +3,18 @@
   "opts": {},
   "prepopulate": {},
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/out.txt",
+      "/out/app/two.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
   "vol": {
     "/out/app/out.txt": ">>n=p\n>>n=q\n\n",
     "/out/app/two.txt": "a=p\nb=p\na=q\nb=q\n",

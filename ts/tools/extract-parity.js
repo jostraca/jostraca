@@ -44,8 +44,9 @@ async function snapshot(name, opts, root, prepopulate) {
   // true. See PARITY_PLAN.md 2.1. The volume is still captured, so a partial
   // write before the throw is compared too.
   let error = false
+  let res = null
   try {
-    await j.generate(fullOpts, root)
+    res = await j.generate(fullOpts, root)
   }
   catch (err) {
     error = true
@@ -58,6 +59,9 @@ async function snapshot(name, opts, root, prepopulate) {
       opts: opts || {},
       prepopulate: encMap(prepopulate),
       error,
+      // The seven files lists, so a scenario pins what a run reports as
+      // well as what it writes.
+      files: null == res ? null : res.files,
       vol: result,
     }, null, 2) + '\n',
   )
@@ -1002,6 +1006,41 @@ async function main() {
     })
     Project({ folder: 'p\\q' }, () => File({ name: 'c.txt' }, () => Content('C')))
   }, { '/out/app/a/t.txt': '<\n#--START--#\nold\n#--END--#\n>' })
+
+  // One path saved twice in a run: listed once per files kind, one meta
+  // entry at its first position carrying the last save's values.
+  const marked = 'a\n#--START--#\nold\n#--END--#\nz\n'
+  await snapshot('inject_after_file', {}, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 't.txt' }, () => Content(marked))
+      Inject({ name: 't.txt' }, () => Content('NEW'))
+    })
+  })
+  await snapshot('inject_twice_same_file', {}, () => {
+    Project({ folder: 'app' }, () => {
+      Inject({ name: 't.txt' }, () => Content('ONE'))
+      Inject({ name: 't.txt' }, () => Content('TWO'))
+    })
+  }, { '/out/app/t.txt': marked })
+  await snapshot('copy_then_file_same', {}, () => {
+    Project({ folder: 'app' }, () => {
+      Copy({ from: '/src/single.txt' })
+      File({ name: 'single.txt' }, () => Content('F\n'))
+    })
+  }, { '/src/single.txt': 'S\n' })
+  await snapshot('file_then_copy_same', {}, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'single.txt' }, () => Content('F\n'))
+      Copy({ from: '/src/single.txt' })
+    })
+  }, { '/src/single.txt': 'S\n' })
+  await snapshot('file_g_h_inject_g', {}, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'g.txt' }, () => Content(marked))
+      File({ name: 'h.txt' }, () => Content('H'))
+      Inject({ name: 'g.txt' }, () => Content('NEW'))
+    })
+  })
 
   console.log('done')
 }

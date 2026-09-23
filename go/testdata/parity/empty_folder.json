@@ -3,6 +3,17 @@
   "opts": {},
   "prepopulate": {},
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/full/a.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
   "vol": {
     "/out/app/empty": null,
     "/out/app/full/a.txt": "A\n",

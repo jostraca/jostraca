@@ -5,6 +5,17 @@
     "/out/app/foo.txt": "A\n#--START--#\nold1\n#--END--#\nB\n#--START--#\nold2\n#--END--#\nC\n"
   },
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/foo.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
   "vol": {
     "/out/app/foo.txt": "A\n#--START--#\nNEW\n#--END--#\nB\n#--START--#\nNEW\n#--END--#\nC\n",
     "/out/.jostraca/generated/app/foo.txt": "A\n#--START--#\nNEW\n#--END--#\nB\n#--START--#\nNEW\n#--END--#\nC\n",

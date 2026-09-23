@@ -6,6 +6,17 @@
     "/out/x/b.txt": "OLD"
   },
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/x/a.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
   "vol": {
     "/out/x/a.txt": "NEW",
     "/out/x/b.txt": "OLD",

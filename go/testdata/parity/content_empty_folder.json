@@ -3,6 +3,17 @@
   "opts": {},
   "prepopulate": {},
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/foo.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
   "vol": {
     "/out/foo.txt": "A",
     "/out/.jostraca/generated/foo.txt": "A",

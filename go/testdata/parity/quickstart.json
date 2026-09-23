@@ -3,6 +3,18 @@
   "opts": {},
   "prepopulate": {},
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/my-app/src/index.js",
+      "/out/my-app/package.json"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
   "vol": {
     "/out/my-app/src/index.js": "console.log(\"hello world\")\n",
     "/out/my-app/package.json": "{ \"name\": \"my-app\" }\n",

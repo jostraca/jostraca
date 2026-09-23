@@ -11,6 +11,19 @@
     "/out/app/a.txt": "OLD"
   },
   "error": false,
+  "files": {
+    "preserved": [
+      "/out/app/a.txt"
+    ],
+    "written": [
+      "/out/app/a.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
   "vol": {
     "/out/app/a.txt": "NEW",
     "/out/app/a.old.txt": "OLD",

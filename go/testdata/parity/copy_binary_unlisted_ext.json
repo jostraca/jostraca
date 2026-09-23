@@ -12,6 +12,18 @@
     "/tm/readme.txt": "hello $$v$$\n"
   },
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/p/mod.wasm",
+      "/out/p/readme.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
   "vol": {
     "/tm/mod.wasm": {
       "b64": "AGFzbQEAAAAkJHYkJP/+gA=="

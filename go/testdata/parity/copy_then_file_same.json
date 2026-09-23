@@ -1,0 +1,26 @@
+{
+  "scenario": "copy_then_file_same",
+  "opts": {},
+  "prepopulate": {
+    "/src/single.txt": "S\n"
+  },
+  "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/single.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
+  "vol": {
+    "/src/single.txt": "S\n",
+    "/out/app/single.txt": "F\n",
+    "/out/.jostraca/generated/app/single.txt": "F\n",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/single.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/single.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}

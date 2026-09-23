@@ -10,6 +10,17 @@
   },
   "prepopulate": {},
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/config.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
   "vol": {
     "/out/app/config.txt": "App: Acme v1.0.0\n",
     "/out/.jostraca/generated/app/config.txt": "App: Acme v1.0.0\n",

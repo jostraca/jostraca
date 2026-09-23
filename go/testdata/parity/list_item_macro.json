@@ -3,6 +3,19 @@
   "opts": {},
   "prepopulate": {},
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/out.txt",
+      "/out/app/indent.txt",
+      "/out/app/values.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
   "vol": {
     "/out/app/out.txt": "n=p deep=X bare= dollar= miss= near={itemx}\nn=q deep=Y bare= dollar= miss= near={itemx}\n\n",
     "/out/app/indent.txt": ">>n=p\n>>n=q\n",

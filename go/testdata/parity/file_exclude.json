@@ -9,6 +9,18 @@
     "/out/c.txt": "OLD"
   },
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/a.txt",
+      "/out/b.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
   "vol": {
     "/out/keep.txt": "OLD",
     "/out/sub/keep2.txt": "OLD",
