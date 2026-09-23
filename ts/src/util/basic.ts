@@ -743,17 +743,22 @@ function getCachedEjectRE(s: string): RegExp {
 
 // A number is a count of spaces: floor(n) when n is finite and positive,
 // and no pad otherwise, so a negative count or NaN is not a RangeError
-// from String.repeat. A string is a literal prefix: the replacement is a
-// function, so '$$', '$&' and '$1' in it are ordinary text rather than
-// replacement patterns.
+// from String.repeat. A string is a literal prefix: a pad holding '$'
+// goes through a replacer function, so '$$', '$&' and '$1' in it are
+// ordinary text rather than replacement patterns. Any other pad keeps the
+// faster replacement string.
 function indent(src: string, indent: string | number | undefined) {
   src = null == src ? '' : '' + src
   indent = null == indent ? 2 : indent
   const pad = 'number' === typeof indent ?
     ' '.repeat(Number.isFinite(indent) && 0 < indent ? Math.floor(indent) : 0) :
     '' + indent
-  return src.replace(/(\n|^)(?!$)/g, (_: string, p1: string) => p1 + pad)
+  return pad.includes('$') ?
+    src.replace(INDENT_RE, (_: string, p1: string) => p1 + pad) :
+    src.replace(INDENT_RE, '$1' + pad)
 }
+
+const INDENT_RE = /(\n|^)(?!$)/g
 
 
 // Compare `[key, value]` entries by key. Sorted iteration is what keeps
