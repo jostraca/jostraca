@@ -299,15 +299,6 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
   const gVol = deep({}, gOpts.vol)
   const gMemFs = gUseMemFs ? MemFs(gVol) : undefined
 
-  function get_gMemFs() { return gMemFs ? gMemFs.fs : undefined }
-
-  // `get_gMemFs` is a function declaration, so it is always truthy. Only
-  // install it as the global provider when memfs is actually in use —
-  // otherwise it short-circuits the `sysFs` fallback in `generate` and
-  // resolves to `undefined`, leaving a plain `Jostraca()` with no
-  // filesystem at all.
-  const gGetFs = gOpts.fs || (gUseMemFs ? get_gMemFs : undefined)
-
 
   async function generate(
     opts_in: JostracaOptions | {},
@@ -335,7 +326,12 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
       (null == opts.vol && null != gMemFs ? gMemFs : MemFs(vol)) :
       undefined
 
-    const fs = (opts.fs || (memfs && (() => memfs.fs)) || gGetFs || sysFs)()
+    // The provider, per call: the per-call fs, else the in-memory fs when
+    // mem is on for this call, else the global fs, else node:fs. When mem
+    // is on, `memfs` already IS the global volume unless the call seeds its
+    // own, so an explicit per-call `mem: false` never lands in the hidden
+    // global volume, where neither the disk nor vol() could reach it.
+    const fs = (opts.fs || (memfs && (() => memfs.fs)) || gOpts.fs || sysFs)()
     const now = opts.now || gOpts.now || Date.now
 
     const meta = {

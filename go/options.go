@@ -106,7 +106,8 @@ func WithMem() Option {
 }
 
 // WithoutMem turns OFF an in-memory filesystem inherited from the builder,
-// which is what an explicit `mem: false` does in TS.
+// which is what an explicit `mem: false` does in TS: the call writes to
+// the global FS, else OsFS, and never into the builder's volume.
 func WithoutMem() Option {
 	return func(o *Options) { f := false; o.Mem = &f }
 }
