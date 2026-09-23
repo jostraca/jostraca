@@ -2162,4 +2162,35 @@ describe('components', () => {
     })
   })
 
+
+  // The global exclude window compares WHOLE milliseconds: an output file is
+  // left alone when floor(mtimeMs) > last. A write inside the millisecond
+  // `last` names is not newer than the build. Real filesystem, because the
+  // point is a sub-millisecond mtime. Go: TestExcludeWindowWholeMilliseconds.
+  test('exclude-window-whole-milliseconds', async () => {
+    const T0 = START_TIME
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'jostraca-excl-'))
+    const p = Path.join(dir, 'a.txt')
+    const run = (now: number, src: string, exclude: boolean) =>
+      Jostraca({ now: () => now }).generate(
+        { fs: () => Fs, folder: dir, exclude },
+        cmp(() => Project({ folder: '.' }, () =>
+          File({ name: 'a.txt' }, () => Content(src)))))
+
+    try {
+      for (const [delta, kept] of [[0.5, false], [0.999, false], [1, true]] as const) {
+        await run(T0, 'A\n', false)
+        Fs.writeFileSync(p, 'U\n')
+        Fs.utimesSync(p, (T0 + delta) / 1000, (T0 + delta) / 1000)
+
+        const info = await run(T0 + 100000, 'A2\n', true)
+        expect([delta, info.files.written.length]).equal([delta, kept ? 0 : 1])
+        expect([delta, Fs.readFileSync(p, 'utf8')]).equal([delta, kept ? 'U\n' : 'A2\n'])
+      }
+    }
+    finally {
+      Fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
 })

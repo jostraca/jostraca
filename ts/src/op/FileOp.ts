@@ -101,7 +101,11 @@ const FileOp = {
       if (true === ctx$.opts.exclude) {
         const last = buildctx.bmeta.prev.last
         const stat = fs.statSync(fullpath, { throwIfNoEntry: false })
-        if (stat && 0 < last && stat.mtimeMs > last) {
+        // WHOLE milliseconds, as `last` is. A fractional compare took a
+        // write in the same millisecond as the previous build's stamp --
+        // the build's own last write, routinely -- for a user edit and
+        // skipped it on the next run. Go truncates mtimes to milliseconds.
+        if (stat && 0 < last && Math.floor(stat.mtimeMs) > last) {
           if (!log.exclude.includes(rpath)) {
             log.exclude.push(rpath)
           }
