@@ -406,3 +406,26 @@ func TestTemplateEjectIgnoresExtraMarkers(t *testing.T) {
 		})
 	}
 }
+
+// Mirrors ts/test/jostraca.test.ts macro-own-properties-only: a macro that
+// names an Object.prototype member, or steps through a null, is an
+// unresolved path and is left in place.
+func TestMacroOwnPropertiesOnly(t *testing.T) {
+	mem := NewMemFS()
+	_, err := New(WithFS(mem), WithFolder("/out"), WithNow(func() int64 { return 1735689600000 })).
+		Generate(Options{Model: map[string]any{"a": map[string]any{"n": nil}}}, func(j *J) {
+			j.Project(ProjectProps{Folder: "."}, func(j *J) {
+				j.File("a.txt", func(j *J) {
+					j.Content("A$$toString$$B\n")
+					j.Content("C$$hasOwnProperty$$D$$a.n.x$$E\n")
+				})
+			})
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, _ := mem.ReadFile("/out/a.txt")
+	if want := "A$$toString$$B\nC$$hasOwnProperty$$D$$a.n.x$$E\n"; string(got) != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}

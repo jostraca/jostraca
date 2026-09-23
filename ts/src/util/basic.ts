@@ -131,6 +131,18 @@ const GETX_TOKEN_RE = /\s*("(\\.|[^"\\])*"|[\w\d_]+|\s+|[^\w\d_]+)\s*/g
 // E: operator
 
 
+// One step of a path: an OWN property of an object, an array or a string,
+// and a miss for anything else. So `length` and canonical indices resolve
+// on arrays and strings, while inherited members (`toString`,
+// `constructor`, `__proto__`, a number's `toFixed`) do not, and stepping
+// from null or a scalar yields undefined instead of throwing.
+function step(node: any, key: any): any {
+  return null != node &&
+    ('object' === typeof node || 'string' === typeof node) &&
+    Object.prototype.hasOwnProperty.call(node, key) ? node[key] : undefined
+}
+
+
 function getx(root: any, path: string | string[]): any {
   if (null == root || 'object' !== typeof root) {
     return undefined
@@ -169,7 +181,7 @@ function getx(root: any, path: string | string[]): any {
     let t1 = tokens[i + 1]
 
     if (t1 && t1.match(/^(<=?|>=?|==?|!=|~)$/)) {
-      let val = node[t0]
+      let val = step(node, t0)
       let arg: any = tokens[i + 2]
 
       const argtype = typeof arg
@@ -213,7 +225,7 @@ function getx(root: any, path: string | string[]): any {
     else if (':' === t1) {
       if ('=' !== tokens[i + 2]) {
         out = !ancestry ? node : out
-        node = node[t0]
+        node = step(node, t0)
 
         if (undefined === node) {
           out = undefined
@@ -272,7 +284,7 @@ function getx(root: any, path: string | string[]): any {
       i += ftokens.length
     }
     else if (null != t1) {
-      node = node[t0]
+      node = step(node, t0)
 
       if (ancestry) {
         ancestry = false
@@ -281,7 +293,7 @@ function getx(root: any, path: string | string[]): any {
       }
     }
     else {
-      node = node[t0]
+      node = step(node, t0)
       out = (ancestry && undefined !== node) ? out : node
     }
 
@@ -295,7 +307,7 @@ function get(root: any, path: string | string[]): any {
   path = 'string' === typeof path ? path.split('.') : path
   let node = root
   for (let i = 0; i < path.length && null != node; i++) {
-    node = node[path[i]]
+    node = step(node, path[i])
   }
   return node
 }

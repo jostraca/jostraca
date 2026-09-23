@@ -39,3 +39,14 @@ getx-array-filter	getx	[{"a":[{"b":1},{"b":2}]},"a?b=2"]	[{"b":2}]
 getx-ne-filter	getx	[{"a":1},"a!=2"]	{"a":1}	
 getx-gt-filter	getx	[{"a":3},"a>2"]	{"a":3}	
 getx-lt-filter	getx	[{"a":1},"a<2"]	{"a":1}	
+getx-proto-constructor	getx	[{},"constructor"]	null	
+getx-proto-tostring	getx	[{},"toString"]	null	
+getx-proto-dunder	getx	[{},"__proto__"]	null	
+get-proto-constructor	get	[{},"constructor"]	null	
+getx-number-method	getx	[{"a":5},"a.toFixed"]	null	
+getx-own-dunder-key	getx	[{"__proto__":1},"__proto__"]	1	
+getx-null-intermediate	getx	[{"a":{"n":null}},"a.n.x"]	null	
+getx-null-top-intermediate	getx	[{"nul":null},"nul.x"]	null	
+getx-null-array-element	getx	[{"a":[null]},"a.0.b"]	null	
+getx-ancestry-through-null	getx	[{"a":{"n":null,"b":1}},"a:n:c"]	null	
+getx-step-then-ancestry-null	getx	[{"a":{"n":null,"b":1}},"a.n:c"]	null	

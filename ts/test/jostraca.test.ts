@@ -611,6 +611,28 @@ describe('jostraca', () => {
   })
 
 
+  // A model path resolves through OWN properties only, so a macro naming
+  // an Object.prototype member is an unresolved path and stays in place;
+  // it used to render the member ('A[object Undefined]B') or throw. And a
+  // path through a null intermediate is a miss rather than a TypeError
+  // that aborted the whole generate.
+  test('macro-own-properties-only', async () => {
+    const { fs, vol } = memfs({})
+    await Jostraca({ now: () => START_TIME }).generate(
+      { fs: () => fs, folder: '/out', model: { a: { n: null } } },
+      cmp(() => {
+        Project({ folder: '.' }, () => {
+          File({ name: 'a.txt' }, () => {
+            Content('A$$toString$$B\n')
+            Content('C$$hasOwnProperty$$D$$a.n.x$$E\n')
+          })
+        })
+      }))
+    expect((vol.toJSON() as any)['/out/a.txt'])
+      .equal('A$$toString$$B\nC$$hasOwnProperty$$D$$a.n.x$$E\n')
+  })
+
+
   test('fragment-basic', async () => {
     let nowI = 0
     const now = () => START_TIME + (++nowI * (60 * 1000))
