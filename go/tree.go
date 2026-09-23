@@ -95,7 +95,9 @@ var treeCmpDeprecated = map[string]string{
 // treeClosedCmp is the components that REFUSE an unknown prop, and the
 // props each admits. Two of the ten: their TypeScript twins validate a
 // closed shape (FragmentShape, CopyFilesShape) and the other eight read
-// the props they know and drop the rest.
+// the props they know and drop the rest. Both ports check these sets
+// when the tree is read; TestCmpTreeClosedSetsMatchTypeScript holds this
+// one to the spec TypeScript builds its shapes from.
 //
 // THE PORTS HAVE TO AGREE ABOUT THIS, because the data path is the
 // contract a generator in another language writes against, and a tree

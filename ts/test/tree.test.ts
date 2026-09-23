@@ -765,4 +765,48 @@ describe('tree', () => {
 
   })
 
+
+
+  // The closed prop set of the built-in Fragment and CopyFiles is
+  // checked when the tree is READ, like every other refusal here, so a
+  // malformed node is refused by cmpTree() itself even where it would
+  // never run. Its shape used to run only on invocation, so a bad node
+  // under an empty ListItems generated. Go twin:
+  // TestCmpTreeClosedSetsMatchTypeScript, plus the rows in
+  // test/spec/tree.tsv.
+  describe('tree-closed-props', () => {
+
+    test('cmptree-itself-refuses-a-closed-prop', () => {
+      Assert.throws(() => cmpTree({
+        cmp: 'File', props: { name: 'a.txt' },
+        children: [{ cmp: 'Fragment', props: { from: 'frag.txt', bogus: 1 } }],
+      }), { message: 'cmpTree: Fragment: prop not allowed: bogus (at [0]/File[0])' })
+    })
+
+    test('an-uninvoked-node-is-refused', () => {
+      Assert.throws(() => cmpTree({
+        cmp: 'File', props: { name: 'a.txt' },
+        children: [{
+          cmp: 'ListItems', props: { item: [] },
+          children: [{ cmp: 'Fragment', props: { from: 'f.txt', bogus: 1 } }],
+        }],
+      }), /cmpTree: Fragment: prop not allowed: bogus/)
+
+      Assert.throws(() => cmpTree({
+        cmp: 'Content',
+        children: [{ cmp: 'CopyFiles', props: { from: 'x', tag: 1 } }],
+      }), /cmpTree: CopyFiles: prop not allowed: tag/)
+    })
+
+    test('an-override-lifts-the-check', async () => {
+      const Custom = cmp(function Custom(props: any) {
+        File({ name: 'x.txt' }, () => Content('X ' + props.bogus))
+      })
+      const { vol } = await gen({ cmp: 'Fragment', props: { bogus: 1 } },
+        { cmp: { Fragment: Custom } })
+      Assert.equal(vol['/top/x.txt'], 'X 1')
+    })
+
+  })
+
 })

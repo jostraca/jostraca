@@ -20,3 +20,9 @@ tree-props-not-object	cmptree	[{"cmp":"File","props":[]}]	-	cmpTree: props is no
 tree-children-not-array	cmptree	[{"cmp":"File","props":{"name":"a"},"children":{}}]	-	cmpTree: children is not an array (at [0])
 tree-folder-absolute	cmptree	[{"cmp":"Project","props":{"folder":"/abs"}}]	-	cmpTree: folder must not be absolute: /abs (at [0])
 tree-folder-not-string	cmptree	[{"cmp":"Project","props":{"folder":5}}]	-	cmpTree: folder is not a string (at [0])
+tree-closed-props-bindings-admitted	cmptree	[{"cmp":"File","props":{"name":"a.txt"},"children":[{"cmp":"Fragment","props":{"from":"f.txt","indent":2,"replace":{},"eject":["a","b"],"item":1}},{"cmp":"CopyFiles","props":{"from":"x","to":"y","replace":{},"exclude":true,"item":1,"indent":2}}]}]	"ok"	
+tree-closed-props	cmptree	[{"cmp":"File","props":{"name":"a.txt"},"children":[{"cmp":"Fragment","props":{"from":"frag.txt","bogus":1}}]}]	-	cmpTree: Fragment: prop not allowed: bogus (at [0]/File[0])
+tree-closed-props-sorted	cmptree	[{"cmp":"CopyFiles","props":{"from":"x","zed":1,"alpha":2}}]	-	cmpTree: CopyFiles: prop not allowed: alpha, zed (at [0])
+tree-closed-props-alias	cmptree	[{"cmp":"Copy","props":{"from":"x","tag":1}}]	-	cmpTree: CopyFiles: prop not allowed: tag (at [0])
+tree-closed-props-under-empty-list	cmptree	[{"cmp":"File","props":{"name":"a.txt"},"children":[{"cmp":"ListItems","props":{"item":[]},"children":[{"cmp":"Fragment","props":{"from":"f.txt","bogus":1}}]}]}]	-	cmpTree: Fragment: prop not allowed: bogus (at [0]/File[0]/ListItems[0])
+tree-closed-props-under-content	cmptree	[{"cmp":"Content","children":[{"cmp":"CopyFiles","props":{"from":"x","tag":1}}]}]	-	cmpTree: CopyFiles: prop not allowed: tag (at [0]/Content[0])

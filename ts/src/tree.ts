@@ -100,10 +100,10 @@ import type { Component } from './types'
 import { Content } from './cmp/Content'
 import { Line } from './cmp/Line'
 import { Slot } from './cmp/Slot'
-import { CopyFiles } from './cmp/CopyFiles'
+import { CopyFiles, COPYFILES_PROPS } from './cmp/CopyFiles'
 import { File } from './cmp/File'
 import { Inject } from './cmp/Inject'
-import { Fragment } from './cmp/Fragment'
+import { Fragment, FRAGMENT_PROPS } from './cmp/Fragment'
 import { Folder } from './cmp/Folder'
 import { Project } from './cmp/Project'
 import { ListItems } from './cmp/ListItems'
@@ -178,6 +178,20 @@ const TREE_CMP_DEPRECATED: Record<string, Component> = {
 // option: a component that would refuse `raw` fails there rather than
 // in a consumer's pipeline.
 const TREE_RAW_CMP: Component[] = [Content, Line]
+
+
+// THE COMPONENTS WHOSE PROP SET IS CLOSED, by identity, with the props a
+// node may state: the two built-ins that validate a closed shape. Checked
+// over each node's OWN props when the tree is read, like every other
+// refusal here, so a malformed node is refused even when it would never
+// run -- under an empty ListItems, or as a child of Content. The shapes
+// still validate at call time. By identity, so the deprecated `Copy`
+// alias is covered and a caller's override, which replaces the component
+// and the shape with it, is not.
+const TREE_CLOSED_CMP = new Map<Component, string[]>([
+  [Fragment, FRAGMENT_PROPS],
+  [CopyFiles, COPYFILES_PROPS],
+])
 
 
 const ON = 'cmpTree:'
@@ -284,6 +298,14 @@ function nodeThunk(
   }
 
   validFolder(props, path)
+
+  const closed = TREE_CLOSED_CMP.get(component)
+  if (null != closed && null != props) {
+    const bad = Object.keys(props).filter((k) => !closed.includes(k)).sort()
+    if (0 < bad.length) {
+      throw nodeErr(component.name + ': prop not allowed: ' + bad.join(', '), path)
+    }
+  }
 
   const kids = node.children
   if (null != kids && !Array.isArray(kids)) {
@@ -394,5 +416,6 @@ export {
   TREE_CMP,
   TREE_CMP_DEPRECATED,
   TREE_RAW_CMP,
+  TREE_CLOSED_CMP,
   cmpTree,
 }

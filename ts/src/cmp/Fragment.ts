@@ -63,14 +63,22 @@ const From = (from: any, _: any, s: any) => s.ctx.fs().statSync(from)
 // than becoming the one declaration that means nothing. A tree that
 // passes it is refused by name from here on, which is the diagnostic it
 // should have had all along.
-const FragmentShape = Shape({
+const FragmentSpec = {
   ctx$: Object,
   from: Check(From).String() as unknown as string,
   indent: Optional(One(Empty(String), Number)),
   replace: {} as any,
   eject: Optional([One(String, RegExp)]) as unknown as any[],
   item: Skip() as any,
-}, { name: 'Fragment' })
+}
+
+// The props a data node may state: the closed set less the context the
+// define phase adds. `cmpTree` checks a node against it when it reads
+// the tree, so a malformed node is refused even if it never runs.
+const FRAGMENT_PROPS: string[] =
+  Object.keys(FragmentSpec).filter((k) => 'ctx$' !== k)
+
+const FragmentShape = Shape(FragmentSpec, { name: 'Fragment' })
 
 
 // Discard a replace function's return value when the call emitted
@@ -224,7 +232,8 @@ const Fragment = cmp<FragmentProps>(function Fragment(props, children) {
 
 
 export {
-  Fragment
+  Fragment,
+  FRAGMENT_PROPS,
 }
 
 export type {
