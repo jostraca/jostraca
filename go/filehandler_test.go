@@ -181,3 +181,145 @@ func TestBuildMetaPersisted(t *testing.T) {
 		t.Error(".gitignore not written")
 	}
 }
+
+// files.preserved and files.presented name the TARGET, the file that got
+// the .old backup or the .new sidecar, never the sidecar itself. TS pins
+// this in jostraca.test.ts; Go listed the sidecar path.
+func TestSidecarListsNameTheTarget(t *testing.T) {
+	yes, no := true, false
+	src := map[string][]byte{
+		"/src/img.png": {0x89, 0x50, 0x4e, 0x47, 0x00, 0x01, 0x02, 0xff},
+	}
+	cases := []struct {
+		name     string
+		existing Existing
+		dryrun   bool
+		seed     map[string]string
+		root     func(j *J)
+		want     func(f Files) []string
+		expected []string
+	}{
+		{
+			name:     "preserve-text-and-dotfile",
+			existing: Existing{Txt: ExistingTxt{Preserve: &yes}},
+			seed:     map[string]string{"/out/a.txt": "USER\n", "/out/.env": "EU\n"},
+			root: func(j *J) {
+				j.Project(ProjectProps{}, func(j *J) {
+					j.File("a.txt", func(j *J) { j.Content("A2\n") })
+					j.File(".env", func(j *J) { j.Content("E2\n") })
+				})
+			},
+			want:     func(f Files) []string { return f.Preserved },
+			expected: []string{"/out/a.txt", "/out/.env"},
+		},
+		{
+			name:     "present-text",
+			existing: Existing{Txt: ExistingTxt{Write: &no, Present: &yes}},
+			seed:     map[string]string{"/out/a.txt": "USER\n"},
+			root: func(j *J) {
+				j.Project(ProjectProps{}, func(j *J) {
+					j.File("a.txt", func(j *J) { j.Content("A2\n") })
+				})
+			},
+			want:     func(f Files) []string { return f.Presented },
+			expected: []string{"/out/a.txt"},
+		},
+		{
+			name:     "preserve-binary-file",
+			existing: Existing{Bin: ExistingBin{Preserve: &yes}},
+			seed:     map[string]string{"/out/a.png": "PU"},
+			root: func(j *J) {
+				j.Project(ProjectProps{}, func(j *J) {
+					j.File("a.png", func(j *J) { j.Content("P2") })
+				})
+			},
+			want:     func(f Files) []string { return f.Preserved },
+			expected: []string{"/out/a.png"},
+		},
+		{
+			name:     "present-binary-file",
+			existing: Existing{Bin: ExistingBin{Write: &no, Present: &yes}},
+			seed:     map[string]string{"/out/a.png": "PU"},
+			root: func(j *J) {
+				j.Project(ProjectProps{}, func(j *J) {
+					j.File("a.png", func(j *J) { j.Content("P2") })
+				})
+			},
+			want:     func(f Files) []string { return f.Presented },
+			expected: []string{"/out/a.png"},
+		},
+		{
+			name:     "preserve-binary-copy",
+			existing: Existing{Bin: ExistingBin{Preserve: &yes}},
+			seed:     map[string]string{"/out/img.png": "\t\t\x00"},
+			root: func(j *J) {
+				j.Project(ProjectProps{}, func(j *J) {
+					j.Copy(CopyProps{From: "/src/img.png", To: "img.png"})
+				})
+			},
+			want:     func(f Files) []string { return f.Preserved },
+			expected: []string{"/out/img.png"},
+		},
+		{
+			name:     "present-binary-copy",
+			existing: Existing{Bin: ExistingBin{Write: &no, Present: &yes}},
+			seed:     map[string]string{"/out/img.png": "\t\t\x00"},
+			root: func(j *J) {
+				j.Project(ProjectProps{}, func(j *J) {
+					j.Copy(CopyProps{From: "/src/img.png", To: "img.png"})
+				})
+			},
+			want:     func(f Files) []string { return f.Presented },
+			expected: []string{"/out/img.png"},
+		},
+		{
+			name:     "preserve-dryrun",
+			existing: Existing{Txt: ExistingTxt{Preserve: &yes}},
+			dryrun:   true,
+			seed:     map[string]string{"/out/a.txt": "USER\n"},
+			root: func(j *J) {
+				j.Project(ProjectProps{}, func(j *J) {
+					j.File("a.txt", func(j *J) { j.Content("A2\n") })
+				})
+			},
+			want:     func(f Files) []string { return f.Preserved },
+			expected: []string{"/out/a.txt"},
+		},
+		{
+			name:     "present-dryrun",
+			existing: Existing{Txt: ExistingTxt{Write: &no, Present: &yes}},
+			dryrun:   true,
+			seed:     map[string]string{"/out/a.txt": "USER\n"},
+			root: func(j *J) {
+				j.Project(ProjectProps{}, func(j *J) {
+					j.File("a.txt", func(j *J) { j.Content("A2\n") })
+				})
+			},
+			want:     func(f Files) []string { return f.Presented },
+			expected: []string{"/out/a.txt"},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			mem := NewMemFS()
+			for k, v := range src {
+				_ = mem.WriteFile(k, v)
+			}
+			for k, v := range c.seed {
+				_ = mem.WriteFile(k, []byte(v))
+			}
+			j := New(WithFS(mem), WithFolder("/out"))
+			res, err := j.Generate(Options{
+				Existing: c.existing,
+				Control:  Control{Dryrun: c.dryrun},
+			}, c.root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := c.want(res.Files)
+			if strings.Join(got, "|") != strings.Join(c.expected, "|") {
+				t.Errorf("got %v, want %v", got, c.expected)
+			}
+		})
+	}
+}

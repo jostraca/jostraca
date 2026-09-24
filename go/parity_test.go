@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -69,6 +70,13 @@ type parityCase struct {
 	// parity failure like any output difference. See docs/design/PARITY_PLAN.md 2.1.
 	Error bool                   `json:"error"`
 	Vol   map[string]corpusBytes `json:"vol"`
+
+	// Files is the seven files lists the TS run reported, or nil when it
+	// threw.
+	Files *Files `json:"files"`
+
+	// Audit is the TS run's audit trail, each err reduced to its message.
+	Audit []any `json:"audit"`
 }
 
 // scenarioRunner builds the component tree for a named scenario. The
@@ -402,6 +410,123 @@ var scenarioRunners = map[string]func(j *J){
 			j.Inject("foo.txt", func(j *J) { j.Content("NEW") })
 		})
 	},
+	// Inject exclude is JavaScript truthiness: any truthy value skips it.
+	"inject_exclude_string":     injectExcludeRunner("other"),
+	"inject_exclude_emptyarray": injectExcludeRunner([]any{}),
+	"inject_exclude_list":       injectExcludeRunner([]any{"other"}),
+	"inject_exclude_object":     injectExcludeRunner(map[string]any{}),
+	// An Inject's children build the region as they would build a File.
+	"inject_fragment_child": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.Inject("t.txt", func(j *J) {
+				j.Content("c1;")
+				j.Fragment(FragmentProps{From: "/tpl/model.txt"}, nil)
+				j.Content("c2;")
+			})
+		})
+	},
+	"inject_copy_child": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.Inject("t.txt", func(j *J) {
+				j.Content("pre;")
+				j.CopyFiles(CopyFilesProps{From: "/tpl/single.txt", To: "copied.txt"})
+				j.Content("post;")
+			})
+		})
+	},
+	// A Slot outside a Fragment is transparent.
+	"slot_outside_fragment": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("s.txt", func(j *J) {
+				j.Content("a")
+				j.SlotP(SlotProps{Name: "x"}, func(j *J) { j.Content("S") })
+				j.Content("b")
+				j.SlotP(SlotProps{}, func(j *J) { j.Content("U") })
+				j.SlotP(SlotProps{Name: "n"}, func(j *J) {
+					j.Content("N")
+					j.SlotP(SlotProps{Name: "m"}, func(j *J) { j.Content("M") })
+				})
+				j.Cmp("Wrap", func(j *J) {
+					j.SlotP(SlotProps{Name: "w"}, func(j *J) { j.Content("W") })
+				})
+			})
+			j.Inject("t.txt", func(j *J) {
+				j.Content("i")
+				j.SlotP(SlotProps{Name: "x"}, func(j *J) { j.Content("S") })
+				j.Content("j")
+			})
+		})
+	},
+	// A File exclude names the component path, never the Project folder.
+	"file_exclude": func(j *J) {
+		j.Project(ProjectProps{Name: "pn"}, func(j *J) {
+			j.FileP(FileProps{Name: "keep.txt", Exclude: "pn/keep.txt"},
+				func(j *J) { j.Content("NEW") })
+			j.Folder("sub", func(j *J) {
+				j.FileP(FileProps{Name: "keep2.txt", Exclude: []any{"pn/sub/keep2.txt"}},
+					func(j *J) { j.Content("NEW") })
+			})
+			j.FileP(FileProps{Name: "a.txt", Exclude: "a.txt"},
+				func(j *J) { j.Content("NEW") })
+			j.FileP(FileProps{Name: "b.txt", Exclude: []any{regexp.MustCompile("b")}},
+				func(j *J) { j.Content("NEW") })
+			j.FileP(FileProps{Name: "c.txt", Exclude: true},
+				func(j *J) { j.Content("NEW") })
+		})
+	},
+	"file_exclude_project_folder": func(j *J) {
+		j.Project(ProjectProps{Folder: "x"}, func(j *J) {
+			j.FileP(FileProps{Name: "a.txt", Exclude: "x/a.txt"},
+				func(j *J) { j.Content("NEW") })
+			j.FileP(FileProps{Name: "b.txt", Exclude: "b.txt"},
+				func(j *J) { j.Content("NEW") })
+		})
+	},
+	// A backslash in an output-path component is a separator.
+	"backslash_names": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("a\\b.txt", func(j *J) { j.Content("B") })
+			j.Folder("x\\y", func(j *J) {
+				j.File("a.txt", func(j *J) { j.Content("A") })
+			})
+			j.Inject("a\\t.txt", func(j *J) { j.Content("NEW") })
+		})
+		j.Project(ProjectProps{Folder: "p\\q"}, func(j *J) {
+			j.File("c.txt", func(j *J) { j.Content("C") })
+		})
+	},
+	// One path saved twice in a run.
+	"inject_after_file": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("t.txt", func(j *J) { j.Content(parityMarked) })
+			j.Inject("t.txt", func(j *J) { j.Content("NEW") })
+		})
+	},
+	"inject_twice_same_file": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.Inject("t.txt", func(j *J) { j.Content("ONE") })
+			j.Inject("t.txt", func(j *J) { j.Content("TWO") })
+		})
+	},
+	"copy_then_file_same": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.CopyFiles(CopyFilesProps{From: "/src/single.txt"})
+			j.File("single.txt", func(j *J) { j.Content("F\n") })
+		})
+	},
+	"file_then_copy_same": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("single.txt", func(j *J) { j.Content("F\n") })
+			j.CopyFiles(CopyFilesProps{From: "/src/single.txt"})
+		})
+	},
+	"file_g_h_inject_g": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("g.txt", func(j *J) { j.Content(parityMarked) })
+			j.File("h.txt", func(j *J) { j.Content("H") })
+			j.Inject("g.txt", func(j *J) { j.Content("NEW") })
+		})
+	},
 	"inject_no_markers": func(j *J) {
 		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
 			j.Inject("foo.txt", func(j *J) { j.Content("NEW") })
@@ -455,6 +580,17 @@ var scenarioRunners = map[string]func(j *J){
 	},
 }
 
+const parityMarked = "a\n#--START--#\nold\n#--END--#\nz\n"
+
+func injectExcludeRunner(exclude any) func(j *J) {
+	return func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.InjectP(InjectProps{Name: "t.txt", Exclude: exclude},
+				func(j *J) { j.Content("NEW") })
+		})
+	}
+}
+
 // scenarioOptions returns per-scenario Options additions; merged on top
 // of the WithFS+WithFolder+WithNow base.
 func scenarioOptions(scenario string) []Option {
@@ -463,7 +599,7 @@ func scenarioOptions(scenario string) []Option {
 		return []Option{WithModel(map[string]any{
 			"app": map[string]any{"name": "Acme", "version": "1.0.0"},
 		})}
-	case "copy_file", "copy_in_file":
+	case "copy_file", "copy_in_file", "inject_fragment_child", "inject_copy_child":
 		return []Option{WithModel(map[string]any{"name": "World"})}
 	case "preserve_mode", "dotfile_preserve":
 		t := true
@@ -568,7 +704,7 @@ func runParityCase(t *testing.T, path, name string) {
 	opts = append(opts, scenarioOptions(name)...)
 	j := New(opts...)
 
-	_, gerr := j.Generate(Options{}, runner)
+	res, gerr := j.Generate(Options{}, runner)
 
 	if c.Error {
 		if gerr == nil {
@@ -578,7 +714,74 @@ func runParityCase(t *testing.T, path, name string) {
 		t.Fatalf("TS succeeded but Go failed: %v", gerr)
 	}
 
+	if c.Files != nil {
+		assertFiles(t, res.Files, *c.Files)
+	}
+	if c.Audit != nil {
+		assertAudit(t, res.Audit(), c.Audit)
+	}
 	assertVol(t, mem, c.Vol)
+}
+
+// auditJSON renders a Go audit trail in the recorded [tag, data] form. An
+// err compares by presence only: its text is the host's.
+func auditJSON(t *testing.T, a Audit) []any {
+	t.Helper()
+	out := make([]any, 0, len(a))
+	for _, e := range a {
+		data := map[string]any{}
+		for k, v := range e.Data {
+			if k == "err" {
+				v = "<err>"
+			}
+			data[k] = v
+		}
+		out = append(out, []any{e.Tag, data})
+	}
+	b, err := json.Marshal(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var norm []any
+	_ = json.Unmarshal(b, &norm)
+	return norm
+}
+
+// auditPair renders a Go audit trail and a recorded TS one comparably,
+// entry by entry and in order, each err compared by presence.
+func auditPair(t *testing.T, got Audit, want []any) (string, string) {
+	t.Helper()
+	for _, e := range want {
+		pair, _ := e.([]any)
+		if len(pair) == 2 {
+			if data, ok := pair[1].(map[string]any); ok {
+				if _, has := data["err"]; has {
+					data["err"] = "<err>"
+				}
+			}
+		}
+	}
+	gb, _ := json.Marshal(auditJSON(t, got))
+	wb, _ := json.Marshal(want)
+	return string(gb), string(wb)
+}
+
+// assertAudit compares a Go audit trail with the recorded TS one.
+func assertAudit(t *testing.T, got Audit, want []any) {
+	t.Helper()
+	if g, w := auditPair(t, got, want); g != w {
+		t.Errorf("audit differs\nGo: %s\nTS: %s", g, w)
+	}
+}
+
+// assertFiles compares the seven files lists with the TS run's, in order.
+func assertFiles(t *testing.T, got, want Files) {
+	t.Helper()
+	g, _ := json.Marshal(got.listed())
+	w, _ := json.Marshal(want.listed())
+	if string(g) != string(w) {
+		t.Errorf("files lists differ\nGo: %s\nTS: %s", g, w)
+	}
 }
 
 func assertVol(t *testing.T, mem *MemFS, want map[string]corpusBytes) {
@@ -644,6 +847,11 @@ var knownParityGaps = map[string]string{}
 // runner so the parity scenario list shows only single-Generate cases.
 var phaseShapedCorpora = map[string]struct{}{
 	"merge_retain":        {}, // covered by TestMergeRetainSequence
+	"merge_marker_clean":  {}, // covered by TestParityRuns
+	"audit_basic":         {}, // covered by TestParityRuns
+	"audit_rerun":         {}, // covered by TestParityRuns
+	"audit_nested":        {}, // covered by TestParityRuns
+	"merge_unresolved":    {}, // covered by TestParityRuns
 	"diff_corpus":         {}, // covered by TestDiffCorpusMatchesTS
 	"template_corpus":     {}, // covered by TestTemplateCorpusMatchesTS
 	"scenario_corpus":     {}, // covered by TestScenarioCorpusMatchesTS
@@ -761,4 +969,133 @@ func mergeRunnerNoEdit(t *testing.T, bodyA, bodyB, srcTpl string) *MemFS {
 	mergeTrue := true
 	gen(bodyB, Options{Existing: Existing{Txt: ExistingTxt{Merge: &mergeTrue}}})
 	return mem
+}
+
+// parityRuns mirrors the multi-generate scenarios recorded by snapshotRuns
+// in tools/extract-parity.js. Each step is an edit (a func over the volume)
+// or a generate (options and a root).
+type parityStep struct {
+	edit func(*MemFS)
+	opts Options
+	root func(*J)
+}
+
+func parityOne(name, body string) func(*J) {
+	return func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File(name, func(j *J) { j.Content(body) })
+		})
+	}
+}
+
+func parityAuditTree(a, b string) func(*J) {
+	return func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("a.txt", func(j *J) { j.Content(a) })
+			j.Folder("sub", func(j *J) {
+				j.File("b.txt", func(j *J) { j.Content(b) })
+			})
+		})
+	}
+}
+
+var parityRuns = map[string][]parityStep{
+	"audit_basic": {{root: parityAuditTree("A\n", "B\n")}},
+	"audit_rerun": func() []parityStep {
+		yes, no := true, false
+		return []parityStep{
+			{root: parityAuditTree("L1\nL2\nL3\n", "B\n")},
+			{edit: func(m *MemFS) { _ = m.WriteFile("/out/app/a.txt", []byte("L1\nU\nL3\n")) }},
+			{opts: Options{Existing: Existing{Txt: ExistingTxt{Merge: &yes, Preserve: &yes}}},
+				root: parityAuditTree("L1\nG\nL3\n", "B\n")},
+			{opts: Options{Existing: Existing{Txt: ExistingTxt{Write: &no, Present: &yes}}},
+				root: parityAuditTree("L1\nG2\nL3\n", "B\n")},
+			{opts: Options{Existing: Existing{Txt: ExistingTxt{Diff: &yes}}},
+				root: parityAuditTree("L1\nG3\nL3\n", "B\n")},
+		}
+	}(),
+	"audit_nested": {
+		{edit: func(m *MemFS) {
+			_ = m.WriteFile("/src/tree/t.txt", []byte("T $$v$$\n"))
+			_ = m.WriteFile("/src/tree/deep/i.png", []byte{0x89, 0x50, 0x00, 0xff})
+			_ = m.WriteFile("/src/tree/deep/m.bin", []byte{0x00, 0x01, 0x02})
+			_ = m.WriteFile("/out/app/j.txt", []byte("<\n#--START--#\nold\n#--END--#\n>"))
+		}},
+		{opts: Options{Model: map[string]any{"v": "V"}}, root: func(j *J) {
+			j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+				j.Folder("x", func(j *J) {
+					j.Folder("y", func(j *J) {
+						j.File("n.txt", func(j *J) { j.Content("N") })
+					})
+				})
+				j.CopyFiles(CopyFilesProps{From: "/src/tree", To: "c"})
+				j.CopyFiles(CopyFilesProps{From: "/src/tree/t.txt", To: "one.txt"})
+				j.Inject("j.txt", func(j *J) { j.Content("J") })
+			})
+		}},
+	},
+	"merge_marker_clean": func() []parityStep {
+		merge := true
+		opts := Options{Existing: Existing{Txt: ExistingTxt{Merge: &merge}}}
+		doc := func(v string) func(*J) {
+			return parityOne("doc.md", "How a conflict looks:\n>>>>>>> EXISTING: "+
+				"2020-01-01T00:00:00.000Z/merge\n"+v+"\n")
+		}
+		return []parityStep{{opts: opts, root: doc("v1")},
+			{opts: opts, root: doc("v2")}, {opts: opts, root: doc("v3")}}
+	}(),
+	"merge_unresolved": func() []parityStep {
+		merge := true
+		opts := Options{Existing: Existing{Txt: ExistingTxt{Merge: &merge}}}
+		return []parityStep{
+			{root: parityOne("a.txt", "A\n")},
+			{edit: func(m *MemFS) { _ = m.WriteFile("/out/app/a.txt", []byte("A\nuser\n")) }},
+			{opts: opts, root: parityOne("a.txt", "A\ngen\n")},
+			{opts: opts, root: parityOne("a.txt", "A\ngen2\n")},
+		}
+	}(),
+}
+
+func TestParityRuns(t *testing.T) {
+	for name, steps := range parityRuns {
+		t.Run(name, func(t *testing.T) {
+			body, err := parityFS.ReadFile("testdata/parity/" + name + ".json")
+			if err != nil {
+				t.Fatal(err)
+			}
+			var want struct {
+				Runs []struct {
+					Files Files `json:"files"`
+					Audit []any `json:"audit"`
+				} `json:"runs"`
+				Vol map[string]corpusBytes `json:"vol"`
+			}
+			if err := json.Unmarshal(body, &want); err != nil {
+				t.Fatal(err)
+			}
+			mem := NewMemFS()
+			i := 0
+			for _, st := range steps {
+				if st.edit != nil {
+					st.edit(mem)
+					continue
+				}
+				res, err := New(WithFS(mem), WithFolder("/out"),
+					WithNow(func() int64 { return frozenNow })).Generate(st.opts, st.root)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if i >= len(want.Runs) {
+					t.Fatalf("more generates than TS recorded")
+				}
+				assertFiles(t, res.Files, want.Runs[i].Files)
+				assertAudit(t, res.Audit(), want.Runs[i].Audit)
+				i++
+			}
+			if i != len(want.Runs) {
+				t.Fatalf("%d generates, TS recorded %d", i, len(want.Runs))
+			}
+			assertVol(t, mem, want.Vol)
+		})
+	}
 }

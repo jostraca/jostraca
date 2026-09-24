@@ -3,6 +3,7 @@ package jostraca
 import (
 	"bytes"
 	"encoding/json"
+	"path"
 	"sort"
 )
 
@@ -37,7 +38,9 @@ type metaEntry struct {
 	When     int64
 }
 
-func newBuildMeta(fh *fileHandler) *buildMeta {
+// newBuildMeta loads the previous meta log, as TS's BuildMeta
+// constructor does. An unreadable log is not fatal; a refused path is.
+func newBuildMeta(fh *fileHandler) (*buildMeta, error) {
 	bm := &buildMeta{
 		fh: fh,
 		next: metaSnapshot{
@@ -51,17 +54,22 @@ func newBuildMeta(fh *fileHandler) *buildMeta {
 			byPath: map[string]*metaEntry{},
 		},
 	}
-	bm.load()
-	return bm
+	if err := bm.load(); err != nil {
+		return nil, err
+	}
+	return bm, nil
 }
 
 func (bm *buildMeta) metaPath() string {
-	return bm.fh.folder + "/.jostraca/jostraca.meta.log"
+	return path.Join(bm.fh.folder, ".jostraca", "jostraca.meta.log")
 }
 
 func (bm *buildMeta) gitignorePath() string {
-	return bm.fh.folder + "/.jostraca/.gitignore"
+	return path.Join(bm.fh.folder, ".jostraca", ".gitignore")
 }
+
+// maxJSTime is the largest absolute epoch-ms a JS Date holds.
+const maxJSTime = 8.64e15
 
 // last returns the previous build's epoch-ms. Defaults to -1 when no
 // prior meta exists, matching TS BuildMeta default at
@@ -71,83 +79,58 @@ func (bm *buildMeta) last() int64 {
 	if bm == nil || bm.prev == nil {
 		return -1
 	}
-	if v, ok := bm.prev["last"].(float64); ok {
+	// Only a value a JS Date can carry, as TS's loadMetaData requires:
+	// int64(1e20) is a garbage timestamp.
+	if v, ok := bm.prev["last"].(float64); ok && v >= -maxJSTime && v <= maxJSTime {
 		return int64(v)
 	}
 	return -1
 }
 
-func (bm *buildMeta) load() {
-	if bm == nil {
-		return
+// load reads the previous meta log through the audited low-level calls,
+// as TS's loadMetaData does.
+func (bm *buildMeta) load() error {
+	metapath := bm.metaPath()
+	has, err := bm.fh.existsFile(metapath, "")
+	if err != nil || !has {
+		return err
 	}
-	if !bm.fh.fs.Exists(bm.metaPath()) {
-		return
-	}
-	b, err := bm.fh.fs.ReadFile(bm.metaPath())
+	prev, err := bm.fh.loadJSON(metapath, "")
 	if err != nil {
-		return
-	}
-	bm.prev = map[string]any{}
-	if err := json.Unmarshal(b, &bm.prev); err != nil {
 		// A truncated or hand-edited meta log must not block generation:
 		// the file is bookkeeping, regenerated on every run. Reset to empty
 		// rather than carrying a half-decoded map forward. Mirrors the
 		// recovery in ts/src/build/BuildMeta.ts.
-		metaDlog.Log("meta", "unreadable meta log, continuing with empty state: "+
-			bm.metaPath()+" err="+err.Error())
-		bm.prev = map[string]any{}
+		bm.fh.st.warn(metaDlog, "meta", "unreadable meta log, continuing with empty state: "+
+			metapath+" err="+err.Error())
+		prev = map[string]any{}
 	}
+	bm.prev = prev
+	return nil
 }
 
 // metaDlog records non-fatal meta-log weirdness.
 var metaDlog = NewDLog("jostraca", "buildmeta.go")
 
-// recordAction is called by FileHandler each time a save touches a path.
-// kind is the action token (write/preserve/present/diff/merge/protect/
-// unchanged); the entry's Action is the *primary* action and Actions[]
-// records every applied action in order.
-// recordProtect flags the entry for rpath as protected. TS sets
-// meta.protect once for the whole save() (as soon as the marker is seen),
-// independent of which action later fires, so it is applied here at the
-// end of save() rather than threaded through every action helper.
-func (bm *buildMeta) recordProtect(rpath string, protect bool) {
-	if bm == nil || !protect {
-		return
-	}
-	if e, ok := bm.next.byPath[rpath]; ok {
-		e.Protect = true
-	}
-}
-
-func (bm *buildMeta) recordAction(rpath, action string, exists, conflict, protect bool) {
+// add records one save's entry, as TS's addmeta assigning the key does: a
+// path already recorded this run keeps its position and takes the new
+// values, so it carries the LAST save's.
+func (bm *buildMeta) add(e *metaEntry) {
 	if bm == nil {
 		return
 	}
-	e, ok := bm.next.byPath[rpath]
-	if !ok {
-		e = &metaEntry{
-			Path:    rpath,
-			Action:  action,
-			Exists:  exists,
-			Actions: []string{},
-			When:    bm.fh.now(),
-		}
-		bm.next.files = append(bm.next.files, e)
-		bm.next.byPath[rpath] = e
+	if prev, ok := bm.next.byPath[e.Path]; ok {
+		*prev = *e
+		return
 	}
-	e.Action = action
-	e.Actions = append(e.Actions, action)
-	if conflict {
-		e.Conflict = true
-	}
-	if protect {
-		e.Protect = true
-	}
+	bm.next.files = append(bm.next.files, e)
+	bm.next.byPath[e.Path] = e
 }
 
-// done writes the meta file and a sibling .gitignore that excludes
-// the meta log and generated/ baseline copies from version control.
+// done writes the meta file and a sibling .gitignore that excludes the
+// meta log and generated/ baseline copies from version control, through
+// the same atomic, audited writer as the outputs. A failure writing either
+// is returned.
 func (bm *buildMeta) done() error {
 	if bm == nil {
 		return nil
@@ -158,20 +141,12 @@ func (bm *buildMeta) done() error {
 	// made after the build finished.
 	bm.next.last = bm.fh.now()
 
-	out := bm.encode()
-	if err := bm.fh.ensureDirOf(bm.metaPath()); err != nil {
+	if err := bm.fh.saveJSON(bm.metaPath(), bm.encode(), ""); err != nil {
 		return err
 	}
-	if !bm.fh.control.Dryrun {
-		if err := bm.fh.fs.WriteFile(bm.metaPath(), out); err != nil {
-			return err
-		}
-		if !bm.fh.control.Version {
-			_ = bm.fh.fs.WriteFile(
-				bm.gitignorePath(),
-				[]byte("\njostraca.meta.log\ngenerated\n"),
-			)
-		}
+	if !bm.fh.control.Version {
+		return bm.fh.saveFile(bm.gitignorePath(),
+			[]byte("\njostraca.meta.log\ngenerated\n"), 0, "")
 	}
 	return nil
 }

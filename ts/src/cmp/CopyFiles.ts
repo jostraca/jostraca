@@ -52,7 +52,7 @@ const From = (from: any, _: any, s: any) => s.ctx.meta.fs().statSync(from)
 // component reads, and it is a prop besides; `item` and `indent` it
 // does not, which is why they are here and not in `CopyFilesProps`. A
 // props type says what a CALLER writes, and nobody writes a binding.
-const CopyFilesShape = Shape({
+const CopyFilesSpec = {
   ctx$: Object,
 
   // The From path is independent of the project folder.
@@ -76,7 +76,13 @@ const CopyFilesShape = Shape({
   // `Indent` field was removed rather than kept as a promise.
   item: Skip() as any,
   indent: Skip() as any,
-}, { name: 'CopyFiles' })
+}
+
+// The props a data node may state -- see FRAGMENT_PROPS in Fragment.ts.
+const COPYFILES_PROPS: string[] =
+  Object.keys(CopyFilesSpec).filter((k) => 'ctx$' !== k)
+
+const CopyFilesShape = Shape(CopyFilesSpec, { name: 'CopyFiles' })
 
 
 const CopyFiles = cmp<CopyFilesProps>(function CopyFiles(props, _children) {
@@ -124,6 +130,7 @@ type CopyProps = CopyFilesProps
 export {
   CopyFiles,
   Copy,
+  COPYFILES_PROPS,
 }
 
 export type {

@@ -11,6 +11,7 @@ const path = require('node:path')
 
 const {
   Jostraca, Project, Folder, File, Content, Inject, Fragment, Slot, Copy, Line, List, cmp,
+  each,
 } = require('../dist/jostraca')
 
 const { memfs } = require('../dist/util/memfs')
@@ -43,8 +44,9 @@ async function snapshot(name, opts, root, prepopulate) {
   // true. See PARITY_PLAN.md 2.1. The volume is still captured, so a partial
   // write before the throw is compared too.
   let error = false
+  let res = null
   try {
-    await j.generate(fullOpts, root)
+    res = await j.generate(fullOpts, root)
   }
   catch (err) {
     error = true
@@ -57,6 +59,10 @@ async function snapshot(name, opts, root, prepopulate) {
       opts: opts || {},
       prepopulate: encMap(prepopulate),
       error,
+      // The seven files lists, so a scenario pins what a run reports as
+      // well as what it writes.
+      files: null == res ? null : res.files,
+      audit: null == res ? null : auditOf(res),
       vol: result,
     }, null, 2) + '\n',
   )
@@ -892,7 +898,242 @@ async function main() {
     },
   )
 
+  // Inject exclude is JavaScript truthiness: any truthy value skips the
+  // injection, whatever it names, and a skipped target gets no write, no
+  // baseline and no meta entry.
+  const injectSeed = { '/out/app/t.txt': 'a\n#--START--#\nold\n#--END--#\nz\n' }
+  for (const [name, exclude] of [
+    ['inject_exclude_string', 'other'],
+    ['inject_exclude_emptyarray', []],
+    ['inject_exclude_list', ['other']],
+    ['inject_exclude_object', {}],
+  ]) {
+    await snapshot(name, {}, () => {
+      Project({ folder: 'app' }, () => {
+        Inject({ name: 't.txt', exclude }, () => Content('NEW'))
+      })
+    }, injectSeed)
+  }
+
+  // An Inject's children build the injected region as they would build a
+  // File, so a Fragment and a single-file Copy contribute their text.
+  const twoBlocks = {
+    '/out/app/t.txt':
+      'A\n#--START--#\nold1\n#--END--#\nB\n#--START--#\nold2\n#--END--#\nC\n',
+  }
+  await snapshot('inject_fragment_child', { model: { name: 'World' } }, () => {
+    Project({ folder: 'app' }, () => {
+      Inject({ name: 't.txt' }, () => {
+        Content('c1;')
+        Fragment({ from: '/tpl/model.txt' })
+        Content('c2;')
+      })
+    })
+  }, { ...twoBlocks, '/tpl/model.txt': 'M=$$name$$\n' })
+
+  await snapshot('inject_copy_child', { model: { name: 'World' } }, () => {
+    Project({ folder: 'app' }, () => {
+      Inject({ name: 't.txt' }, () => {
+        Content('pre;')
+        Copy({ from: '/tpl/single.txt', to: 'copied.txt' })
+        Content('post;')
+      })
+    })
+  }, { ...twoBlocks, '/tpl/single.txt': 'single $$name$$ FOO\n' })
+
+  // A Slot outside a Fragment is transparent: its children render in place.
+  const Wrap = cmp(function Wrap(_props, children) {
+    each(children, { call: true })
+  })
+  await snapshot('slot_outside_fragment', {}, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 's.txt' }, () => {
+        Content('a')
+        Slot({ name: 'x' }, () => Content('S'))
+        Content('b')
+        Slot({}, () => Content('U'))
+        Slot({ name: 'n' }, () => {
+          Content('N')
+          Slot({ name: 'm' }, () => Content('M'))
+        })
+        Wrap(() => { Slot({ name: 'w' }, () => Content('W')) })
+      })
+      Inject({ name: 't.txt' }, () => {
+        Content('i')
+        Slot({ name: 'x' }, () => Content('S'))
+        Content('j')
+      })
+    })
+  }, { '/out/app/t.txt': '<\n#--START--#\nold\n#--END--#\n>' })
+
+  // A File exclude names the component path: the Project name, then the
+  // Folder names, then the File name. The Project folder is not part of it,
+  // and a RegExp entry matches nothing.
+  await snapshot('file_exclude', {}, () => {
+    Project({ name: 'pn' }, () => {
+      File({ name: 'keep.txt', exclude: 'pn/keep.txt' }, () => Content('NEW'))
+      Folder({ name: 'sub' }, () => {
+        File({ name: 'keep2.txt', exclude: ['pn/sub/keep2.txt'] }, () => Content('NEW'))
+      })
+      File({ name: 'a.txt', exclude: 'a.txt' }, () => Content('NEW'))
+      File({ name: 'b.txt', exclude: [/b/] }, () => Content('NEW'))
+      File({ name: 'c.txt', exclude: true }, () => Content('NEW'))
+    })
+  }, {
+    '/out/keep.txt': 'OLD',
+    '/out/sub/keep2.txt': 'OLD',
+    '/out/a.txt': 'OLD',
+    '/out/b.txt': 'OLD',
+    '/out/c.txt': 'OLD',
+  })
+
+  await snapshot('file_exclude_project_folder', {}, () => {
+    Project({ folder: 'x' }, () => {
+      File({ name: 'a.txt', exclude: 'x/a.txt' }, () => Content('NEW'))
+      File({ name: 'b.txt', exclude: 'b.txt' }, () => Content('NEW'))
+    })
+  }, {
+    '/out/x/a.txt': 'OLD',
+    '/out/x/b.txt': 'OLD',
+  })
+
+  // A backslash in an output-path component is a separator: the folded
+  // path is the directory, the target, the baseline and the meta key.
+  await snapshot('backslash_names', {}, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'a\\b.txt' }, () => Content('B'))
+      Folder({ name: 'x\\y' }, () => File({ name: 'a.txt' }, () => Content('A')))
+      Inject({ name: 'a\\t.txt' }, () => Content('NEW'))
+    })
+    Project({ folder: 'p\\q' }, () => File({ name: 'c.txt' }, () => Content('C')))
+  }, { '/out/app/a/t.txt': '<\n#--START--#\nold\n#--END--#\n>' })
+
+  // One path saved twice in a run: listed once per files kind, one meta
+  // entry at its first position carrying the last save's values.
+  const marked = 'a\n#--START--#\nold\n#--END--#\nz\n'
+  await snapshot('inject_after_file', {}, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 't.txt' }, () => Content(marked))
+      Inject({ name: 't.txt' }, () => Content('NEW'))
+    })
+  })
+  await snapshot('inject_twice_same_file', {}, () => {
+    Project({ folder: 'app' }, () => {
+      Inject({ name: 't.txt' }, () => Content('ONE'))
+      Inject({ name: 't.txt' }, () => Content('TWO'))
+    })
+  }, { '/out/app/t.txt': marked })
+  await snapshot('copy_then_file_same', {}, () => {
+    Project({ folder: 'app' }, () => {
+      Copy({ from: '/src/single.txt' })
+      File({ name: 'single.txt' }, () => Content('F\n'))
+    })
+  }, { '/src/single.txt': 'S\n' })
+  await snapshot('file_then_copy_same', {}, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'single.txt' }, () => Content('F\n'))
+      Copy({ from: '/src/single.txt' })
+    })
+  }, { '/src/single.txt': 'S\n' })
+  await snapshot('file_g_h_inject_g', {}, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'g.txt' }, () => Content(marked))
+      File({ name: 'h.txt' }, () => Content('H'))
+      Inject({ name: 'g.txt' }, () => Content('NEW'))
+    })
+  })
+
+  // A clean merge over a file whose generated text contains the marker
+  // sentinel is written: the engine decides, the handler never pre-empts.
+  const sentinel = (v) => () => Project({ folder: 'app' }, () => {
+    File({ name: 'doc.md' }, () => Content(
+      'How a conflict looks:\n>>>>>>> EXISTING: 2020-01-01T00:00:00.000Z/merge\n' + v + '\n'))
+  })
+  const mergeOpts = { existing: { txt: { merge: true } } }
+  await snapshotRuns('merge_marker_clean', [
+    [mergeOpts, sentinel('v1')],
+    [mergeOpts, sentinel('v2')],
+    [mergeOpts, sentinel('v3')],
+  ])
+
+  // A file still holding an earlier merge's markers is left untouched and
+  // reported merged and conflicted.
+  const one = (body) => () => Project({ folder: 'app' }, () => {
+    File({ name: 'a.txt' }, () => Content(body))
+  })
+  await snapshotRuns('merge_unresolved', [
+    [{}, one('A\n')],
+    (fs) => fs.writeFileSync('/out/app/a.txt', 'A\nuser\n'),
+    [mergeOpts, one('A\ngen\n')],
+    [mergeOpts, one('A\ngen2\n')],
+  ])
+
+  // The audit trail, pinned whole: the low-level calls with their whence
+  // tags, and each save's decision record with its breadcrumbs.
+  const auditTree = (a, b) => () => Project({ folder: 'app' }, () => {
+    File({ name: 'a.txt' }, () => Content(a))
+    Folder({ name: 'sub' }, () => File({ name: 'b.txt' }, () => Content(b)))
+  })
+  await snapshotRuns('audit_basic', [[{}, auditTree('A\n', 'B\n')]])
+  await snapshotRuns('audit_rerun', [
+    [{}, auditTree('L1\nL2\nL3\n', 'B\n')],
+    (fs) => fs.writeFileSync('/out/app/a.txt', 'L1\nU\nL3\n'),
+    [{ existing: { txt: { merge: true, preserve: true } } }, auditTree('L1\nG\nL3\n', 'B\n')],
+    [{ existing: { txt: { write: false, present: true } } }, auditTree('L1\nG2\nL3\n', 'B\n')],
+    [{ existing: { txt: { diff: true } } }, auditTree('L1\nG3\nL3\n', 'B\n')],
+  ])
+  await snapshotRuns('audit_nested', [
+    (fs) => {
+      fs.mkdirSync('/src/tree/deep', { recursive: true })
+      fs.writeFileSync('/src/tree/t.txt', 'T $$v$$\n')
+      fs.writeFileSync('/src/tree/deep/i.png', Buffer.from([0x89, 0x50, 0x00, 0xff]))
+      fs.writeFileSync('/src/tree/deep/m.bin', Buffer.from([0x00, 0x01, 0x02]))
+      fs.mkdirSync('/out/app', { recursive: true })
+      fs.writeFileSync('/out/app/j.txt', '<\n#--START--#\nold\n#--END--#\n>')
+    },
+    [{ model: { v: 'V' } }, () => Project({ folder: 'app' }, () => {
+      Folder({ name: 'x' }, () => Folder({ name: 'y' }, () => {
+        File({ name: 'n.txt' }, () => Content('N'))
+      }))
+      Copy({ from: '/src/tree', to: 'c' })
+      Copy({ from: '/src/tree/t.txt', to: 'one.txt' })
+      Inject({ name: 'j.txt' }, () => Content('J'))
+    })],
+  ])
+
   console.log('done')
+}
+
+// A run's audit trail, with each err reduced to its message: the rest of
+// an Error is host detail.
+function auditOf(res) {
+  return res.audit().map(([tag, data]) => [tag, Object.fromEntries(
+    Object.entries(data).map(([k, v]) => [k, 'err' === k ? String(v?.message) : v]))])
+}
+
+// snapshotRuns records a scenario of several generates over one volume,
+// with edits between them. Each step is either a function called with the
+// fs (an edit), or [opts, root] (a generate). The files lists of every
+// generate are recorded, and the final volume.
+async function snapshotRuns(name, steps) {
+  const mfs = memfs({})
+  const runs = []
+  for (const step of steps) {
+    if ('function' === typeof step) {
+      step(mfs.fs)
+      continue
+    }
+    const [opts, root] = step
+    const res = await Jostraca({}).generate(Object.assign({
+      fs: () => mfs.fs, folder: '/out', now: () => FROZEN_NOW,
+    }, opts), root)
+    runs.push({ files: res.files, audit: auditOf(res) })
+  }
+  fs.writeFileSync(
+    path.join(outDir, name + '.json'),
+    JSON.stringify({ scenario: name, runs, vol: volOf(mfs) }, null, 2) + '\n',
+  )
+  console.log('wrote', name)
 }
 
 // snapshotMerge runs a two-phase scenario: a clean first generation,

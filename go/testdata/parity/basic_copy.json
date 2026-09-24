@@ -16,6 +16,207 @@
     "/tm/sub/c/d.txt": "// SUB-C-D $$x.y$$ $$x.z$$ TXT\n"
   },
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/sdk/js/foo.js",
+      "/out/sdk/js/bar.txt",
+      "/out/sdk/js/a.txt",
+      "/out/sdk/js/b.txt",
+      "/out/sdk/js/c/d.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
+  "audit": [
+    [
+      "FileHandler:existsFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "exists": false
+      }
+    ],
+    [
+      "FileHandler:saveFile:FileOp:after:write:",
+      {
+        "path": "/out/sdk/js/foo.js",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 14
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/sdk/js/foo.js",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:Copy:copyFile:write:",
+      {
+        "path": "/out/sdk/js/bar.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 13
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/sdk/js/bar.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:Copy:copyFile:write:",
+      {
+        "path": "/out/sdk/js/a.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 15
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/sdk/js/a.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:Copy:copyFile:write:",
+      {
+        "path": "/out/sdk/js/b.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 15
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/sdk/js/b.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:Copy:copyFile:write:",
+      {
+        "path": "/out/sdk/js/c/d.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 19
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/sdk/js/c/d.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 1452
+      }
+    ],
+    [
+      "FileHandler:saveJSON:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "size": 1452
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/.gitignore",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 29
+      }
+    ]
+  ],
   "vol": {
     "/tm/bar.txt": "// BAR $$x.z$$ TXT\n",
     "/tm/bar.txt~": "// BAR TXT\n",

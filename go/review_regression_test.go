@@ -420,12 +420,12 @@ func TestDefaultDotFolderKeepsLeadingDots(t *testing.T) {
 		{"env", "PLAIN\n"},
 		{".gitignore", "node_modules\n"},
 	} {
-		if got := string(vol[tc[0]]); got != tc[1] {
+		if got := string(vol[memClean(tc[0])]); got != tc[1] {
 			t.Errorf("%s = %q, want %q", tc[0], got, tc[1])
 		}
 		// The merge baseline is the part that actually collided.
 		dup := ".jostraca/generated/" + tc[0]
-		if got := string(vol[dup]); got != tc[1] {
+		if got := string(vol[memClean(dup)]); got != tc[1] {
 			t.Errorf("%s = %q, want %q", dup, got, tc[1])
 		}
 	}
@@ -677,7 +677,7 @@ func TestWriteDuplicateRefusesToEscapeItsRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	for k := range mem.Vol() {
-		if !strings.HasPrefix(k, ".jostraca/generated/") {
+		if !strings.HasPrefix(k, memClean(".jostraca/generated")+"/") {
 			t.Errorf("baseline escaped its root: %s", k)
 		}
 	}
@@ -686,7 +686,7 @@ func TestWriteDuplicateRefusesToEscapeItsRoot(t *testing.T) {
 	if err := fh.writeDuplicate("a.txt", []byte("OK\n")); err != nil {
 		t.Fatal(err)
 	}
-	if got := string(mem.Vol()[".jostraca/generated/a.txt"]); got != "OK\n" {
+	if got := string(mem.Vol()[memClean(".jostraca/generated/a.txt")]); got != "OK\n" {
 		t.Errorf("normal baseline = %q, want %q", got, "OK\n")
 	}
 }

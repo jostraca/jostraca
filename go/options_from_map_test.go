@@ -1,12 +1,15 @@
 package jostraca
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
 
 // OptionsFromMap covers nested option groups (Existing, Control, Cmp,
-// Name). Mirrors test/parity-fidelity.test.ts plus the TS OptionsShape
-// at src/jostraca.ts:99-153.
+// Name). The map is validated by the closed schema TS's OptionsShape and
+// ExistingShape declare; the refusals themselves, with their message
+// text, are rows in test/spec/options.tsv, which both stacks run.
 
 func TestOptionsFromMapTopLevelScalars(t *testing.T) {
 	build := true
@@ -147,5 +150,112 @@ func TestOptionsFromMapTypeError(t *testing.T) {
 	_, err := OptionsFromMap(map[string]any{"folder": 42})
 	if err == nil {
 		t.Errorf("expected type error for non-string folder")
+	}
+}
+
+// A mistyped dryrun used to be dropped silently, so the Generate that
+// followed WROTE the files the caller had asked to protect. It is now
+// refused, and a caller generating only on a nil error writes nothing.
+func TestOptionsFromMapMistypedDryrunWritesNothing(t *testing.T) {
+	dir := t.TempDir()
+	opts, err := OptionsFromMap(map[string]any{
+		"folder":  fwd(dir),
+		"control": map[string]any{"dryrun": "yes"},
+	})
+	want := `Jostraca Options: Validation failed for property "control.dryrun" ` +
+		`with string "yes" because the string is not of type boolean.`
+	if err == nil || err.Error() != want {
+		t.Fatalf("err = %v, want %q", err, want)
+	}
+	if err == nil {
+		if _, gerr := New().Generate(opts, func(j *J) {
+			j.File("a.txt", func(j *J) { j.Content("A") })
+		}); gerr != nil {
+			t.Fatal(gerr)
+		}
+	}
+	if _, serr := os.Stat(filepath.Join(dir, "a.txt")); !os.IsNotExist(serr) {
+		t.Fatalf("a.txt was written: %v", serr)
+	}
+}
+
+func TestOptionsFromMapRejectsUnknownKeys(t *testing.T) {
+	for _, m := range []map[string]any{
+		{"bogus": 1},
+		{"control": map[string]any{"bogus": true}},
+		{"existing": map[string]any{"txt": map[string]any{"bogus": 1}}},
+		{"existing": map[string]any{"bin": map[string]any{"diff": true}}},
+		{"cmp": map[string]any{"Copy": map[string]any{"bogus": 1}}},
+	} {
+		if _, err := OptionsFromMap(m); err == nil {
+			t.Errorf("%v: accepted", m)
+		}
+	}
+}
+
+// A nil vol value is an empty directory, the memfs seed convention, and
+// the form Vol() reports one in. A typed map[string][]byte is accepted too.
+func TestOptionsFromMapVolNilIsADirectory(t *testing.T) {
+	for _, vol := range []any{
+		map[string]any{"/d": nil, "/e.txt": ""},
+		map[string][]byte{"/d": nil, "/e.txt": {}},
+	} {
+		opts, err := OptionsFromMap(map[string]any{"vol": vol, "mem": true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if b, ok := opts.Vol["/d"]; !ok || b != nil {
+			t.Fatalf("/d = %v, %v", b, ok)
+		}
+		if b := opts.Vol["/e.txt"]; b == nil || len(b) != 0 {
+			t.Fatalf("/e.txt = %#v", b)
+		}
+		res, err := New().Generate(opts, func(j *J) {})
+		if err != nil {
+			t.Fatal(err)
+		}
+		v := res.Vol()
+		if b, ok := v["/d"]; !ok || b != nil {
+			t.Errorf("/d should be an empty directory: %v, %v", b, ok)
+		}
+		if b, ok := v["/e.txt"]; !ok || b == nil {
+			t.Errorf("/e.txt should be an empty file: %#v, %v", b, ok)
+		}
+	}
+}
+
+// Injected schema defaults are not decoded: an absent meta stays nil, so
+// it cannot replace a global Meta on the merge.
+func TestOptionsFromMapKeepsAbsentGroupsUnset(t *testing.T) {
+	o, err := OptionsFromMap(map[string]any{"folder": "/out"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if o.Meta != nil || o.Model != nil || o.Build != nil || o.Mem != nil ||
+		o.Vol != nil || o.Existing != (Existing{}) || o.Control != (Control{}) {
+		t.Fatalf("absent groups were set: %+v", o)
+	}
+}
+
+// KNOWN DEVIATION, the Folder twin of TestPerCallCannotClearGlobalDryrun.
+// TS refuses an empty folder. Options.Folder is a plain string, so ""
+// cannot be told from "not supplied" and falls back to the global folder,
+// then ".". The map form can tell them apart, and refuses "" as TS does.
+func TestEmptyFolderMeansUnset(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := New(WithFolder(fwd(dir))).Generate(Options{Folder: ""}, func(j *J) {
+		j.File("a.txt", func(j *J) { j.Content("A") })
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if b, err := os.ReadFile(filepath.Join(dir, "a.txt")); err != nil || string(b) != "A" {
+		t.Fatalf("a.txt: %q %v", b, err)
+	}
+
+	_, err := OptionsFromMap(map[string]any{"folder": ""})
+	want := `Jostraca Options: Validation failed for property "folder" with ` +
+		`string "" because an empty string is not allowed.`
+	if err == nil || err.Error() != want {
+		t.Fatalf("err = %v, want %q", err, want)
 	}
 }

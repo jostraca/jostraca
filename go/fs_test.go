@@ -243,12 +243,15 @@ func TestMemFSVolReturnsCopy(t *testing.T) {
 	if err := fs.WriteFile("a", []byte("v1")); err != nil {
 		t.Fatal(err)
 	}
+	// A relative key resolves against the working directory, as the TS
+	// in-memory provider's does.
+	key := memClean("a")
 	v := fs.Vol()
-	if string(v["a"]) != "v1" {
-		t.Errorf("Vol[a] = %q, want %q", v["a"], "v1")
+	if string(v[key]) != "v1" {
+		t.Errorf("Vol[%s] = %q, want %q", key, v[key], "v1")
 	}
 	// Mutating the returned map must not affect the FS.
-	v["a"] = []byte("MUTATED")
+	v[key] = []byte("MUTATED")
 	got, _ := fs.ReadFile("a")
 	if string(got) != "v1" {
 		t.Errorf("ReadFile after Vol mutation = %q, want %q", got, "v1")

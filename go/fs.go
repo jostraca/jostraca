@@ -76,19 +76,22 @@ type OsFS struct{}
 
 func (OsFS) sys(p string) string { return filepath.FromSlash(p) }
 
-func (o OsFS) ReadFile(p string) ([]byte, error)  { return os.ReadFile(o.sys(p)) }
-func (o OsFS) WriteFile(p string, b []byte) error { return os.WriteFile(o.sys(p), b, 0o644) }
+func (o OsFS) ReadFile(p string) ([]byte, error) { return os.ReadFile(o.sys(p)) }
+
+// New files and directories take 0666 and 0777 less the process umask, as
+// Node's defaults do.
+func (o OsFS) WriteFile(p string, b []byte) error { return os.WriteFile(o.sys(p), b, 0o666) }
 func (o OsFS) Exists(p string) bool {
 	_, err := os.Stat(o.sys(p))
 	return err == nil
 }
-func (o OsFS) MkdirAll(p string) error { return os.MkdirAll(o.sys(p), 0o755) }
+func (o OsFS) MkdirAll(p string) error { return os.MkdirAll(o.sys(p), 0o777) }
 
 // WriteFileExcl implements exclusiveFS: O_EXCL fails with fs.ErrExist
 // rather than truncating an existing file.
 func (o OsFS) WriteFileExcl(p string, b []byte) error {
 	sp := o.sys(p)
-	f, err := os.OpenFile(sp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	f, err := os.OpenFile(sp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o666)
 	if err != nil {
 		return err
 	}
@@ -147,6 +150,13 @@ func (o OsFS) ReadDir(p string) ([]DirEntry, error) {
 	return out, nil
 }
 
+// memFileMode and memDirMode are the modes MemFS reports for its entries,
+// the in-memory provider's defaults in ts/src/util/memfs.ts.
+const (
+	memFileMode fs.FileMode = 0o666
+	memDirMode  fs.FileMode = 0o777
+)
+
 // MemFS is an in-process filesystem backed by a string-keyed map. Safe
 // for concurrent use. Paths are canonical-/ throughout.
 type MemFS struct {
@@ -165,19 +175,22 @@ func NewMemFS() *MemFS {
 	}
 }
 
-// memClean normalises a memfs path: forward slashes, no trailing /,
-// no . or .. segments. Leading / is preserved (matching Node memfs's
-// toJSON() output) so absolute paths like "/out/foo" are stored as
-// "/out/foo", not "out/foo".
+// memClean normalises a memfs path to its canonical absolute key, as
+// memClean in ts/src/util/memfs.ts does: backslashes folded, `.` and `..`
+// resolved, and a relative path resolved against the process working
+// directory. A drive path (`C:/x`) is already absolute and keeps its drive
+// outside the leading slash. The root is "/".
 func memClean(p string) string {
-	p = filepath.ToSlash(p)
-	if p == "" || p == "." {
-		return ""
+	s := strings.ReplaceAll(p, "\\", "/")
+	if !isDriveKey(s) && !strings.HasPrefix(s, "/") {
+		s = memCwd() + "/" + s
 	}
-	abs := strings.HasPrefix(p, "/")
-	p = strings.TrimLeft(p, "/")
+	prefix := ""
+	if isDriveKey(s) {
+		prefix, s = s[:2], s[2:]
+	}
 	parts := []string{}
-	for _, part := range strings.Split(p, "/") {
+	for _, part := range strings.Split(s, "/") {
 		switch part {
 		case "", ".":
 			continue
@@ -189,11 +202,22 @@ func memClean(p string) string {
 			parts = append(parts, part)
 		}
 	}
-	out := strings.Join(parts, "/")
-	if abs {
-		out = "/" + out
+	return prefix + "/" + strings.Join(parts, "/")
+}
+
+// isDriveKey reports a Windows drive-absolute path in canonical-/ form.
+func isDriveKey(s string) bool {
+	return len(s) >= 3 && isDriveLetter(s[0]) && s[1] == ':' && s[2] == '/'
+}
+
+// memCwd is the working directory in canonical-/ form, read per call as
+// process.cwd() is.
+func memCwd() string {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "/"
 	}
-	return out
+	return strings.ReplaceAll(wd, "\\", "/")
 }
 
 func (m *MemFS) ReadFile(p string) ([]byte, error) {
@@ -251,7 +275,7 @@ func (m *MemFS) Exists(p string) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	cp := memClean(p)
-	if cp == "" {
+	if cp == "/" {
 		return true
 	}
 	if _, ok := m.files[cp]; ok {
@@ -264,14 +288,14 @@ func (m *MemFS) Stat(p string) (FileInfo, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	cp := memClean(p)
-	if cp == "" {
-		return FileInfo{Name: "", IsDir: true, Mode: fs.ModeDir | 0o755}, nil
+	if cp == "/" {
+		return FileInfo{Name: "", IsDir: true, Mode: fs.ModeDir | memDirMode}, nil
 	}
 	if b, ok := m.files[cp]; ok {
 		return FileInfo{
 			Name:    pathBase(cp),
 			Size:    int64(len(b)),
-			Mode:    0o644,
+			Mode:    memFileMode,
 			ModTime: m.times[cp],
 			IsDir:   false,
 		}, nil
@@ -279,7 +303,7 @@ func (m *MemFS) Stat(p string) (FileInfo, error) {
 	if m.dirs[cp] {
 		return FileInfo{
 			Name:  pathBase(cp),
-			Mode:  fs.ModeDir | 0o755,
+			Mode:  fs.ModeDir | memDirMode,
 			IsDir: true,
 		}, nil
 	}
@@ -290,7 +314,7 @@ func (m *MemFS) MkdirAll(p string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	cp := memClean(p)
-	if cp == "" {
+	if cp == "/" {
 		return nil
 	}
 	m.markDirsLocked(cp)
@@ -328,11 +352,11 @@ func (m *MemFS) ReadDir(p string) ([]DirEntry, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	cp := memClean(p)
-	if cp != "" && !m.dirs[cp] {
+	if cp != "/" && !m.dirs[cp] {
 		return nil, &fs.PathError{Op: "readdir", Path: p, Err: os.ErrNotExist}
 	}
 	prefix := cp
-	if prefix != "" {
+	if prefix != "/" {
 		prefix += "/"
 	}
 	seen := map[string]DirEntry{}

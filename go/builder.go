@@ -34,15 +34,14 @@ func (j *J) Project(p ProjectProps, body func(*J)) {
 	if j.st.err != nil {
 		return
 	}
+	// The node path takes the Project NAME, never its folder, as TS's cmp()
+	// pushes props.name. A File exclude names this path.
 	n := &Node{
 		Kind:   KindProject,
 		Name:   p.Name,
 		Folder: p.Folder,
-		Path:   []string{},
+		Path:   childPath(j.cur, p.Name),
 		Meta:   map[string]any{},
-	}
-	if p.Folder != "" {
-		n.Path = append(n.Path, p.Folder)
 	}
 	j.attachAndDescend(n, body)
 }
@@ -69,13 +68,15 @@ type FileProps struct {
 	Name string
 
 	// Leave the file alone when it already exists. true always skips it;
-	// a string, or a list of strings, names paths relative to the output
-	// folder.
+	// a string, or a list of strings, names the file's component path:
+	// the Project name if any, then the Folder names, then the File name,
+	// joined with "/" (never the Project folder). Any other value does not
+	// exclude.
 	Exclude any
 
 	// Mode sets POSIX permission bits on the generated file, e.g. 0o755 to
-	// make a script executable. Zero leaves the platform default (or, when
-	// the file already exists, its current mode).
+	// make a script executable. Zero leaves the platform default, 0666 less
+	// the umask (or, when the file already exists, its current mode).
 	Mode fs.FileMode
 }
 
@@ -284,7 +285,9 @@ type InjectProps struct {
 	// pair means the default.
 	Markers [2]string
 
-	// Leave the target alone.
+	// Leave the target alone. Any truthy value excludes, by JavaScript's
+	// rules: nil, false, "", zero and NaN do not; any other value does,
+	// an empty list or map included, whatever it names.
 	Exclude any
 }
 
@@ -307,8 +310,8 @@ func (j *J) InjectP(p InjectProps, body func(*J)) {
 	if markers == [2]string{} {
 		markers = defaultInjectMarkers
 	} else if markers[0] == "" || markers[1] == "" {
-		j.st.err = fmt.Errorf(
-			"Inject: both markers must be non-empty, got %q", markers)
+		pair, _ := marshalJSLike(markers[:])
+		j.st.err = fmt.Errorf("Inject: both markers must be non-empty, got %s", pair)
 		return
 	}
 	n := &Node{
@@ -366,7 +369,7 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 	// resolves on the FS. Mirrors TS FragmentShape's Check(From)
 	// at src/cmp/Fragment.ts:11-20.
 	if p.From == "" {
-		j.st.err = &NodeError{Step: "fragment", Err: fmtErrorf("Fragment: From is required")}
+		j.st.err = &NodeError{Step: "fragment", Err: fromMissingErr("Fragment")}
 		return
 	}
 	// Resolve a relative From against the output folder before checking it
@@ -374,8 +377,8 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 	// ts/src/cmp/Fragment.ts, which resolves before its shape check for the
 	// same reason.
 	p.From = resolveFragmentFrom(j.st, p.From)
-	if j.st.fs != nil && !j.st.fs.Exists(p.From) {
-		j.st.err = &NodeError{Step: "fragment", Err: fmtErrorf("Fragment: From file does not exist: %s", p.From)}
+	if _, err := j.st.fs.Stat(p.From); err != nil {
+		j.st.err = &NodeError{Step: "fragment", Err: fromCheckErr("Fragment", p.From, err)}
 		return
 	}
 	if p.Replace == nil {
@@ -488,11 +491,11 @@ func (j *J) CopyFiles(p CopyFilesProps) {
 	// Define-time validation matches TS CopyShape's Check(From)
 	// at src/cmp/Copy.ts:9-21.
 	if p.From == "" {
-		j.st.err = &NodeError{Step: "copy", Err: fmtErrorf("Copy: From is required")}
+		j.st.err = &NodeError{Step: "copy", Err: fromMissingErr("CopyFiles")}
 		return
 	}
-	if j.st.fs != nil && !j.st.fs.Exists(p.From) {
-		j.st.err = &NodeError{Step: "copy", Err: fmtErrorf("Copy: From does not exist: %s", p.From)}
+	if _, err := j.st.fs.Stat(p.From); err != nil {
+		j.st.err = &NodeError{Step: "copy", Err: fromCheckErr("CopyFiles", p.From, err)}
 		return
 	}
 	n := &Node{

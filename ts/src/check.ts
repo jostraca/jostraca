@@ -289,16 +289,20 @@ function compare(
 //
 // Takes the driver rather than building one, because `generate` closes
 // over the global options a `Jostraca()` was constructed with, and a
-// check has to run with exactly the ones the caller set up.
+// check has to run with exactly the ones the caller set up. The folder
+// and filesystem resolve as generate resolves them: per-call, else
+// global, else the default.
 async function checkRun(
   generate: (opts: any, root: Function) => Promise<JostracaResult>,
   opts: any,
-  root: Function
+  root: Function,
+  gopts?: any
 ): Promise<CheckResult> {
-  const folder = null == opts?.folder ? '.' : opts.folder
+  const folder = opts?.folder ?? gopts?.folder ?? '.'
   const abs = canon(folder)
 
-  const base: FST = (null != opts?.fs ? opts.fs() : Fs) as FST
+  const base: FST = (null != opts?.fs ? opts.fs() :
+    null != gopts?.fs ? gopts.fs() : Fs) as FST
   const vol = memfs({})
   const modes = new Map<string, number>()
 

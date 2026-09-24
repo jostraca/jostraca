@@ -992,6 +992,11 @@ function getdlog(
     const entry: any = [tag, file, Date.now(), ...args, stack]
     entry.seq = ++g.__dlogseq__
     g.__dlog__.push(entry)
+
+    // Also onto the running generate's own list, so a warning is replayed
+    // to the logger of the call that raised it and to no other. The
+    // process-global buffer cannot tell two concurrent calls apart.
+    g.jostraca?.getStore?.()?.dlogs?.push(entry)
   }
   dlog.tag = tag
   dlog.file = file

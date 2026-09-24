@@ -21,8 +21,7 @@ func TestGenerateConcurrentIsolated(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			mem := NewMemFS()
-			j := New(WithFS(mem), WithFolder("/out"))
+			j := New(WithMem(), WithFolder("/out"))
 			results[i], errs[i] = j.Generate(Options{}, func(j *J) {
 				j.Project(ProjectProps{Folder: fmt.Sprintf("p%d", i)}, func(j *J) {
 					j.File(fmt.Sprintf("f%d.txt", i), func(j *J) {

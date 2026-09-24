@@ -5,6 +5,83 @@
     "/templates/whole.txt": "PRE\nSTART\nKEEP\nEND\nPOST\n"
   },
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/part.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
+  "audit": [
+    [
+      "FileHandler:existsFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "exists": false
+      }
+    ],
+    [
+      "FileHandler:saveFile:FileOp:after:write:",
+      {
+        "path": "/out/app/part.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 5
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/part.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 398
+      }
+    ],
+    [
+      "FileHandler:saveJSON:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "size": 398
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/.gitignore",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 29
+      }
+    ]
+  ],
   "vol": {
     "/templates/whole.txt": "PRE\nSTART\nKEEP\nEND\nPOST\n",
     "/out/app/part.txt": "KEEP\n",

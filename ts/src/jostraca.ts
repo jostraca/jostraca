@@ -8,7 +8,7 @@ import * as Fs from 'node:fs'
 
 import { AsyncLocalStorage } from 'node:async_hooks'
 
-import { Shape, Skip, One } from 'shape'
+import { Shape, Skip, One, Child, Empty, Nullable, Fault, Check } from 'shape'
 
 import { memfs as MemFs } from './util/memfs'
 
@@ -128,6 +128,14 @@ const DEFAULT_LOGGER = {
 const dlog = getdlog('jostraca', __filename)
 
 
+// A `log` is replayed warnings through `debug`, so one without it failed
+// only after a build that had already written its files.
+const isLogger = (v: any) => null === v ||
+  (('object' === typeof v || 'function' === typeof v) && 'function' === typeof v.debug)
+
+const LOG_FAULT = 'Value "$VALUE" for property "$PATH" is not a logger with a debug function'
+
+
 const OptionsShape = Shape({
   folder: Skip(String), // Base output folder for generated files. Default: `.`.
 
@@ -148,26 +156,34 @@ const OptionsShape = Shape({
   meta: {} as any, // Provide meta data to the generation process. Default: `{}`
 
   fs: Skip(Function) as any, // File system API. Default: `node:fs`.
-  now: undefined as any, // Provide current time.
+  now: Skip(Nullable(Function)) as any, // Provide current time.
 
-  log: Skip() as any, // Logging interface.
+  log: Skip(Fault(LOG_FAULT, Check(isLogger))) as any, // Logging interface.
   debug: Skip('info'), // Generate additional debugging information.
 
-  // TOOD: needs rethink
-  exclude: false, // Exclude modified output files. Default: `false`.
+  // Skip, like `control` below: a literal default would be injected into
+  // every per-call options object and beat the global value.
+  exclude: Skip(Boolean), // Exclude modified output files. Default: `false`.
 
   // Validated in separate shape to allow overriding.
   existing: { txt: {}, bin: {} },
 
   model: Skip({}) as any,
-  build: true,
+  build: Skip(Boolean), // Run the build phase. Default: `true`.
   mem: Skip(Boolean),
-  vol: Skip({}),
 
-  // Component specific options.
+  // Each value is a file (string or Buffer, empty allowed) or an empty
+  // directory (null), the memfs seed convention. Anything else was seeded
+  // as its String() form: `5` became a file holding "5", an object
+  // "[object Object]".
+  vol: Skip(Child(One(Empty(String), Buffer, null), {})),
+
+  // Component specific options. A string `ignore` entry is a regular
+  // expression source, the one form JSON configuration can carry; any
+  // other entry failed only when a Copy walk reached it.
   cmp: {
     Copy: {
-      ignore: [] as any[]
+      ignore: [One(String, RegExp)] as any[]
     }
   },
 
@@ -209,6 +225,21 @@ const ExistingShape = Shape({
 
 }, { name: 'Jostraca Options (`existing` property)' })
 
+
+
+// A string `cmp.Copy.ignore` entry is a regular expression source. The
+// engine's own message follows the prefix, as it does in Go.
+function ignoreRegExp(re: string | RegExp): RegExp {
+  if ('string' !== typeof re) {
+    return re
+  }
+  try {
+    return new RegExp(re)
+  }
+  catch (err: any) {
+    throw new Error('Jostraca Options: property "cmp.Copy.ignore": ' + err.message)
+  }
+}
 
 
 // Copy an options object so shape's injection cannot reach the caller's own
@@ -298,20 +329,18 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
   const gVol = deep({}, gOpts.vol)
   const gMemFs = gUseMemFs ? MemFs(gVol) : undefined
 
-  function get_gMemFs() { return gMemFs ? gMemFs.fs : undefined }
-
-  // `get_gMemFs` is a function declaration, so it is always truthy. Only
-  // install it as the global provider when memfs is actually in use —
-  // otherwise it short-circuits the `sysFs` fallback in `generate` and
-  // resolves to `undefined`, leaving a plain `Jostraca()` with no
-  // filesystem at all.
-  const gGetFs = gOpts.fs || (gUseMemFs ? get_gMemFs : undefined)
-
 
   async function generate(
     opts_in: JostracaOptions | {},
     root: Function):
     Promise<JostracaResult> {
+    // A designed refusal rather than the bare TypeError the call below
+    // would raise ("root is not a function"). Go's ErrNilRoot carries the
+    // same text.
+    if ('function' !== typeof root) {
+      throw new Error('jostraca: generate root callback is not a function')
+    }
+
     // Validate a COPY. `OptionsShape` injects its defaults into the object
     // it is handed and returns that same object, so validating the caller's
     // own options wrote `build`, `cmp`, `control`, `exclude` and `name`
@@ -334,7 +363,12 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
       (null == opts.vol && null != gMemFs ? gMemFs : MemFs(vol)) :
       undefined
 
-    const fs = (opts.fs || (memfs && (() => memfs.fs)) || gGetFs || sysFs)()
+    // The provider, per call: the per-call fs, else the in-memory fs when
+    // mem is on for this call, else the global fs, else node:fs. When mem
+    // is on, `memfs` already IS the global volume unless the call seeds its
+    // own, so an explicit per-call `mem: false` never lands in the hidden
+    // global volume, where neither the disk nor vol() could reach it.
+    const fs = (opts.fs || (memfs && (() => memfs.fs)) || gOpts.fs || sysFs)()
     const now = opts.now || gOpts.now || Date.now
 
     const meta = {
@@ -353,19 +387,20 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
 
     // TODO: this is no actual connection between debug and logging!
 
-    // build=true unless explicitly false
-    const doBuild: boolean = null == opts.build ? false !== gOpts.build : false !== opts.build
+    // Per-call, else global, else the default. Neither is a shape default,
+    // so an omitted per-call value really is absent here.
+    const doBuild: boolean = false !== (opts.build ?? gOpts.build ?? true)
+
+    // FileOp and CopyOp read the resolved value from ctx$.opts.
+    opts.exclude = opts.exclude ?? gOpts.exclude ?? false
 
     const model = null == opts.model ? null == gOpts.model ? {} : gOpts.model : opts.model
 
 
     const existing = ExistingShape({
-      // FIX: this does not work as generate opts get defaults from OptionsShape
       txt: deep({}, gOpts.existing.txt, opts.existing.txt),
       bin: deep({}, gOpts.existing.bin, opts.existing.bin),
     })
-
-    // console.log('EXISTING', existing)
 
     const control = deep({}, CONTROL_DEFAULTS, gOpts.control, opts.control)
 
@@ -375,6 +410,7 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
         ignore: [/~$/]
       }
     }, gOpts?.cmp, opts.cmp)
+    opts.cmp.Copy.ignore = opts.cmp.Copy.ignore.map(ignoreRegExp)
 
     // Synthetic top-level node so the user's first component has a parent
     // to append to, and so bare top-level SIBLINGS are children of a common
@@ -403,15 +439,13 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
       node: rootnode,
       children: rootnode.children,
       root: rootnode,
-    }
 
-    // Only report warnings raised by *this* generate: the dlog buffer is
-    // process-global, so reading all of it re-emitted every warning from
-    // every earlier run.
-    // A monotonic sequence, NOT the buffer length: the buffer is capped
-    // and evicts, so a length-based mark goes permanently stale once a
-    // long-lived process fills it (see getdlog).
-    const dlogMark = dlog.seq()
+      // Warnings raised by THIS generate, collected by getdlog through the
+      // async store. The process-global dlog buffer is shared by every
+      // call, so selecting from it replayed one concurrent call's warnings
+      // to another's logger.
+      dlogs: [] as any[],
+    }
 
     return GLOBAL.jostraca.run(ctx$, async () => {
       // Define phase.
@@ -448,10 +482,8 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
         res.fs = () => fs
       }
 
-      const alldlogs = dlog.log()
-      const dlogs = alldlogs.filter((entry: any) => (entry.seq || 0) > dlogMark)
-      if (0 < dlogs.length) {
-        for (let dlogentry of dlogs) {
+      for (const dlogentry of ctx$.dlogs) {
+        if (dlog.tag === dlogentry[0]) {
           log.debug({ point: 'jostraca-warning', dlogentry, note: String(dlogentry) })
         }
       }
@@ -532,7 +564,7 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
     opts: JostracaOptions | {},
     root: Function
   ): Promise<CheckResult> {
-    return checkRun(generate, opts, root)
+    return checkRun(generate, opts, root, gOpts)
   }
 
   return {

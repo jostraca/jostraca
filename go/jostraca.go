@@ -29,6 +29,13 @@ type jstate struct {
 	meta   map[string]any
 	debug  string
 
+	// mem is the instance's in-memory volume, on the state New builds
+	// when the global Mem is on. Generate calls share it.
+	mem *MemFS
+
+	// warnings raised by THIS Generate, replayed to its log on success.
+	warnings []dLogEntry
+
 	root *Node
 	err  error
 }
@@ -38,7 +45,20 @@ type jstate struct {
 // this top-level value.
 func New(opts ...Option) *J {
 	o := applyOptions(opts)
-	return &J{st: newJstateFromOptions(o), cur: nil}
+	st := newJstateFromOptions(o)
+
+	// Mem switches an in-memory filesystem on and Vol seeds it, which is
+	// what TS's `{mem: true}` and `vol` pair does. Built from Mem alone,
+	// whatever FS says, as TS builds gMemFs from gOpts.mem; Generate
+	// decides per call which provider wins.
+	//
+	// These two options used to be INERT here: nothing read them, so
+	// `WithMem()` ran against the real filesystem and returned a Result
+	// whose Vol and FS were nil, with no error at all. See #37.
+	if o.Mem != nil && *o.Mem {
+		st.mem = newSeededMemFS(o.Vol)
+	}
+	return &J{st: st, cur: nil}
 }
 
 func newJstateFromOptions(o Options) *jstate {
@@ -62,28 +82,48 @@ func newJstateFromOptions(o Options) *jstate {
 	st.debug = o.Debug
 	st.fs = o.FS
 
-	// Mem switches an in-memory filesystem on and Vol seeds it, which is
-	// what TS's `{mem: true}` and `vol` pair does. An explicit FS still
-	// wins, exactly as in TS, where `opts.fs ||` comes first in the chain
-	// that picks the filesystem.
-	//
-	// These two options used to be INERT here: nothing read them, so
-	// `WithMem()` ran against the real filesystem and returned a Result
-	// whose Vol and FS were nil, with no error at all. A test translated
-	// from TS by keeping those two options passed while writing into the
-	// working directory. See #37.
-	if st.fs == nil && o.Mem != nil && *o.Mem {
-		st.fs = newSeededMemFS(o.Vol)
+	// Defaulted HERE, not in the file handler, so the define-time checks
+	// on a Fragment or CopyFiles `from` run against the filesystem the
+	// build will use whether or not the caller spelled it. A missing
+	// source then refuses the run before anything is written.
+	if st.fs == nil {
+		st.fs = OsFS{}
 	}
 
 	return st
 }
 
+// warn records a non-fatal warning in the package buffer and against this
+// Generate, so it is replayed to this call's log and no other's.
+func (st *jstate) warn(d *DLog, args ...any) {
+	e := d.record(args...)
+	if st != nil {
+		st.warnings = append(st.warnings, e)
+	}
+}
+
+// replayWarnings sends each warning this Generate raised to its log, one
+// Debug call apiece, with TS's payload.
+func (st *jstate) replayWarnings() {
+	for _, e := range st.warnings {
+		st.log.Debug(map[string]any{
+			"point":     "jostraca-warning",
+			"dlogentry": e,
+			"note":      e.String(),
+		})
+	}
+}
+
 // newSeededMemFS builds an in-memory filesystem pre-populated from a Vol
-// map. Mirrors TS's `MemFs(vol)`.
+// map. Mirrors TS's `MemFs(vol)`: a nil value is an empty directory, the
+// convention Vol() itself reports one with, and any other value a file.
 func newSeededMemFS(vol map[string][]byte) *MemFS {
 	mem := NewMemFS()
 	for path, body := range vol {
+		if body == nil {
+			_ = mem.MkdirAll(path)
+			continue
+		}
 		_ = mem.WriteFile(path, body)
 	}
 	return mem
@@ -99,14 +139,29 @@ type Result struct {
 }
 
 // Files groups output paths by category so callers can diff or report.
+// Every category is a list, empty rather than nil, and the JSON keys are
+// TS's, so a serialised Files has the TS shape.
 type Files struct {
-	Preserved  []string
-	Written    []string
-	Presented  []string
-	Diffed     []string
-	Merged     []string
-	Conflicted []string
-	Unchanged  []string
+	Preserved  []string `json:"preserved"`
+	Written    []string `json:"written"`
+	Presented  []string `json:"presented"`
+	Diffed     []string `json:"diffed"`
+	Merged     []string `json:"merged"`
+	Conflicted []string `json:"conflicted"`
+	Unchanged  []string `json:"unchanged"`
+}
+
+// listed returns f with every nil category replaced by an empty list.
+func (f Files) listed() Files {
+	for _, l := range []*[]string{
+		&f.Preserved, &f.Written, &f.Presented, &f.Diffed,
+		&f.Merged, &f.Conflicted, &f.Unchanged,
+	} {
+		if *l == nil {
+			*l = []string{}
+		}
+	}
+	return f
 }
 
 // Audit is an ordered list of build-phase actions.
@@ -121,27 +176,47 @@ type AuditEntry struct {
 // build a node tree, then walks the tree in the build phase. The build
 // phase is a no-op until Phase 5/6 lands the ops.
 func (j *J) Generate(opts Options, root func(*J)) (Result, error) {
+	return j.generate(opts, root, nil)
+}
+
+// generate is Generate with a hook applied to the MERGED options, for a
+// caller that must force a field whatever the global options say. Check
+// uses it: a zero-value per-call field cannot override a global one.
+//
+// Every Files category of the Result is a list, including on a run that
+// fails or builds nothing.
+func (j *J) generate(
+	opts Options, root func(*J), force func(*Options),
+) (res Result, err error) {
+	defer func() { res.Files = res.Files.listed() }()
+
 	if root == nil {
 		return Result{}, ErrNilRoot
 	}
 	merged := mergeOptions(j.st.opts, opts)
+	if force != nil {
+		force(&merged)
+	}
 
-	// A GLOBAL in-memory filesystem is reused across Generate calls, so a
-	// second run sees what the first wrote -- unless this call supplies its
-	// own Vol, which seeds a fresh one. TS makes the same distinction:
-	// `null == opts.vol && null != gMemFs ? gMemFs : MemFs(vol)`. Without
-	// this, `Jostraca({mem: true})` would hand every call a blank volume and
-	// no regenerate-over-existing-output scenario could be written against
-	// it. See #37.
-	//
-	// Decided BEFORE the state is built: newJstateFromOptions would
-	// otherwise allocate a MemFS and copy every byte of the global seed into
-	// it, only for the next line to throw that away. On a builder holding a
-	// large template volume that is a full copy of it per call.
-	if merged.FS == nil && merged.Mem != nil && *merged.Mem && opts.Vol == nil {
-		if gmem, ok := j.st.fs.(*MemFS); ok {
-			merged.FS = gmem
+	// The in-memory volume, when mem is on for THIS call. A GLOBAL volume
+	// is reused across Generate calls, so a second run sees what the first
+	// wrote -- unless this call supplies its own Vol, which seeds a fresh
+	// one from the global seed merged with the call's. TS makes the same
+	// distinction: `null == opts.vol && null != gMemFs ? gMemFs :
+	// MemFs(vol)`. See #37.
+	var mem *MemFS
+	if merged.Mem != nil && *merged.Mem {
+		if opts.Vol == nil && j.st.mem != nil {
+			mem = j.st.mem
+		} else {
+			mem = newSeededMemFS(merged.Vol)
 		}
+	}
+
+	// The provider, in TS's order: the per-call FS, else the in-memory
+	// volume, else the global FS, else OsFS (defaulted by the state).
+	if opts.FS == nil && mem != nil {
+		merged.FS = mem
 	}
 
 	st := newJstateFromOptions(merged)
@@ -170,34 +245,37 @@ func (j *J) Generate(opts Options, root func(*J)) (Result, error) {
 	// Phase 5 ships ops that build the in-memory tree but don't yet
 	// touch the filesystem (FileHandler arrives in Phase 6).
 	doBuild := merged.Build == nil || *merged.Build
-	res := Result{
-		When:  st.now(),
-		Audit: func() Audit { return nil },
+	res = Result{
+		Audit: func() Audit { return Audit{} },
 	}
 
-	// The in-memory handles are attached whether or not the build phase
-	// runs, as they are in TS. A define-only run still has a filesystem --
-	// the seeded one -- and a caller inspecting it was handed nil.
-	if mfs, ok := st.fs.(*MemFS); ok {
-		fsRef := st.fs
-		res.Vol = func() map[string][]byte { return mfs.Vol() }
-		res.FS = func() FS { return fsRef }
-	}
-
-	if !doBuild {
-		return res, nil
-	}
-	b, err := runBuild(st)
+	b, err := newBuild(st)
 	if err != nil {
 		return res, err
 	}
-	if b != nil {
-		res.When = b.when
-		audit := b.audit
-		res.Audit = func() Audit { return audit }
-		if b.fh != nil {
-			res.Files = b.fh.files
+	res.When = b.when
+	res.Audit = func() Audit { return b.audit }
+
+	// The in-memory handles are attached exactly when mem is on for this
+	// call, whether or not the build phase runs, as they are in TS: Vol is
+	// that volume and FS the provider actually used. A caller-supplied
+	// provider, even a MemFS, gets neither; the caller already holds it.
+	if mem != nil {
+		fsRef := st.fs
+		res.Vol = func() map[string][]byte { return mem.Vol() }
+		res.FS = func() FS { return fsRef }
+	}
+
+	if doBuild {
+		err := runBuild(st, b)
+		res.Files = b.fh.files
+		if err != nil {
+			return res, err
 		}
 	}
+
+	// Only after a run that succeeded, as in TS: a refused run returns its
+	// error and replays nothing.
+	st.replayWarnings()
 	return res, nil
 }

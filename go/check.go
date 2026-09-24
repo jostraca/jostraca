@@ -120,46 +120,74 @@ func newShadowFS(base FS, root string) *shadowFS {
 	}
 }
 
-// under reports whether p is at or below root, on a path BOUNDARY:
-// `/out2/a` is not under `/out`, however much of the string it shares.
-func (s *shadowFS) under(p string) bool {
-	cp := memClean(p)
-	return cp == s.root || strings.HasPrefix(cp, s.root+"/")
-}
-
-// pick routes a READ: memory inside the folder, base outside it.
-func (s *shadowFS) pick(p string) FS {
-	if s.under(p) {
-		return s.mem
+// resolve is p as the volume keys it: absolute, against the working
+// directory when the run hands over a relative path. The run keeps the
+// folder as the caller gave it, so its reported paths match a plain
+// Generate, and the volume and root stay absolute.
+func (s *shadowFS) resolve(p string) string {
+	if !strings.HasPrefix(filepath.ToSlash(p), "/") && !filepath.IsAbs(p) {
+		if abs, err := filepath.Abs(filepath.FromSlash(p)); err == nil {
+			p = abs
+		}
 	}
-	return s.base
+	return memClean(p)
 }
 
-func (s *shadowFS) ReadFile(p string) ([]byte, error) { return s.pick(p).ReadFile(p) }
-func (s *shadowFS) Exists(p string) bool              { return s.pick(p).Exists(p) }
-func (s *shadowFS) Stat(p string) (FileInfo, error)   { return s.pick(p).Stat(p) }
+// under reports whether a resolved path is at or below root, on a path
+// BOUNDARY: `/out2/a` is not under `/out`, however much of the string it
+// shares.
+func (s *shadowFS) under(rp string) bool {
+	return rp == s.root || strings.HasPrefix(rp, s.root+"/")
+}
+
+// pick routes a READ: memory inside the folder, base outside it. It
+// returns the path to hand that filesystem.
+func (s *shadowFS) pick(p string) (FS, string) {
+	if rp := s.resolve(p); s.under(rp) {
+		return s.mem, rp
+	}
+	return s.base, p
+}
+
+func (s *shadowFS) ReadFile(p string) ([]byte, error) {
+	f, fp := s.pick(p)
+	return f.ReadFile(fp)
+}
+
+func (s *shadowFS) Exists(p string) bool {
+	f, fp := s.pick(p)
+	return f.Exists(fp)
+}
+
+func (s *shadowFS) Stat(p string) (FileInfo, error) {
+	f, fp := s.pick(p)
+	return f.Stat(fp)
+}
+
 func (s *shadowFS) ReadDir(p string) ([]DirEntry, error) {
-	return s.pick(p).ReadDir(p)
+	f, fp := s.pick(p)
+	return f.ReadDir(fp)
 }
 
 // EVERY WRITE GOES TO MEMORY, including one aimed outside the folder. A
 // command that only asks a question must not be able to answer it by
 // changing something.
 func (s *shadowFS) WriteFile(p string, data []byte) error {
-	return s.mem.WriteFile(p, data)
+	return s.mem.WriteFile(s.resolve(p), data)
 }
 
-func (s *shadowFS) MkdirAll(p string) error { return s.mem.MkdirAll(p) }
-func (s *shadowFS) Remove(p string) error   { return s.mem.Remove(p) }
+func (s *shadowFS) MkdirAll(p string) error { return s.mem.MkdirAll(s.resolve(p)) }
+func (s *shadowFS) Remove(p string) error   { return s.mem.Remove(s.resolve(p)) }
 
 // The atomic write lands under a temp name and is renamed into place,
 // so a declared mode follows the bytes to their final path.
 func (s *shadowFS) Rename(oldpath, newpath string) error {
-	if mode, held := s.modes[memClean(oldpath)]; held {
-		s.modes[memClean(newpath)] = mode
-		delete(s.modes, memClean(oldpath))
+	from, to := s.resolve(oldpath), s.resolve(newpath)
+	if mode, held := s.modes[from]; held {
+		s.modes[to] = mode
+		delete(s.modes, from)
 	}
-	return s.mem.Rename(oldpath, newpath)
+	return s.mem.Rename(from, to)
 }
 
 // Chmod is where a declared mode becomes visible, and implementing it
@@ -177,7 +205,7 @@ func (s *shadowFS) Rename(oldpath, newpath string) error {
 // target does not exist, so nothing is declared. That is what keeps a
 // silent File held to nothing.
 func (s *shadowFS) Chmod(p string, mode fs.FileMode) error {
-	s.modes[memClean(p)] = mode & fs.ModePerm
+	s.modes[s.resolve(p)] = mode & fs.ModePerm
 	return nil
 }
 
@@ -240,17 +268,17 @@ func (j *J) Check(opts Options, root func(*J)) (CheckResult, error) {
 		base = OsFS{}
 	}
 
-	// RESOLVED, because "" is not a usable root. `memClean(".")` is the
-	// empty string, and against it `under` answers backwards -- a
-	// relative output path is not "under" it, so the run would read the
-	// COMMITTED file and a protected one would suppress its own write;
-	// an absolute path from a Project.Folder elsewhere is, so the walk
-	// would descend into a tree outside the folder. The TypeScript twin
-	// carries the same empty root and is right anyway, because its
-	// handler hands memfs absolute paths and every one of them starts
-	// with the separator. Resolving here is what makes Go's paths
-	// absolute in the same way, rather than leaving the answer to
-	// whether a caller happened to spell the folder absolutely.
+	// The ROOT is resolved, because "" is not a usable root.
+	// `memClean(".")` is the empty string, and against it `under` answers
+	// backwards -- a relative output path is not "under" it, so the run
+	// would read the COMMITTED file and a protected one would suppress
+	// its own write; an absolute path from a Project.Folder elsewhere is,
+	// so the walk would descend into a tree outside the folder.
+	//
+	// The RUN keeps the folder as given, so Files reports the paths a
+	// plain Generate reports, as in TypeScript. The shadow resolves each
+	// relative path it is handed against the working directory, which is
+	// what TypeScript's memfs does with the same paths.
 	abs, err := filepath.Abs(folder)
 	if err != nil {
 		return CheckResult{}, err
@@ -260,18 +288,22 @@ func (j *J) Check(opts Options, root func(*J)) (CheckResult, error) {
 	shadow := newShadowFS(base, abs)
 
 	run := opts
-	run.Folder = abs
+	run.Folder = folder
 	run.FS = shadow
 
 	// Forced, because each would answer a different question than the
 	// one asked. NoDuplicate off would write a `.jostraca/generated`
 	// baseline for a later merge, and a check makes no next run to
 	// merge into; a dry run would write nothing to the volume, leaving
-	// nothing to compare.
-	run.Control.NoDuplicate = true
-	run.Control.Dryrun = false
-
-	res, err := j.Generate(run, root)
+	// nothing to compare; Build false never reaches the file handler.
+	// Applied AFTER the merge, because a per-call false cannot clear a
+	// global true.
+	res, err := j.generate(run, root, func(o *Options) {
+		o.Control.NoDuplicate = true
+		o.Control.Dryrun = false
+		build := true
+		o.Build = &build
+	})
 	if err != nil {
 		return CheckResult{}, err
 	}

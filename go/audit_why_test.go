@@ -7,93 +7,48 @@ import (
 
 // TestAuditWhyBreadcrumbs mirrors test/parity-fidelity.test.ts:'audit-why-write'.
 // Each save() call records a `why` array of breadcrumbs explaining
-// which mode-dispatch branches fired. Mirrors TS at FileHandler.ts:162+.
+// which mode-dispatch branches fired, in TS's order.
+
+func auditRecord(audit Audit, tag string) *AuditEntry {
+	for i := range audit {
+		if audit[i].Tag == tag {
+			return &audit[i]
+		}
+	}
+	return nil
+}
 
 func TestAuditWhyBreadcrumbs(t *testing.T) {
 	mem := NewMemFS()
 	j := New(WithFS(mem), WithFolder("/out"), WithNow(func() int64 { return 1735689600000 }))
-	res, err := j.Generate(Options{}, func(j *J) {
-		j.Project(ProjectProps{Folder: "p"}, func(j *J) {
-			j.File("a.txt", func(j *J) { j.Content("hi") })
+	gen := func() Audit {
+		res, err := j.Generate(Options{}, func(j *J) {
+			j.Project(ProjectProps{Folder: "p"}, func(j *J) {
+				j.File("a.txt", func(j *J) { j.Content("hi") })
+			})
 		})
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	audit := res.Audit()
-	var saveEntry *AuditEntry
-	for i := range audit {
-		if strings.HasPrefix(audit[i].Tag, "save:") {
-			saveEntry = &audit[i]
-			break
+		if err != nil {
+			t.Fatal(err)
 		}
+		return res.Audit()
 	}
-	if saveEntry == nil {
-		t.Fatalf("no save: audit entry found; have %d entries", len(audit))
-	}
-	why, ok := saveEntry.Data["why"].([]string)
-	if !ok {
-		t.Fatalf("why is %T, want []string", saveEntry.Data["why"])
-	}
-	if len(why) == 0 {
-		t.Errorf("empty why")
-	}
-	// Specific breadcrumbs that should appear for a fresh write.
-	hasWriteCrumb := false
-	hasDuplicateCrumb := false
-	for _, c := range why {
-		if c == "write-1" {
-			hasWriteCrumb = true
-		}
-		if c == "duplicate-1" {
-			hasDuplicateCrumb = true
-		}
-	}
-	if !hasWriteCrumb {
-		t.Errorf("why missing write-1: %v", why)
-	}
-	if !hasDuplicateCrumb {
-		t.Errorf("why missing duplicate-1: %v", why)
-	}
-}
 
-func TestAuditWhyOnUnchanged(t *testing.T) {
-	mem := NewMemFS()
-	_ = mem.WriteFile("/out/p/a.txt", []byte("hi"))
-	j := New(WithFS(mem), WithFolder("/out"))
-	res, err := j.Generate(Options{}, func(j *J) {
-		j.Project(ProjectProps{Folder: "p"}, func(j *J) {
-			j.File("a.txt", func(j *J) { j.Content("hi") })
-		})
-	})
-	if err != nil {
-		t.Fatal(err)
+	rec := auditRecord(gen(), "FileHandler:save:write")
+	if rec == nil {
+		t.Fatal("no FileHandler:save:write record")
 	}
-	audit := res.Audit()
-	// A byte-identical rewrite still records the *write* intent (TS sets
-	// meta.action = 'write' and tags the entry save:write); the fact that
-	// nothing was touched shows up as the `unchanged-0` breadcrumb.
-	var unchangedEntry *AuditEntry
-	for i := range audit {
-		if audit[i].Tag == "save:write" {
-			unchangedEntry = &audit[i]
-			break
-		}
+	if got := strings.Join(rec.Data["why"].([]string), " "); got !=
+		"start<wX> write-1 duplicate-1 within-0" {
+		t.Errorf("why = %s", got)
 	}
-	if unchangedEntry == nil {
-		t.Fatalf("no save:write audit entry; have %d entries", len(audit))
+
+	// A re-run over the file writes nothing new, and says why.
+	rec = auditRecord(gen(), "FileHandler:save:write")
+	if rec == nil {
+		t.Fatal("no FileHandler:save:write record on the re-run")
 	}
-	why, ok := unchangedEntry.Data["why"].([]string)
-	if !ok {
-		t.Fatalf("why type: %T", unchangedEntry.Data["why"])
-	}
-	hasUnchanged := false
-	for _, c := range why {
-		if c == "unchanged-0" {
-			hasUnchanged = true
-		}
-	}
-	if !hasUnchanged {
-		t.Errorf("why missing unchanged-0: %v", why)
+	if got := strings.Join(rec.Data["why"].([]string), " "); got !=
+		"start<Wx> exists-0 write-0 not-protect-1 unchanged-0 duplicate-1 within-0" {
+		t.Errorf("re-run why = %s", got)
 	}
 }

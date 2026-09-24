@@ -1,6 +1,7 @@
 package jostraca
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -33,5 +34,27 @@ func TestSaveMergeMode(t *testing.T) {
 	}
 	if len(res.Files.Conflicted) != 1 {
 		t.Errorf("Files.Conflicted = %v, want 1 entry", res.Files.Conflicted)
+	}
+}
+
+// A region past about 125k lines used to reject the whole generate in TS.
+// Twin of 'large-file-diff-and-merge' in ts/test/merge.test.ts.
+func TestSaveMergeModeLargeFile(t *testing.T) {
+	var sb strings.Builder
+	for i := 0; i < 130000; i++ {
+		fmt.Fprintf(&sb, "x%d\n", i)
+	}
+	big := sb.String()
+	yes := true
+
+	text, res := modeRun(t, Existing{Txt: ExistingTxt{Merge: &yes}}, 1735689600000, "big.txt",
+		[][2]string{{"head\n", ""}, {"head\n" + big, "head\nuser\n"}})
+	if strings.Join(res.Files.Merged, ",") != "/out/big.txt" ||
+		strings.Join(res.Files.Conflicted, ",") != "/out/big.txt" {
+		t.Errorf("merged=%v conflicted=%v", res.Files.Merged, res.Files.Conflicted)
+	}
+	if !strings.HasPrefix(text, "head\n<<<<<<< GENERATED: ") ||
+		!strings.Contains(text, big+"=======\nuser\n>>>>>>> EXISTING: ") {
+		t.Errorf("big.txt tail = %q", text[len(text)-200:])
 	}
 }

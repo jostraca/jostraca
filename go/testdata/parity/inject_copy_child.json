@@ -1,0 +1,141 @@
+{
+  "scenario": "inject_copy_child",
+  "opts": {
+    "model": {
+      "name": "World"
+    }
+  },
+  "prepopulate": {
+    "/out/app/t.txt": "A\n#--START--#\nold1\n#--END--#\nB\n#--START--#\nold2\n#--END--#\nC\n",
+    "/tpl/single.txt": "single $$name$$ FOO\n"
+  },
+  "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/copied.txt",
+      "/out/app/t.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
+  "audit": [
+    [
+      "FileHandler:existsFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "exists": false
+      }
+    ],
+    [
+      "FileHandler:saveFile:Copy:copyFile:write:",
+      {
+        "path": "/out/app/copied.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 17
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/copied.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:loadFile:",
+      {
+        "path": "/out/app/t.txt",
+        "when": 1735689600000,
+        "size": 60
+      }
+    ],
+    [
+      "FileHandler:saveFile:write:",
+      {
+        "path": "/out/app/t.txt",
+        "when": 1735689600000,
+        "existed": true,
+        "size": 104
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/t.txt",
+        "exists": true,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<Wx>",
+          "exists-0",
+          "write-0",
+          "not-protect-1",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 656
+      }
+    ],
+    [
+      "FileHandler:saveJSON:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "size": 656
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/.gitignore",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 29
+      }
+    ]
+  ],
+  "vol": {
+    "/out/app/t.txt": "A\n#--START--#\npre;single World FOO\npost;\n#--END--#\nB\n#--START--#\npre;single World FOO\npost;\n#--END--#\nC\n",
+    "/out/app/copied.txt": "single World FOO\n",
+    "/out/.jostraca/generated/app/copied.txt": "single World FOO\n",
+    "/out/.jostraca/generated/app/t.txt": "A\n#--START--#\npre;single World FOO\npost;\n#--END--#\nB\n#--START--#\npre;single World FOO\npost;\n#--END--#\nC\n",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/copied.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/copied.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/t.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/t.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n",
+    "/tpl/single.txt": "single $$name$$ FOO\n"
+  }
+}

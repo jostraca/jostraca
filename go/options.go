@@ -3,6 +3,8 @@ package jostraca
 import (
 	"fmt"
 	"regexp"
+
+	shape "github.com/rjrodger/shape/go"
 )
 
 // Options carries every per-call and global configuration field.
@@ -106,7 +108,8 @@ func WithMem() Option {
 }
 
 // WithoutMem turns OFF an in-memory filesystem inherited from the builder,
-// which is what an explicit `mem: false` does in TS.
+// which is what an explicit `mem: false` does in TS: the call writes to
+// the global FS, else OsFS, and never into the builder's volume.
 func WithoutMem() Option {
 	return func(o *Options) { f := false; o.Mem = &f }
 }
@@ -128,139 +131,286 @@ func applyOptions(opts []Option) Options {
 	return o
 }
 
-// OptionsFromMap builds an Options value from an untyped map. Mirrors
-// the TS OptionsShape at src/jostraca.ts:99-153, validating each
-// top-level key and recursively decoding nested groups (Existing,
-// Control, Cmp, Name).
+// OptionsFromMap builds an Options value from an untyped map, such as
+// decoded JSON or YAML.
 //
-// Returns an error on any type mismatch; unknown keys are ignored.
+// The map is validated first, by the same closed schema as TS's
+// OptionsShape (with ExistingShape for `existing`), through the Go port of
+// shape, so an unknown key at any depth or a mistyped value is refused
+// with TS's own message text: `control.dryrun: "yes"` is an error, not a
+// silent write. A `vol` value is a file (string or []byte) or an empty
+// directory (nil), the memfs seed convention. A `cmp.Copy.ignore` string
+// is a regular expression source. `fs`, `now` and `log` hold an FS, a
+// func() int64 and a Log; a nil `now` or `log` is not supplied.
 func OptionsFromMap(m map[string]any) (Options, error) {
 	if m == nil {
 		return Options{}, nil
 	}
-	var o Options
-	for _, k := range sortedKeys(m) {
-		v := m[k]
-		switch k {
-		case "folder":
-			s, ok := v.(string)
-			if !ok {
-				return o, fmt.Errorf("jostraca: option %q must be string", k)
+	m = volAsAny(m)
+	if _, err := optionsSchema.Validate(hostAsFunction(m)); err != nil {
+		return Options{}, fmt.Errorf("Jostraca Options: %w", err)
+	}
+	if ex, ok := m["existing"].(map[string]any); ok {
+		in := map[string]any{"txt": map[string]any{}, "bin": map[string]any{}}
+		for _, k := range []string{"txt", "bin"} {
+			if v, ok := ex[k]; ok {
+				in[k] = v
 			}
-			o.Folder = s
-		case "debug":
-			s, ok := v.(string)
-			if !ok {
-				return o, fmt.Errorf("jostraca: option %q must be string", k)
-			}
-			o.Debug = s
-		case "mem":
-			b, ok := v.(bool)
-			if !ok {
-				return o, fmt.Errorf("jostraca: option %q must be bool", k)
-			}
-			o.Mem = &b
-		case "exclude":
-			b, ok := v.(bool)
-			if !ok {
-				return o, fmt.Errorf("jostraca: option %q must be bool", k)
-			}
-			o.Exclude = b
-		case "build":
-			b, ok := v.(bool)
-			if !ok {
-				return o, fmt.Errorf("jostraca: option %q must be bool", k)
-			}
-			o.Build = &b
-		case "model":
-			mm, ok := v.(map[string]any)
-			if !ok {
-				return o, fmt.Errorf("jostraca: option %q must be map", k)
-			}
-			o.Model = mm
-		case "meta":
-			mm, ok := v.(map[string]any)
-			if !ok {
-				return o, fmt.Errorf("jostraca: option %q must be map", k)
-			}
-			o.Meta = mm
-		case "vol":
-			vol, ok := v.(map[string]any)
-			if !ok {
-				return o, fmt.Errorf("jostraca: option %q must be map", k)
-			}
-			o.Vol = make(map[string][]byte, len(vol))
-			for vk, vv := range vol {
-				switch vvc := vv.(type) {
-				case string:
-					o.Vol[vk] = []byte(vvc)
-				case []byte:
-					o.Vol[vk] = vvc
-				default:
-					return o, fmt.Errorf("jostraca: vol[%q] must be string or []byte", vk)
-				}
-			}
-		case "existing":
-			ex, err := decodeExisting(v)
-			if err != nil {
-				return o, err
-			}
-			o.Existing = ex
-		case "control":
-			ctrl, err := decodeControl(v)
-			if err != nil {
-				return o, err
-			}
-			o.Control = ctrl
-		case "cmp":
-			cmp, err := decodeCmp(v)
-			if err != nil {
-				return o, err
-			}
-			o.Cmp = cmp
-		case "name":
-			name, err := decodeName(v)
-			if err != nil {
-				return o, err
-			}
-			o.Name = name
 		}
-		// Unknown keys silently ignored.
+		if _, err := existingSchema.Validate(in); err != nil {
+			return Options{}, fmt.Errorf("Jostraca Options (`existing` property): %w", err)
+		}
+	}
+
+	// Decoded from the input rather than the validated value, which carries
+	// the schema's injected defaults: an injected `meta: {}` would replace
+	// a global Meta on the merge.
+	var o Options
+	if v, ok := m["folder"].(string); ok {
+		o.Folder = v
+	}
+	if v, ok := m["debug"].(string); ok {
+		o.Debug = v
+	}
+	if v, ok := m["mem"].(bool); ok {
+		o.Mem = &v
+	}
+	if v, ok := m["exclude"].(bool); ok {
+		o.Exclude = v
+	}
+	if v, ok := m["build"].(bool); ok {
+		o.Build = &v
+	}
+	if v, ok := m["model"].(map[string]any); ok {
+		o.Model = v
+	}
+	if v, ok := m["meta"].(map[string]any); ok {
+		o.Meta = v
+	}
+	if v, ok := m["fs"]; ok && v != nil {
+		f, ok := v.(FS)
+		if !ok {
+			return Options{}, fmt.Errorf("Jostraca Options: property \"fs\" must implement FS, got %T", v)
+		}
+		o.FS = f
+	}
+	if v, ok := m["now"]; ok && v != nil {
+		f, ok := v.(func() int64)
+		if !ok {
+			return Options{}, fmt.Errorf("Jostraca Options: property \"now\" must be a func() int64, got %T", v)
+		}
+		o.Now = f
+	}
+	if v, ok := m["log"]; ok && v != nil {
+		l, ok := v.(Log)
+		if !ok {
+			return Options{}, fmt.Errorf("Jostraca Options: property \"log\" must implement Log, got %T", v)
+		}
+		o.Log = l
+	}
+	if vol, ok := m["vol"].(map[string]any); ok {
+		o.Vol = make(map[string][]byte, len(vol))
+		for k, v := range vol {
+			switch b := v.(type) {
+			case string:
+				o.Vol[k] = append([]byte{}, b...)
+			case []byte:
+				o.Vol[k] = b
+			case nil:
+				o.Vol[k] = nil
+			}
+		}
+	}
+	if v, ok := m["existing"].(map[string]any); ok {
+		o.Existing = decodeExisting(v)
+	}
+	if v, ok := m["control"].(map[string]any); ok {
+		o.Control = decodeControl(v)
+	}
+	if v, ok := m["cmp"].(map[string]any); ok {
+		cmp, err := decodeCmp(v)
+		if err != nil {
+			return Options{}, err
+		}
+		o.Cmp = cmp
+	}
+	if v, ok := m["name"].(map[string]any); ok {
+		o.Name = decodeName(v)
 	}
 	return o, nil
 }
 
-func decodeExisting(v any) (Existing, error) {
-	m, ok := v.(map[string]any)
-	if !ok {
-		return Existing{}, fmt.Errorf("jostraca: option \"existing\" must be map")
+// optionsSchema mirrors OptionsShape in ts/src/jostraca.ts, key for key.
+// A Fault stands in where TS names a JavaScript type (Buffer, RegExp) that
+// has no Go token, so the message text is still TS's.
+var optionsSchema = shape.MustShape(map[string]any{
+	"folder": shape.Skip(shape.String),
+	"name": map[string]any{
+		"file": map[string]any{
+			"prefix": shape.Skip(shape.String),
+			"suffix": shape.Skip(shape.String),
+		},
+		"folder": map[string]any{
+			"prefix": shape.Skip(shape.String),
+			"suffix": shape.Skip(shape.String),
+		},
+		"exclude": shape.Skip(shape.Fault(
+			`Value "$VALUE" for property "$PATH" does not satisfy one of: `+
+				`String, RegExp, ["One(String,)"]`,
+			shape.Check(isNameExclude))),
+	},
+	"meta": map[string]any{},
+	"fs":   shape.Skip(shape.Function),
+	"now":  shape.Skip(shape.Nullable(shape.Function)),
+	"log": shape.Skip(shape.Fault(
+		`Value "$VALUE" for property "$PATH" is not a logger with a debug function`,
+		shape.Check(isLogOption))),
+	"debug":    shape.Skip(shape.String),
+	"exclude":  shape.Skip(shape.Boolean),
+	"existing": map[string]any{"txt": map[string]any{}, "bin": map[string]any{}},
+	"model":    shape.Skip(map[string]any{}),
+	"build":    shape.Skip(shape.Boolean),
+	"mem":      shape.Skip(shape.Boolean),
+	"vol": shape.Skip(shape.Child(shape.Fault(
+		`Value "$VALUE" for property "$PATH" does not satisfy one of: String, Buffer, null`,
+		shape.Check(isVolSeed)), map[string]any{})),
+	"cmp": map[string]any{
+		"Copy": map[string]any{"ignore": []any{shape.Fault(
+			`Value "$VALUE" for property "$PATH" does not satisfy one of: String, RegExp`,
+			shape.Check(isIgnoreEntry))}},
+	},
+	"control": map[string]any{
+		"dryrun":    shape.Skip(shape.Boolean),
+		"duplicate": shape.Skip(shape.Boolean),
+		"version":   shape.Skip(shape.Boolean),
+	},
+})
+
+// existingSchema mirrors ExistingShape: txt and bin are closed, and bin
+// has no diff and no merge.
+var existingSchema = shape.MustShape(map[string]any{
+	"txt": map[string]any{
+		"write":    true,
+		"preserve": false,
+		"present":  false,
+		"diff":     false,
+		"merge":    false,
+	},
+	"bin": map[string]any{
+		"write":    true,
+		"preserve": false,
+		"present":  false,
+	},
+})
+
+// hostAsFunction stands a function in for an FS, which is what TS's `fs`
+// holds, so the schema's Function check passes a provider and words its
+// refusal of anything else as TS does. The map itself is not changed.
+func hostAsFunction(m map[string]any) map[string]any {
+	if _, ok := m["fs"].(FS); !ok {
+		return m
 	}
+	out := make(map[string]any, len(m))
+	for k, v := range m {
+		out[k] = v
+	}
+	out["fs"] = func() {}
+	return out
+}
+
+func isLogOption(v any, _ *shape.Update, _ *shape.State) bool {
+	if v == nil {
+		return true
+	}
+	_, ok := v.(Log)
+	return ok
+}
+
+func isIgnoreEntry(v any, _ *shape.Update, _ *shape.State) bool {
+	switch x := v.(type) {
+	case string:
+		return x != ""
+	case *regexp.Regexp:
+		return true
+	}
+	return false
+}
+
+func isVolSeed(v any, _ *shape.Update, _ *shape.State) bool {
+	switch v.(type) {
+	case string, []byte, nil:
+		return true
+	}
+	return false
+}
+
+func isNameExclude(v any, _ *shape.Update, _ *shape.State) bool {
+	one := func(x any) bool {
+		switch y := x.(type) {
+		case string:
+			return y != ""
+		case *regexp.Regexp:
+			return true
+		}
+		return false
+	}
+	if one(v) {
+		return true
+	}
+	if l, ok := v.([]any); ok {
+		for _, x := range l {
+			if !one(x) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+// volAsAny widens a typed map[string][]byte vol to map[string]any, which
+// is what the schema walks; shape would otherwise read each []byte as an
+// array of numbers.
+func volAsAny(m map[string]any) map[string]any {
+	typed, ok := m["vol"].(map[string][]byte)
+	if !ok {
+		return m
+	}
+	out := make(map[string]any, len(m))
+	for k, v := range m {
+		out[k] = v
+	}
+	vol := make(map[string]any, len(typed))
+	for k, v := range typed {
+		if v == nil {
+			vol[k] = nil
+		} else {
+			vol[k] = v
+		}
+	}
+	out["vol"] = vol
+	return out
+}
+
+func decodeExisting(m map[string]any) Existing {
 	var ex Existing
 	if t, ok := m["txt"].(map[string]any); ok {
-		ex.Txt = decodeExistingTxt(t)
+		ex.Txt = ExistingTxt{
+			Write:    boolPtrField(t, "write"),
+			Preserve: boolPtrField(t, "preserve"),
+			Present:  boolPtrField(t, "present"),
+			Diff:     boolPtrField(t, "diff"),
+			Merge:    boolPtrField(t, "merge"),
+		}
 	}
-	if t, ok := m["bin"].(map[string]any); ok {
-		ex.Bin = decodeExistingBin(t)
+	if b, ok := m["bin"].(map[string]any); ok {
+		ex.Bin = ExistingBin{
+			Write:    boolPtrField(b, "write"),
+			Preserve: boolPtrField(b, "preserve"),
+			Present:  boolPtrField(b, "present"),
+		}
 	}
-	return ex, nil
-}
-
-func decodeExistingTxt(m map[string]any) ExistingTxt {
-	var t ExistingTxt
-	t.Write = boolPtrField(m, "write")
-	t.Preserve = boolPtrField(m, "preserve")
-	t.Present = boolPtrField(m, "present")
-	t.Diff = boolPtrField(m, "diff")
-	t.Merge = boolPtrField(m, "merge")
-	return t
-}
-
-func decodeExistingBin(m map[string]any) ExistingBin {
-	var b ExistingBin
-	b.Write = boolPtrField(m, "write")
-	b.Preserve = boolPtrField(m, "preserve")
-	b.Present = boolPtrField(m, "present")
-	return b
+	return ex
 }
 
 func boolPtrField(m map[string]any, key string) *bool {
@@ -272,11 +422,7 @@ func boolPtrField(m map[string]any, key string) *bool {
 	return nil
 }
 
-func decodeControl(v any) (Control, error) {
-	m, ok := v.(map[string]any)
-	if !ok {
-		return Control{}, fmt.Errorf("jostraca: option \"control\" must be map")
-	}
+func decodeControl(m map[string]any) Control {
 	var c Control
 	if b, ok := m["dryrun"].(bool); ok {
 		c.Dryrun = b
@@ -288,58 +434,68 @@ func decodeControl(v any) (Control, error) {
 	if b, ok := m["version"].(bool); ok {
 		c.Version = b
 	}
-	return c, nil
+	return c
 }
 
-func decodeCmp(v any) (CmpOptions, error) {
-	m, ok := v.(map[string]any)
-	if !ok {
-		return CmpOptions{}, fmt.Errorf("jostraca: option \"cmp\" must be map")
-	}
+// decodeCmp compiles each cmp.Copy.ignore entry: a string is a regular
+// expression source, and a *regexp.Regexp is used as it is.
+func decodeCmp(m map[string]any) (CmpOptions, error) {
 	var c CmpOptions
-	if cm, ok := m["Copy"].(map[string]any); ok {
-		if ig, ok := cm["ignore"].([]any); ok {
-			for _, p := range ig {
-				if pat, ok := p.(string); ok {
-					if re, err := regexp.Compile(pat); err == nil {
-						c.Copy.Ignore = append(c.Copy.Ignore, re)
-					}
-				}
+	cm, _ := m["Copy"].(map[string]any)
+	ig, _ := cm["ignore"].([]any)
+	for _, p := range ig {
+		switch pat := p.(type) {
+		case *regexp.Regexp:
+			c.Copy.Ignore = append(c.Copy.Ignore, pat)
+		case string:
+			re, err := regexp.Compile(pat)
+			if err != nil {
+				return CmpOptions{}, fmt.Errorf(
+					"Jostraca Options: property \"cmp.Copy.ignore\": %w", err)
 			}
+			c.Copy.Ignore = append(c.Copy.Ignore, re)
+		default:
+			return CmpOptions{}, fmt.Errorf(
+				"Jostraca Options: property \"cmp.Copy.ignore\" entries must be "+
+					"strings or regular expressions, got %T", p)
 		}
 	}
 	return c, nil
 }
 
-func decodeName(v any) (NameOptions, error) {
-	m, ok := v.(map[string]any)
-	if !ok {
-		return NameOptions{}, fmt.Errorf("jostraca: option \"name\" must be map")
-	}
+func decodeName(m map[string]any) NameOptions {
 	var n NameOptions
 	if fm, ok := m["file"].(map[string]any); ok {
-		if s, ok := fm["prefix"].(string); ok {
-			n.File.Prefix = s
-		}
-		if s, ok := fm["suffix"].(string); ok {
-			n.File.Suffix = s
-		}
+		n.File.Prefix, _ = fm["prefix"].(string)
+		n.File.Suffix, _ = fm["suffix"].(string)
 	}
 	if fm, ok := m["folder"].(map[string]any); ok {
-		if s, ok := fm["prefix"].(string); ok {
-			n.Folder.Prefix = s
-		}
-		if s, ok := fm["suffix"].(string); ok {
-			n.Folder.Suffix = s
-		}
+		n.Folder.Prefix, _ = fm["prefix"].(string)
+		n.Folder.Suffix, _ = fm["suffix"].(string)
 	}
-	return n, nil
+	ex := m["exclude"]
+	if l, ok := ex.([]any); ok {
+		for _, x := range l {
+			n.Exclude = append(n.Exclude, nameMatcher(x))
+		}
+	} else if ex != nil {
+		n.Exclude = append(n.Exclude, nameMatcher(ex))
+	}
+	return n
+}
+
+func nameMatcher(x any) NameMatcher {
+	if re, ok := x.(*regexp.Regexp); ok {
+		return NameMatcher{RE: re}
+	}
+	s, _ := x.(string)
+	return NameMatcher{Literal: s}
 }
 
 // mergeOptions applies the per-call options on top of the global ones.
-// Right-precedence per-field; matches the TS deep-merge surface for the
-// fields used today. Maps are not deep-merged in Phase 1; revisit when
-// the Deep utility lands in Phase 4.
+// A per-call field that is supplied (non-nil, non-empty) replaces the
+// global one. Control and Existing are merged per field, as TS deep-merges
+// them; Vol merges per key. Meta and Model are replaced whole.
 func mergeOptions(global, call Options) Options {
 	out := global
 	if call.Folder != "" {
@@ -385,14 +541,41 @@ func mergeOptions(global, call Options) Options {
 		}
 		out.Vol = merged
 	}
-	if call.Existing != (Existing{}) {
-		out.Existing = call.Existing
+	// Existing overlays PER FLAG, as TS deep-merges existing.txt and
+	// existing.bin: a nil per-call pointer inherits the global flag.
+	out.Existing = Existing{
+		Txt: ExistingTxt{
+			Write:    overBool(global.Existing.Txt.Write, call.Existing.Txt.Write),
+			Preserve: overBool(global.Existing.Txt.Preserve, call.Existing.Txt.Preserve),
+			Present:  overBool(global.Existing.Txt.Present, call.Existing.Txt.Present),
+			Diff:     overBool(global.Existing.Txt.Diff, call.Existing.Txt.Diff),
+			Merge:    overBool(global.Existing.Txt.Merge, call.Existing.Txt.Merge),
+		},
+		Bin: ExistingBin{
+			Write:    overBool(global.Existing.Bin.Write, call.Existing.Bin.Write),
+			Preserve: overBool(global.Existing.Bin.Preserve, call.Existing.Bin.Preserve),
+			Present:  overBool(global.Existing.Bin.Present, call.Existing.Bin.Present),
+		},
 	}
-	if call.Control != (Control{}) {
-		out.Control = call.Control
+	// Control merges PER FIELD, as TS's `deep({}, CONTROL_DEFAULTS,
+	// gOpts.control, opts.control)` does: a per-call Control that sets one
+	// flag leaves every other global flag in force. A bool cannot say
+	// "unset", so a per-call false cannot clear a global true.
+	out.Control = Control{
+		Dryrun:      global.Control.Dryrun || call.Control.Dryrun,
+		NoDuplicate: global.Control.NoDuplicate || call.Control.NoDuplicate,
+		Version:     global.Control.Version || call.Control.Version,
 	}
 	if call.Exclude {
 		out.Exclude = true
 	}
 	return out
+}
+
+// overBool is the per-call flag when supplied, else the global one.
+func overBool(global, call *bool) *bool {
+	if call != nil {
+		return call
+	}
+	return global
 }

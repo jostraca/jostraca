@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -33,6 +34,14 @@ type fileHandler struct {
 	bmeta           *buildMeta
 	duplicateFolder string
 	maxDepth        int
+
+	// st receives this run's warnings; savedPaths detects a second save
+	// of one path.
+	st         *jstate
+	savedPaths map[string]struct{}
+
+	// filelogged holds, per files kind, the paths already listed.
+	filelogged map[string]map[string]struct{}
 }
 
 const protectMarker = "JOSTRACA_PROTECT"
@@ -84,17 +93,13 @@ func (fh *fileHandler) modesFor(isText bool) modeBits {
 	}
 }
 
-func newFileHandler(b *buildCtx) *fileHandler {
+func newFileHandler(b *buildCtx) (*fileHandler, error) {
 	st := b.st
 	fs := st.fs
 	if fs == nil {
 		fs = OsFS{}
 	}
-	folder := fwd(filepath.Clean(st.folder))
-	if folder == "" {
-		folder = "."
-	}
-	dup := folder + "/.jostraca/generated"
+	folder := canonFolder(st.folder)
 	fh := &fileHandler{
 		fs:              fs,
 		now:             st.now,
@@ -104,22 +109,62 @@ func newFileHandler(b *buildCtx) *fileHandler {
 		existing:        st.opts.Existing,
 		control:         st.opts.Control,
 		createdDirs:     map[string]struct{}{},
-		duplicateFolder: dup,
+		duplicateFolder: path.Join(folder, ".jostraca", "generated"),
 		maxDepth:        22,
+		st:              st,
+		savedPaths:      map[string]struct{}{},
 	}
-	fh.bmeta = newBuildMeta(fh)
-	return fh
+	bm, err := newBuildMeta(fh)
+	if err != nil {
+		return nil, err
+	}
+	fh.bmeta = bm
+	return fh, nil
 }
 
-// fwd normalises a path to canonical-/ form. (`filepath.ToSlash` only
-// affects Windows; safe to apply unconditionally.)
+// canonFolder is the output folder canonicalised once, as TS's canonFolder:
+// cleaned, separators folded, and trailing separators stripped except
+// from a filesystem root. A folder ending in a backslash kept it through
+// filepath.Clean off Windows, and folding it left a trailing slash.
+func canonFolder(folder string) string {
+	norm := fwd(filepath.Clean(folder))
+	if norm == "/" || isDriveKey(norm) && len(norm) == 3 {
+		return norm
+	}
+	if s := strings.TrimRight(norm, "/"); s != "" {
+		return s
+	}
+	return "."
+}
+
+// fwd normalises an OUTPUT path to canonical-/ form. A backslash is a
+// separator on every platform, as TS's fwd folds it unconditionally;
+// filepath.ToSlash does nothing off Windows. Source paths (Fragment and
+// Copy `from`) keep their platform meaning and do not come through here.
 func fwd(p string) string {
-	return filepath.ToSlash(p)
+	return strings.ReplaceAll(p, "\\", "/")
 }
 
-// save writes content under the configured existing-file mode.
+// canonOutPath is the one canonical form of an output path, TS's canonPath:
+// separators folded, `.` and `..` resolved.
+func canonOutPath(p string) string {
+	return path.Clean(fwd(p))
+}
+
+// wstrOf is TS's whence suffix: the whence and a colon, or nothing for an
+// absent whence, which "" stands for here.
+func wstrOf(whence string) string {
+	if whence == "" {
+		return ""
+	}
+	return whence + ":"
+}
+
+// save writes content under the configured existing-file mode. whence is
+// the calling op's mark, as TS's save(path, content, whence) takes it: it
+// reaches the low-level audit tags and not the decision record's.
 func (fh *fileHandler) save(p string, content []byte, whence string) error {
-	return fh.saveMode(p, content, whence, 0)
+	return fh.saveAs(p, content, whence, false, 0, !IsBinExt(canonOutPath(p)))
 }
 
 // saveBinary is save for content already KNOWN to be binary, whatever its
@@ -132,10 +177,10 @@ func (fh *fileHandler) save(p string, content []byte, whence string) error {
 // mode set: with txt.diff on, a diff render wrote textual conflict markers
 // into binary data, and bin.preserve was ignored entirely.
 //
-// TS does not need this because its Buffer-vs-string argument type carries
-// the bit; Go's []byte cannot, so it is an explicit parameter.
+// TS passes whence as save's fourth argument here, so the decision record's
+// tag carries it too.
 func (fh *fileHandler) saveBinary(p string, content []byte, whence string) error {
-	return fh.saveClassified(p, content, whence, 0, false)
+	return fh.saveAs(p, content, whence, true, 0, false)
 }
 
 // saveMode is save with explicit POSIX permission bits for the target.
@@ -143,72 +188,79 @@ func (fh *fileHandler) saveBinary(p string, content []byte, whence string) error
 // sidecars and the merge baseline stay at the provider default, since they
 // are jostraca's bookkeeping rather than the user's output.
 func (fh *fileHandler) saveMode(p string, content []byte, whence string, mode fs.FileMode) error {
-	return fh.saveClassified(p, content, whence, mode, !IsBinExt(p))
+	return fh.saveAs(p, content, whence, false, mode, !IsBinExt(canonOutPath(p)))
 }
 
-// saveClassified is saveMode with the text/binary decision supplied rather
-// than derived from the path. See saveBinary.
-func (fh *fileHandler) saveClassified(
-	p string, content []byte, whence string, mode fs.FileMode, isText bool,
+// saveAs is TS's FileHandler.save, step for step: the same branches in the
+// same order, the same `why` breadcrumbs, the same low-level calls (each
+// one clock sample and one audit entry), and one whenify sample per
+// recorded action. tagged says whence was passed as TS's fourth argument,
+// which puts it in the decision record's tag.
+func (fh *fileHandler) saveAs(
+	p string, content []byte, whence string, tagged bool, mode fs.FileMode, isText bool,
 ) error {
 	if p == "" {
 		return ErrInvalidPath
 	}
-	p = fwd(p)
-	rpath := fh.relative(p)
+	dtag := "FileHandler:save:"
+	if tagged {
+		dtag += wstrOf(whence)
+	}
+	p = canonOutPath(p)
 	modes := fh.modesFor(isText)
+	within := fh.withinFolder(p)
+	rpath := fh.relative(p)
+
+	// Two components resolving to one output path is almost always a
+	// mistake, and the second silently wins. Mirrors TS save().
+	if _, again := fh.savedPaths[p]; again {
+		fh.st.warn(fhDlog, "save", "duplicate save, later content wins: "+p)
+	} else if fh.savedPaths != nil {
+		fh.savedPaths[p] = struct{}{}
+	}
 
 	exists := fh.fs.Exists(p)
-	// why captures the mode-dispatch breadcrumbs accumulated during this
-	// save. Mirrors the `why` array in TS at src/build/FileHandler.ts:162+.
-	why := []string{}
-	wTag := "wW"
-	if modes.write {
-		wTag = "w" + wTag[1:]
-	}
-	xTag := "X"
-	if exists {
-		xTag = "x"
-	}
-	why = append(why, "start<"+wTag[:1]+xTag+">")
-
-	// Mirrors the block order of TS save() at src/build/FileHandler.ts:175+.
-	// The modes are NOT mutually exclusive: `preserve` runs independently of
-	// `diff`/`merge`, and `present` can still fire for a protected file.
-	// Structuring these as early returns (as this used to) silently dropped
-	// the backup whenever preserve was combined with diff or merge.
 	write := !exists
-	actions := 0
+	why := []string{"start<" + pick(write, "w", "W") + pick(exists, "x", "X") + ">"}
 
-	var existing []byte
-	protect := false
-	contentEqual := false
+	meta := &metaEntry{Action: "init", Path: rpath, Exists: exists, Actions: []string{}}
+	record := func(action string) {
+		meta.Action = action
+		fh.whenify(meta)
+		meta.Actions = append(meta.Actions, action)
+		fh.decision(dtag, meta, why, p)
+	}
+
+	// The modes are NOT mutually exclusive: `preserve` runs independently
+	// of `diff`/`merge`, and `present` can still fire for a protected file.
+	unchanged := false
+	final := false
 
 	if exists {
 		why = append(why, "exists-0")
 
-		var err error
-		existing, err = fh.fs.ReadFile(p)
+		existing, err := fh.loadFile(p, "")
 		if err != nil {
 			return err
 		}
-		if isText {
-			protect = bytes.Contains(existing, []byte(protectMarker))
-		}
-		contentEqual = bytes.Equal(existing, content)
+		// Any classification: a binary target carrying the marker is as
+		// protected as a text one, as in TS.
+		protect := bytes.Contains(existing, []byte(protectMarker))
+		meta.Protect = protect
+		unchanged = bytes.Equal(existing, content)
 
-		// preserve: keep a .old.<ext> copy of what is being replaced.
 		if modes.preserve {
 			why = append(why, "preserve-0")
 			if protect {
 				why = append(why, "protect-0")
 				write = false
-			} else if !contentEqual {
+			} else if !unchanged {
 				why = append(why, "content-0")
-				if err := fh.savePreserveBackup(p, existing, rpath, whence); err != nil {
+				if err := fh.copyFile(p, annotatedPath(p, "old"), whence+"preserve:"); err != nil {
 					return err
 				}
-				actions++
+				fh.filelog("preserved", p)
+				record("preserve")
 			}
 		}
 
@@ -218,27 +270,38 @@ func (fh *fileHandler) saveClassified(
 			write = true
 		} else if modes.present {
 			why = append(why, "present-0")
-			if !contentEqual {
+			if !unchanged {
 				why = append(why, "content-1")
-				if err := fh.savePresent(p, content, rpath, whence, why); err != nil {
+				if err := fh.saveFile(annotatedPath(p, "new"), content, 0, whence+"present:"); err != nil {
 					return err
 				}
-				actions++
+				fh.filelog("presented", p)
+				record("present")
 			}
 		}
 
 		if !protect {
 			why = append(why, "not-protect-1")
 
-			if isText && modes.diff {
+			if modes.diff {
 				why = append(why, "diff-0")
 				write = false
-				if !contentEqual {
+				if !unchanged {
 					why = append(why, "content-2")
-					if err := fh.saveDiff(p, content, existing, rpath, whence, why, mode); err != nil {
+					rendered := Diff(string(content), string(existing), DiffSpec{
+						When: fh.when,
+						Last: fh.bmeta.last(),
+						Kind: "diff",
+					}).Content
+					if err := fh.saveFile(p, []byte(rendered), mode, whence+"diff"); err != nil {
 						return err
 					}
-					actions++
+					fh.filelog("diffed", p)
+					meta.Conflict = rendered != string(content)
+					if meta.Conflict {
+						fh.filelog("conflicted", p)
+					}
+					record("diff")
 				} else {
 					// Equal content is still not a no-op when an explicit
 					// mode was asked for — and `write` was already cleared
@@ -247,26 +310,28 @@ func (fh *fileHandler) saveClassified(
 					if fh.chmodUnchanged(p, mode) {
 						why = append(why, "chmod-0")
 					}
-					fh.filelog(&fh.files.Unchanged, p)
+					fh.filelog("unchanged", p)
 				}
-			} else if isText && modes.merge {
+			} else if modes.merge {
 				why = append(why, "merge-0")
-				if !contentEqual {
+				if !unchanged {
 					why = append(why, "content-3")
 					if fh.control.Duplicate() {
 						why = append(why, "duplicate-0")
-						dpath := fh.duplicateFolder + "/" + rpath
-						if fh.fs.Exists(dpath) {
+						dpath := path.Join(fh.duplicateFolder, rpath)
+						has, err := fh.existsFile(dpath, "")
+						if err != nil {
+							return err
+						}
+						// No baseline: fall through to the write check, as TS
+						// does.
+						if has {
 							why = append(why, "dupexists-0")
 							write = false
-							if err := fh.saveMerge(p, content, existing, rpath, whence, why, mode); err != nil {
+							if err := fh.saveMerge(p, content, existing, dpath, whence, mode, meta, &why); err != nil {
 								return err
 							}
-							actions++
-						} else {
-							// No baseline: TS leaves the merge block silently
-							// and falls through to the regular write check.
-							why = append(why, "no-baseline-0")
+							record("merge")
 						}
 					}
 				} else {
@@ -277,76 +342,90 @@ func (fh *fileHandler) saveClassified(
 					if fh.chmodUnchanged(p, mode) {
 						why = append(why, "chmod-0")
 					}
-					fh.filelog(&fh.files.Unchanged, p)
+					fh.filelog("unchanged", p)
 				}
 			}
 		}
 	}
 
-	// Decide the duplicate baseline before emitting the write/skip audit, so
-	// that entry carries the same breadcrumbs TS records. (TS pushes these
-	// after the audit entry, but its entries alias one shared `why` array,
-	// so they end up with the full set either way.)
-	dup := false
-	if fh.control.Duplicate() {
-		why = append(why, "duplicate-1")
-		// TS guards the baseline on the path being inside the output folder
-		// and not being the meta log itself; without that a path resolved
-		// outside the folder produces a nonsense baseline location.
-		if fh.withinFolder(p) && path.Base(p) != metaFilename {
-			why = append(why, "within-0")
-			dup = true
-		}
-	}
-
 	if write {
-		if exists && contentEqual {
+		if unchanged {
 			// Byte-identical rewrite: record the intent but do not touch the
-			// file, so mtime is not bumped for nothing.
+			// file, so mtime is not bumped for nothing. Identical bytes are
+			// not a complete no-op when an explicit mode was asked for.
 			why = append(why, "unchanged-0")
-
-			// Identical bytes are not a complete no-op when an explicit
-			// mode was asked for — see the TS counterpart.
 			if fh.chmodUnchanged(p, mode) {
 				why = append(why, "chmod-0")
 			}
-
-			fh.filelog(&fh.files.Unchanged, p)
-			fh.appendAudit("save:write", map[string]any{
-				"action": "write", "path": rpath, "size": len(content),
-				"whence": whence, "why": why, "exists": exists,
-				"actions": []string{"write"},
-			})
-			if fh.bmeta != nil {
-				fh.bmeta.recordAction(rpath, "write", exists, false, false)
-			}
+			fh.filelog("unchanged", p)
 		} else {
 			why = append(why, "write-1")
-			if err := fh.write(p, content, rpath, whence, exists, why, mode); err != nil {
+			if err := fh.saveFile(p, content, mode, whence+"write"); err != nil {
+				return err
+			}
+			fh.filelog("written", p)
+		}
+		meta.Action = "write"
+		meta.Actions = append(meta.Actions, "write")
+		fh.whenify(meta)
+		final = true
+	} else if len(meta.Actions) == 0 {
+		// A protected or write-disabled file is not "preserved" or
+		// "unchanged"; it simply was not acted on.
+		why = append(why, "skip-0")
+		meta.Action = "skip"
+		meta.Actions = append(meta.Actions, "skip")
+		fh.whenify(meta)
+		final = true
+	}
+
+	if fh.control.Duplicate() {
+		why = append(why, "duplicate-1")
+		// Only inside the output folder, and never the meta log itself.
+		if within && path.Base(p) != metaFilename {
+			why = append(why, "within-0")
+			if err := fh.writeDuplicate(rpath, content); err != nil {
 				return err
 			}
 		}
-		actions++
-	} else if actions == 0 {
-		// TS records the skip in the audit and the meta log but adds nothing
-		// to any files.* list — a protected or write-disabled file is not
-		// "preserved" or "unchanged", it simply was not acted on.
-		why = append(why, "skip-0")
-		fh.appendAudit("save:skip", map[string]any{
-			"action": "skip", "path": rpath, "whence": whence, "why": why,
-			"exists": exists, "actions": []string{"skip"},
-		})
-		if fh.bmeta != nil {
-			fh.bmeta.recordAction(rpath, "skip", exists, false, protect)
-		}
 	}
 
-	fh.bmeta.recordProtect(rpath, protect)
-
-	if dup {
-		return fh.writeDuplicate(rpath, content)
+	// The write or skip record is the save's last word, so it carries the
+	// baseline breadcrumbs too.
+	if final {
+		fh.decision(dtag, meta, why, p)
 	}
+
+	fh.bmeta.add(meta)
 	return nil
+}
+
+func pick(b bool, yes, no string) string {
+	if b {
+		return yes
+	}
+	return no
+}
+
+// whenify stamps the entry with one clock sample, as TS's whenify.
+func (fh *fileHandler) whenify(m *metaEntry) {
+	m.When = fh.now()
+}
+
+// decision pushes a save's decision record as a SNAPSHOT of the entry and
+// the breadcrumbs so far, in TS's field set. path is the full path.
+func (fh *fileHandler) decision(tag string, m *metaEntry, why []string, p string) {
+	fh.appendAudit(tag+m.Action, map[string]any{
+		"action":   m.Action,
+		"path":     p,
+		"exists":   m.Exists,
+		"actions":  append([]string{}, m.Actions...),
+		"protect":  m.Protect,
+		"conflict": m.Conflict,
+		"when":     m.When,
+		"hwhen":    Humanify(m.When, HumanifyFlags{}).(int64),
+		"why":      append([]string{}, why...),
+	})
 }
 
 // withinFolder reports whether p resolves inside the configured output
@@ -386,196 +465,242 @@ func (fh *fileHandler) withinFolder(p string) bool {
 	return p == fh.folder || strings.HasPrefix(p, fh.folder+"/")
 }
 
-func (fh *fileHandler) write(p string, content []byte, rpath, whence string, exists bool, why []string, mode fs.FileMode) error {
-	if err := fh.ensureDirOf(p); err != nil {
-		return err
-	}
-	if !fh.control.Dryrun {
-		if err := fh.writeAtomicMode(p, content, mode); err != nil {
-			return err
-		}
-	}
-	fh.filelog(&fh.files.Written, p)
-	fh.appendAudit("save:write", map[string]any{
-		"action":  "write",
-		"path":    rpath,
-		"size":    len(content),
-		"whence":  whence,
-		"why":     why,
-		"exists":  exists,
-		"actions": []string{"write"},
-	})
-	if fh.bmeta != nil {
-		fh.bmeta.recordAction(rpath, "write", exists, false, false)
-	}
-	return nil
-}
-
-func (fh *fileHandler) savePresent(p string, content []byte, rpath, whence string, why []string) error {
-	out := annotatedPath(p, "new")
-	if err := fh.ensureDirOf(out); err != nil {
-		return err
-	}
-	if !fh.control.Dryrun {
-		if err := fh.writeAtomic(out, content); err != nil {
-			return err
-		}
-	}
-	fh.filelog(&fh.files.Presented, out)
-	fh.appendAudit("save:present", map[string]any{
-		"action":  "present",
-		"path":    rpath,
-		"out":     fh.relative(out),
-		"whence":  whence,
-		"why":     why,
-		"exists":  true,
-		"actions": []string{"present"},
-	})
-	if fh.bmeta != nil {
-		fh.bmeta.recordAction(rpath, "present", true, false, false)
-	}
-	return nil
-}
-
-// saveMerge runs a 3-way merge using the duplicate-folder baseline as
-// the common ancestor. The caller (save()) only dispatches here when a
-// baseline file exists; the no-baseline fall-through path is handled
-// before dispatch and ends in the regular write logic, mirroring TS at
-// FileHandler.ts:282-336.
+// saveMerge runs a 3-way merge using the duplicate-folder baseline at
+// dpath as the common ancestor. The caller only dispatches here when the
+// baseline exists.
 //
-// Skip semantics: if existing already contains conflict markers from
-// a previous unresolved merge, the file is left untouched (TS
-// "merge-unresolved" action at FileHandler.ts:429-433). The duplicate
-// baseline is still refreshed so a future user-resolution can merge
-// cleanly.
-func (fh *fileHandler) saveMerge(p string, content, existing []byte, rpath, whence string, why []string, mode fs.FileMode) error {
-	if HasConflicts(string(existing)) {
-		// Existing has unresolved markers; do not re-merge. The baseline is
-		// still refreshed by save()'s centralised duplicate write, so a
-		// future user-resolution merges cleanly.
-		fh.appendAudit("save:skip", map[string]any{
-			"action":  "skip",
-			"path":    rpath,
-			"whence":  whence,
-			"why":     append(why, "merge-unresolved-0"),
-			"exists":  true,
-			"actions": []string{"skip"},
-		})
-		if fh.bmeta != nil {
-			fh.bmeta.recordAction(rpath, "skip", true, false, false)
-		}
-		return nil
-	}
-	dpath := fh.duplicateFolder + "/" + rpath
-	// saveMerge is only entered when a baseline exists; the no-baseline
-	// fall-through is handled in save() before dispatch.
-	baseline, err := fh.fs.ReadFile(dpath)
+// The diff engine decides the outcome; this never pre-empts it. A file
+// still holding an earlier merge's markers (MergeUnresolved) is left
+// byte-for-byte untouched, a requested mode still applied, and reported
+// merged AND conflicted, as TS does. A clean merge over a file whose
+// generated text happens to contain the marker sentinel is written.
+func (fh *fileHandler) saveMerge(
+	p string, content, existing []byte, dpath, whence string, mode fs.FileMode,
+	meta *metaEntry, why *[]string,
+) error {
+	baseline, err := fh.loadFile(dpath, "")
 	if err != nil {
 		return err
 	}
-	// The fast paths and the choice between them live in the diff engine,
-	// which reports an Outcome; record it as a breadcrumb.
 	res := Merge(string(content), string(baseline), string(existing), DiffSpec{
 		When: fh.when,
 		Last: fh.bmeta.last(),
 		Kind: "merge",
 	})
-	why = append(why, mergeWhy[res.Outcome])
+	*why = append(*why, mergeWhy[res.Outcome])
 
-	if err := fh.ensureDirOf(p); err != nil {
+	unresolved := res.Outcome == MergeUnresolved
+	if unresolved {
+		if fh.chmodUnchanged(p, mode) {
+			*why = append(*why, "chmod-0")
+		}
+	} else if err := fh.saveFile(p, []byte(res.Content), mode, whence+"merge"); err != nil {
 		return err
 	}
-	if !fh.control.Dryrun {
-		// Forward the requested mode, as the TS branch does via modeopts().
-		// These used to call writeAtomic, so an explicit FileProps.Mode was
-		// silently dropped whenever merge or diff handled the file.
-		if err := fh.writeAtomicMode(p, []byte(res.Content), mode); err != nil {
-			return err
-		}
-	}
-	fh.filelog(&fh.files.Merged, p)
-	if res.Conflict {
-		fh.filelog(&fh.files.Conflicted, p)
-	}
-	fh.appendAudit("save:merge", map[string]any{
-		"action":   "merge",
-		"path":     rpath,
-		"conflict": res.Conflict,
-		"whence":   whence,
-		"why":      why,
-		"exists":   true,
-		"actions":  []string{"merge"},
-	})
-	if fh.bmeta != nil {
-		fh.bmeta.recordAction(rpath, "merge", true, res.Conflict, false)
+	fh.filelog("merged", p)
+	meta.Conflict = res.Conflict || unresolved
+	if meta.Conflict {
+		fh.filelog("conflicted", p)
 	}
 	return nil
 }
 
-func (fh *fileHandler) saveDiff(p string, content, existing []byte, rpath, whence string, why []string, mode fs.FileMode) error {
-	last := int64(0)
-	if fh.bmeta != nil {
-		last = fh.bmeta.last()
+// The low-level methods below are TS's FileHandler methods of the same
+// names. Each takes one clock sample and pushes one audit entry tagged
+// `FileHandler:<method>:<whence>`, or an `ERROR:` entry carrying err. Paths
+// are used as given (already folder-prefixed), never re-joined to the
+// folder.
+
+// existsFile is TS's existsFile.
+func (fh *fileHandler) existsFile(p, whence string) (bool, error) {
+	when := fh.now()
+	wstr := wstrOf(whence)
+	if err := fh.validPath(p, "FileHandler:existsFile:from:"+wstr); err != nil {
+		return false, err
 	}
-	rendered := []byte(Diff(string(content), string(existing), DiffSpec{
-		When: fh.when,
-		Last: last,
-		Kind: "diff",
-	}).Content)
-	if err := fh.ensureDirOf(p); err != nil {
+	exists := fh.fs.Exists(canonOutPath(p))
+	fh.appendAudit("FileHandler:existsFile:"+wstr, map[string]any{
+		"path": p, "when": when, "exists": exists,
+	})
+	return exists, nil
+}
+
+// loadFile is TS's loadFile, reading bytes.
+func (fh *fileHandler) loadFile(p, whence string) ([]byte, error) {
+	when := fh.now()
+	wstr := wstrOf(whence)
+	if err := fh.validPath(p, "FileHandler:loadFile:"+wstr); err != nil {
+		return nil, err
+	}
+	b, err := fh.fs.ReadFile(canonOutPath(p))
+	if err != nil {
+		fh.appendAudit("ERROR:FileHandler:loadFile:"+wstr, map[string]any{
+			"path": p, "when": when, "err": err,
+		})
+		return nil, &fhError{"FileHandler:loadFile:" + wstr + " path=" + p + " err=", err}
+	}
+	fh.appendAudit("FileHandler:loadFile:"+wstr, map[string]any{
+		"path": p, "when": when, "size": len(b),
+	})
+	return b, nil
+}
+
+// loadJSON is TS's loadJSON. A document that is valid JSON but not an
+// object decodes as an empty one, as TS's `json?.last` reads it.
+func (fh *fileHandler) loadJSON(p, whence string) (map[string]any, error) {
+	when := fh.now()
+	wstr := wstrOf(whence)
+	b, err := fh.loadFile(p, whence)
+	var doc any
+	if err == nil {
+		err = json.Unmarshal(b, &doc)
+	}
+	if err != nil {
+		fh.appendAudit("ERROR:FileHandler:loadJSON:"+wstr, map[string]any{
+			"path": p, "when": when, "err": err,
+		})
+		return nil, &fhError{"FileHandler:loadJSON:" + wstr + " path=" + p + " err=", err}
+	}
+	fh.appendAudit("FileHandler:loadJSON:"+wstr, map[string]any{
+		"path": p, "when": when, "size": len(b),
+	})
+	m, _ := doc.(map[string]any)
+	if m == nil {
+		m = map[string]any{}
+	}
+	return m, nil
+}
+
+// saveFile is TS's saveFile: an atomic write, skipped under a dry run,
+// that keeps the target's mode unless mode is given.
+func (fh *fileHandler) saveFile(p string, content []byte, mode fs.FileMode, whence string) error {
+	when := fh.now()
+	wstr := wstrOf(whence)
+	if err := fh.validPath(p, "saveFile:"); err != nil {
 		return err
 	}
-	// TS overwrites the target file with the rendered diff content;
-	// no .diff.<ext> sidecar.
-	if !fh.control.Dryrun {
-		// Forward the requested mode, as the TS branch does via modeopts().
-		if err := fh.writeAtomicMode(p, rendered, mode); err != nil {
-			return err
-		}
+	full := canonOutPath(p)
+	existed := fh.fs.Exists(full)
+	err := fh.ensureDirOf(full)
+	if err == nil && !fh.control.Dryrun {
+		err = fh.writeAtomicMode(full, content, mode)
 	}
-	conflict := !bytes.Equal(rendered, content)
-	fh.filelog(&fh.files.Diffed, p)
-	if conflict {
-		fh.filelog(&fh.files.Conflicted, p)
+	if err != nil {
+		fh.appendAudit("ERROR:FileHandler:saveFile:"+wstr, map[string]any{
+			"path": full, "when": when, "size": len(content), "err": err,
+		})
+		return &fhError{"FileHandler:saveFile:" + wstr + " path=" + full + ":", err}
 	}
-	fh.appendAudit("save:diff", map[string]any{
-		"action":   "diff",
-		"path":     rpath,
-		"conflict": conflict,
-		"whence":   whence,
-		"why":      why,
-		"exists":   true,
-		"actions":  []string{"diff"},
+	fh.appendAudit("FileHandler:saveFile:"+wstr, map[string]any{
+		"path": full, "when": when, "existed": existed, "size": len(content),
 	})
-	if fh.bmeta != nil {
-		fh.bmeta.recordAction(rpath, "diff", true, conflict, false)
+	return nil
+}
+
+// saveJSON is TS's saveJSON, over an already encoded document.
+func (fh *fileHandler) saveJSON(p string, doc []byte, whence string) error {
+	when := fh.now()
+	wstr := wstrOf(whence)
+	if err := fh.saveFile(p, doc, 0, whence); err != nil {
+		fh.appendAudit("ERROR:FileHandler:saveJSON:"+wstr, map[string]any{
+			"path": p, "when": when, "err": err,
+		})
+		return &fhError{"FileHandler:saveJSON:" + wstr + " path=" + p + " err=", err}
+	}
+	fh.appendAudit("FileHandler:saveJSON:"+wstr, map[string]any{
+		"path": p, "when": when, "size": len(doc),
+	})
+	return nil
+}
+
+// copyFile is TS's copyFile: bytes, never decoded, skipped under a dry
+// run.
+func (fh *fileHandler) copyFile(from, to, whence string) error {
+	when := fh.now()
+	wstr := wstrOf(whence)
+	if err := fh.validPath(from, "FileHandler:copyFile:from:"+wstr); err != nil {
+		return err
+	}
+	if err := fh.validPath(to, "FileHandler:copyFile:to:"+wstr); err != nil {
+		return err
+	}
+	fullto, fullfrom := canonOutPath(to), canonOutPath(from)
+	existed := fh.fs.Exists(fullto)
+	content, err := fh.fs.ReadFile(fullfrom)
+	if err == nil {
+		err = fh.ensureDirOf(fullto)
+	}
+	if err == nil && !fh.control.Dryrun {
+		err = fh.writeAtomic(fullto, content)
+	}
+	if err != nil {
+		fh.appendAudit("ERROR:FileHandler:copyFile:"+wstr, map[string]any{
+			"topath": to, "frompath": from, "when": when, "err": err,
+		})
+		return &fhError{"FileHandler:copyFile:" + wstr + " topath=" + to +
+			" frompath=" + from + " err=", err}
+	}
+	fh.appendAudit("FileHandler:copyFile:"+wstr, map[string]any{
+		"topath": to, "frompath": from, "when": when, "existed": existed, "size": len(content),
+	})
+	return nil
+}
+
+// copy is TS's copy, for a tree-walk entry with a binary extension: the
+// source is read through loadFile, and saved as binary when the source is
+// (the SOURCE decides, as in CopyOp).
+func (fh *fileHandler) copy(from, to string) error {
+	const whence = "copy:"
+	raw, err := fh.loadFile(from, whence)
+	if err != nil {
+		return err
+	}
+	if IsBinExt(from) || IsBinContent(raw) {
+		return fh.saveBinary(to, raw, whence)
+	}
+	return fh.save(to, raw, whence)
+}
+
+// fhError carries TS's message text for a failed low-level call and
+// unwraps to the cause.
+type fhError struct {
+	prefix string
+	err    error
+}
+
+func (e *fhError) Error() string { return e.prefix + e.err.Error() }
+func (e *fhError) Unwrap() error { return e.err }
+
+// pathError is a path the handler refuses, in TS's validPath text.
+type pathError struct{ msg string }
+
+func (e *pathError) Error() string { return e.msg }
+func (e *pathError) Unwrap() error { return ErrInvalidPath }
+
+// validPath is TS's validPath: an empty path is refused, and so is one
+// whose normalised directory has more than maxDepth segments, counted as
+// composed, so an absolute folder's own segments count.
+func (fh *fileHandler) validPath(p, errmark string) error {
+	if p == "" {
+		return &pathError{"ERROR:" + errmark + " invalid path, path=" + p}
+	}
+	if fh.maxDepth > 0 && fh.maxDepth < pathDepth(p) {
+		return &pathError{errmark + " path too deep, path=" + p}
 	}
 	return nil
 }
 
-// savePreserveBackup writes the .old.<ext> copy of `existing` and
-// records the preserve action. The caller is responsible for the
-// subsequent `write` of new content.
-func (fh *fileHandler) savePreserveBackup(p string, existing []byte, rpath, whence string) error {
-	backup := annotatedPath(p, "old")
-	if !fh.control.Dryrun {
-		if err := fh.ensureDirOf(backup); err != nil {
-			return err
-		}
-		if err := fh.writeAtomic(backup, existing); err != nil {
-			return err
+// pathDepth counts the non-empty segments of p's normalised directory, as
+// TS does over fwd(Path.normalize(Path.dirname(p))): `.` counts as one.
+func pathDepth(p string) int {
+	dir := path.Clean(path.Dir(fwd(p)))
+	depth := 0
+	for _, seg := range strings.Split(dir, "/") {
+		if seg != "" {
+			depth++
 		}
 	}
-	fh.filelog(&fh.files.Preserved, backup)
-	fh.appendAudit("preserve", map[string]any{
-		"path":   rpath,
-		"backup": fh.relative(backup),
-		"whence": whence,
-	})
-	if fh.bmeta != nil {
-		fh.bmeta.recordAction(rpath, "preserve", true, false, false)
-	}
-	return nil
+	return depth
 }
 
 // relative strips the output folder prefix from p. Matched on a separator
@@ -718,7 +843,11 @@ func (fh *fileHandler) chmodUnchanged(p string, mode fs.FileMode) bool {
 	if fi, err := fh.fs.Stat(p); err == nil && fi.Mode&chmodBits == mode&chmodBits {
 		return false
 	}
-	return cf.Chmod(p, mode) == nil
+	if err := cf.Chmod(p, mode); err != nil {
+		fh.st.warn(fhDlog, "save", "chmod of unchanged file failed: "+p)
+		return false
+	}
+	return true
 }
 
 // writeAtomicMode is writeAtomic with explicit permission bits; zero means
@@ -753,7 +882,7 @@ func (fh *fileHandler) writeAtomicMode(p string, content []byte, mode fs.FileMod
 				// not, and this is the last point that knows the path —
 				// the error returns before `tmp` is assigned, so the
 				// cleanup below can never see it.
-				_ = fh.fs.Remove(cand)
+				fh.removeTemp(cand)
 				return werr
 			}
 			continue
@@ -768,7 +897,7 @@ func (fh *fileHandler) writeAtomicMode(p string, content []byte, mode fs.FileMod
 		if err := fh.fs.WriteFile(cand, content); err != nil {
 			// WriteFile creates before writing, so a mid-write failure
 			// leaves a partial temp file that only this call knows about.
-			_ = fh.fs.Remove(cand)
+			fh.removeTemp(cand)
 			return err
 		}
 		tmp = cand
@@ -795,10 +924,19 @@ func (fh *fileHandler) writeAtomicMode(p string, content []byte, mode fs.FileMod
 	}
 
 	if err := fh.fs.Rename(tmp, p); err != nil {
-		_ = fh.fs.Remove(tmp)
+		fh.removeTemp(tmp)
 		return err
 	}
 	return nil
+}
+
+// removeTemp removes a failed write's temp file, warning when one is left
+// behind. Already gone is not a failed cleanup: a create that failed, or an
+// OsFS write that cleaned up after itself, left nothing.
+func (fh *fileHandler) removeTemp(tmp string) {
+	if err := fh.fs.Remove(tmp); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		fh.st.warn(fhDlog, "writeFileAtomic", "temp cleanup failed: "+tmp)
+	}
 }
 
 // writeDuplicate refreshes the merge baseline under
@@ -831,7 +969,7 @@ func (fh *fileHandler) writeDuplicate(rpath string, content []byte) error {
 	root := path.Clean(fh.duplicateFolder)
 	if cleaned := path.Clean(dup); cleaned != root &&
 		!strings.HasPrefix(cleaned, root+"/") {
-		fhDlog.Log("save",
+		fh.st.warn(fhDlog, "save",
 			"baseline path escapes the duplicate folder, skipping: "+dup)
 		return nil
 	}
@@ -842,8 +980,43 @@ func (fh *fileHandler) writeDuplicate(rpath string, content []byte) error {
 	return fh.writeAtomic(dup, content)
 }
 
-func (fh *fileHandler) filelog(slot *[]string, rpath string) {
-	*slot = append(*slot, rpath)
+// filelog lists p under kind at most once, at its first position, as TS's
+// filelog does; a repeat is logged.
+func (fh *fileHandler) filelog(kind, p string) {
+	var slot *[]string
+	switch kind {
+	case "preserved":
+		slot = &fh.files.Preserved
+	case "written":
+		slot = &fh.files.Written
+	case "presented":
+		slot = &fh.files.Presented
+	case "diffed":
+		slot = &fh.files.Diffed
+	case "merged":
+		slot = &fh.files.Merged
+	case "conflicted":
+		slot = &fh.files.Conflicted
+	case "unchanged":
+		slot = &fh.files.Unchanged
+	default:
+		fh.st.warn(fhDlog, "filelog", "invalid kind: "+kind)
+		return
+	}
+	if fh.filelogged == nil {
+		fh.filelogged = map[string]map[string]struct{}{}
+	}
+	seen := fh.filelogged[kind]
+	if seen == nil {
+		seen = map[string]struct{}{}
+		fh.filelogged[kind] = seen
+	}
+	if _, dup := seen[p]; dup {
+		fh.st.warn(fhDlog, "filelog", kind, "duplicate: "+p)
+		return
+	}
+	seen[p] = struct{}{}
+	*slot = append(*slot, p)
 }
 
 func (fh *fileHandler) appendAudit(tag string, data map[string]any) {
