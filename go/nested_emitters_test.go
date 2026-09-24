@@ -354,12 +354,11 @@ func TestFolderAndProjectInsideFile(t *testing.T) {
 	}
 }
 
-// A single-file text CopyFiles inside a File splices exactly the text it
-// writes to its own target, `replace` included. Go templated once with the
-// copy's Replace and used that text for both; TS left `replace` off the
-// splice and moved to match. Mirrors 'copy-inside-file-replace' in
-// ts/test/jostraca.test.ts. (The Inject variant there is fh-inject-children's
-// in Go: injectAfter does not collect a CopyFiles child yet.)
+// A single-file text CopyFiles inside a File or an Inject splices exactly
+// the text it writes to its own target, `replace` included. Go templated
+// once with the copy's Replace and used that text for both; TS left
+// `replace` off the splice and moved to match. Mirrors
+// 'copy-inside-file-replace' in ts/test/jostraca.test.ts.
 func TestCopyInsideFileReplace(t *testing.T) {
 	out := nestedGenModel(t, map[string]string{
 		"/tm/single.txt": "single $$name$$ FOO\n",
@@ -376,5 +375,23 @@ func TestCopyInsideFileReplace(t *testing.T) {
 	}
 	if got := out["/out/host.txt"]; got != "pre\nsingle World bar\npost\n" {
 		t.Errorf("host.txt: %q", got)
+	}
+
+	inj := nestedGenModel(t, map[string]string{
+		"/tm/single.txt": "single $$name$$ FOO\n",
+		"/out/t.txt":     "head\n#--START--#\nold\n#--END--#\ntail\n",
+	}, map[string]any{"name": "World"}, func(j *J) {
+		j.Inject("t.txt", func(j *J) {
+			j.Content("pre;")
+			j.CopyFiles(CopyFilesProps{From: "/tm/single.txt", To: "spliced.txt",
+				Replace: map[string]any{"FOO": "bar"}})
+			j.Content("post;")
+		})
+	})
+	if got := inj["/out/spliced.txt"]; got != "single World bar\n" {
+		t.Errorf("inject spliced.txt: %q", got)
+	}
+	if got := inj["/out/t.txt"]; got != "head\n#--START--#\npre;single World bar\npost;\n#--END--#\ntail\n" {
+		t.Errorf("inject t.txt: %q", got)
 	}
 }
