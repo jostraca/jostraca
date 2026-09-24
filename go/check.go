@@ -124,7 +124,12 @@ func newShadowFS(base FS, root string) *shadowFS {
 // directory when the run hands over a relative path. The run keeps the
 // folder as the caller gave it, so its reported paths match a plain
 // Generate, and the volume and root stay absolute.
-func (s *shadowFS) resolve(p string) string {
+func (s *shadowFS) resolve(p string) string { return shadowKey(p) }
+
+// shadowKey is resolve without a shadow, so the root is keyed by the same
+// rule as every path under it. filepath.Abs alone would not do: on Windows
+// it gives `/app` a drive, and the volume keys `/app` as written.
+func shadowKey(p string) string {
 	if !strings.HasPrefix(filepath.ToSlash(p), "/") && !filepath.IsAbs(p) {
 		if abs, err := filepath.Abs(filepath.FromSlash(p)); err == nil {
 			p = abs
@@ -279,13 +284,7 @@ func (j *J) Check(opts Options, root func(*J)) (CheckResult, error) {
 	// plain Generate reports, as in TypeScript. The shadow resolves each
 	// relative path it is handed against the working directory, which is
 	// what TypeScript's memfs does with the same paths.
-	abs, err := filepath.Abs(folder)
-	if err != nil {
-		return CheckResult{}, err
-	}
-	abs = memClean(abs)
-
-	shadow := newShadowFS(base, abs)
+	shadow := newShadowFS(base, shadowKey(folder))
 
 	run := opts
 	run.Folder = folder
