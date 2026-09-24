@@ -158,5 +158,46 @@ B
         (0, expect_1.expect)((0, __1.template)('x=[V]', {}, { replace: { '[V]': fn(null) } })).equal('x=');
         (0, expect_1.expect)((0, __1.template)('x=$$nope$$', {})).equal('x=$$nope$$');
     });
+    // The replace keys sort by one total order that depends only on the key
+    // set, so the regex cache (keyed by that set) is sound. The old
+    // comparator was inconsistent, so the first call's declaration order
+    // decided the alternation and every later call with the same keys got it
+    // from the cache.
+    (0, node_test_1.test)('replace-key-order-ignores-cache-history', () => {
+        (0, expect_1.expect)((0, __1.template)('abc', {}, { replace: { abc: 'LIT', '/a/': 'RE' } }))
+            .equal('REbc');
+        (0, expect_1.expect)((0, __1.template)('abc', {}, { replace: { '/a/': 'RE', abc: 'LIT' } }))
+            .equal('REbc');
+        (0, expect_1.expect)((0, __1.template)('a-b a_b', {}, { replace: { 'a-b': 'X', a_b: 'Y' } }))
+            .equal('X Y');
+        (0, expect_1.expect)((0, __1.template)('a-b a_b', {}, { replace: { a_b: 'Y', 'a-b': 'X' } }))
+            .equal('X Y');
+    });
+    // A plain replace value formats as a function's return does: NaN prints,
+    // where only an unresolved $$path$$ is left in place.
+    (0, node_test_1.test)('replace-value-nan', () => {
+        (0, expect_1.expect)((0, __1.template)('aQb', {}, { replace: { Q: NaN } })).equal('aNaNb');
+        (0, expect_1.expect)((0, __1.template)('aQb', {}, { replace: { Q: () => NaN } })).equal('aNaNb');
+        (0, expect_1.expect)((0, __1.template)('a$$q$$b', { q: NaN })).equal('a$$q$$b');
+    });
+    // The groups a replace function receives. go/template_test.go
+    // TestReplaceFunctionGroups asserts the same JSON.
+    (0, node_test_1.test)('replace-function-groups', () => {
+        const groupsOf = (src, key) => {
+            let g;
+            (0, __1.template)(src, {}, { replace: { [key]: (x) => (g = x, '') } });
+            return JSON.stringify(Object.keys(g).sort()
+                .reduce((a, k) => (a[k] = g[k], a), {}));
+        };
+        (0, expect_1.expect)(groupsOf('  // #Foo\nrest', '#Foo'))
+            .equal('{"$&":"  // #Foo\\n","TAG":"Foo","indent":"  ","name":"Foo"}');
+        (0, expect_1.expect)(groupsOf('  // #Bar-Name\nrest', '#Foo-Name'))
+            .equal('{"$&":"  // #Bar-Name\\n","Name":"Bar","TAG":"Name",' +
+            '"indent":"  ","name":"Bar"}');
+        (0, expect_1.expect)(groupsOf('aQb', 'Q')).equal('{"$&":"Q"}');
+        (0, expect_1.expect)(groupsOf('axb', '/x(?<g>y?)/')).equal('{"$&":"x","g":""}');
+        (0, expect_1.expect)(groupsOf('ab', '/(?<p>a)(?<q>b)/'))
+            .equal('{"$&":"ab","p":"a","q":"b"}');
+    });
 });
 //# sourceMappingURL=template.test.js.map

@@ -62,9 +62,9 @@ function loadMetaData(fh, bmeta) {
     if (fh.existsFile(metapath)) {
         try {
             const json = fh.loadJSON(metapath);
-            bmeta.last = null == json?.last ? -1 : json.last;
-            bmeta.hlast = null == json?.hlast ? -1 : json.hlast;
-            bmeta.files = json?.files || {};
+            bmeta.last = isTime(json?.last) ? json.last : -1;
+            bmeta.hlast = isTime(json?.hlast) ? json.hlast : -1;
+            bmeta.files = isPlainObject(json?.files) ? json.files : {};
         }
         catch (err) {
             // A truncated or hand-edited meta log used to throw straight out of
@@ -81,6 +81,16 @@ function loadMetaData(fh, bmeta) {
         }
     }
     return bmeta;
+}
+// A previous `last` is used only when a Date can carry it. A string, a
+// boolean or 1e20 in a hand-edited log reached the merge labels and threw
+// "Invalid time value"; anything else is treated as absent, as an
+// unreadable log is.
+function isTime(v) {
+    return 'number' === typeof v && Number.isFinite(v) && Math.abs(v) <= 8.64e15;
+}
+function isPlainObject(v) {
+    return null != v && 'object' === typeof v && !Array.isArray(v);
 }
 function saveMetaData(fh, bmeta) {
     // Full (folder-prefixed) path: the FileHandler FS methods use paths

@@ -1,6 +1,7 @@
 import { BuildContext } from './BuildContext';
 import { FST, Audit } from '../types';
 declare function canonPath(path: string): string;
+declare function canonFolder(folder: string): string;
 declare class FileHandler {
     when: number;
     fs: () => FST;
@@ -32,6 +33,7 @@ declare class FileHandler {
     };
     createdDirs: Set<string>;
     savedPaths: Set<string>;
+    filelogged: Record<string, Set<string>>;
     constructor(bctx: BuildContext, existing: {
         txt: any;
         bin: any;
@@ -44,10 +46,12 @@ declare class FileHandler {
     withinFolder(path: string): boolean;
     saveBinary(path: string, newContentSource: string | Buffer, whence?: string): void;
     save(path: string, newContentSource: string | Buffer, write?: boolean | string, whence?: string, mode?: number, isText?: boolean): void;
+    private decision;
     copy(frompath: string, topath: string, write?: boolean | string, whence?: string): void;
     merge(generated: string, baseline: string, existing: string, why: string[]): {
         content: string;
         conflict: boolean;
+        outcome: string;
     };
     diff(generated: string, existing: string): string;
     existsFile(path: string, whence?: string): boolean;
@@ -65,4 +69,4 @@ declare class FileHandler {
 declare function annotatedPath(target: string, kind: string): string;
 declare function validName(name: any, kind: string, errmark: string): void;
 declare function validPath(path: string, maxdepth: number, errmark: string): void;
-export { annotatedPath, canonPath, validName, validPath, FileHandler };
+export { annotatedPath, canonFolder, canonPath, validName, validPath, FileHandler };

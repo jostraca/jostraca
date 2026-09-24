@@ -12,8 +12,9 @@ const FolderOp = {
         cfolder.path.push(node.name);
         let fullpath = cfolder.path.join('/');
         if ('' !== fullpath) {
-            // ctx$.fs().mkdirSync(fullpath, { recursive: true )}
-            buildctx.fh.ensureFolder(fullpath);
+            // Canonical, as FileOp's paths are: a backslash in a name is a
+            // separator, so `x\y` must not also leave a literal `x\y` folder.
+            buildctx.fh.ensureFolder((0, FileHandler_1.canonPath)(fullpath));
         }
     },
     after(_node, _ctx$, buildctx) {

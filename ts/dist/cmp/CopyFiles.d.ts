@@ -29,9 +29,10 @@ type CopyFilesProps = {
      */
     exclude?: boolean | string | RegExp | (string | RegExp)[];
 };
+declare const COPYFILES_PROPS: string[];
 declare const CopyFiles: import("../types").Component<CopyFilesProps, never, never>;
 declare const Copy: import("../types").Component<CopyFilesProps, never, never>;
 /** @deprecated Use `CopyFilesProps`. */
 type CopyProps = CopyFilesProps;
-export { CopyFiles, Copy, };
+export { CopyFiles, Copy, COPYFILES_PROPS, };
 export type { CopyFilesProps, CopyProps, };

@@ -627,7 +627,58 @@ ccc
 >>>>>>> EXISTING: 2025-01-01T01:20:00.000Z/merge
 `);
     });
+    // A region past about 125k lines used to reject the whole generate in TS.
+    // Twins: TestSaveDiffModeLargeFile in go/diff_test.go and
+    // TestSaveMergeModeLargeFile in go/merge_test.go.
+    (0, node_test_1.test)('large-file-diff-and-merge', async () => {
+        let big = '';
+        for (let i = 0; i < 130000; i++) {
+            big += 'x' + i + '\n';
+        }
+        const d = await existingRun('diff', START_TIME, 'big.txt', [[big + 'A\n', null], [big + 'GEN\n', big + 'USER\n']]);
+        (0, expect_1.expect)(d.res.files.diffed).equal(['/out/big.txt']);
+        (0, expect_1.expect)(d.res.files.conflicted).equal(['/out/big.txt']);
+        (0, expect_1.expect)(d.text.startsWith(big + '<<<<<<< EXISTING: ')).true();
+        (0, expect_1.expect)(d.text.includes('\nUSER\n') && d.text.includes('\nGEN\n')).true();
+        const m = await existingRun('merge', START_TIME, 'big.txt', [['head\n', null], ['head\n' + big, 'head\nuser\n']]);
+        (0, expect_1.expect)(m.res.files.merged).equal(['/out/big.txt']);
+        (0, expect_1.expect)(m.res.files.conflicted).equal(['/out/big.txt']);
+        (0, expect_1.expect)(m.text.startsWith('head\n<<<<<<< GENERATED: ')).true();
+        (0, expect_1.expect)(m.text.includes(big + '=======\nuser\n>>>>>>> EXISTING: ')).true();
+    });
+    // A clock outside years 0000-9999 labels conflicts in the extended-year
+    // form. Twin of TestExtendedYearLabels in go/diff_test.go.
+    (0, node_test_1.test)('extended-year-labels', async () => {
+        const d = await existingRun('diff', 253402300800000, 'a.txt', [['A\nB\n', null], ['A\nGEN\n', 'A\nUSER\n']]);
+        const dl = '+010000-01-01T00:00:00.000Z/diff\n';
+        (0, expect_1.expect)(d.text).equal('A\n' +
+            '<<<<<<< EXISTING: ' + dl + 'USER\n>>>>>>> EXISTING: ' + dl +
+            '<<<<<<< GENERATED: ' + dl + 'GEN\n>>>>>>> GENERATED: ' + dl);
+        const m = await existingRun('merge', -62198755200001, 'a.txt', [['A\n', null], ['A\ngen\n', 'A\nuser\n']]);
+        const ml = '-000002-12-31T23:59:59.999Z/merge\n';
+        (0, expect_1.expect)(m.text).equal('A\n<<<<<<< GENERATED: ' + ml + 'gen\n=======\nuser\n' +
+            '>>>>>>> EXISTING: ' + ml);
+    });
 });
+// Generates one file into a fresh memfs per step under a fixed clock,
+// writing the step's user edit, when it has one, before its generate.
+async function existingRun(mode, now, name, steps) {
+    const mfs = (0, memfs_1.memfs)({});
+    const fs = mfs.fs;
+    let res;
+    for (const [gen, edit] of steps) {
+        if (null != edit) {
+            fs.writeFileSync('/out/' + name, edit);
+        }
+        res = await (0, __1.Jostraca)({ now: () => now }).generate({
+            fs: () => fs, folder: '/out', model: {},
+            existing: { txt: { [mode]: true } },
+        }, () => (0, __1.Project)({ folder: '.' }, () => {
+            (0, __1.File)({ name }, () => (0, __1.Content)(gen));
+        }));
+    }
+    return { res, text: fs.readFileSync('/out/' + name, 'utf8') };
+}
 const DATA_merge_basic_res0 = {
     when: 1735689660000,
     files: {

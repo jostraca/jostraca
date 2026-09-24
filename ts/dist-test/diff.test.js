@@ -5,6 +5,7 @@
 // the other is exactly how the two stacks drifted apart before.
 Object.defineProperty(exports, "__esModule", { value: true });
 const node_test_1 = require("node:test");
+const node_crypto_1 = require("node:crypto");
 const expect_1 = require("./expect");
 const __1 = require("../");
 const { merge, diff, hasConflicts, lines, lcs, alignLcs, hunks, } = __1.DiffUtil;
@@ -222,6 +223,42 @@ function referenceLcs(a, b) {
         res = merge('X\n', '', 'Y\n', { labels: { existing: 'E' } });
         (0, expect_1.expect)(res.content.includes(MARK_END + 'E\n')).true();
         (0, expect_1.expect)(res.content.includes(MARK_START + 'GENERATED: ')).true();
+    });
+    // An empty kind or label is unset, as in Go. Twin of
+    // TestEmptyKindAndLabelsAreUnset in go/diff_engine_test.go.
+    (0, node_test_1.test)('empty-kind-and-labels-are-unset', () => {
+        const dflt = merge('X\n', '', 'Y\n').content;
+        (0, expect_1.expect)(merge('X\n', '', 'Y\n', { kind: '' }).content).equal(dflt);
+        (0, expect_1.expect)(merge('X\n', '', 'Y\n', { labels: { generated: '' } }).content).equal(dflt);
+        (0, expect_1.expect)(merge('X\n', '', 'Y\n', { labels: { existing: '' } }).content).equal(dflt);
+        // So a bare `>>>>>>> ` line is not an unresolved conflict.
+        (0, expect_1.expect)(hasConflicts('a\n>>>>>>> \nb', '')).false();
+        const res = merge('X\n', 'A\n', 'A\n>>>>>>> \n', { labels: { existing: '' } });
+        (0, expect_1.expect)(res.outcome).equal('merged');
+        (0, expect_1.expect)(res.content.endsWith('>>>>>>> \n>>>>>>> EXISTING: ' +
+            '1970-01-01T00:00:00.000Z/merge\n')).true();
+    });
+    // Twin of TestLabelsExtendedYearsAndRange in go/diff_engine_test.go; the
+    // boundary rows in test/spec/diff.tsv hold both stacks to the same text.
+    (0, node_test_1.test)('labels-extended-years-and-range', () => {
+        const gen = (when) => diff('X\n', 'Y\n', { when }).content.split('\n')[5];
+        (0, expect_1.expect)(gen(253402300800000))
+            .equal('>>>>>>> GENERATED: +010000-01-01T00:00:00.000Z/diff');
+        (0, expect_1.expect)(gen(-62198755200001))
+            .equal('>>>>>>> GENERATED: -000002-12-31T23:59:59.999Z/diff');
+        // Clamped to the Date range rather than throwing RangeError.
+        (0, expect_1.expect)(gen(8640000000000001))
+            .equal('>>>>>>> GENERATED: +275760-09-13T00:00:00.000Z/diff');
+        (0, expect_1.expect)(gen(-8640000000000001))
+            .equal('>>>>>>> GENERATED: -271821-04-20T00:00:00.000Z/diff');
+        // Not a finite number: the epoch, as for an unset when. TS only; Go's
+        // int64 cannot hold these.
+        for (const when of [NaN, Infinity, -Infinity, undefined, '5', null]) {
+            (0, expect_1.expect)(gen(when)).equal('>>>>>>> GENERATED: 1970-01-01T00:00:00.000Z/diff');
+        }
+        // The unresolved check runs before any label is formatted.
+        const res = merge('X\n', 'A\n', 'A\n>>>>>>> EXISTING: z\n', { when: 8640000000000001 });
+        (0, expect_1.expect)(res.outcome).equal('unresolved');
     });
     (0, node_test_1.test)('has-conflicts', () => {
         (0, expect_1.expect)(hasConflicts('plain\n')).false();
@@ -506,6 +543,38 @@ function referenceLcs(a, b) {
         // The default sentinel still matches whatever timestamp follows.
         const dflt = merge('NEW\n', 'OLD\n', 'a\n>>>>>>> EXISTING: T/merge\n');
         (0, expect_1.expect)(dflt.outcome).equal('unresolved');
+    });
+    // Regions and unchanged hunks past about 125k lines used to throw
+    // RangeError in TS. Lengths and digests are shared with
+    // TestLargeRegionsDoNotOverflow in go/diff_engine_test.go.
+    (0, node_test_1.test)('large-regions-do-not-overflow', () => {
+        const n = 200000;
+        let big = '';
+        let other = '';
+        for (let i = 0; i < n; i++) {
+            big += 'x' + i + '\n';
+            other += 'y' + i + '\n';
+        }
+        const sha = (s) => (0, node_crypto_1.createHash)('sha256').update(s).digest('hex');
+        const shapes = [
+            ['diff-same-hunk', () => diff(big + 'A\n', big + 'B\n', L),
+                'changed', 1488934,
+                '587be7b2d4bdcfd0ae57fba1f79691f9a6417a162f3f96a961cf0c26536e429b'],
+            ['merge-region', () => merge('head\n' + big, 'head\n', 'head\nuser\n', L),
+                'merged', 1488928,
+                '155c3e5904be5bbcc6832326f829de7185aa0ab2c18c8b4cbcc63cdc4fd0a989'],
+            ['merge-tail', () => merge(big, '', other, L),
+                'merged', 2977808,
+                '517c79d677a06d856a708162ddbb3464e5623880e03f36fed0dd0daff725c671'],
+            ['merge-existing-grows', () => merge('head\n', 'head\nz\n', 'head\n' + big, L),
+                'merged', 1488923,
+                '4b8d814bf4729e2274186dd99422f0b97c04277198b42e56ed920f6bd9e979a8'],
+        ];
+        for (const [name, run, outcome, length, digest] of shapes) {
+            const res = run();
+            (0, expect_1.expect)([name, res.outcome, res.conflict, res.content.length, sha(res.content)])
+                .equal([name, outcome, true, length, digest]);
+        }
     });
 });
 //# sourceMappingURL=diff.test.js.map

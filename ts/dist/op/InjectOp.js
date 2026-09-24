@@ -20,7 +20,9 @@ const InjectOp = {
         node.meta.inject_file = buildctx.current.file;
         const cfile = buildctx.current.file = node;
         (0, FileHandler_1.validName)(node.name, 'Inject', ON + 'before:');
-        cfile.fullpath = buildctx.folderPath() + '/' + node.name;
+        // Canonical, as FileOp's is: the target is read and written at one
+        // path, never the raw one read and the folded one written.
+        cfile.fullpath = (0, FileHandler_1.canonPath)(buildctx.folderPath() + '/' + node.name);
         cfile.content = [];
     },
     after(node, ctx$, buildctx) {

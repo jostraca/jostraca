@@ -38,6 +38,7 @@ const Assert = __importStar(require("node:assert"));
 const expect_1 = require("./expect");
 const Package = __importStar(require("../"));
 const memfs_1 = require("../dist/util/memfs");
+const basic_1 = require("../dist/util/basic");
 const __1 = require("../");
 (0, node_test_1.describe)('util', () => {
     (0, node_test_1.test)('each', () => {
@@ -450,6 +451,58 @@ const __1 = require("../");
         (0, expect_1.expect)(pkg.get({ a: { b: { c: 1 } } }, 'a.b.c')).equal(1);
     });
 });
+// A count that is not finite adds nothing; test/spec/text.tsv cannot
+// carry NaN or Infinity. go/util_test.go TestIndentNonFiniteAndTyped pins
+// the same for Go.
+(0, node_test_1.describe)('indent-counts', () => {
+    (0, node_test_1.test)('non-finite', () => {
+        (0, expect_1.expect)((0, __1.indent)('a', Infinity)).equal('a');
+        (0, expect_1.expect)((0, __1.indent)('a', -Infinity)).equal('a');
+        (0, expect_1.expect)((0, __1.indent)('a', NaN)).equal('a');
+    });
+});
+// humanify formats any number it is given, 0 included: only a missing
+// value means now. Past year 9007 the digit form exceeds 2^53 and rounds
+// here, where go/util_test.go TestHumanifyRangeTail pins Go's exact
+// 9999123123595999.
+(0, node_test_1.describe)('humanify', () => {
+    (0, node_test_1.test)('zero-is-the-epoch', () => {
+        (0, expect_1.expect)((0, basic_1.humanify)(0)).equal(1970010100000000);
+        (0, expect_1.expect)((0, basic_1.humanify)(0, { parts: true, terse: true }))
+            .equal({ ty: 1970, tm: 1, td: 1, th: 0, tn: 0, ts: 0, ti: 0 });
+    });
+    (0, node_test_1.test)('range-tail', () => {
+        (0, expect_1.expect)((0, basic_1.humanify)(253402300799999)).equal(9999123123596000);
+    });
+});
+// FILTER(fn): fn's result is written, except that an array [flag, value]
+// drops the entry when flag is truthy and writes value otherwise. A bare
+// FILTER keeps a truthy field and drops the entry for a falsy one. The
+// Go port pins the same cases in go/util_test.go TestCMapFilterFn.
+(0, node_test_1.describe)('cmap-filter', () => {
+    (0, node_test_1.test)('filter-fn', () => {
+        const src = { a: { x: 1 }, b: { x: 2 }, c: { x: 3 } };
+        for (const map of [__1.cmap, __1.vmap]) {
+            const out = map(src, {
+                x: map.FILTER((v) => [2 === v, v * 10]),
+                k: map.KEY,
+            });
+            const want = [{ k: 'a', x: 10 }, { k: 'c', x: 30 }];
+            (0, expect_1.expect)(__1.cmap === map ? out : { a: out[0], c: out[1] })
+                .equal({ a: want[0], c: want[1] });
+        }
+        (0, expect_1.expect)((0, __1.cmap)(src, { x: __1.cmap.FILTER((v) => v + 1) }))
+            .equal({ a: { x: 2 }, b: { x: 3 }, c: { x: 4 } });
+        (0, expect_1.expect)((0, __1.cmap)(src, { x: __1.cmap.FILTER('lit') }))
+            .equal({ a: { x: 'lit' }, b: { x: 'lit' }, c: { x: 'lit' } });
+        (0, expect_1.expect)((0, __1.cmap)(src, { x: (v) => 2 === v ? __1.cmap.FILTER : v }))
+            .equal({ a: { x: 1 }, c: { x: 3 } });
+    });
+    (0, node_test_1.test)('null-child', () => {
+        (0, expect_1.expect)((0, __1.cmap)({ a: null, b: { x: 5 } }, { x: __1.cmap.COPY, k: __1.cmap.KEY }))
+            .equal({ a: { x: undefined, k: 'a' }, b: { x: 5, k: 'b' } });
+    });
+});
 // Caller-side state is recorded by no corpus: all four record OUTPUT only,
 // never the model, the options object, or returned slices. So a helper that
 // quietly mutates its input is invisible cross-stack, and one did -- getx's `?`
@@ -480,6 +533,23 @@ const __1 = require("../");
         // The specific leak: `y` was filtered out and kept its bookkeeping key.
         (0, expect_1.expect)(undefined === rejected.key$).true();
         (0, expect_1.expect)(undefined === rejected.index$).true();
+    });
+    // The filter reads the RAW children, so nothing is stamped at all: not on
+    // a survivor, not on a rejected child, and not on a scalar's wrapper,
+    // because there is none.
+    (0, node_test_1.test)('getx-filter-stamps-nothing', () => {
+        const model = {
+            o: { x: { v: 1 }, y: { v: 2 }, n: 3 },
+            a: [{ v: 1 }, { v: 2 }, 3],
+        };
+        const before = JSON.stringify(model);
+        (0, expect_1.expect)((0, __1.getx)(model, 'o?v=1')).equal({ x: { v: 1 } });
+        (0, expect_1.expect)((0, __1.getx)(model, 'a?v=1')).equal([{ v: 1 }]);
+        (0, expect_1.expect)((0, __1.getx)(model, 'o?q~u')).equal({ x: { v: 1 }, y: { v: 2 } });
+        for (const c of [model.o.x, model.o.y, model.a[0], model.a[1], model.a]) {
+            (0, expect_1.expect)(Object.keys(c).filter((k) => k.endsWith('$'))).equal([]);
+        }
+        (0, expect_1.expect)(JSON.stringify(model)).equal(before);
     });
     // The third instance of the same class, and the one a user hits without
     // reaching for an internal: `OptionsShape` injects its defaults into the

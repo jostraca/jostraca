@@ -44,14 +44,16 @@ const __1 = require("../");
             (0, __1.File)({ name: 'a.txt' }, () => (0, __1.Content)('hi'));
         }));
         const audit = res.audit();
-        // The save:write entry carries the why breadcrumbs.
-        const saveEntry = audit.find((e) => typeof e[0] === 'string' && e[0].includes('save:write'));
-        (0, expect_1.expect)(saveEntry).exist();
-        (0, expect_1.expect)(Array.isArray(saveEntry[1].why)).true();
-        (0, expect_1.expect)(saveEntry[1].why.length > 0).true();
-        // Specific breadcrumb shape.
-        (0, expect_1.expect)(saveEntry[1].why.includes('write-1')).true();
-        (0, expect_1.expect)(saveEntry[1].why.includes('duplicate-1')).true();
+        // The save:write entry carries the why breadcrumbs, exactly.
+        const saveEntry = audit.find((e) => 'FileHandler:save:write' === e[0]);
+        (0, expect_1.expect)(saveEntry[1].why).equal(['start<wX>', 'write-1', 'duplicate-1', 'within-0']);
+        // A re-run over the file writes nothing new, and says why.
+        const res2 = await j.generate({ fs: () => mfs.fs, folder: '/out' }, () => (0, __1.Project)({ folder: 'p' }, () => {
+            (0, __1.File)({ name: 'a.txt' }, () => (0, __1.Content)('hi'));
+        }));
+        const again = res2.audit().find((e) => 'FileHandler:save:write' === e[0]);
+        (0, expect_1.expect)(again[1].why).equal(['start<Wx>', 'exists-0', 'write-0', 'not-protect-1',
+            'unchanged-0', 'duplicate-1', 'within-0']);
     });
     // Options.name file/folder prefix/suffix pipeline. Names of files
     // and folders should pick up the configured affixes.

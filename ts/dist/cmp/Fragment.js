@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Fragment = void 0;
+exports.FRAGMENT_PROPS = exports.Fragment = void 0;
 const node_path_1 = __importDefault(require("node:path"));
 const jostraca_1 = require("../jostraca");
 const shape_1 = require("shape");
@@ -28,14 +28,20 @@ const From = (from, _, s) => s.ctx.fs().statSync(from);
 // than becoming the one declaration that means nothing. A tree that
 // passes it is refused by name from here on, which is the diagnostic it
 // should have had all along.
-const FragmentShape = (0, shape_1.Shape)({
+const FragmentSpec = {
     ctx$: Object,
     from: (0, shape_1.Check)(From).String(),
     indent: (0, shape_1.Optional)((0, shape_1.One)((0, shape_1.Empty)(String), Number)),
     replace: {},
     eject: (0, shape_1.Optional)([(0, shape_1.One)(String, RegExp)]),
     item: (0, shape_1.Skip)(),
-}, { name: 'Fragment' });
+};
+// The props a data node may state: the closed set less the context the
+// define phase adds. `cmpTree` checks a node against it when it reads
+// the tree, so a malformed node is refused even if it never runs.
+const FRAGMENT_PROPS = Object.keys(FragmentSpec).filter((k) => 'ctx$' !== k);
+exports.FRAGMENT_PROPS = FRAGMENT_PROPS;
+const FragmentShape = (0, shape_1.Shape)(FragmentSpec, { name: 'Fragment' });
 // Discard a replace function's return value when the call emitted
 // components. See the note at its use in `Fragment`.
 //
@@ -148,10 +154,15 @@ const Fragment = (0, jostraca_1.cmp)(function Fragment(props, children) {
             node.filter = undefined;
         };
     });
+    // RAW: `template` has already substituted the model and the replace
+    // values, so each segment is final text. Templating it again expanded a
+    // `$$x$$` that arrived inside a model value, a replace value or a replace
+    // function's return, which is the injection `raw` exists to prevent. A
+    // plain Content is one pass, and so is a Fragment.
     (0, jostraca_1.template)(src, model, {
         replace,
         eject: props?.eject,
-        handle: (s) => null == s ? null : (0, jostraca_1.Content)(s)
+        handle: (s) => null == s ? null : (0, jostraca_1.Content)({ src: s, raw: true })
     });
     if (sawnonslot && !defaultslot) {
         throw new Error('jostraca: Fragment has non-Slot children, but ' + frompath +
