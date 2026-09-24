@@ -2341,6 +2341,29 @@ describe('components', () => {
       children: [{ cmp: 'Fragment', props: { from: '/tm/model.txt', indent: ['>'] } }],
     }), /Value "\[>\]" for property "indent"/)
 
+    // A null indent is a value, refused, whether the node states it or a
+    // ListItems binds it; an unset one binds nothing, and passes.
+    const NULL_INDENT =
+      /Fragment: Value "null" for property "indent" does not satisfy one of: String, Number/
+    const listed = (listProps: any, fragProps: any) => tree({
+      cmp: 'File', props: { name: 'l.txt' },
+      children: [{
+        cmp: 'ListItems', props: { item: [{ n: 1 }], line: false, ...listProps },
+        children: [{ cmp: 'Fragment', props: { from: '/tm/model.txt', ...fragProps } }],
+      }],
+    })
+    await refused(tree({
+      cmp: 'File', props: { name: 'b.txt' },
+      children: [{ cmp: 'Fragment', props: { from: '/tm/model.txt', indent: null } }],
+    }), NULL_INDENT)
+    await refused(listed({ indent: null }, {}), NULL_INDENT)
+    await refused(listed({ indent: 2 }, { indent: null }), NULL_INDENT)
+    for (const [listProps, want] of [[{}, 'M=World\n'], [{ indent: 2 }, '  M=World\n']]) {
+      const out = await gen(SRC, () => Project({}, listed(listProps, {})),
+        { model: { name: 'World' } })
+      expect({ listProps, got: out['/out/l.txt'] }).equal({ listProps, got: want })
+    }
+
     const out = await gen({}, () => Project({}, () =>
       File({ name: 'c.txt' }, () => Content({ src: 'x\ny\n', indent: true as any }))))
     expect(out['/out/c.txt']).equal('truex\ntruey\n')

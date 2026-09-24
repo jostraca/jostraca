@@ -465,6 +465,10 @@ func init() {
 			if b, ok := p["line"].(bool); ok {
 				noline = !b
 			}
+			// An unset indent is no binding at all, as TypeScript's
+			// undefined is, so that a child's own "indent": null, and a
+			// ListItems' own, stay values a closed shape can refuse.
+			_, indentSet := p["indent"]
 			j.ListItemsP(ListItemsProps{
 				Item:   p["item"],
 				NoLine: noline,
@@ -476,8 +480,10 @@ func init() {
 				// props -- context first, the author's statement last.
 				inherit := map[string]any{
 					"item":    it.Item,
-					"indent":  it.Indent,
 					"replace": it.Replace,
+				}
+				if indentSet {
+					inherit["indent"] = it.Indent
 				}
 				for _, ch := range c {
 					ch(j, inherit)

@@ -43,12 +43,10 @@ var copyFilesPropShape = shape.MustShape(map[string]any{
 	"exclude": shape.Skip(shape.Fault(faultExclude, shape.Check(isCopyExcludeProp))),
 })
 
-// isIndentProp is TS's One(Empty(String), Number). nil is an unset Indent,
-// which a Go struct cannot tell from an absent one.
+// isIndentProp is TS's One(Empty(String), Number), which refuses null. The
+// typed API passes an unset Indent as no key at all (fragmentPropError), as
+// the tree does (an unset ListItems indent binds nothing).
 func isIndentProp(v any, _ *shape.Update, _ *shape.State) bool {
-	if v == nil {
-		return true
-	}
 	if _, ok := v.(string); ok {
 		return true
 	}
@@ -147,8 +145,9 @@ func copyFilesPropError(p CopyFilesProps) error {
 
 // treePropError checks a data node's props for a closed component before
 // they are read into its struct, where a wrongly typed `from`, `to` or
-// `replace` would otherwise become "" or nil and pass. A nil `indent` is
-// the unset binding ListItems hands every child, so it is not a value.
+// `replace` would otherwise become "" or nil and pass. A present nil is a
+// JSON null, refused as TypeScript refuses it: an unset ListItems indent
+// binds no key at all.
 func treePropError(name string, p map[string]any) error {
 	var sh *shape.Schema
 	var keys []string
@@ -162,11 +161,9 @@ func treePropError(name string, p map[string]any) error {
 	}
 	props := map[string]any{}
 	for _, k := range keys {
-		v, present := p[k]
-		if !present || (k == "indent" && v == nil) {
-			continue
+		if v, present := p[k]; present {
+			props[k] = v
 		}
-		props[k] = v
 	}
 	return checkPropShape(name, sh, props)
 }

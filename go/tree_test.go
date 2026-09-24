@@ -611,6 +611,12 @@ func TestCmpTreeClosedPropTypes(t *testing.T) {
 			`"children":[{"cmp":"Content","props":{"src":"first"}}]},` +
 			`{"cmp":"CopyFiles","props":` + props + `}]}]`
 	}
+	listed := func(listProps, fragProps string) string {
+		return `[{"cmp":"Project","children":[{"cmp":"File","props":{"name":"l.txt"},` +
+			`"children":[{"cmp":"ListItems","props":{"item":[{"n":1}],"line":false` + listProps + `},` +
+			`"children":[{"cmp":"Fragment","props":{"from":"/tm/model.txt"` + fragProps + `}}]}]}]}]`
+	}
+	const nullIndent = `Fragment: Value "null" for property "indent" does not satisfy one of: String, Number`
 	seed := map[string][]byte{
 		"/tm/model.txt":  []byte("M=$$name$$\n"),
 		"/tm/tree/a.txt": []byte("A\n"),
@@ -646,6 +652,11 @@ func TestCmpTreeClosedPropTypes(t *testing.T) {
 		{frag(`{"from":"/tm/model.txt","replace":[]}`), `"replace" with array "[]"`},
 		{frag(`{"from":"/tm/model.txt","eject":null}`), `property "eject" with value "null"`},
 		{frag(`{"from":5}`), `property "from" with number "5"`},
+		// A null indent is a value, refused, whether the node states it or
+		// a ListItems binds it. Twin of the rows in 'closed-shape-prop-types'.
+		{frag(`{"from":"/tm/model.txt","indent":null}`), nullIndent},
+		{listed(`,"indent":null`, ``), nullIndent},
+		{listed(`,"indent":2`, `,"indent":null`), nullIndent},
 	} {
 		vol, err := run(t, c.src)
 		if err == nil || !strings.Contains(err.Error(), c.want) {
@@ -660,14 +671,15 @@ func TestCmpTreeClosedPropTypes(t *testing.T) {
 	}
 
 	// The engine's own bindings pass: a Fragment under ListItems inherits
-	// an unset indent and the per-item replace map.
-	vol, err := run(t, `[{"cmp":"Project","children":[{"cmp":"File","props":{"name":"l.txt"},`+
-		`"children":[{"cmp":"ListItems","props":{"item":[{"n":1}],"line":false},`+
-		`"children":[{"cmp":"Fragment","props":{"from":"/tm/model.txt"}}]}]}]}]`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := string(vol["/out/l.txt"]); got != "M=$$name$$\n" {
-		t.Errorf("l.txt = %q", got)
+	// no indent when none is set, a stated one, and the per-item replace
+	// map.
+	for _, c := range [][2]string{{``, "M=$$name$$\n"}, {`,"indent":2`, "  M=$$name$$\n"}} {
+		vol, err := run(t, listed(c[0], ``))
+		if err != nil {
+			t.Fatalf("%s: %v", c[0], err)
+		}
+		if got := string(vol["/out/l.txt"]); got != c[1] {
+			t.Errorf("%s: l.txt = %q, want %q", c[0], got, c[1])
+		}
 	}
 }
