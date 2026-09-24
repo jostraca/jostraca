@@ -662,7 +662,8 @@ is not purely additive:
   fix and is reachable now. Filed as [#26](https://github.com/jostraca/jostraca/issues/26)
   rather than folded in, because #21's change is provably byte-neutral and this one would
   not be. The sharper case there is two sibling `Project`s: the second currently nests
-  inside the first.
+  inside the first. (Fixed 2026-09-24: `ProjectOp` now has an `after` hook that restores
+  the enclosing folder state, in both stacks.)
 
 ---
 

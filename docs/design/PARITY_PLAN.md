@@ -34,7 +34,7 @@ the commit that made it is still in the log.
 | 2.1 | `error` field never populated | **done** | runners now compare the tree on error rows; two more both-fail scenarios added, one with a non-empty partial tree |
 | 2.2 | directory-only state invisible | **fixed, holds** | `Vol()` returns nil for an empty dir; dry run creates none; TS materialises the `Folder` |
 | 2.3 | caller-side state | **done** | getx stamp swept; `Hunks` copies its suffixes; `generate` validates a copy of the caller's options |
-| 2.4 | shared bugs invisible by construction | **unchanged, by design** | #26 and #32 both still live and still byte-identical across stacks |
+| 2.4 | shared bugs invisible by construction | **unchanged, by design** | #32 still live and still byte-identical across stacks; #26 fixed in both (2026-09-24) |
 | 3 | Go panic on nil-body Fragment | **fixed, holds** | no panic; emits `"A\n\nB\n"` |
 | 3 | Fragment `eject` never read in Go | **fixed, holds** | Go `"KEEP\n"` == TS `"KEEP\n"` on the same source |
 | 3 | chmod comparison narrower than chmod | **fixed, holds** | compares `chmodBits`, not `Perm()` |
@@ -113,9 +113,9 @@ rather than taken:
 | | Copy inside File destroys it (#39) | resolved |
 | | `List` string child (#44) | resolved |
 | | top-level siblings dropped (#21) | resolved |
-| | `Project` folder leaks (#26) | **live** (shared) |
+| | `Project` folder leaks (#26) | resolved (both stacks restore the enclosing folder when a Project closes) |
 | | Fragment filter, non-Slot children (#29) | resolved |
-| | Fragment error path leaves different trees | **live** (new) |
+| | Fragment error path leaves different trees | resolved (Go renders in the define phase, `go/fragment.go`) |
 | FileHandler + modes | `exclude` timing in Go (§1.2) | resolved |
 | | txt/bin classification (#27) | resolved |
 | | `Copy.exclude` on directories (#28) | resolved (not re-probed) |
@@ -136,18 +136,19 @@ rather than taken:
 
 | surface | tracked | resolved | live |
 |---|---|---|---|
-| components + op walker | 9 | 7 | 2 |
+| components + op walker | 9 | 9 | 0 |
 | options surface | 6 | 3 | 3 |
 | parity machinery + docs | 6 | 5 | 0 (+1 structural) |
 | FileHandler + modes | 5 | 4 | 1 |
 | diff/merge + fs | 3 | 3 | 0 |
 | template + getx + utils | 3 | 2 | 1 |
-| **total** | **32** | **24** | **7** (+1 structural) |
+| **total** | **32** | **26** | **5** (+1 structural) |
 
-Of the 7 live: **4 are recorded deviations** rather than defects, **2 are bugs
-both stacks share** (so not parity breaks at all), and **1 is a real
-divergence** — the partial-tree difference on the Fragment error path, found
-while implementing §2.1.
+Of the 5 live (2026-09-24): **4 are recorded deviations** rather than defects,
+and **1 is a bug both stacks share** (#32, so not a parity break at all). The
+Fragment error-path divergence found while implementing §2.1 is closed: Go now
+renders a Fragment in the define phase, as TS does. #26 is fixed in both
+stacks.
 
 Every divergence this document has listed is now closed except that one.
 `Hunks` copies its suffixes, `generate` validates a copy of the caller's
@@ -294,7 +295,9 @@ The two stacks stamp meta `last` at opposite ends of the build:
 
 Both then ask the same question of the previous run's value:
 `stat.mtimeMs > last` at `ts/src/op/FileOp.ts:59-68`, `fi.ModTime > last` at
-`go/build.go:281-289`.
+`go/build.go:281-289`. (They were not quite the same question: TS compared a
+fractional `mtimeMs` against Go's whole milliseconds. Since 2026-09-24 TS
+floors `mtimeMs`, and both compare whole milliseconds.)
 
 Under TS's ordering, generated files carry an mtime earlier than `last`, so they
 do not trip the window and only genuine user edits are skipped. That is the
@@ -562,7 +565,7 @@ measured here rather than trusted.
 |---|---|---|
 | #22 | Windows blind spot no CI gate closes | **closed by CI**; the matrix runs `go test ./... -race` on `windows-latest`. Close the issue. |
 | #24 | corpus format cannot express binary | **closed by the b64 escape hatch**; 1043 b64 values in the committed corpora, 26 rows in `test/spec/binary.tsv`. Close the issue. |
-| #26 | `Project` folder leaks to a following sibling | live, and identical on both sides — §2.4's example, not a parity break |
+| #26 | `Project` folder leaks to a following sibling | live, and identical on both sides — §2.4's example, not a parity break. **Fixed in both stacks, 2026-09-24.** |
 | #27 | txt/bin chosen by different criteria | **fixed in code, issue still open.** `save` classifies by destination extension now (`ts/src/build/FileHandler.ts:290-291`, with the reasoning at `:278-289` naming this exact scenario), so both stacks give an ASCII-holding `a.png` to `existing.bin`. Measured both ways round. Close the issue. |
 | #29 | Fragment filter skipped for non-Slot children | **live, and worse than filed** — see below |
 | #30 | Buffer compared against string | **fixed**; `sameContent` compares bytes, and `binary_copy_identical_no_backup` pins it. The fix changed no existing corpus row, which is why the pin was added |
@@ -661,7 +664,13 @@ fails exactly where it matters most (§1.1).
 Everything this document set out is done except one item, and that one is a
 decision rather than a backlog entry.
 
-1. **The Fragment error-path divergence.** Both stacks reject a Fragment with
+1. **Done (2026-09-24).** The model is now resolved at call time in both
+   stacks, pinned by `TestFragmentReadsTheModelWhenCalled` and
+   `fragment-reads-the-model-when-called`, and the corpus rows
+   `frag_nonslot_no_default_error` and `frag_template_error` pin an empty tree
+   on both error paths. The original item follows.
+
+   **The Fragment error-path divergence.** Both stacks reject a Fragment with
    a non-Slot child; Go leaves the project folder behind, TS leaves nothing.
    TS renders the fragment in the DEFINE phase and throws before the build
    starts; Go renders in `fragmentAfter`, after folders are made. Closing it
@@ -673,7 +682,10 @@ decision rather than a backlog entry.
    but #29 was about which children run, and this is about when the render
    happens. Fixing #29 did not touch it.
 
-2. **#26 and #32 stay open on purpose.** Both stacks behave identically, so
+2. **#26 is closed (2026-09-24):** both stacks restore the enclosing folder
+   state when a Project closes. #32 stays open. The original item follows.
+
+   **#26 and #32 stay open on purpose.** Both stacks behave identically, so
    neither is a parity break (§2.4), and the corpus records #32's behaviour as
    expected output. They are semantic warts to fix against the docs, on their
    own schedule.

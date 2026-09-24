@@ -127,6 +127,10 @@ consumed once, at `go/template.go:58`. `go/options.go` does not import it;
 `OptionsFromMap` is a hand-written type switch. So the Go module already
 contains two validation styles, and the imperative one is dominant.
 
+(Update, 2026-09-24: `go/options.go` now imports `shape` for
+`OptionsFromMap`, which validates option maps against a schema mirroring
+`OptionsShape` and `ExistingShape`; see section 5.)
+
 ---
 
 ## 2. Precedent: two dependencies already removed
@@ -446,6 +450,14 @@ paying for it. Step two replaces it.
 ## 5. Go: shape
 
 This one is done, not proposed.
+
+**Update, 2026-09-24.** Since this section was written, `OptionsFromMap`
+became the main user of the Go `shape` port: it validates option maps against
+a schema mirroring `OptionsShape` and `ExistingShape`, with message text
+identical to TypeScript, pinned by `test/spec/options.tsv`. Removing the
+dependency now means reimplementing that message-compatible validation, not
+only `ParseTemplateSpec`'s key switch. The measurement below describes the
+tree before that change.
 
 A sandbox copy of `go/` had the import at `template.go:14` removed, the schema
 at `:50-53` deleted, and `ParseTemplateSpec`'s body replaced with a hand-written
