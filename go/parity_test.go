@@ -660,6 +660,19 @@ var scenarioRunners = map[string]func(j *J){
 			})
 		})
 	},
+	"frag_slot_inject": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("f.txt", func(j *J) {
+				j.Fragment(FragmentProps{From: "/tm/slot.txt"}, func(j *J) {
+					j.Slot("s", func(j *J) {
+						j.Content("pre;")
+						j.Inject("t.txt", func(j *J) { j.Content("INJ") })
+						j.Content("post;")
+					})
+				})
+			})
+		})
+	},
 	"frag_replace_fn_emits": func(j *J) {
 		around := func(j *J, body func(*J)) {
 			j.Cmp("Around", func(j *J) {
@@ -950,7 +963,8 @@ func scenarioOptions(scenario string) []Option {
 		})}
 	case "copy_file", "copy_in_file", "inject_fragment_child", "inject_copy_child",
 		"frag_nonslot_no_default_error", "frag_template_error", "frag_reads_generated",
-		"frag_slot_copy", "frag_replace_fn_emits", "frag_indent_bool", "copy_in_file_replace":
+		"frag_slot_copy", "frag_slot_inject", "frag_replace_fn_emits", "frag_indent_bool",
+		"copy_in_file_replace":
 		return []Option{WithModel(map[string]any{"name": "World"})}
 	case "folder_and_project_in_file", "replace_values":
 		return []Option{WithModel(map[string]any{"name": "N"})}

@@ -482,11 +482,11 @@ A `Fragment` renders when it is called. Its source is read, its slots
 are replayed and its template runs inside the define callback, so a
 render error stops the run before anything is written, the model is
 read at that point, and a `from` file written earlier in the same run is
-read with its bytes from before the run. Everything a `Slot` or a
-`replace` function emits (`Content`, `Line`, `ListItems`, a component of
-your own, a nested `Fragment`, `CopyFiles`, `Inject`) lands at the
-marker, in emission order, and a `CopyFiles` there also writes its own
-target.
+read with its bytes from before the run. Text a `Slot` or a `replace`
+function emits (`Content`, `Line`, `ListItems`, a component of your own,
+a nested `Fragment`, a single-file `CopyFiles`) lands at the marker, in
+emission order, and a `CopyFiles` there also writes its own target. An
+`Inject` there rewrites its own target and puts nothing at the marker.
 
 The source is templated once. A `$$path$$` that arrives inside a model
 value, a `replace` value or the return of a `replace` function is written

@@ -1293,6 +1293,21 @@ async function main() {
       })
     })
   }, fragSrc)
+  // An Inject in a Slot rewrites its own target and puts nothing at the
+  // marker.
+  await snapshot('frag_slot_inject', { model: { name: 'World' } }, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'f.txt' }, () => {
+        Fragment({ from: '/tm/slot.txt' }, () => {
+          Slot({ name: 's' }, () => {
+            Content('pre;')
+            Inject({ name: 't.txt' }, () => Content('INJ'))
+            Content('post;')
+          })
+        })
+      })
+    })
+  }, { ...fragSrc, '/out/app/t.txt': 'x\n#--START--#\nold\n#--END--#\n' })
   const Around = cmp(function Around(_props, children) {
     Content('<')
     each(children, { call: true })
