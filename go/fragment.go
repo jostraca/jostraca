@@ -28,9 +28,9 @@ func (st *jstate) defineFS() FS {
 // The unnamed <[SLOT]> marker, and the named one around an escaped name.
 // Byte-identical to the keys ts/src/cmp/Fragment.ts adds to `replace`.
 const (
-	fragmentDefaultSlotKey = "/[ \\t]*[-<!/#*]*[ \\t]*<\\[SLOT\\]>[ \\t]*[->/#*]*[ \\t]*/"
+	fragmentDefaultSlotKey = "/[ \\t]*[-<!/#*]*[ \\t]*<\\[SLOT]>[ \\t]*[->/#*]*[ \\t]*/"
 	fragmentSlotKeyOpen    = "/[ \\t]*[-<!/#*]*[ \\t]*<\\[SLOT:"
-	fragmentSlotKeyClose   = "\\]>[ \\t]*[->/#*]*[ \\t]*/"
+	fragmentSlotKeyClose   = "]>[ \\t]*[->/#*]*[ \\t]*/"
 )
 
 // renderFragment runs a Fragment already attached as n. Errors land on
@@ -132,7 +132,7 @@ func renderFragment(st *jstate, n *Node, body func(*J), eject any) {
 	// with no such marker there is nowhere for them to go.
 	if sawNonSlot && !defaultSlot {
 		st.err = &NodeError{Step: "fragment", Err: fmtErrorf(
-			"Fragment has non-Slot children, but %s contains no unnamed "+
+			"jostraca: Fragment has non-Slot children, but %s contains no unnamed "+
 				"<[SLOT]> marker to receive them; their output would be "+
 				"silently discarded. Add an unnamed <[SLOT]> marker to the "+
 				"fragment source, or wrap the children in a named Slot.",

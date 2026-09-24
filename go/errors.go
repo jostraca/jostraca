@@ -14,7 +14,7 @@ import (
 var (
 	ErrMissingOp       = errors.New("missing op")
 	ErrInvalidPath     = errors.New("jostraca: invalid path")
-	ErrEmptyMatchRegex = errors.New("jostraca: regex matches empty string")
+	ErrEmptyMatchRegex = errors.New("Regular expression matches empty string")
 	ErrLookbehind      = errors.New("jostraca: lookbehind not supported (RE2)")
 	ErrMergeConflict   = errors.New("jostraca: 3-way merge produced conflicts")
 	ErrNilRoot         = errors.New("jostraca: generate root callback is not a function")

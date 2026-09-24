@@ -1,0 +1,28 @@
+{
+  "scenario": "frag_nonslot_no_default_error",
+  "opts": {
+    "model": {
+      "name": "World"
+    }
+  },
+  "prepopulate": {
+    "/tm/noslot.txt": "no markers $$name$$\n",
+    "/tm/model.txt": "M=$$name$$\n",
+    "/tm/twice.txt": "1 <[SLOT:a]>\n2 <[SLOT:a]>\n3 <[SLOT]>\n4 <[SLOT]>\n",
+    "/tm/replace.txt": "FOO and BAR $$name$$\n",
+    "/tm/slot.txt": "HEAD<[SLOT:s]>TAIL\n",
+    "/tm/c.txt": "copied $$name$$\n"
+  },
+  "error": true,
+  "errorBody": "jostraca: Fragment has non-Slot children, but /tm/noslot.txt contains no unnamed <[SLOT]> marker to receive them; their output would be silently discarded. Add an unnamed <[SLOT]> marker to the fragment source, or wrap the children in a named Slot.",
+  "files": null,
+  "audit": null,
+  "vol": {
+    "/tm/noslot.txt": "no markers $$name$$\n",
+    "/tm/model.txt": "M=$$name$$\n",
+    "/tm/twice.txt": "1 <[SLOT:a]>\n2 <[SLOT:a]>\n3 <[SLOT]>\n4 <[SLOT]>\n",
+    "/tm/replace.txt": "FOO and BAR $$name$$\n",
+    "/tm/slot.txt": "HEAD<[SLOT:s]>TAIL\n",
+    "/tm/c.txt": "copied $$name$$\n"
+  }
+}

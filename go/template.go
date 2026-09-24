@@ -165,7 +165,7 @@ func Template(src string, model any, spec *TemplateSpec) (string, error) {
 		mStart, mEnd := loc[0], loc[1]
 		// Empty-match guard: matches infinite loop in user regex.
 		if mStart == mEnd {
-			return "", fmt.Errorf("%w: %s", ErrEmptyMatchRegex, insertRE)
+			return "", fmt.Errorf("%w: %s", ErrEmptyMatchRegex, formatJSStyleRegex(insertRE))
 		}
 		emit(remain[:mStart])
 
@@ -198,7 +198,7 @@ func resolveMatch(insertRE *regexp.Regexp, model any, match string, groups map[s
 	replace map[string]any, groupKey map[string]string) (string, error) {
 	if ref, ok := groups["J_R"]; ok {
 		if ref == "" {
-			return "", fmt.Errorf("%w: %s", ErrEmptyMatchRegex, insertRE)
+			return "", fmt.Errorf("%w: %s", ErrEmptyMatchRegex, formatJSStyleRegex(insertRE))
 		}
 		return resolveModelRef(insertRE, model, match, ref), nil
 	}
@@ -212,7 +212,7 @@ func resolveMatch(insertRE *regexp.Regexp, model any, match string, groups map[s
 		}
 		return invokeReplace(replace[groupKey[k]], userGroupView(groups, match), match), nil
 	}
-	return "", fmt.Errorf("%w: %s", ErrEmptyMatchRegex, insertRE)
+	return "", fmt.Errorf("%w: %s", ErrEmptyMatchRegex, formatJSStyleRegex(insertRE))
 }
 
 var userGroupNameRE = regexp.MustCompile(`^J_[NT]\d+_(.+)$`)

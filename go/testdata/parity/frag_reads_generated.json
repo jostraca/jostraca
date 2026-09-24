@@ -1,0 +1,151 @@
+{
+  "scenario": "frag_reads_generated",
+  "opts": {
+    "model": {
+      "name": "World"
+    }
+  },
+  "prepopulate": {
+    "/tm/noslot.txt": "no markers $$name$$\n",
+    "/tm/model.txt": "M=$$name$$\n",
+    "/tm/twice.txt": "1 <[SLOT:a]>\n2 <[SLOT:a]>\n3 <[SLOT]>\n4 <[SLOT]>\n",
+    "/tm/replace.txt": "FOO and BAR $$name$$\n",
+    "/tm/slot.txt": "HEAD<[SLOT:s]>TAIL\n",
+    "/tm/c.txt": "copied $$name$$\n",
+    "/out/app/tpl.txt": "OLD $$name$$ <[SLOT]>\n"
+  },
+  "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/tpl.txt",
+      "/out/app/use.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
+  "audit": [
+    [
+      "FileHandler:existsFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "exists": false
+      }
+    ],
+    [
+      "FileHandler:loadFile:",
+      {
+        "path": "/out/app/tpl.txt",
+        "when": 1735689600000,
+        "size": 22
+      }
+    ],
+    [
+      "FileHandler:saveFile:FileOp:after:write:",
+      {
+        "path": "/out/app/tpl.txt",
+        "when": 1735689600000,
+        "existed": true,
+        "size": 19
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/tpl.txt",
+        "exists": true,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<Wx>",
+          "exists-0",
+          "write-0",
+          "not-protect-1",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:FileOp:after:write:",
+      {
+        "path": "/out/app/use.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 11
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/use.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 654
+      }
+    ],
+    [
+      "FileHandler:saveJSON:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "size": 654
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/.gitignore",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 29
+      }
+    ]
+  ],
+  "vol": {
+    "/tm/noslot.txt": "no markers $$name$$\n",
+    "/tm/model.txt": "M=$$name$$\n",
+    "/tm/twice.txt": "1 <[SLOT:a]>\n2 <[SLOT:a]>\n3 <[SLOT]>\n4 <[SLOT]>\n",
+    "/tm/replace.txt": "FOO and BAR $$name$$\n",
+    "/tm/slot.txt": "HEAD<[SLOT:s]>TAIL\n",
+    "/tm/c.txt": "copied $$name$$\n",
+    "/out/app/tpl.txt": "NEW World <[SLOT]>\n",
+    "/out/app/use.txt": "OLD WorldS\n",
+    "/out/.jostraca/generated/app/tpl.txt": "NEW World <[SLOT]>\n",
+    "/out/.jostraca/generated/app/use.txt": "OLD WorldS\n",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/tpl.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/tpl.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/use.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/use.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}

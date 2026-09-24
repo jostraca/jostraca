@@ -19,9 +19,20 @@ func TestParityErrorScenarioBodies(t *testing.T) {
 			`with string "/src/does-not-exist.txt" because check "From" failed (threw: <os>)`,
 		"inject_missing_target_errors": "inject target does not exist, " +
 			"path=/out/app/does-not-exist.txt (Inject rewrites an existing file; use File to create one)",
+		"frag_nonslot_no_default_error": "jostraca: Fragment has non-Slot children, but " +
+			"/tm/noslot.txt contains no unnamed <[SLOT]> marker to receive them; their " +
+			"output would be silently discarded. Add an unnamed <[SLOT]> marker to the " +
+			"fragment source, or wrap the children in a named Slot.",
+		"frag_template_error": "Regular expression matches empty string: " +
+			`/(?<J_O>\$\$)(?<J_R>[^$]+)(?<J_C>\$\$)` +
+			`|(?<J_K1__t_t_SLOT_t_t_>[ \t]*[-<!/#*]*[ \t]*<\[SLOT]>[ \t]*[->/#*]*[ \t]*)` +
+			`|(?<J_K2__x_>x*)/`,
 	}
 	for name, w := range want {
-		_, err := New(WithFS(NewMemFS()), WithFolder("/out"),
+		mem := NewMemFS()
+		_ = mem.WriteFile("/tm/noslot.txt", []byte("no markers\n"))
+		_ = mem.WriteFile("/tm/model.txt", []byte("M=$$name$$\n"))
+		_, err := New(WithFS(mem), WithFolder("/out"),
 			WithNow(func() int64 { return frozenNow })).
 			Generate(Options{}, scenarioRunners[name])
 		if err == nil {

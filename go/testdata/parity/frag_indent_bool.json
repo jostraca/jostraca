@@ -1,0 +1,28 @@
+{
+  "scenario": "frag_indent_bool",
+  "opts": {
+    "model": {
+      "name": "World"
+    }
+  },
+  "prepopulate": {
+    "/tm/noslot.txt": "no markers $$name$$\n",
+    "/tm/model.txt": "M=$$name$$\n",
+    "/tm/twice.txt": "1 <[SLOT:a]>\n2 <[SLOT:a]>\n3 <[SLOT]>\n4 <[SLOT]>\n",
+    "/tm/replace.txt": "FOO and BAR $$name$$\n",
+    "/tm/slot.txt": "HEAD<[SLOT:s]>TAIL\n",
+    "/tm/c.txt": "copied $$name$$\n"
+  },
+  "error": true,
+  "errorBody": "Fragment: Value \"true\" for property \"indent\" does not satisfy one of: String, Number",
+  "files": null,
+  "audit": null,
+  "vol": {
+    "/tm/noslot.txt": "no markers $$name$$\n",
+    "/tm/model.txt": "M=$$name$$\n",
+    "/tm/twice.txt": "1 <[SLOT:a]>\n2 <[SLOT:a]>\n3 <[SLOT]>\n4 <[SLOT]>\n",
+    "/tm/replace.txt": "FOO and BAR $$name$$\n",
+    "/tm/slot.txt": "HEAD<[SLOT:s]>TAIL\n",
+    "/tm/c.txt": "copied $$name$$\n"
+  }
+}

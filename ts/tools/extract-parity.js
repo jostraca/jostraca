@@ -1060,6 +1060,291 @@ async function main() {
     })
   })
 
+  // A Folder or a Project inside a File never becomes the current file,
+  // so what it emits lands in the File in source order; a File or an
+  // Inject in there writes its own target.
+  await snapshot('folder_and_project_in_file', { model: { name: 'N' } }, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'f.txt' }, () => {
+        Content('1'); Folder({ name: 'd' }, () => Content('x')); Content('2')
+      })
+      File({ name: 'g.txt' }, () => {
+        Content('1'); Project({ folder: 'p' }, () => Content('y')); Content('2')
+      })
+      File({ name: 'h.txt' }, () => {
+        Content('1')
+        Folder({ name: 'e' }, () => Copy({ from: '/src/c.txt', to: 'c2.txt' }))
+        Folder({ name: 'k' }, () => Fragment({ from: '/tm/f.txt' }, () => Content('S')))
+        Content('2')
+      })
+      File({ name: 'j.txt' }, () => {
+        Content('1')
+        Folder({ name: 'm' }, () => {
+          File({ name: 'inner.txt' }, () => Content('I'))
+          Content('z')
+        })
+        Folder({ name: '.' }, () => Inject({ name: 'inj.txt' }, () => Content('NEW')))
+        Content('2')
+      })
+    })
+  }, {
+    '/src/c.txt': 'C$$name$$\n',
+    '/tm/f.txt': '[F<[SLOT]>]\n',
+    '/out/app/inj.txt': 'h\n#--START--#\nold\n#--END--#\nt\n',
+  })
+
+  // A File nested in a File, directly or through a Folder, is written to
+  // its own path, and the outer file keeps all of its own content.
+  await snapshot('file_in_file', {}, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'outer.txt' }, () => {
+        Content('1')
+        File({ name: 'inner.txt' }, () => Content('2'))
+        Content('3')
+      })
+      File({ name: 'outer2.txt' }, () => {
+        Content('1')
+        Folder({ name: 'sub' }, () => File({ name: 'inner.txt' }, () => Content('2')))
+        Content('3')
+      })
+      File({ name: 'next.txt' }, () => Content('next'))
+    })
+  })
+
+  // A Project's folder applies to its own subtree only (#26).
+  await snapshot('project_nested_in_folder', {}, () => {
+    Project({ folder: '.' }, () => {
+      Folder({ name: 'a' }, () => {
+        Project({ folder: 'p2' }, () => File({ name: 'x.txt' }, () => Content('x')))
+      })
+      File({ name: 'y.txt' }, () => Content('y'))
+    })
+  })
+  await snapshot('project_nested_two_folders', {}, () => {
+    Project({ folder: '.' }, () => {
+      Folder({ name: 'a' }, () => {
+        Folder({ name: 'b' }, () => {
+          Project({ folder: 'p2' }, () => File({ name: 'x.txt' }, () => Content('x')))
+        })
+        File({ name: 'z.txt' }, () => Content('z'))
+      })
+      File({ name: 'y.txt' }, () => Content('y'))
+    })
+  })
+  await snapshot('project_then_sibling_file', {}, () => {
+    Project({ folder: '.' }, () => {
+      Project({ folder: 'p' }, () => File({ name: 'a.txt' }, () => Content('a')))
+      File({ name: 'y.txt' }, () => Content('y'))
+    })
+  })
+  await snapshot('two_sibling_projects', {}, () => {
+    Project({ folder: 'a' }, () => File({ name: 'x.txt' }, () => Content('x')))
+    Project({ folder: 'b' }, () => File({ name: 'y.txt' }, () => Content('y')))
+  })
+
+  // A Fragment is templated once, as Content is: a `$$x$$` arriving in a
+  // model value, a replace value or a replace function's return is text.
+  await snapshot('frag_double_template', { model: { a: '$$b$$', b: 'X', name: 'N' } }, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'double.txt' }, () => {
+        Fragment({ from: '/tm/double.txt' })
+        Content('content:$$a$$\n')
+      })
+      File({ name: 'r1.txt' }, () => Fragment({
+        from: '/tm/replace.txt', replace: { FOO: '$$b$$', BAR: 'bar' }
+      }))
+      File({ name: 'r2.txt' }, () => Fragment({
+        from: '/tm/replace.txt', replace: { FOO: '$$"q"$$', BAR: () => '$$name$$' }
+      }))
+    })
+  }, { '/tm/double.txt': '[$$a$$]\n', '/tm/replace.txt': 'FOO and BAR $$name$$\n' })
+
+  // A Fragment renders when it is called: a render error stops the run
+  // before anything is written, the body runs in the define phase, a source
+  // the run writes is read with its bytes from before the run, and what a
+  // Slot or a replace function emits lands at the marker.
+  const fragSrc = {
+    '/tm/noslot.txt': 'no markers $$name$$\n',
+    '/tm/model.txt': 'M=$$name$$\n',
+    '/tm/twice.txt': '1 <[SLOT:a]>\n2 <[SLOT:a]>\n3 <[SLOT]>\n4 <[SLOT]>\n',
+    '/tm/replace.txt': 'FOO and BAR $$name$$\n',
+    '/tm/slot.txt': 'HEAD<[SLOT:s]>TAIL\n',
+    '/tm/c.txt': 'copied $$name$$\n',
+  }
+  await snapshot('frag_nonslot_no_default_error', { model: { name: 'World' } }, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'ok.txt' }, () => Content('ok'))
+      File({ name: 'n.txt' }, () => Fragment({ from: '/tm/noslot.txt' }, () => Content('lost')))
+    })
+  }, fragSrc)
+  await snapshot('frag_template_error', { model: { name: 'World' } }, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'first.txt' }, () => Content('first'))
+      File({ name: 'e.txt' }, () =>
+        Fragment({ from: '/tm/model.txt', replace: { '/x*/': 'y' } }))
+    })
+  }, fragSrc)
+  await snapshot('frag_slot_body_counter', {}, () => {
+    let n = 0
+    Project({ folder: 'app' }, () => {
+      File({ name: 'c.txt' }, () => {
+        Fragment({ from: '/tm/twice.txt' }, () => {
+          n++
+          Slot({ name: 'a' }, () => Content('a' + n))
+          Content('d' + n)
+        })
+        Content('after=' + n + '\n')
+      })
+    })
+  }, fragSrc)
+  await snapshot('frag_reads_generated', { model: { name: 'World' } }, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'tpl.txt' }, () => Content('NEW $$name$$ <[SLOT]>\n'))
+      File({ name: 'use.txt' }, () => Fragment({ from: 'app/tpl.txt' }, () => Content('S')))
+    })
+  }, { ...fragSrc, '/out/app/tpl.txt': 'OLD $$name$$ <[SLOT]>\n' })
+  await snapshot('frag_slot_copy', { model: { name: 'World' } }, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'f.txt' }, () => {
+        Fragment({ from: '/tm/slot.txt' }, () => {
+          Slot({ name: 's' }, () => {
+            Content('pre;')
+            Copy({ from: '/tm/c.txt', to: 'c.txt' })
+            Content('post;')
+          })
+        })
+      })
+    })
+  }, fragSrc)
+  const Around = cmp(function Around(_props, children) {
+    Content('<')
+    each(children, { call: true })
+    Content('>')
+  })
+  await snapshot('frag_replace_fn_emits', { model: { name: 'World' } }, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'f.txt' }, () => {
+        Fragment({
+          from: '/tm/replace.txt', replace: {
+            FOO: () => {
+              List({ item: [{ n: 1 }, { n: 2 }], line: false },
+                ({ replace }) => Content({ src: '[{item.n}]', replace }))
+            },
+            BAR: () => { Line('bar') },
+          }
+        })
+        Fragment({
+          from: '/tm/replace.txt', replace: {
+            FOO: () => { Fragment({ from: '/tm/model.txt' }) },
+            BAR: () => { Around(() => Content('w')) },
+          }
+        })
+      })
+    })
+  }, fragSrc)
+
+  // A wrongly typed Fragment or CopyFiles prop stops the run before
+  // anything is written.
+  await snapshot('copy_exclude_number', {}, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'first.txt' }, () => Content('first'))
+      Copy({ from: '/tm/tree', to: 'n', exclude: 5 })
+    })
+  }, { '/tm/tree/a.txt': 'A\n' })
+  await snapshot('frag_indent_bool', { model: { name: 'World' } }, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'first.txt' }, () => Content('first'))
+      File({ name: 'b.txt' }, () => Fragment({ from: '/tm/model.txt', indent: true }))
+    })
+  }, fragSrc)
+
+  // A single-file Copy spliced into a File or an Inject carries its
+  // `replace`, as the copy it writes does.
+  await snapshot('copy_in_file_replace', { model: { name: 'World' } }, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'host.txt' }, () => {
+        Content('pre\n')
+        Copy({ from: '/tpl/single.txt', to: 'spliced.txt', replace: { FOO: 'bar' } })
+        Content('post\n')
+      })
+      Inject({ name: 't.txt' }, () => {
+        Content('pre;')
+        Copy({ from: '/tpl/single.txt', to: 'spliced2.txt', replace: { FOO: 'bar' } })
+        Content('post;')
+      })
+    })
+  }, {
+    '/tpl/single.txt': 'single $$name$$ FOO\n',
+    '/out/app/t.txt': 'head\n#--START--#\nold\n#--END--#\ntail\n',
+  })
+
+  // A plain replace value formats as a replace function's return does, in
+  // every component that takes a replace map.
+  await snapshot('replace_values', { model: { name: 'N' } }, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'c.txt' }, () => {
+        Content({ src: 'zero=FOO;', replace: { FOO: 0 } })
+        Content({ src: 'false=FOO;', replace: { FOO: false } })
+        Content({ src: 'null=FOO;', replace: { FOO: null } })
+        Content({ src: 'empty=FOO;', replace: { FOO: '' } })
+        Content({ src: 'arr=FOO;', replace: { FOO: [1, 'a'] } })
+        Content({ src: 'obj=FOO;', replace: { FOO: { b: 1, a: [2, 'x'] } } })
+        Content({ src: 'big=FOO;', replace: { FOO: 1e6 } })
+        Content({ src: 'huge=FOO;', replace: { FOO: 1e21 } })
+        Content({ src: 'tiny=FOO;', replace: { FOO: 1e-7 } })
+        Content({ src: 'neg=FOO\n', replace: { FOO: -5 } })
+        Line({ src: 'line=FOO', replace: { FOO: 123456789012 } })
+      })
+      File({ name: 'f.txt' }, () => {
+        Fragment({ from: '/tpl/frag.txt', replace: { FOO: 5, BAR: { k: 1, a: [true] } } })
+        Fragment({ from: '/tpl/frag.txt', replace: { FOO: false, BAR: 2.5e-8 } })
+        Fragment({ from: '/tpl/frag.txt', replace: { FOO: () => 'fn', BAR: () => null } })
+      })
+      Copy({ from: '/tpl/copy.txt', replace: { FOO: 123456789012 } })
+      Copy({ from: '/tpl/dir', to: 'r', replace: { '/C/': 'Z', 'World': { o: 1 } } })
+    })
+  }, {
+    '/tpl/frag.txt': 'FOO and BAR\n',
+    '/tpl/copy.txt': 'copy FOO\n',
+    '/tpl/dir/c.txt': 'C World\n',
+  })
+
+  // A string indent is inserted literally, `$` sequences included, and a
+  // negative count adds nothing rather than throwing.
+  await snapshot('indent_edges', {}, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'd.txt' }, () => {
+        Content({ src: 'a\nb\n', indent: '$$ ' })
+        Content({ src: 'c\n', indent: '$& ' })
+        Content({ src: 'd\n', indent: '$1|' })
+        Line({ src: 'e', indent: "$'" })
+        Content({ src: 'f\n', indent: -1 })
+        Content({ src: 'g\n', indent: 2.7 })
+        Fragment({ from: '/tpl/frag.txt', indent: '$$' })
+        Fragment({ from: '/tpl/frag.txt', indent: -3 })
+      })
+    })
+  }, { '/tpl/frag.txt': 'x\ny\n' })
+
+  // A directory Copy walks its source in JavaScript's string order, by
+  // UTF-16 code unit, so a name starting with U+1F600 sorts before one
+  // starting with U+FF5A.
+  const order = ['10.txt', '9.txt', 'B.txt', 'Z.txt', '_x.txt', 'a.txt',
+    'é.txt', '\u{1F600}.txt', 'ｚ.txt']
+  await snapshot('copy_order', {}, () => {
+    Project({ folder: 'app' }, () => Copy({ from: '/tpl/order' }))
+  }, Object.fromEntries(order.map((n) => ['/tpl/order/' + n, n + '\n'])))
+
+  // The meta log is JSON.stringify output: '&', '<', '>' and U+2028 in a
+  // path are written raw.
+  await snapshot('meta_log_raw_quotes', {}, () => {
+    Project({ folder: 'app' }, () => {
+      for (const n of ['a&b.txt', 'x<y>.txt', 'u v.txt']) {
+        File({ name: n }, () => Content('A\n'))
+      }
+    })
+  })
+
   // A clean merge over a file whose generated text contains the marker
   // sentinel is written: the engine decides, the handler never pre-empts.
   const sentinel = (v) => () => Project({ folder: 'app' }, () => {

@@ -550,9 +550,24 @@ describe('generate', () => {
           Inject({ name: 'does-not-exist.txt' }, () => Content('new content'))),
         'inject target does not exist, path=/out/app/does-not-exist.txt ' +
         '(Inject rewrites an existing file; use File to create one)'],
+        [() => Project({ folder: 'app' }, () => File({ name: 'n.txt' }, () =>
+          Fragment({ from: '/tm/noslot.txt' }, () => Content('lost')))),
+        'jostraca: Fragment has non-Slot children, but /tm/noslot.txt contains no ' +
+        'unnamed <[SLOT]> marker to receive them; their output would be silently ' +
+        'discarded. Add an unnamed <[SLOT]> marker to the fragment source, or wrap ' +
+        'the children in a named Slot.'],
+        [() => Project({ folder: 'app' }, () => File({ name: 'e.txt' }, () =>
+          Fragment({ from: '/tm/model.txt', replace: { '/x*/': 'y' } }))),
+        'Regular expression matches empty string: ' +
+        '/(?<J_O>\\$\\$)(?<J_R>[^$]+)(?<J_C>\\$\\$)' +
+        '|(?<J_K1__t_t_SLOT_t_t_>[ \\t]*[-<!/#*]*[ \\t]*<\\[SLOT]>[ \\t]*[->/#*]*[ \\t]*)' +
+        '|(?<J_K2__x_>x*)/'],
       ]
       for (const [root, want] of cases) {
-        const { fs } = memfs({})
+        const { fs } = memfs({
+          '/tm/noslot.txt': 'no markers\n',
+          '/tm/model.txt': 'M=$$name$$\n',
+        })
         const err: any = await Jostraca({})
           .generate({ fs: () => fs, folder: '/out', now: () => START_TIME }, root)
           .then(() => null, (e: any) => e)
