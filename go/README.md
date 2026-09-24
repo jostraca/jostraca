@@ -319,7 +319,8 @@ same logical input:
   closures replace `AsyncLocalStorage`).
 - `Generate` returns `(Result, error)` instead of throwing.
 - A component called on the builder `New` returned, outside any
-  `Generate`, panics at once with a message naming the component
+  `Generate`, or on a `*J` kept from a callback after its `Generate` has
+  returned, panics at once with a message naming the component
   (`jostraca: component File called outside Generate(); ...`), where TS
   throws the same text naming `generate()`. It is a panic because
   component methods have no error return, and a later `Generate` on the

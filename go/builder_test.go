@@ -240,49 +240,53 @@ func TestComponentOutsideGenerate(t *testing.T) {
 	ran := false
 	body := func(*J) { ran = true }
 
-	for _, c := range []struct {
-		name string
-		call func()
-	}{
-		{"Project", func() { j.Project(ProjectProps{Folder: "p"}, body) }},
-		{"Folder", func() { j.Folder("d", body) }},
-		{"File", func() { j.File("x.txt", body) }},
-		{"File", func() { j.FileP(FileProps{Name: "x.txt"}, body) }},
-		{"Content", func() { j.Content("x") }},
-		{"Content", func() { j.ContentP(ContentProps{Src: "x"}) }},
-		{"Line", func() { j.Line("x") }},
-		{"Line", func() { j.LineP(ContentProps{Src: "x"}) }},
-		{"Slot", func() { j.Slot("s", body) }},
-		{"Slot", func() { j.SlotP(SlotProps{Name: "s"}, body) }},
-		{"Inject", func() { j.Inject("t.txt", body) }},
-		{"Inject", func() { j.InjectP(InjectProps{Name: "t.txt"}, body) }},
-		{"Fragment", func() { j.Fragment(FragmentProps{From: "/f.txt"}, body) }},
-		{"Fragment", func() { j.FragmentP(FragmentProps{From: "/f.txt"}, body) }},
-		{"CopyFiles", func() { j.CopyFiles(CopyFilesProps{From: "/f.txt"}) }},
-		{"CopyFiles", func() { j.Copy(CopyProps{From: "/f.txt"}) }},
-		{"ListItems", func() { j.ListItems([]any{1}, func(*J, ListItemProps) { ran = true }) }},
-		{"ListItems", func() { j.List([]any{1}, func(*J, ListItemProps) { ran = true }) }},
-		{"Wrap", func() { j.Cmp("Wrap", body) }},
-		{"<anon>", func() { j.Cmp("", body) }},
-	} {
-		msg := func() (msg string) {
-			defer func() {
-				if r := recover(); r != nil {
-					msg, _ = r.(string)
-				}
+	refused := func(t *testing.T, j *J) {
+		t.Helper()
+		for _, c := range []struct {
+			name string
+			call func()
+		}{
+			{"Project", func() { j.Project(ProjectProps{Folder: "p"}, body) }},
+			{"Folder", func() { j.Folder("d", body) }},
+			{"File", func() { j.File("x.txt", body) }},
+			{"File", func() { j.FileP(FileProps{Name: "x.txt"}, body) }},
+			{"Content", func() { j.Content("x") }},
+			{"Content", func() { j.ContentP(ContentProps{Src: "x"}) }},
+			{"Line", func() { j.Line("x") }},
+			{"Line", func() { j.LineP(ContentProps{Src: "x"}) }},
+			{"Slot", func() { j.Slot("s", body) }},
+			{"Slot", func() { j.SlotP(SlotProps{Name: "s"}, body) }},
+			{"Inject", func() { j.Inject("t.txt", body) }},
+			{"Inject", func() { j.InjectP(InjectProps{Name: "t.txt"}, body) }},
+			{"Fragment", func() { j.Fragment(FragmentProps{From: "/f.txt"}, body) }},
+			{"Fragment", func() { j.FragmentP(FragmentProps{From: "/f.txt"}, body) }},
+			{"CopyFiles", func() { j.CopyFiles(CopyFilesProps{From: "/f.txt"}) }},
+			{"CopyFiles", func() { j.Copy(CopyProps{From: "/f.txt"}) }},
+			{"ListItems", func() { j.ListItems([]any{1}, func(*J, ListItemProps) { ran = true }) }},
+			{"ListItems", func() { j.List([]any{1}, func(*J, ListItemProps) { ran = true }) }},
+			{"Wrap", func() { j.Cmp("Wrap", body) }},
+			{"<anon>", func() { j.Cmp("", body) }},
+		} {
+			msg := func() (msg string) {
+				defer func() {
+					if r := recover(); r != nil {
+						msg, _ = r.(string)
+					}
+				}()
+				c.call()
+				return ""
 			}()
-			c.call()
-			return ""
-		}()
-		want := "jostraca: component " + c.name + " called outside Generate(); " +
-			"components can only be used inside the callback passed to Generate()"
-		if msg != want {
-			t.Errorf("%s: panic = %q\nwant %q", c.name, msg, want)
+			want := "jostraca: component " + c.name + " called outside Generate(); " +
+				"components can only be used inside the callback passed to Generate()"
+			if msg != want {
+				t.Errorf("%s: panic = %q\nwant %q", c.name, msg, want)
+			}
+		}
+		if ran {
+			t.Error("a component body ran outside Generate")
 		}
 	}
-	if ran {
-		t.Error("a component body ran outside Generate")
-	}
+	refused(t, j)
 
 	// The builder is not poisoned: a Generate on it still works, and
 	// nothing the refused calls built leaks into it.
@@ -300,13 +304,24 @@ func TestComponentOutsideGenerate(t *testing.T) {
 		t.Errorf("ok.txt = %q", b)
 	}
 
-	// After a Generate has finished, the top-level *J still refuses.
-	func() {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Error("File after Generate did not panic")
-			}
-		}()
-		j.File("late.txt", body)
-	}()
+	// After a Generate has finished, the top-level *J still refuses, and
+	// so does every *J kept from inside its callback: TS throws for any
+	// component call once generate() has returned.
+	refused(t, j)
+	var kept []*J
+	if _, err := j.Generate(Options{}, func(j *J) {
+		kept = append(kept, j)
+		j.File("kept.txt", func(j *J) {
+			kept = append(kept, j)
+			j.Content("K")
+		})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, k := range kept {
+		refused(t, k)
+	}
+	if b, _ := mem.ReadFile("/out/kept.txt"); string(b) != "K" {
+		t.Errorf("kept.txt = %q", b)
+	}
 }

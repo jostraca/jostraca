@@ -164,7 +164,7 @@ The TS suite has no equivalent because Node single-threads JS execution; this te
 2. Every component method early-returns when `j.st.err != nil`. Subsequent calls in the same callback (and all nested callbacks) become no-ops.
 3. `Generate` returns `(Result, error)` — the stored `err` is surfaced after the `root()` callback returns.
 4. Build-phase errors are wrapped in `NodeError{Step, Path, Callsite, Err}` and returned the same way.
-5. `panic` is reserved for genuine programmer errors (nil dereference of `*J`, and a component called on the builder `New` returned, outside any `Generate`, which panics naming the component: `mustBeInGenerate` in `builder.go`); it is not used as control flow.
+5. `panic` is reserved for genuine programmer errors (nil dereference of `*J`, and a component called on the builder `New` returned, outside any `Generate`, or on a `*J` kept from a callback after its `Generate` returned, which panics naming the component: `mustBeInGenerate` in `builder.go`); it is not used as control flow.
 
 **Worked equivalence.** The TS push/pop:
 
@@ -2686,7 +2686,7 @@ Each deviation is intentional and documented in `go/README.md` and `doc.go`. Whe
 #### D2. `Generate` returns `(Result, error)` instead of throwing
 **TS.** `await jostraca.generate(opts, root)` rejects on error.
 **Go.** `result, err := j.Generate(opts, root)`.
-**Reason.** Idiomatic Go; `panic` is reserved for true programmer errors (nil dereferences, and a component called on the builder `New` returned, outside any `Generate`, which panics naming the component: `mustBeInGenerate` in `builder.go`). Define-phase errors accumulate on `j.st.err` and are returned after the user callback completes (§2).
+**Reason.** Idiomatic Go; `panic` is reserved for true programmer errors (nil dereferences, and a component called on the builder `New` returned, outside any `Generate`, or on a `*J` kept from a callback after its `Generate` returned, which panics naming the component: `mustBeInGenerate` in `builder.go`). Define-phase errors accumulate on `j.st.err` and are returned after the user callback completes (§2).
 **Mitigation.** Component methods early-return when `j.st.err != nil`, so a single error stops a long callback cleanly without checks at every call site.
 
 #### D3. Options: struct + functional opts + `OptionsFromMap`

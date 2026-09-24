@@ -11,13 +11,16 @@ func fmtErrorf(format string, args ...any) error {
 }
 
 // mustBeInGenerate panics when a component is called on the *J that New
-// returned, which belongs to no Generate: it has no node to attach to, so a
-// File or a Content dereferenced nil and a Project built a tree that was
-// then thrown away. TS's cmp() throws the same text for a component called
-// outside generate(). A panic, because a component method has no error
-// return and this is a mistake in the calling code, not in its data.
+// returned, which belongs to no Generate, or on a *J kept from a Generate
+// callback after that Generate has returned. The first has no node to
+// attach to, so a File or a Content dereferenced nil and a Project built a
+// tree that was then thrown away; the second attached to a tree nothing
+// would build, and wrote nothing without a word. TS's cmp() throws the same
+// text for a component called outside generate(). A panic, because a
+// component method has no error return and this is a mistake in the
+// calling code, not in its data.
 func (j *J) mustBeInGenerate(name string) {
-	if j.cur == nil {
+	if j.cur == nil || j.st.finished {
 		panic(fmt.Sprintf("jostraca: component %s called outside Generate(); "+
 			"components can only be used inside the callback passed to Generate()", name))
 	}

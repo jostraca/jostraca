@@ -38,12 +38,17 @@ type jstate struct {
 
 	root *Node
 	err  error
+
+	// finished is set when the Generate that owns this state returns. A *J
+	// kept from its callback belongs to a tree that will never be built.
+	finished bool
 }
 
 // New constructs a builder seeded with global options. Component methods
-// must only be called on the *J passed into a Generate callback, not on
-// this top-level value; calling one panics with a message naming the
-// component.
+// must only be called on the *J passed into a Generate callback, while that
+// Generate runs: calling one on this top-level value, or on a *J kept from
+// a callback after its Generate has returned, panics with a message naming
+// the component.
 func New(opts ...Option) *J {
 	o := applyOptions(opts)
 	st := newJstateFromOptions(o)
@@ -221,6 +226,7 @@ func (j *J) generate(
 	}
 
 	st := newJstateFromOptions(merged)
+	defer func() { st.finished = true }()
 
 	// Synthetic top-level node so the user's first component has a parent
 	// to append to. Path is empty; Kind=KindNone makes the root op a noop.

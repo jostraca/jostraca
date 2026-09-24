@@ -1964,9 +1964,20 @@ const START_TIME = 1735689600000;
             (0, expect_1.expect)(ran).equal(false);
         };
         check();
-        const out = await gen({ '/f.txt': 'F\n' }, () => (0, __1.File)({ name: 'ok.txt' }, () => (0, __1.Content)('OK')));
+        // A call kept from inside the callback and made once generate() has
+        // returned throws too, as Go's kept *J panics: TestComponentOutsideGenerate.
+        const kept = [];
+        const out = await gen({ '/f.txt': 'F\n' }, () => (0, __1.File)({ name: 'ok.txt' }, () => {
+            kept.push(() => (0, __1.Content)('late'));
+            (0, __1.Content)('OK');
+        }));
         (0, expect_1.expect)(out['/out/ok.txt']).equal('OK');
         check();
+        Assert.throws(kept[0], {
+            message: 'jostraca: component Content called outside generate(); ' +
+                'components can only be used inside the callback passed to ' +
+                'Jostraca().generate()'
+        });
     });
 });
 //# sourceMappingURL=jostraca.test.js.map

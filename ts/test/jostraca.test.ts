@@ -2408,11 +2408,22 @@ describe('components', () => {
 
     check()
 
+    // A call kept from inside the callback and made once generate() has
+    // returned throws too, as Go's kept *J panics: TestComponentOutsideGenerate.
+    const kept: (() => any)[] = []
     const out = await gen({ '/f.txt': 'F\n' }, () =>
-      File({ name: 'ok.txt' }, () => Content('OK')))
+      File({ name: 'ok.txt' }, () => {
+        kept.push(() => Content('late'))
+        Content('OK')
+      }))
     expect(out['/out/ok.txt']).equal('OK')
 
     check()
+    Assert.throws(kept[0], {
+      message: 'jostraca: component Content called outside generate(); ' +
+        'components can only be used inside the callback passed to ' +
+        'Jostraca().generate()'
+    })
   })
 
 })

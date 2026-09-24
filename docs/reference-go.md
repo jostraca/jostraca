@@ -28,9 +28,10 @@ New(...Option) *J
 ```
 
 `New` seeds global options. Component methods must be called on the
-`*J` passed **into** the `Generate` callback, not on the value `New`
-returned. Calling one there panics at once with a message naming the
-component:
+`*J` passed **into** the `Generate` callback, while that `Generate` runs,
+and not on the value `New` returned. Calling one on that value, or on a
+`*J` kept from a callback after its `Generate` has returned, panics at
+once with a message naming the component:
 
 ```
 jostraca: component File called outside Generate(); components can only be used inside the callback passed to Generate()
