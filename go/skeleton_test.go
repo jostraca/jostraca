@@ -113,13 +113,15 @@ func TestDefaultLogNoPanic(t *testing.T) {
 			t.Errorf("DefaultLog panicked: %v", r)
 		}
 	}()
-	l := &DefaultLog{}
-	l.Trace("a", 1)
-	l.Debug("b")
-	l.Info("c")
-	l.Warn("d")
-	l.Error("e")
-	l.Fatal("f")
+	captureStd(t, func() {
+		l := &DefaultLog{}
+		l.Trace("a", 1)
+		l.Debug("b")
+		l.Info("c")
+		l.Warn("d")
+		l.Error("e")
+		l.Fatal("f")
+	})
 }
 
 // OptionsFromMap accepts an empty map.

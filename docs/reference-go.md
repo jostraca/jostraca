@@ -240,6 +240,12 @@ WithNow(func() int64)                            WithExisting(Existing)
 WithControl(Control) WithBuild(bool)
 ```
 
+With no `Log`, a run prints through `DefaultLog`, which splits the
+levels as the TypeScript console logger does: `Trace`, `Debug` and
+`Info` to standard output, `Warn`, `Error` and `Fatal` to standard
+error, each as one `<ISO time> LEVEL <args>` line. `DefaultLog{Out: w}`
+sends every level to `w`.
+
 `OptionsFromMap` builds an `Options` from a decoded JSON or YAML map,
 for configuration that arrives as data. The map is validated by the
 same closed schema as the TypeScript options, through the Go port of
@@ -588,9 +594,10 @@ is no sort-by-property in Go.
   `When` and `Args` here, an array with a stack trace there. The kind
   and message in `Args` match, apart from an embedded runtime error
   message. Go also warns when a baseline path escapes the duplicate
-  folder, from a containment check TypeScript does not make. When no
-  `Log` is given, the default here is silent, where TypeScript's prints
-  to the console.
+  folder, from a containment check TypeScript does not make. With no
+  `Log`, both print each warning as a `<ISO time> DEBUG <payload>` line
+  on standard output. The payload prints as each runtime renders it: a
+  Go map here, an inspected object there.
 - Errors wrap differently: `err.step` and an `<Op>:<phase>:` prefix in
   TypeScript, a `*NodeError` with `Step`, `Path` and a sentinel-matchable
   `Err` here. The message body after the wrapper is the same text. An

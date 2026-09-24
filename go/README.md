@@ -522,9 +522,9 @@ same logical input:
   on both sides, except that an error message embedded in one (a JSON
   parse error in the unreadable-meta-log warning) is the text each
   runtime gives. Go also has one warning TS lacks, "baseline path escapes the
-  duplicate folder", from a containment clamp TS does not have. When no
-  `Log` is given the default here is silent, where TS's prints to the
-  console.
+  duplicate folder", from a containment clamp TS does not have. With no
+  `Log`, both print each warning as a `<ISO time> DEBUG <payload>` line
+  on stdout. The payload prints as each runtime renders it.
 - Errors are wrapped differently: TS prefixes `<ERROR:>?<Op>:<phase>: `
   and sets `err.step`; Go returns a `*NodeError` whose message starts
   `jostraca <step> @<path>: ` and whose `Err` matches the sentinels with

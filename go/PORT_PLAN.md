@@ -474,7 +474,7 @@ type Log interface {
 }
 ```
 
-`DefaultLog{ Out io.Writer }` writes ISO-8601-prefixed lines with the level tag, matching `DEFAULT_LOGGER` at `src/jostraca.ts:85-92`. Future-proof note: a thin `slog.Handler` adapter is trivial to add but not in v1.
+`DefaultLog{ Out io.Writer }` writes ISO-8601-prefixed lines with the level tag, matching `DEFAULT_LOGGER` in `src/jostraca.ts`: with `Out` nil, trace, debug and info go to stdout and warn, error and fatal to stderr, the split between `console.log` and `console.error`; a non-nil `Out` takes every level. It is the default when no `Log` is given. Future-proof note: a thin `slog.Handler` adapter is trivial to add but not in v1.
 
 `dLog` (unexported) is the `getdlog`-equivalent collector — a package-level `[]dlogEntry` guarded by `sync.Mutex`. See §10.
 
@@ -2717,7 +2717,7 @@ Each deviation is intentional and documented in `go/README.md` and `doc.go`. Whe
 Each `Generate` also collects the entries it raised on its own state and, after a successful run, replays each to `Options.Log.Debug` with the payload `{"point": "jostraca-warning", "dlogentry": entry, "note": entry.String()}`; the package buffer (`DLogSnapshot`) is unchanged.
 **Reason.** Avoid hidden process-global state. The package buffer is shared by every `Generate`, so the replay is scoped per call: a concurrent call's warnings never reach another call's log (TS scopes the same way through its async store).
 **Mitigation.** §10.6 documents the API; consumer-facing behaviour matches TS (debug entries replay at end-of-`Generate`). `'baseline path escapes the duplicate folder, skipping: <path>'` is Go-only: Go re-checks containment before writing the merge baseline, a clamp TS does not have.
-**Open question.** With no `Log` given, TS's default logger prints each replayed warning to the console and Go's default is silent. Whether Go should print too is a maintainer decision still pending; until it is made, Go stays silent and the Go reference says so.
+**Decided (2026-09-24).** Go mirrors the TS default logger. With no `Log` given, `DefaultLog` prints each replayed warning, as TS's console logger does; the payload prints as each runtime renders it.
 
 #### D8. `Each` uses reflection
 **TS.** Naturally polymorphic via JS dynamic typing.

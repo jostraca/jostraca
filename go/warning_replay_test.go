@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"reflect"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -85,6 +86,32 @@ func TestInjectIntoUnmarkedFileWarnsOnce(t *testing.T) {
 		`markers=["#--START--#\n","\n#--END--#"]`}}
 	if got := log.warned(t); !reflect.DeepEqual(got, want) {
 		t.Fatalf("\n got: %q\nwant: %q", got, want)
+	}
+}
+
+// With no Log, the default console logger prints the warning as one
+// `<ISO time> DEBUG <payload>` line to stdout. TS twin:
+// with-no-log-a-warning-prints-to-stdout.
+func TestNoLogPrintsWarningToStdout(t *testing.T) {
+	var err error
+	stdout, stderr := captureStd(t, func() {
+		err = warnGen(map[string][]byte{"/out/t.txt": []byte("no markers here\n")},
+			func(j *J) {
+				j.Project(ProjectProps{}, func(j *J) {
+					j.Inject("t.txt", func(j *J) { j.Content("X") })
+				})
+			}, nil)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stderr != "" {
+		t.Fatalf("stderr: %q", stderr)
+	}
+	line := regexp.MustCompile(`^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z DEBUG map\[.*` +
+		`markers not found, nothing injected: path=/out/t\.txt .*point:jostraca-warning\]\n$`)
+	if !line.MatchString(stdout) {
+		t.Fatalf("stdout: %q", stdout)
 	}
 }
 

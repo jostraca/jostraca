@@ -37,7 +37,7 @@ Jostraca Options: Validation failed for object "{folder:/out,bogus:1}" because t
 | `meta` | `object` | `{}` | Arbitrary data, reachable as `props.ctx$.meta`. Jostraca does not read it. |
 | `fs` | `() => FS` | `node:fs` | Filesystem provider factory. |
 | `now` | `() => number` | `Date.now` | Clock. Pin it for reproducible output. Anything but a function, or `null` for the default, is refused. |
-| `log` | `Log` | a console logger | Receives `log.debug` warnings, and nothing else, so it must have a `debug` function; anything else is refused. `null` is the default. |
+| `log` | `Log` | a console logger | Receives `log.debug` warnings, and nothing else, so it must have a `debug` function; anything else is refused. `null` is the default. The console logger prints each call as `<ISO time> LEVEL <args>`: `trace`, `debug` and `info` to standard output, the rest to standard error. |
 | `debug` | `string` | `'.'` | Must be a string; a boolean throws. Truthy makes `cmp()` stamp a callsite on each node. |
 | `build` | `boolean` | `true` | Run the build phase. `false` runs define only and writes nothing. |
 | `mem` | `boolean` |—| Generate onto an in-memory filesystem. |

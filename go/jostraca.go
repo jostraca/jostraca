@@ -72,7 +72,7 @@ func newJstateFromOptions(o Options) *jstate {
 	if o.Log != nil {
 		st.log = o.Log
 	} else {
-		st.log = nopLog{}
+		st.log = defaultLog
 	}
 	st.folder = o.Folder
 	if st.folder == "" {

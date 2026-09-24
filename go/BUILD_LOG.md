@@ -34,6 +34,9 @@ the deviation with reasoning.
 - `log.go` — `Log` interface; `DefaultLog` with mutex-guarded ISO-8601
   output to `Out` (defaults to `os.Stderr`); internal `nopLog` for
   callers who didn't supply a logger.
+  **Changed (2026-09-24):** `nopLog` is gone. `DefaultLog` is the default,
+  and with `Out` nil it splits the levels between stdout and stderr as
+  TS's console logger does.
 - `options.go` — `Options` + child structs (`Existing`, `ExistingTxt`,
   `ExistingBin`, `Control`, `CmpOptions`, `CopyCmpOptions`,
   `NameOptions`, `NameAffix`, `NameMatcher`); functional `WithFolder`,

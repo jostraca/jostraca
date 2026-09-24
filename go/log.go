@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -18,45 +19,46 @@ type Log interface {
 	Fatal(args ...any)
 }
 
-// DefaultLog writes ISO-8601-prefixed lines per level. Out defaults to
-// os.Stderr if nil. Safe for concurrent use.
+// DefaultLog writes one `<ISO time> LEVEL <args>` line per call, as TS's
+// console logger does, and is the logger a Generate uses when no Log is
+// given. With Out nil, Trace, Debug and Info go to os.Stdout and Warn,
+// Error and Fatal to os.Stderr, the split between console.log and
+// console.error; a non-nil Out takes every level. Safe for concurrent use.
 type DefaultLog struct {
 	Out io.Writer
 	mu  sync.Mutex
 }
 
-func (l *DefaultLog) write(level string, args []any) {
+// defaultLog is shared so that concurrent runs print whole lines.
+var defaultLog = &DefaultLog{}
+
+func (l *DefaultLog) write(level string, diag bool, args []any) {
 	if l == nil {
 		return
 	}
+	var line strings.Builder
+	line.WriteString(time.Now().UTC().Format("2006-01-02T15:04:05.000Z"))
+	line.WriteString(" " + level)
+	for _, a := range args {
+		fmt.Fprintf(&line, " %v", a)
+	}
+	line.WriteString("\n")
+
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	out := l.Out
 	if out == nil {
-		out = os.Stderr
+		out = os.Stdout
+		if diag {
+			out = os.Stderr
+		}
 	}
-	ts := time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
-	fmt.Fprintf(out, "%s %s", ts, level)
-	for _, a := range args {
-		fmt.Fprintf(out, " %v", a)
-	}
-	fmt.Fprintln(out)
+	_, _ = io.WriteString(out, line.String())
 }
 
-func (l *DefaultLog) Trace(args ...any) { l.write("TRACE", args) }
-func (l *DefaultLog) Debug(args ...any) { l.write("DEBUG", args) }
-func (l *DefaultLog) Info(args ...any)  { l.write("INFO", args) }
-func (l *DefaultLog) Warn(args ...any)  { l.write("WARN", args) }
-func (l *DefaultLog) Error(args ...any) { l.write("ERROR", args) }
-func (l *DefaultLog) Fatal(args ...any) { l.write("FATAL", args) }
-
-// nopLog drops all messages. Used when no Log is provided and the user
-// has not opted into DefaultLog.
-type nopLog struct{}
-
-func (nopLog) Trace(...any) {}
-func (nopLog) Debug(...any) {}
-func (nopLog) Info(...any)  {}
-func (nopLog) Warn(...any)  {}
-func (nopLog) Error(...any) {}
-func (nopLog) Fatal(...any) {}
+func (l *DefaultLog) Trace(args ...any) { l.write("TRACE", false, args) }
+func (l *DefaultLog) Debug(args ...any) { l.write("DEBUG", false, args) }
+func (l *DefaultLog) Info(args ...any)  { l.write("INFO", false, args) }
+func (l *DefaultLog) Warn(args ...any)  { l.write("WARN", true, args) }
+func (l *DefaultLog) Error(args ...any) { l.write("ERROR", true, args) }
+func (l *DefaultLog) Fatal(args ...any) { l.write("FATAL", true, args) }
