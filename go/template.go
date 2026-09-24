@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	shape "github.com/rjrodger/shape/go"
 )
@@ -431,10 +432,64 @@ func trimExponentZeros(s string) string {
 
 func formatJSStyleRegex(re *regexp.Regexp) string {
 	// Convert Go's (?P<name>...) to JS-style (?<name>...) for parity
-	// with TS, then wrap in /.../.
+	// with TS, then wrap in /.../ as a JS RegExp prints itself.
 	src := re.String()
 	src = strings.ReplaceAll(src, "(?P<", "(?<")
-	return "/" + src + "/"
+	return "/" + jsRegexSource(src) + "/"
+}
+
+// jsRegexSource is a pattern as JavaScript's RegExp.prototype.source spells
+// it (V8's EscapeRegExpSource): a `/` outside a character class and not
+// already escaped gains a backslash, a line terminator becomes its escape,
+// and a backslash before a line terminator is dropped for that escape. A
+// literal replace key `//` printed `//` here and `\/\/` in TS.
+func jsRegexSource(src string) string {
+	var sb strings.Builder
+	inClass := false
+	lineEscape := func(r rune) (string, bool) {
+		switch r {
+		case '\n':
+			return `\n`, true
+		case '\r':
+			return `\r`, true
+		case '\u2028':
+			return `\u2028`, true
+		case '\u2029':
+			return `\u2029`, true
+		}
+		return "", false
+	}
+	for i := 0; i < len(src); {
+		r, w := utf8.DecodeRuneInString(src[i:])
+		if r == '\\' && i+w < len(src) {
+			next, nw := utf8.DecodeRuneInString(src[i+w:])
+			if esc, ok := lineEscape(next); ok {
+				sb.WriteString(esc)
+			} else {
+				sb.WriteString(src[i : i+w+nw])
+			}
+			i += w + nw
+			continue
+		}
+		if esc, ok := lineEscape(r); ok {
+			sb.WriteString(esc)
+			i += w
+			continue
+		}
+		switch {
+		case r == '/' && !inClass:
+			sb.WriteString(`\/`)
+			i += w
+			continue
+		case r == '[':
+			inClass = true
+		case r == ']':
+			inClass = false
+		}
+		sb.WriteString(src[i : i+w])
+		i += w
+	}
+	return sb.String()
 }
 
 func delimiters(spec *TemplateSpec) (open, closeStr, ref string) {

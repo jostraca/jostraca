@@ -80,6 +80,11 @@ template-replace-order-tie-regex-first-reversed	template	["abc",{},{"replace":{"
 template-replace-order-dash-underscore	template	["a-b a_b",{},{"replace":{"a_b":"Y","a-b":"X"}}]	"X Y"	
 template-replace-order-dash-tag-first	template	["   // #X-Bb\n",{},{"replace":{"#A-Bb":"T","   // #X":"L"}}]	"T"	
 template-replace-order-dash-tag-first-reversed	template	["   // #X-Bb\n",{},{"replace":{"   // #X":"L","#A-Bb":"T"}}]	"T"	
+template-replace-order-length-utf16	template	["ééé",{},{"replace":{"ééé":"L","/é./":"R"}}]	"Ré"	
+template-replace-matcher-group-names	template	["$$__JOSTRACA_REPLACE__$$",{},{"replace":{"$":"D","_a":"U","a_":"V","é":"E","a.b":"P"}}]	"/(?<J_O>\\$\\$)(?<J_R>[^$]+)(?<J_C>\\$\\$)|(?<J_K1_a_b>a\\.b)|(?<J_K2__a>_a)|(?<J_K3_a_>a_)|(?<J_K4__>\\$)|(?<J_K5__>é)/"	
+template-replace-matcher-slash-literal	template	["$$__JOSTRACA_REPLACE__$$",{},{"replace":{"//":"X","a/b":"Y"}}]	"/(?<J_O>\\$\\$)(?<J_R>[^$]+)(?<J_C>\\$\\$)|(?<J_K1_a_b>a\\/b)|(?<J_K2__>\\/\\/)/"	
+template-replace-matcher-slash-regex	template	["$$__JOSTRACA_REPLACE__$$",{},{"replace":{"/[/]a\\/b/":"X"}}]	"/(?<J_O>\\$\\$)(?<J_R>[^$]+)(?<J_C>\\$\\$)|(?<J_K1__a_b_>[/]a\\/b)/"	
+template-replace-matcher-line-terminators	template	["$$__JOSTRACA_REPLACE__$$",{},{"replace":{"a\nb":"X","c\u2028d":"Y"}}]	"/(?<J_O>\\$\\$)(?<J_R>[^$]+)(?<J_C>\\$\\$)|(?<J_K1_a_b>a\\nb)|(?<J_K2_c_d>c\\u2028d)/"	
 template-ref-matches-empty	template	["x<>y",{"a":1},{"open":"<","close":">","ref":"[^>]*"}]	-	empty
 template-ref-matches-empty-default-delims	template	["x$$$$y",{"a":1},{"ref":"[a-z]*"}]	-	empty
 template-custom-delims	template	["x<a>y",{"a":1},{"open":"<","close":">","ref":"[^>]*"}]	"x1y"	

@@ -1705,7 +1705,7 @@ else if ('__JOSTRACA_REPLACE__' === ref) {
 }
 ```
 
-When `ref` (the captured `J_R` group) equals `__JOSTRACA_REPLACE__`, return the literal source of the compiled regex. Used for debugging/inspection. Go: stash the compiled regex's `String()` into the substitution path.
+When `ref` (the captured `J_R` group) equals `__JOSTRACA_REPLACE__`, return the literal source of the compiled regex. Used for debugging/inspection. Go: stash the compiled regex's `String()` into the substitution path. **As built:** `formatJSStyleRegex` prints it as a JS RegExp prints itself, `(?P<` as `(?<` and the source escaped as V8's `RegExp.prototype.source` escapes it (`jsRegexSource`: an unescaped `/` outside a class and each line terminator), so a literal key `//` reads `\/\/` in both; pinned by the `template-replace-matcher-*` rows of `test/spec/template.tsv`.
 
 ##### 5. Quoted ref `$$"foo"$$`
 
