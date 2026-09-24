@@ -59,6 +59,8 @@ declare class FileHandler {
     loadJSON(path: string, opts?: any | string, whence?: string): any;
     saveJSON(path: string, json: any, opts?: any | string, whence?: string): any;
     loadFile(path: string, opts?: any | string, whence?: string): string | Buffer;
+    loadSource(path: string, opts?: any | string, whence?: string): string | Buffer;
+    private load;
     ensureFolder(path: string): void;
     private ensureDir;
     private chmodUnchanged;

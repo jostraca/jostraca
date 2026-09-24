@@ -424,6 +424,35 @@ function metaOf(fs, path = META) {
             node_fs_1.default.rmSync(dir, { recursive: true, force: true });
         }
     });
+    // A SOURCE path keeps its platform meaning. On POSIX a backslash is an
+    // ordinary name character, so a Copy source holding `b\in.png` and
+    // `we\ird.txt` is read at those names, binary and text alike; the
+    // DESTINATION names fold it, as every output path does. Windows cannot
+    // hold such a name.
+    (0, node_test_1.test)('backslash-in-copy-source-names', { skip: 'win32' === process.platform }, async () => {
+        const dir = node_fs_1.default.mkdtempSync(node_path_1.default.join(node_os_1.default.tmpdir(), 'jostraca-bssrc-'));
+        try {
+            const src = node_path_1.default.join(dir, 'src');
+            node_fs_1.default.mkdirSync(src);
+            node_fs_1.default.writeFileSync(node_path_1.default.join(src, 'b\\in.png'), Buffer.from([0x89, 0x50, 1, 2]));
+            node_fs_1.default.writeFileSync(node_path_1.default.join(src, 'we\\ird.txt'), 'W $$m$$\n');
+            const out = node_path_1.default.join(dir, 'out');
+            const res = await (0, __1.Jostraca)({ now: () => NOW, log: quiet, model: { m: 'M' } })
+                .generate({ folder: out }, () => (0, __1.Project)({}, () => {
+                (0, __1.Copy)({ from: src, to: 'd' });
+                (0, __1.Copy)({ from: node_path_1.default.join(src, 'b\\in.png'), to: 'one.png' });
+            }));
+            (0, expect_1.expect)([...node_fs_1.default.readFileSync(node_path_1.default.join(out, 'd', 'b', 'in.png'))])
+                .equal([0x89, 0x50, 1, 2]);
+            (0, expect_1.expect)(node_fs_1.default.readFileSync(node_path_1.default.join(out, 'd', 'we', 'ird.txt'), 'utf8')).equal('W M\n');
+            (0, expect_1.expect)([...node_fs_1.default.readFileSync(node_path_1.default.join(out, 'one.png'))]).equal([0x89, 0x50, 1, 2]);
+            (0, expect_1.expect)(res.files.written.map((f) => f.substring(out.length)).sort())
+                .equal(['/d/b/in.png', '/d/we/ird.txt', '/one.png']);
+        }
+        finally {
+            node_fs_1.default.rmSync(dir, { recursive: true, force: true });
+        }
+    });
     // A previous meta log's `last` is used only when it is a finite number a
     // Date can carry; anything else is treated as absent (-1), so a merge
     // labels EXISTING with the epoch minus one millisecond.

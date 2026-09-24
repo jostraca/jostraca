@@ -674,7 +674,7 @@ class FileHandler {
     //
     // CopyOp's own copyFile reads a Buffer and go/build.go reads bytes;
     // this is now the same shape as both, with no order to get wrong.
-    const raw = this.loadFile(frompath, { encoding: null }, whence) as Buffer
+    const raw = this.loadSource(frompath, { encoding: null }, whence) as Buffer
 
     // The SOURCE decides: a binary source stays governed by `existing.bin`
     // even when copied to a destination whose extension is not on the
@@ -876,6 +876,27 @@ class FileHandler {
 
 
   loadFile(path: string, opts?: any | string, whence?: string): string | Buffer {
+    return this.load(path, canonPath(path), opts, whence)
+  }
+
+
+  // loadFile for the SOURCE of a copy, read at the path as given. A source
+  // keeps its platform meaning, as every other source read does (CopyOp
+  // stats and reads its entries raw): on POSIX a backslash is an ordinary
+  // name character. Folding it here, as an output path is folded, sent a
+  // binary tree entry named `b\in.png` to `b/in.png`, and the copy failed
+  // with ENOENT while the text entry beside it was copied.
+  loadSource(path: string, opts?: any | string, whence?: string): string | Buffer {
+    return this.load(path, path, opts, whence)
+  }
+
+
+  private load(
+    path: string,
+    fullpath: string,
+    opts?: any | string,
+    whence?: string
+  ): string | Buffer {
     const when = this.now()
     const wstr = null == whence ? '' : whence + ':'
     const fs = this.fs()
@@ -894,8 +915,7 @@ class FileHandler {
     validPath(path, this.maxdepth, CN + FN + wstr)
 
     try {
-      // Canonical path: use directly, do not re-join `this.folder` (see existsFile).
-      const fullpath = fwd(Path.normalize(path))
+      // Used directly, never re-joined to `this.folder` (see existsFile).
       const content = fs.readFileSync(fullpath, opts)
       this.audit.push([CN + FN + wstr,
       { path, when, size: byteLength(content) }])

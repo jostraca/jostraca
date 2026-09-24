@@ -3,6 +3,7 @@ package jostraca
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -104,5 +105,61 @@ func TestBackslashInOutputNames(t *testing.T) {
 		if !strings.Contains(written, w) {
 			t.Errorf("written %v lacks %s", res.Files.Written, w)
 		}
+	}
+}
+
+// A SOURCE path keeps its platform meaning. On POSIX a backslash is an
+// ordinary name character, so a Copy source holding `b\in.png` and
+// `we\ird.txt` is read at those names, binary and text alike; the
+// DESTINATION names fold it, as every output path does. Windows cannot hold
+// such a name. Twin of 'backslash-in-copy-source-names' in
+// ts/test/filehandler.test.ts.
+func TestBackslashInCopySourceNames(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("a backslash is a separator on Windows")
+	}
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src")
+	if err := os.MkdirAll(src, 0o777); err != nil {
+		t.Fatal(err)
+	}
+	png := []byte{0x89, 0x50, 1, 2}
+	if err := os.WriteFile(filepath.Join(src, "b\\in.png"), png, 0o666); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(src, "we\\ird.txt"), []byte("W $$m$$\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.ToSlash(filepath.Join(dir, "out"))
+
+	res, err := New(WithFolder(out), WithNow(func() int64 { return fhNow }),
+		WithModel(map[string]any{"m": "M"})).
+		Generate(Options{}, func(j *J) {
+			j.Project(ProjectProps{}, func(j *J) {
+				j.CopyFiles(CopyFilesProps{From: src, To: "d"})
+				j.CopyFiles(CopyFilesProps{From: filepath.Join(src, "b\\in.png"), To: "one.png"})
+			})
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for rel, want := range map[string]string{
+		"d/b/in.png":   string(png),
+		"d/we/ird.txt": "W M\n",
+		"one.png":      string(png),
+	} {
+		got, err := os.ReadFile(filepath.Join(dir, "out", filepath.FromSlash(rel)))
+		if err != nil || string(got) != want {
+			t.Errorf("%s = %q, %v; want %q", rel, got, err, want)
+		}
+	}
+	written := make([]string, 0, len(res.Files.Written))
+	for _, w := range res.Files.Written {
+		written = append(written, strings.TrimPrefix(w, out))
+	}
+	sort.Strings(written)
+	if strings.Join(written, ",") != "/d/b/in.png,/d/we/ird.txt,/one.png" {
+		t.Errorf("written = %v", written)
 	}
 }

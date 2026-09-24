@@ -527,12 +527,23 @@ func (fh *fileHandler) existsFile(p, whence string) (bool, error) {
 
 // loadFile is TS's loadFile, reading bytes.
 func (fh *fileHandler) loadFile(p, whence string) ([]byte, error) {
+	return fh.load(p, canonOutPath(p), whence)
+}
+
+// loadSource is TS's loadSource: loadFile for the SOURCE of a copy, read at
+// the path as given. A source keeps its platform meaning, so on POSIX a
+// backslash in a source name is a name character, not a separator.
+func (fh *fileHandler) loadSource(p, whence string) ([]byte, error) {
+	return fh.load(p, p, whence)
+}
+
+func (fh *fileHandler) load(p, full, whence string) ([]byte, error) {
 	when := fh.now()
 	wstr := wstrOf(whence)
 	if err := fh.validPath(p, "FileHandler:loadFile:"+wstr); err != nil {
 		return nil, err
 	}
-	b, err := fh.fs.ReadFile(canonOutPath(p))
+	b, err := fh.fs.ReadFile(full)
 	if err != nil {
 		fh.appendAudit("ERROR:FileHandler:loadFile:"+wstr, map[string]any{
 			"path": p, "when": when, "err": err,
@@ -647,11 +658,11 @@ func (fh *fileHandler) copyFile(from, to, whence string) error {
 }
 
 // copy is TS's copy, for a tree-walk entry with a binary extension: the
-// source is read through loadFile, and saved as binary when the source is
+// source is read through loadSource, and saved as binary when the source is
 // (the SOURCE decides, as in CopyOp).
 func (fh *fileHandler) copy(from, to string) error {
 	const whence = "copy:"
-	raw, err := fh.loadFile(from, whence)
+	raw, err := fh.loadSource(from, whence)
 	if err != nil {
 		return err
 	}

@@ -559,7 +559,7 @@ class FileHandler {
         //
         // CopyOp's own copyFile reads a Buffer and go/build.go reads bytes;
         // this is now the same shape as both, with no order to get wrong.
-        const raw = this.loadFile(frompath, { encoding: null }, whence);
+        const raw = this.loadSource(frompath, { encoding: null }, whence);
         // The SOURCE decides: a binary source stays governed by `existing.bin`
         // even when copied to a destination whose extension is not on the
         // list. Same rule as CopyOp's own copy paths and go/build.go's
@@ -720,6 +720,18 @@ class FileHandler {
         }
     }
     loadFile(path, opts, whence) {
+        return this.load(path, canonPath(path), opts, whence);
+    }
+    // loadFile for the SOURCE of a copy, read at the path as given. A source
+    // keeps its platform meaning, as every other source read does (CopyOp
+    // stats and reads its entries raw): on POSIX a backslash is an ordinary
+    // name character. Folding it here, as an output path is folded, sent a
+    // binary tree entry named `b\in.png` to `b/in.png`, and the copy failed
+    // with ENOENT while the text entry beside it was copied.
+    loadSource(path, opts, whence) {
+        return this.load(path, path, opts, whence);
+    }
+    load(path, fullpath, opts, whence) {
         const when = this.now();
         const wstr = null == whence ? '' : whence + ':';
         const fs = this.fs();
@@ -734,8 +746,7 @@ class FileHandler {
         opts.encoding = undefined === opts.encoding ? 'utf8' : opts.encoding;
         validPath(path, this.maxdepth, CN + FN + wstr);
         try {
-            // Canonical path: use directly, do not re-join `this.folder` (see existsFile).
-            const fullpath = fwd(node_path_1.default.normalize(path));
+            // Used directly, never re-joined to `this.folder` (see existsFile).
             const content = fs.readFileSync(fullpath, opts);
             this.audit.push([CN + FN + wstr,
                 { path, when, size: byteLength(content) }]);

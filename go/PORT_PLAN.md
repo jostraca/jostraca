@@ -2727,7 +2727,7 @@ Each `Generate` also collects the entries it raised on its own state and, after 
 
 #### D9. Canonical-`/` internal paths; OS conversion only in `OsFS`
 **TS.** Uses `fwd()` helper to normalise to forward slashes (`src/build/FileHandler.ts:24-26`).
-**Go.** Same policy: every internal path is canonical-`/`. Conversion via `filepath.FromSlash` happens only at the OS boundary inside `OsFS`.
+**Go.** Same policy: every internal path is canonical-`/`. Conversion via `filepath.FromSlash` happens only at the OS boundary inside `OsFS`. A backslash in an OUTPUT path is a separator on every platform (`fwd` folds it, as TS's does). A SOURCE path (Fragment and Copy `from`) is not an output path and is read as given in both stacks, so on POSIX a backslash in it is a name character: the binary tree-copy read goes through `loadSource`, not `loadFile`, in both (`TestBackslashInCopySourceNames`, 'backslash-in-copy-source-names').
 **Reason.** Cross-platform stability; matches existing TS contract.
 **Mitigation.** A single chokepoint (`OsFS`) for the conversion makes Windows-specific bugs easy to localise.
 
