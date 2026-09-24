@@ -309,6 +309,32 @@ const tmpdir = () => Fs.mkdtempSync(Path.join(Os.tmpdir(), 'jostraca-generate-')
             Assert.equal(warned(one.calls).length, 1);
             Assert.deepEqual(two.calls, []);
         });
+        // With no log, the console logger prints `<ISO time> DEBUG <payload>`
+        // through console.log; warn, error and fatal go to console.warn and
+        // console.error.
+        (0, node_test_1.test)('with-no-log-a-warning-prints-to-stdout', async () => {
+            const printed = [];
+            const saved = { log: console.log, warn: console.warn, error: console.error };
+            for (const name of ['log', 'warn', 'error']) {
+                console[name] = (...args) => printed.push([name, ...args]);
+            }
+            try {
+                await (0, __1.Jostraca)({
+                    mem: true, vol: { '/out/t.txt': 'no markers here\n' }, folder: '/out',
+                    now: () => START_TIME,
+                }).generate({}, () => (0, __1.Project)({}, () => (0, __1.Inject)({ name: 't.txt' }, () => (0, __1.Content)('X'))));
+            }
+            finally {
+                Object.assign(console, saved);
+            }
+            Assert.equal(printed.length, 1);
+            const [stream, when, level, payload] = printed[0];
+            Assert.equal(stream, 'log');
+            Assert.match(when, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/);
+            Assert.equal(level, 'DEBUG');
+            Assert.equal(payload.point, 'jostraca-warning');
+            Assert.equal(payload.dlogentry[3], 'inject');
+        });
     });
     // Option values the map form can carry. The refusals of a value JSON can
     // hold are corpus rows (test/spec/options.tsv); these hold what a row

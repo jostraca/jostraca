@@ -336,6 +336,33 @@ describe('generate', () => {
       Assert.deepEqual(two.calls, [])
     })
 
+    // With no log, the console logger prints `<ISO time> DEBUG <payload>`
+    // through console.log; warn, error and fatal go to console.warn and
+    // console.error.
+    test('with-no-log-a-warning-prints-to-stdout', async () => {
+      const printed: any[][] = []
+      const saved = { log: console.log, warn: console.warn, error: console.error }
+      for (const name of ['log', 'warn', 'error'] as const) {
+        console[name] = (...args: any[]) => printed.push([name, ...args])
+      }
+      try {
+        await Jostraca({
+          mem: true, vol: { '/out/t.txt': 'no markers here\n' }, folder: '/out',
+          now: () => START_TIME,
+        }).generate({}, () => Project({}, () => Inject({ name: 't.txt' }, () => Content('X'))))
+      }
+      finally {
+        Object.assign(console, saved)
+      }
+      Assert.equal(printed.length, 1)
+      const [stream, when, level, payload] = printed[0]
+      Assert.equal(stream, 'log')
+      Assert.match(when, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/)
+      Assert.equal(level, 'DEBUG')
+      Assert.equal(payload.point, 'jostraca-warning')
+      Assert.equal(payload.dlogentry[3], 'inject')
+    })
+
   })
 
 
