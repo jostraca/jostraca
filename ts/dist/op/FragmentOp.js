@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FragmentOp = void 0;
 const jostraca_1 = require("../jostraca");
+const bytes_1 = require("../util/bytes");
 const FragmentOp = {
     before(node, _ctx$, buildctx) {
         node.meta.fragment_file = buildctx.current.file;
@@ -16,6 +17,7 @@ const FragmentOp = {
         }
         buildctx.current.file = node.meta.fragment_file;
         buildctx.current.file.content.push(src);
+        (0, bytes_1.escapedInto)(node, buildctx.current.file);
     },
 };
 exports.FragmentOp = FragmentOp;

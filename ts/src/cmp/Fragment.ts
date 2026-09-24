@@ -7,6 +7,8 @@ import { cmp, template, each, escre, Content } from '../jostraca'
 
 import { Shape, One, Optional, Check, Empty, Skip } from 'shape'
 
+import { decodeText } from '../util/bytes'
+
 
 /**
  * The props `Fragment` reads.
@@ -168,7 +170,13 @@ const Fragment = cmp<FragmentProps>(function Fragment(props, children) {
   // Already absolute by here: resolved above, before validation.
   const frompath = node.from as string
 
-  let src = fs.readFileSync(frompath, 'utf8')
+  // Bytes that are not UTF-8 survive as escapes, and the file the text
+  // lands in is then written through encodeText. See util/bytes.
+  const decoded = decodeText(fs.readFileSync(frompath))
+  const src = decoded.text
+  if (decoded.escaped) {
+    node.meta.escaped = true
+  }
 
   const slotnames: Record<string, boolean> = {}
 

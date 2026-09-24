@@ -4,6 +4,7 @@ exports.InjectOp = void 0;
 const jostraca_1 = require("../jostraca");
 const basic_1 = require("../util/basic");
 const FileHandler_1 = require("../build/FileHandler");
+const bytes_1 = require("../util/bytes");
 const ON = 'InjectOp:';
 // Log non-fatal weirdness.
 const dlog = (0, basic_1.getdlog)('jostraca', __filename);
@@ -64,13 +65,23 @@ const InjectOp = {
                 throw new Error(ON + FN + ' inject target does not exist, path=' + fullpath +
                     ' (Inject rewrites an existing file; use File to create one)');
             }
-            let src = fs.readFileSync(fullpath, 'utf8');
-            content = markers.join(content);
+            // Spliced as BYTES, as Go splices it: the target, the markers and the
+            // region are each held one char per byte (latin1), so the target's
+            // bytes outside the region survive exactly, valid UTF-8 or not.
+            // Decoding the target as UTF-8 wrote U+FFFD over every byte of a
+            // Latin-1 file the Inject was only meant to edit a region of.
+            const bytes = (s) => Buffer.from(s, 'utf8').toString('latin1');
+            const region = (node.meta.escaped ? (0, bytes_1.encodeText)(content) :
+                Buffer.from(content, 'utf8')).toString('latin1');
+            const bmarkers = markers.map(bytes);
+            const raw = fs.readFileSync(fullpath);
+            let src = (Buffer.isBuffer(raw) ? raw : Buffer.from(raw, 'utf8')).toString('latin1');
+            content = bmarkers.join(region);
             // Escape markers so regex metacharacters in custom markers are matched
             // literally, and use a replacement function so `$`-sequences in the
             // injected content (e.g. `$1`, `$&`, shell/PHP/JS variables) are not
             // interpreted as special replacement patterns.
-            let re = new RegExp(markers.map(jostraca_1.escre).join('(.*?)'), 'sg');
+            let re = new RegExp(bmarkers.map(jostraca_1.escre).join('(.*?)'), 'sg');
             let matched = false;
             src = src.replace(re, () => (matched = true, content));
             // No marker pair in the target means the injection silently did
@@ -80,7 +91,7 @@ const InjectOp = {
                 dlog('inject', 'markers not found, nothing injected: path=' + fullpath +
                     ' markers=' + JSON.stringify(markers));
             }
-            buildctx.fh.save(fullpath, src);
+            buildctx.fh.save(fullpath, Buffer.from(src, 'latin1'));
         }
         /*
         else {

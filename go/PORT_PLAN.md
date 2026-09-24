@@ -813,6 +813,8 @@ Fragment is the most subtle: at define time it walks its children twice with two
 
 **As built (`go/fragment.go`).** `FragmentP` renders at define time, as TS does: it reads `From`, scans the body for slot names, and runs `Template` with `Handle` attaching each segment as a raw Content child of the Fragment node. Slot and default-slot handlers and `func(*J)` replace values replay with J bound to the Fragment node, so what they emit becomes real children the build walk visits. `fragmentAfter` only joins those children, walking through Slot, KindNone, Folder and Project nodes with the same collector File and Inject use (`collectInPlace`), and applies Indent. The slot keys are the bytes TS's `replace` keys are. The sketch below predates this and is kept for the design record.
 
+**Bytes that are not UTF-8.** A Fragment source, a text `CopyFiles` source and an `Inject` target are Go byte strings, so an invalid byte passes through `Template` and the Inject splice untouched. TS reads the same three as bytes and carries an invalid byte through its template as a lone-surrogate escape that it writes back as that byte (`ts/src/util/bytes.ts`), and splices an Inject target in a one-char-per-byte form, so the written files, the baselines and the audit sizes are byte-identical. Pinned by the `nonutf8_sources` parity scenario and `TestNonUTF8SourcesByteForByte` / 'nonutf8-sources-byte-for-byte'.
+
 ```go
 type FragmentProps struct {
     From    string

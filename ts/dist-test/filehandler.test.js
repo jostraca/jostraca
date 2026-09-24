@@ -247,6 +247,60 @@ function metaOf(fs, path = META) {
             }
         }
     });
+    // Bytes that are not UTF-8 survive byte for byte wherever they are read
+    // as text: the Inject target, a Fragment source and a text Copy source,
+    // into the written file and its baseline alike. The audit reports byte
+    // sizes. Each of the three used to be decoded as UTF-8, and every invalid
+    // byte came out as U+FFFD. Twin of TestNonUTF8SourcesByteForByte.
+    (0, node_test_1.test)('nonutf8-sources-byte-for-byte', async () => {
+        const L = (s) => Buffer.from(s, 'latin1');
+        const { fs } = (0, memfs_1.memfs)({
+            '/out/t.txt': L('caf\xe9\n#--START--#\nold\n#--END--#\n'),
+            '/src/j.txt': L('caf\xe9 $$m$$\n'),
+            '/src/f.txt': L('frag caf\xe9 $$m$$\n'),
+            '/src/g.txt': L('slot \xff\n'),
+            '/src/h.txt': 'outer <[SLOT:s]>|',
+        });
+        const res = await (0, __1.Jostraca)({ now: () => NOW, log: quiet, model: { m: 'M' } })
+            .generate({ fs: () => fs, folder: '/out' }, () => (0, __1.Project)({}, () => {
+            (0, __1.Inject)({ name: 't.txt' }, () => {
+                (0, __1.Content)('NEW;');
+                (0, __1.Fragment)({ from: '/src/g.txt' });
+            });
+            (0, __1.Copy)({ from: '/src/j.txt' });
+            (0, __1.File)({ name: 'fr.txt' }, () => (0, __1.Fragment)({ from: '/src/f.txt', indent: '> ' }));
+            (0, __1.File)({ name: 'hk.txt' }, () => (0, __1.Copy)({ from: '/src/j.txt', to: 'k.txt' }));
+            (0, __1.File)({ name: 'sl.txt' }, () => (0, __1.Fragment)({ from: '/src/h.txt' }, () => {
+                (0, __1.Slot)({ name: 's' }, () => (0, __1.Fragment)({ from: '/src/g.txt' }));
+            }));
+        }));
+        const want = {
+            't.txt': L('caf\xe9\n#--START--#\nNEW;slot \xff\n\n#--END--#\n'),
+            'j.txt': L('caf\xe9 M\n'),
+            'k.txt': L('caf\xe9 M\n'),
+            'fr.txt': L('> frag caf\xe9 M\n'),
+            'hk.txt': L('caf\xe9 M\n'),
+            'sl.txt': L('outerslot \xff\n|'),
+        };
+        for (const [name, bytes] of Object.entries(want)) {
+            for (const at of ['/out/', '/out/.jostraca/generated/']) {
+                (0, expect_1.expect)({ at: at + name, hex: fs.readFileSync(at + name).toString('hex') })
+                    .equal({ at: at + name, hex: bytes.toString('hex') });
+            }
+        }
+        const sizes = res.audit()
+            .filter(([tag, d]) => tag.startsWith('FileHandler:saveFile:') &&
+            !d.path.includes('.jostraca'))
+            .map(([, d]) => [d.path, d.size]);
+        (0, expect_1.expect)(sizes).equal([
+            ['/out/t.txt', want['t.txt'].length],
+            ['/out/j.txt', want['j.txt'].length],
+            ['/out/fr.txt', want['fr.txt'].length],
+            ['/out/k.txt', want['k.txt'].length],
+            ['/out/hk.txt', want['hk.txt'].length],
+            ['/out/sl.txt', want['sl.txt'].length],
+        ]);
+    });
     // New files and directories take 0666 and 0777 less the process umask.
     (0, node_test_1.test)('umask-default-modes', { skip: 'win32' === process.platform }, async () => {
         const old = process.umask(0o002);

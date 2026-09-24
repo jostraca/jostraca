@@ -6,6 +6,7 @@ import { expect } from './expect'
 import * as Package from '../'
 import { memfs } from '../dist/util/memfs'
 import { humanify } from '../dist/util/basic'
+import { decodeText, encodeText } from '../dist/util/bytes'
 
 
 import {
@@ -217,6 +218,40 @@ describe('util', () => {
     // numerically (10 < 9 is false).
     expect(getx({ a: '10' }, 'a<9')).equal({ a: '10' })
     expect(getx({ a: 10 }, 'a<9')).equal(undefined)
+  })
+
+
+  // The byte-transparent text form: any bytes round-trip exactly, valid
+  // UTF-8 decodes as Buffer's codec does, and only an invalid byte becomes
+  // an escape.
+  test('bytes-round-trip', () => {
+    const edge = [
+      [0xed, 0xb2, 0x80], [0xf4, 0x90, 0x80, 0x80], [0xc0, 0x80], [0xe0, 0x80, 0x80],
+      [0xf0, 0x8f, 0xbf, 0xbf], [0xe2, 0x82], [0xff], [0x80], [0xf0, 0x9f, 0x98],
+      [0xe2, 0x82, 0xac], [0xf0, 0x9f, 0x98, 0x80], [0xef, 0xbb, 0xbf, 0x41],
+    ].map((b) => Buffer.from(b))
+
+    let seed = 7
+    const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) % 256
+    const random = Array.from({ length: 400 }, (_, i) =>
+      Buffer.from(Array.from({ length: i % 23 }, rnd)))
+
+    for (const buf of [...edge, ...random]) {
+      const { text, escaped } = decodeText(buf)
+      expect({ hex: encodeText(text).toString('hex') }).equal({ hex: buf.toString('hex') })
+      const valid = Buffer.from(buf.toString('utf8'), 'utf8').equals(buf)
+      expect({ hex: buf.toString('hex'), escaped }).equal({ hex: buf.toString('hex'), escaped: !valid })
+      if (valid) {
+        expect(text).equal(buf.toString('utf8'))
+      }
+    }
+
+    // A three-byte surrogate is three escapes, not one lone surrogate.
+    expect(decodeText(Buffer.from([0xed, 0xb2, 0x80])).text).equal('\udced\udcb2\udc80')
+
+    // Text from anywhere else encodes as UTF-8, a surrogate pair included.
+    expect(encodeText('\ud83d\udc80').toString('hex')).equal('f09f9280')
+    expect(encodeText('a\u00e9').toString('hex')).equal('61c3a9')
   })
 
 

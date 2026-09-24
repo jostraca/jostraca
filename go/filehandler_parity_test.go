@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"math"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -415,6 +416,79 @@ func TestMemRelativeFolderAddressesAbsoluteSeed(t *testing.T) {
 	}
 	if n != 1 {
 		t.Errorf("%d keys for a.txt, want 1", n)
+	}
+}
+
+// Bytes that are not UTF-8 survive byte for byte wherever they are read as
+// text: the Inject target, a Fragment source and a text Copy source, into
+// the written file and its baseline alike, with byte sizes in the audit.
+// Twin of 'nonutf8-sources-byte-for-byte' in ts/test/filehandler.test.ts.
+func TestNonUTF8SourcesByteForByte(t *testing.T) {
+	mem := NewMemFS()
+	for p, c := range map[string]string{
+		"/out/t.txt": "caf\xe9\n#--START--#\nold\n#--END--#\n",
+		"/src/j.txt": "caf\xe9 $$m$$\n",
+		"/src/f.txt": "frag caf\xe9 $$m$$\n",
+		"/src/g.txt": "slot \xff\n",
+		"/src/h.txt": "outer <[SLOT:s]>|",
+	} {
+		_ = mem.WriteFile(p, []byte(c))
+	}
+	res, err := New(WithFS(mem), WithFolder("/out"), WithNow(func() int64 { return fhNow }),
+		WithModel(map[string]any{"m": "M"})).
+		Generate(Options{}, func(j *J) {
+			j.Project(ProjectProps{}, func(j *J) {
+				j.Inject("t.txt", func(j *J) {
+					j.Content("NEW;")
+					j.Fragment(FragmentProps{From: "/src/g.txt"}, nil)
+				})
+				j.CopyFiles(CopyFilesProps{From: "/src/j.txt"})
+				j.File("fr.txt", func(j *J) {
+					j.Fragment(FragmentProps{From: "/src/f.txt", Indent: "> "}, nil)
+				})
+				j.File("hk.txt", func(j *J) {
+					j.CopyFiles(CopyFilesProps{From: "/src/j.txt", To: "k.txt"})
+				})
+				j.File("sl.txt", func(j *J) {
+					j.Fragment(FragmentProps{From: "/src/h.txt"}, func(j *J) {
+						j.Slot("s", func(j *J) { j.Fragment(FragmentProps{From: "/src/g.txt"}, nil) })
+					})
+				})
+			})
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := map[string]string{
+		"t.txt":  "caf\xe9\n#--START--#\nNEW;slot \xff\n\n#--END--#\n",
+		"j.txt":  "caf\xe9 M\n",
+		"k.txt":  "caf\xe9 M\n",
+		"fr.txt": "> frag caf\xe9 M\n",
+		"hk.txt": "caf\xe9 M\n",
+		"sl.txt": "outerslot \xff\n|",
+	}
+	for name, bytes := range want {
+		for _, at := range []string{"/out/", "/out/.jostraca/generated/"} {
+			if got, _ := mem.ReadFile(at + name); string(got) != bytes {
+				t.Errorf("%s%s = %q, want %q", at, name, got, bytes)
+			}
+		}
+	}
+
+	var sizes []string
+	for _, e := range res.Audit() {
+		p, _ := e.Data["path"].(string)
+		if strings.HasPrefix(e.Tag, "FileHandler:saveFile:") && !strings.Contains(p, ".jostraca") {
+			sizes = append(sizes, p+"="+strconv.Itoa(e.Data["size"].(int)))
+		}
+	}
+	wantSizes := []string{}
+	for _, n := range []string{"t.txt", "j.txt", "fr.txt", "k.txt", "hk.txt", "sl.txt"} {
+		wantSizes = append(wantSizes, "/out/"+n+"="+strconv.Itoa(len(want[n])))
+	}
+	if strings.Join(sizes, ",") != strings.Join(wantSizes, ",") {
+		t.Errorf("sizes = %v, want %v", sizes, wantSizes)
 	}
 }
 

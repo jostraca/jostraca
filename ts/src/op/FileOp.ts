@@ -5,6 +5,8 @@ import type { Node, BuildContext } from '../jostraca'
 
 import { canonPath, validName } from '../build/FileHandler'
 
+import { encodeText } from '../util/bytes'
+
 
 const ON = 'FileOp:'
 
@@ -114,7 +116,8 @@ const FileOp = {
       }
     }
 
-    buildctx.fh.save(fullpath, content, ON + FN, undefined, node.mode)
+    buildctx.fh.save(fullpath, node.meta.escaped ? encodeText(content) : content,
+      ON + FN, undefined, node.mode)
   },
 
 }

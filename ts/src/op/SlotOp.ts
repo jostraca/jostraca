@@ -3,6 +3,8 @@ import Path from 'node:path'
 
 import type { Node, BuildContext } from '../jostraca'
 
+import { escapedInto } from '../util/bytes'
+
 
 const SlotOp = {
 
@@ -20,6 +22,7 @@ const SlotOp = {
 
     buildctx.current.file = node.meta.fragment_file
     buildctx.current.file.content.push(src)
+    escapedInto(node, buildctx.current.file)
   },
 
 }

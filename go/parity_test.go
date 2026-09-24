@@ -439,6 +439,45 @@ var scenarioRunners = map[string]func(j *J){
 			})
 		})
 	},
+	// Bytes that are not UTF-8 survive wherever they are read as text.
+	"nonutf8_sources": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.Inject("t.txt", func(j *J) {
+				j.Content("I;")
+				j.Fragment(FragmentProps{From: "/src/f6.txt"}, nil)
+				j.CopyFiles(CopyFilesProps{From: "/src/c1.txt", To: "c2.txt"})
+				j.Content(";J")
+			})
+			j.File("a.txt", func(j *J) {
+				j.Content("a;")
+				j.Fragment(FragmentProps{From: "/src/f1.txt"}, func(j *J) { j.Content("SLOTBODY") })
+				j.Content(";b")
+			})
+			j.File("ind.txt", func(j *J) {
+				j.Fragment(FragmentProps{From: "/src/f2.txt", Indent: "> "}, nil)
+			})
+			j.File("nest.txt", func(j *J) {
+				j.Fragment(FragmentProps{From: "/src/f5.txt"}, func(j *J) {
+					j.Slot("s", func(j *J) { j.Fragment(FragmentProps{From: "/src/f6.txt"}, nil) })
+				})
+			})
+			j.File("host.txt", func(j *J) {
+				j.Content("pre;")
+				j.CopyFiles(CopyFilesProps{From: "/src/c1.txt", To: "c1.txt",
+					Replace: map[string]any{"FOO": "bar"}})
+				j.Content(";post")
+			})
+			j.File("fold.txt", func(j *J) {
+				j.Content("1")
+				j.Folder("d", func(j *J) { j.Fragment(FragmentProps{From: "/src/f2.txt"}, nil) })
+				j.Content("2")
+			})
+			j.File("odd.txt", func(j *J) {
+				j.Fragment(FragmentProps{From: "/src/f4.txt"}, nil)
+			})
+			j.Folder("tr", func(j *J) { j.CopyFiles(CopyFilesProps{From: "/src/tree"}) })
+		})
+	},
 	// A Folder or a Project inside a File never becomes the current file.
 	"folder_and_project_in_file": func(j *J) {
 		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
@@ -916,6 +955,8 @@ func scenarioOptions(scenario string) []Option {
 		return []Option{WithModel(map[string]any{"x": map[string]any{"y": "Y", "z": "Z"}})}
 	case "copy_ignore_text", "copy_binary_unlisted_ext":
 		return []Option{WithModel(map[string]any{"v": "V"})}
+	case "nonutf8_sources":
+		return []Option{WithModel(map[string]any{"m": "M"})}
 	case "existing_bin_classification":
 		t := true
 		return []Option{

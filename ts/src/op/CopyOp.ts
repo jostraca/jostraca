@@ -7,6 +7,8 @@ import { isbinext, template } from '../jostraca'
 
 import { isbincontent, getdlog } from '../util/basic'
 
+import { decodeText, encodeText, escapedInto } from '../util/bytes'
+
 // Log non-fatal weirdness.
 const dlog = getdlog('jostraca', __filename)
 
@@ -110,6 +112,7 @@ const CopyOp = {
       for (const part of copied) {
         buildctx.current.file.content.push(part)
       }
+      escapedInto(node, buildctx.current.file)
     }
 
     const frompath = node.from as string
@@ -294,9 +297,10 @@ function copyFile(frompath: string, topath: string, state: any, buildctx: any, f
     return
   }
 
-  const src = raw.toString('utf8')
-  const out = template(src, state.ctx$.model, { replace: state.node.replace })
-  buildctx.fh.save(topath, out, ON + FN)
+  // Bytes that are not UTF-8 survive the template as escapes.
+  const src = decodeText(raw)
+  const out = template(src.text, state.ctx$.model, { replace: state.node.replace })
+  buildctx.fh.save(topath, src.escaped ? encodeText(out) : out, ON + FN)
 }
 
 
@@ -414,7 +418,11 @@ function processTemplate(
   // Same reasoning as copyFile: the extension check alone is not enough to
   // know a file is safe to decode and re-encode as utf8.
   if (isTemplate(spec.name) && !isbincontent(raw)) {
-    return template(raw.toString('utf8'), state.ctx$.model, {
+    const src = decodeText(raw)
+    if (src.escaped) {
+      state.node.meta.escaped = true
+    }
+    return template(src.text, state.ctx$.model, {
       replace: {
         ...(state.node?.replace || {}),
       }

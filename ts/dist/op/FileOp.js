@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FileOp = void 0;
 const FileHandler_1 = require("../build/FileHandler");
+const bytes_1 = require("../util/bytes");
 const ON = 'FileOp:';
 const FileOp = {
     before(node, _ctx$, buildctx) {
@@ -94,7 +95,7 @@ const FileOp = {
                 }
             }
         }
-        buildctx.fh.save(fullpath, content, ON + FN, undefined, node.mode);
+        buildctx.fh.save(fullpath, node.meta.escaped ? (0, bytes_1.encodeText)(content) : content, ON + FN, undefined, node.mode);
     },
 };
 exports.FileOp = FileOp;

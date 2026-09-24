@@ -7,6 +7,7 @@ exports.FRAGMENT_PROPS = exports.Fragment = void 0;
 const node_path_1 = __importDefault(require("node:path"));
 const jostraca_1 = require("../jostraca");
 const shape_1 = require("shape");
+const bytes_1 = require("../util/bytes");
 const From = (from, _, s) => s.ctx.fs().statSync(from);
 // A CLOSED PROP SET HAS TO ADMIT THE ENGINE'S OWN BINDINGS. A parent
 // binds values for one invocation of its children -- `ListItems` binds
@@ -118,7 +119,13 @@ const Fragment = (0, jostraca_1.cmp)(function Fragment(props, children) {
     const fs = props.ctx$.fs();
     // Already absolute by here: resolved above, before validation.
     const frompath = node.from;
-    let src = fs.readFileSync(frompath, 'utf8');
+    // Bytes that are not UTF-8 survive as escapes, and the file the text
+    // lands in is then written through encodeText. See util/bytes.
+    const decoded = (0, bytes_1.decodeText)(fs.readFileSync(frompath));
+    const src = decoded.text;
+    if (decoded.escaped) {
+        node.meta.escaped = true;
+    }
     const slotnames = {};
     // Non-Slot children of a Fragment are the content of the *unnamed*
     // `<[SLOT]>` marker (see README "Fragments and Slots"). If the source

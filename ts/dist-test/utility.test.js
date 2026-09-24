@@ -39,6 +39,7 @@ const expect_1 = require("./expect");
 const Package = __importStar(require("../"));
 const memfs_1 = require("../dist/util/memfs");
 const basic_1 = require("../dist/util/basic");
+const bytes_1 = require("../dist/util/bytes");
 const __1 = require("../");
 (0, node_test_1.describe)('util', () => {
     (0, node_test_1.test)('each', () => {
@@ -181,6 +182,33 @@ const __1 = require("../");
         // numerically (10 < 9 is false).
         (0, expect_1.expect)((0, __1.getx)({ a: '10' }, 'a<9')).equal({ a: '10' });
         (0, expect_1.expect)((0, __1.getx)({ a: 10 }, 'a<9')).equal(undefined);
+    });
+    // The byte-transparent text form: any bytes round-trip exactly, valid
+    // UTF-8 decodes as Buffer's codec does, and only an invalid byte becomes
+    // an escape.
+    (0, node_test_1.test)('bytes-round-trip', () => {
+        const edge = [
+            [0xed, 0xb2, 0x80], [0xf4, 0x90, 0x80, 0x80], [0xc0, 0x80], [0xe0, 0x80, 0x80],
+            [0xf0, 0x8f, 0xbf, 0xbf], [0xe2, 0x82], [0xff], [0x80], [0xf0, 0x9f, 0x98],
+            [0xe2, 0x82, 0xac], [0xf0, 0x9f, 0x98, 0x80], [0xef, 0xbb, 0xbf, 0x41],
+        ].map((b) => Buffer.from(b));
+        let seed = 7;
+        const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) % 256;
+        const random = Array.from({ length: 400 }, (_, i) => Buffer.from(Array.from({ length: i % 23 }, rnd)));
+        for (const buf of [...edge, ...random]) {
+            const { text, escaped } = (0, bytes_1.decodeText)(buf);
+            (0, expect_1.expect)({ hex: (0, bytes_1.encodeText)(text).toString('hex') }).equal({ hex: buf.toString('hex') });
+            const valid = Buffer.from(buf.toString('utf8'), 'utf8').equals(buf);
+            (0, expect_1.expect)({ hex: buf.toString('hex'), escaped }).equal({ hex: buf.toString('hex'), escaped: !valid });
+            if (valid) {
+                (0, expect_1.expect)(text).equal(buf.toString('utf8'));
+            }
+        }
+        // A three-byte surrogate is three escapes, not one lone surrogate.
+        (0, expect_1.expect)((0, bytes_1.decodeText)(Buffer.from([0xed, 0xb2, 0x80])).text).equal('\udced\udcb2\udc80');
+        // Text from anywhere else encodes as UTF-8, a surrogate pair included.
+        (0, expect_1.expect)((0, bytes_1.encodeText)('\ud83d\udc80').toString('hex')).equal('f09f9280');
+        (0, expect_1.expect)((0, bytes_1.encodeText)('a\u00e9').toString('hex')).equal('61c3a9');
     });
     (0, node_test_1.test)('indent', () => {
         (0, expect_1.expect)((0, __1.indent)('a', 2)).equal('  a');

@@ -492,6 +492,10 @@ The source is templated once. A `$$path$$` that arrives inside a model
 value, a `replace` value or the return of a `replace` function is written
 as text, exactly as a plain `Content` writes it.
 
+A source that is not valid UTF-8, such as a file saved in Latin-1, keeps
+its bytes: each byte outside a valid UTF-8 sequence reaches the output
+file unchanged, wherever the fragment lands.
+
 A `Fragment` outside any `File` is discarded, like any other content.
 
 ## Slot
@@ -610,7 +614,9 @@ Children build the replacement body exactly as they would inside a
 Both markers are matched literally: regular-expression metacharacters
 are escaped rather than interpreted. **Every** matching pair in the
 file is replaced, not only the first. The body is inserted verbatim, so
-`$&`, `$1` and `$$` in generated content survive.
+`$&`, `$1` and `$$` in generated content survive. The target is edited as
+bytes, so everything outside the markers is kept exactly, including bytes
+that are not valid UTF-8.
 
 Two failure modes, and they differ:
 
@@ -688,6 +694,10 @@ the content is then sniffed: a NUL byte in the first 8192 promotes an
 unlisted file to binary, which is what keeps `.wasm`, `.zst` and
 extensionless files intact. Sniffing only ever promotes; it never
 demotes a listed extension to text.
+
+A text file that is not valid UTF-8 is still templated, and each byte
+outside a valid UTF-8 sequence is written back unchanged, in the copy and
+in any text it splices into an enclosing `File` or `Inject`.
 
 ### What is skipped
 

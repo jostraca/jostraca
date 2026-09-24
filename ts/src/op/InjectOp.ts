@@ -9,6 +9,8 @@ import { getdlog } from '../util/basic'
 
 import { canonPath, validName } from '../build/FileHandler'
 
+import { encodeText } from '../util/bytes'
+
 const ON = 'InjectOp:'
 
 // Log non-fatal weirdness.
@@ -83,14 +85,25 @@ const InjectOp = {
           ' (Inject rewrites an existing file; use File to create one)')
       }
 
-      let src = fs.readFileSync(fullpath, 'utf8')
+      // Spliced as BYTES, as Go splices it: the target, the markers and the
+      // region are each held one char per byte (latin1), so the target's
+      // bytes outside the region survive exactly, valid UTF-8 or not.
+      // Decoding the target as UTF-8 wrote U+FFFD over every byte of a
+      // Latin-1 file the Inject was only meant to edit a region of.
+      const bytes = (s: string) => Buffer.from(s, 'utf8').toString('latin1')
+      const region = (node.meta.escaped ? encodeText(content) :
+        Buffer.from(content, 'utf8')).toString('latin1')
+      const bmarkers = markers.map(bytes)
 
-      content = markers.join(content)
+      const raw = fs.readFileSync(fullpath)
+      let src = (Buffer.isBuffer(raw) ? raw : Buffer.from(raw, 'utf8')).toString('latin1')
+
+      content = bmarkers.join(region)
       // Escape markers so regex metacharacters in custom markers are matched
       // literally, and use a replacement function so `$`-sequences in the
       // injected content (e.g. `$1`, `$&`, shell/PHP/JS variables) are not
       // interpreted as special replacement patterns.
-      let re = new RegExp(markers.map(escre).join('(.*?)'), 'sg')
+      let re = new RegExp(bmarkers.map(escre).join('(.*?)'), 'sg')
 
       let matched = false
       src = src.replace(re, () => (matched = true, content))
@@ -103,7 +116,7 @@ const InjectOp = {
           ' markers=' + JSON.stringify(markers))
       }
 
-      buildctx.fh.save(fullpath, src)
+      buildctx.fh.save(fullpath, Buffer.from(src, 'latin1'))
     }
 
     /*

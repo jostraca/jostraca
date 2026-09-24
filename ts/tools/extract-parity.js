@@ -958,6 +958,60 @@ async function main() {
     })
   }, { ...twoBlocks, '/tpl/single.txt': 'single $$name$$ FOO\n' })
 
+  // Bytes that are not UTF-8 survive byte for byte wherever they are read
+  // as text: an Inject target, a Fragment source (spliced into a File, an
+  // Inject, a Slot and a Folder inside a File, and indented) and a text
+  // Copy source (a single file spliced into a File and an Inject, and a
+  // tree). f4 holds the sequences a lax decoder gets wrong: a surrogate in
+  // three bytes, a code point above U+10FFFF, overlong forms, and a sequence
+  // cut off at the end of the file.
+  const nonutf8 = (bytes) => Buffer.from(bytes, 'latin1')
+  await snapshot('nonutf8_sources', { model: { m: 'M' } }, () => {
+    Project({ folder: 'app' }, () => {
+      Inject({ name: 't.txt' }, () => {
+        Content('I;')
+        Fragment({ from: '/src/f6.txt' })
+        Copy({ from: '/src/c1.txt', to: 'c2.txt' })
+        Content(';J')
+      })
+      File({ name: 'a.txt' }, () => {
+        Content('a;')
+        Fragment({ from: '/src/f1.txt' }, () => Content('SLOTBODY'))
+        Content(';b')
+      })
+      File({ name: 'ind.txt' }, () => Fragment({ from: '/src/f2.txt', indent: '> ' }))
+      File({ name: 'nest.txt' }, () => {
+        Fragment({ from: '/src/f5.txt' }, () => {
+          Slot({ name: 's' }, () => Fragment({ from: '/src/f6.txt' }))
+        })
+      })
+      File({ name: 'host.txt' }, () => {
+        Content('pre;')
+        Copy({ from: '/src/c1.txt', to: 'c1.txt', replace: { FOO: 'bar' } })
+        Content(';post')
+      })
+      File({ name: 'fold.txt' }, () => {
+        Content('1')
+        Folder({ name: 'd' }, () => Fragment({ from: '/src/f2.txt' }))
+        Content('2')
+      })
+      File({ name: 'odd.txt' }, () => Fragment({ from: '/src/f4.txt' }))
+      Folder({ name: 'tr' }, () => Copy({ from: '/src/tree' }))
+    })
+  }, {
+    '/out/app/t.txt': nonutf8('head \xe9\n#--START--#\nold\n#--END--#\nmid \xff\n' +
+      '#--START--#\nx\n#--END--#\n'),
+    '/src/f1.txt': nonutf8('F1 caf\xe9 $$m$$\n<[SLOT]>\nend \xff\xfe\n'),
+    '/src/f2.txt': nonutf8('line1 \xe9\nline2 \xe9\n'),
+    '/src/f4.txt': nonutf8('odd \xed\xb2\x80 \xf4\x90\x80\x80 \xc0\x80 \xe0\x80\x80 ' +
+      '\xf0\x8f\xbf\xbf ok\xe2\x82\xac trunc\xe2\x82'),
+    // Valid UTF-8, so only the Slot can carry the escapes out of nest.txt.
+    '/src/f5.txt': 'outer <[SLOT:s]> tail\n',
+    '/src/f6.txt': nonutf8('inner \xfe $$m$$\n'),
+    '/src/c1.txt': nonutf8('copy \xe9 $$m$$ FOO\n'),
+    '/src/tree/t1.txt': nonutf8('tree \xe9 $$m$$\n'),
+  })
+
   // A Slot outside a Fragment is transparent: its children render in place.
   const Wrap = cmp(function Wrap(_props, children) {
     each(children, { call: true })
