@@ -28,6 +28,18 @@ fs.mkdirSync(outDir, { recursive: true })
 // Frozen clock for deterministic BuildMeta output.
 const FROZEN_NOW = 1735689600000
 
+// The message body both ports share: TS's `<ERROR:>?<Op>:<phase>: ` wrapper
+// removed, CopyFiles' TS-only `(<model name>: <node path>): ` prefix and
+// `[at <frame>]` suffix removed, and an embedded filesystem error cut to
+// `(threw: <os>)`, since that text is the host's own.
+function bodyOf(err) {
+  return String(err.message)
+    .replace(/^(ERROR:)?[A-Za-z]+:[a-z]+: /, '')
+    .replace(/^CopyFiles: \([^)]*\): /, 'CopyFiles: ')
+    .replace(/ \[at [^\]]*\]$/, '')
+    .replace(/\(threw: .*$/s, '(threw: <os>)')
+}
+
 async function snapshot(name, opts, root, prepopulate) {
   const vol = {}
   const mfs = memfs(prepopulate || {})
@@ -44,12 +56,14 @@ async function snapshot(name, opts, root, prepopulate) {
   // true. See PARITY_PLAN.md 2.1. The volume is still captured, so a partial
   // write before the throw is compared too.
   let error = false
+  let errorBody
   let res = null
   try {
     res = await j.generate(fullOpts, root)
   }
   catch (err) {
     error = true
+    errorBody = bodyOf(err)
   }
   const result = volOf(mfs)
   fs.writeFileSync(
@@ -59,6 +73,9 @@ async function snapshot(name, opts, root, prepopulate) {
       opts: opts || {},
       prepopulate: encMap(prepopulate),
       error,
+      // Absent on a run that succeeded, so only the failing fixtures carry
+      // it.
+      errorBody,
       // The seven files lists, so a scenario pins what a run reports as
       // well as what it writes.
       files: null == res ? null : res.files,
@@ -296,8 +313,8 @@ async function main() {
 
   // A scenario that FAILS in both stacks, so the `error` field is exercised
   // rather than merely present. A Fragment whose source does not exist is
-  // rejected at define time by both: TS through the shape Check on `from`, Go
-  // at builder.go ("Fragment: From file does not exist"). Before the guard in
+  // rejected at define time by both, through the same shape validation text:
+  // TS in the Fragment component, Go in builder.go. Before the guard in
   // snapshot() above, adding this would have crashed the corpus generator
   // instead of recording anything. See PARITY_PLAN.md 2.1.
   await snapshot('fragment_missing_from_errors', {}, () => {

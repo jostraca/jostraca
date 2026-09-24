@@ -3,6 +3,7 @@
   "opts": {},
   "prepopulate": {},
   "error": true,
+  "errorBody": "Fragment: Validation failed for property \"from\" with string \"/templates/does-not-exist.html\" because check \"From\" failed (threw: <os>)",
   "files": null,
   "audit": null,
   "vol": {}

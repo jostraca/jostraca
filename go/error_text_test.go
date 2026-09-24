@@ -56,9 +56,8 @@ func TestErrorBodyDuplicateFilePath(t *testing.T) {
 		t.Fatalf("step %q body %q\nwant %q", step, body, want)
 	}
 
-	// Under Project{Folder: "."} the refusal and the step agree as well.
-	// TS names the paths as above there too; Go's node path counts the
-	// Project's folder, so only the start of the body is held here.
+	// Under Project{Folder: "."} the node path leaves the Project's folder
+	// out, as TS's does, so the body is the same text.
 	err = errorRefusal(t, func(j *J) {
 		j.Project(ProjectProps{Folder: "."}, func(j *J) {
 			j.File("a.txt", func(j *J) { j.Content("1") })
@@ -66,9 +65,8 @@ func TestErrorBodyDuplicateFilePath(t *testing.T) {
 		})
 	})
 	body, step = errorBody(t, err)
-	if !errors.Is(err, ErrDuplicateFilePath) || step != "file" ||
-		!strings.HasPrefix(body, "two File components resolve to the same output path, path=/out/a.txt, first=") {
-		t.Fatalf("step %q body %q", step, body)
+	if !errors.Is(err, ErrDuplicateFilePath) || body != want || step != "file" {
+		t.Fatalf("step %q body %q\nwant %q", step, body, want)
 	}
 }
 

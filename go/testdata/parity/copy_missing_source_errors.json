@@ -3,6 +3,7 @@
   "opts": {},
   "prepopulate": {},
   "error": true,
+  "errorBody": "CopyFiles: Validation failed for property \"from\" with string \"/src/does-not-exist.txt\" because check \"From\" failed (threw: <os>)",
   "files": null,
   "audit": null,
   "vol": {}

@@ -5,6 +5,7 @@ import (
 	"embed"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -70,6 +71,10 @@ type parityCase struct {
 	// parity failure like any output difference. See docs/design/PARITY_PLAN.md 2.1.
 	Error bool                   `json:"error"`
 	Vol   map[string]corpusBytes `json:"vol"`
+
+	// ErrorBody is the TS message body of a failing run, with the wrapper
+	// and an embedded filesystem error normalised as parityErrorBody does.
+	ErrorBody string `json:"errorBody"`
 
 	// Files is the seven files lists the TS run reported, or nil when it
 	// threw.
@@ -710,6 +715,9 @@ func runParityCase(t *testing.T, path, name string) {
 		if gerr == nil {
 			t.Fatalf("TS failed but Go succeeded")
 		}
+		if got := parityErrorBody(gerr); got != c.ErrorBody {
+			t.Errorf("error body\n got %q\nwant %q", got, c.ErrorBody)
+		}
 	} else if gerr != nil {
 		t.Fatalf("TS succeeded but Go failed: %v", gerr)
 	}
@@ -721,6 +729,21 @@ func runParityCase(t *testing.T, path, name string) {
 		assertAudit(t, res.Audit(), c.Audit)
 	}
 	assertVol(t, mem, c.Vol)
+}
+
+// parityErrorBody is the part of a Go refusal the corpus records: the
+// NodeError's own message, with an embedded filesystem error cut to
+// `(threw: <os>)`, as extract-parity.js cuts TS's.
+func parityErrorBody(err error) string {
+	body := err.Error()
+	var ne *NodeError
+	if errors.As(err, &ne) {
+		body = ne.Err.Error()
+	}
+	if i := strings.Index(body, "(threw: "); i >= 0 {
+		body = body[:i] + "(threw: <os>)"
+	}
+	return body
 }
 
 // auditJSON renders a Go audit trail in the recorded [tag, data] form. An

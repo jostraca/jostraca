@@ -5,11 +5,12 @@ import (
 	"testing"
 )
 
-// The parity corpus records only THAT these scenarios fail. This holds the
-// message body too, on the corpus's own trees (scenarioRunners), so the
-// bodies cannot drift while the corpus stays green. An embedded filesystem
-// error is the host's, so everything from `(threw: ` is normalised. TS
-// twin: parity-error-scenarios in ts/test/generate.test.ts.
+// The parity corpus records these bodies as errorBody, taken from TS. This
+// holds the same text as a literal, on the corpus's own trees
+// (scenarioRunners), so a regenerated corpus cannot move the bodies without
+// a failure here. An embedded filesystem error is the host's, so
+// everything from `(threw: ` is normalised. TS twin: parity-error-scenarios
+// in ts/test/generate.test.ts.
 func TestParityErrorScenarioBodies(t *testing.T) {
 	want := map[string]string{
 		"fragment_missing_from_errors": `Fragment: Validation failed for property "from" ` +
