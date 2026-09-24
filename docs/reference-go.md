@@ -266,8 +266,11 @@ which JSON cannot hold, is refused with a Go message. A
 Go's `regexp`, so a pattern only JavaScript accepts, such as a
 lookbehind, is refused here alone, and an invalid pattern reports the
 engine's own message after `Jostraca Options: property "cmp.Copy.ignore": `.
-An object value rendered inside a message lists its keys sorted, since
-a decoded Go map keeps no insertion order.
+A decoded Go map keeps no insertion order, so two parts of a message
+list keys sorted where TypeScript lists them as written: an object value
+(`{b:2,z:1}`) and the list of properties that are not allowed (`"b, z"`,
+where TypeScript writes `"z, b"` for `{z:1,b:2}`). The rest of the text
+is TypeScript's.
 
 ### `WithMem` and `WithVol`
 

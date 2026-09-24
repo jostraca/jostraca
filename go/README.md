@@ -329,7 +329,11 @@ same logical input:
 - `Options` is a typed struct + functional options
   (`jostraca.WithFolder(...)`, etc.) plus `OptionsFromMap` for config
   sourced from JSON/YAML. `OptionsFromMap` validates against the
-  TypeScript option schema, with the TypeScript error text.
+  TypeScript option schema, with the TypeScript error text, except that
+  a Go map has no insertion order: an object value in a message, and the
+  list of properties that are not allowed, name their keys sorted where
+  TS names them as written (`"b, z"` for `{z:1,b:2}`, where TS writes
+  `"z, b"`).
 - `Each.OVal` is renamed to `Each.Raw` with inverted semantics so Go's
   zero-value default matches TS's `oval=true` annotation default. The TS
   overloaded callback shapes are reachable through narrower Go variants:
