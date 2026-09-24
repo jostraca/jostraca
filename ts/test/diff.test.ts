@@ -272,6 +272,23 @@ describe('diff-engine', () => {
   })
 
 
+  // An empty kind or label is unset, as in Go. Twin of
+  // TestEmptyKindAndLabelsAreUnset in go/diff_engine_test.go.
+  test('empty-kind-and-labels-are-unset', () => {
+    const dflt = merge('X\n', '', 'Y\n').content
+    expect(merge('X\n', '', 'Y\n', { kind: '' }).content).equal(dflt)
+    expect(merge('X\n', '', 'Y\n', { labels: { generated: '' } }).content).equal(dflt)
+    expect(merge('X\n', '', 'Y\n', { labels: { existing: '' } }).content).equal(dflt)
+
+    // So a bare `>>>>>>> ` line is not an unresolved conflict.
+    expect(hasConflicts('a\n>>>>>>> \nb', '')).false()
+    const res = merge('X\n', 'A\n', 'A\n>>>>>>> \n', { labels: { existing: '' } })
+    expect(res.outcome).equal('merged')
+    expect(res.content.endsWith('>>>>>>> \n>>>>>>> EXISTING: ' +
+      '1970-01-01T00:00:00.000Z/merge\n')).true()
+  })
+
+
   // Twin of TestLabelsExtendedYearsAndRange in go/diff_engine_test.go; the
   // boundary rows in test/spec/diff.tsv hold both stacks to the same text.
   test('labels-extended-years-and-range', () => {

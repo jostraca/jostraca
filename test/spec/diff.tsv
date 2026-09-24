@@ -29,3 +29,14 @@ diff-label-over-max-clamped	diff	["X\n","Y\n",{"when":8640000000000001,"last":86
 diff-label-under-min-clamped	diff	["X\n","Y\n",{"when":-8640000000000001,"last":-8640000000000001}]	{"conflict":true,"content":"<<<<<<< EXISTING: -271821-04-20T00:00:00.000Z/diff\nY\n>>>>>>> EXISTING: -271821-04-20T00:00:00.000Z/diff\n<<<<<<< GENERATED: -271821-04-20T00:00:00.000Z/diff\nX\n>>>>>>> GENERATED: -271821-04-20T00:00:00.000Z/diff\n","outcome":"changed"}	
 merge-label-extended-years	merge	["X\n","","Y\n",{"when":253402300800000,"last":-62198755200001}]	{"conflict":true,"content":"<<<<<<< GENERATED: +010000-01-01T00:00:00.000Z/merge\nX\n=======\nY\n>>>>>>> EXISTING: -000002-12-31T23:59:59.999Z/merge\n","outcome":"merged"}	
 merge-unresolved-label-out-of-range	merge	["X\n","A\n","A\n>>>>>>> EXISTING: z\n",{"when":8640000000000001}]	{"conflict":false,"content":"A\n>>>>>>> EXISTING: z\n","outcome":"unresolved"}	
+# An empty kind or label means the default, as an absent one does.
+diff-kind-empty	diff	["X\n","Y\n",{"kind":""}]	{"conflict":true,"content":"<<<<<<< EXISTING: 1970-01-01T00:00:00.000Z/diff\nY\n>>>>>>> EXISTING: 1970-01-01T00:00:00.000Z/diff\n<<<<<<< GENERATED: 1970-01-01T00:00:00.000Z/diff\nX\n>>>>>>> GENERATED: 1970-01-01T00:00:00.000Z/diff\n","outcome":"changed"}	
+merge-kind-empty	merge	["X\n","","Y\n",{"kind":""}]	{"conflict":true,"content":"<<<<<<< GENERATED: 1970-01-01T00:00:00.000Z/merge\nX\n=======\nY\n>>>>>>> EXISTING: 1970-01-01T00:00:00.000Z/merge\n","outcome":"merged"}	
+merge-label-generated-empty	merge	["X\n","","Y\n",{"labels":{"generated":""}}]	{"conflict":true,"content":"<<<<<<< GENERATED: 1970-01-01T00:00:00.000Z/merge\nX\n=======\nY\n>>>>>>> EXISTING: 1970-01-01T00:00:00.000Z/merge\n","outcome":"merged"}	
+merge-label-existing-empty	merge	["X\n","","Y\n",{"labels":{"existing":""}}]	{"conflict":true,"content":"<<<<<<< GENERATED: 1970-01-01T00:00:00.000Z/merge\nX\n=======\nY\n>>>>>>> EXISTING: 1970-01-01T00:00:00.000Z/merge\n","outcome":"merged"}	
+merge-labels-both-empty	merge	["X\n","","Y\n",{"labels":{"generated":"","existing":""}}]	{"conflict":true,"content":"<<<<<<< GENERATED: 1970-01-01T00:00:00.000Z/merge\nX\n=======\nY\n>>>>>>> EXISTING: 1970-01-01T00:00:00.000Z/merge\n","outcome":"merged"}	
+merge-empty-existing-label-not-unresolved	merge	["X\n","A\n","A\n>>>>>>> \n",{"labels":{"existing":""}}]	{"conflict":true,"content":"<<<<<<< GENERATED: 1970-01-01T00:00:00.000Z/merge\nX\n=======\nA\n>>>>>>> \n>>>>>>> EXISTING: 1970-01-01T00:00:00.000Z/merge\n","outcome":"merged"}	
+hasconflicts-empty-label	hasConflicts	["a\n>>>>>>> \nb",""]	false	
+hasconflicts-no-label	hasConflicts	["a\n>>>>>>> \nb"]	false	
+hasconflicts-custom-label	hasConflicts	["a\n>>>>>>> E\nb","E"]	true	
+hasconflicts-default-sentinel	hasConflicts	["a\n>>>>>>> EXISTING: T/merge\n","E"]	true	

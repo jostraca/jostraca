@@ -137,7 +137,7 @@ function hasConflicts(text: string, existingLabel?: string): boolean {
   // merge returned `unresolved` — silently suppressing a legitimate
   // regeneration over a marker the engine never emitted. writeConflict
   // always appends '\n', so the newline is safe to require.
-  return null != existingLabel &&
+  return null != existingLabel && '' !== existingLabel &&
     text.includes(MARK_END + existingLabel + '\n')
 }
 
@@ -152,14 +152,16 @@ function isoOf(when?: number): string {
 }
 
 
+// An empty kind or label is unset, as it is in Go, whose plain string
+// fields cannot tell the two apart.
 function labelsOf(spec: DiffSpec | undefined, defaultKind: string): DiffLabels {
-  const kind = null == spec?.kind ? defaultKind : spec.kind
+  const kind = null == spec?.kind || '' === spec.kind ? defaultKind : spec.kind
 
   return {
-    generated: null == spec?.labels?.generated ?
+    generated: null == spec?.labels?.generated || '' === spec.labels.generated ?
       LABEL_GENERATED + ': ' + isoOf(spec?.when) + '/' + kind :
       spec.labels.generated,
-    existing: null == spec?.labels?.existing ?
+    existing: null == spec?.labels?.existing || '' === spec.labels.existing ?
       LABEL_EXISTING + ': ' + isoOf(spec?.last) + '/' + kind :
       spec.labels.existing,
   }

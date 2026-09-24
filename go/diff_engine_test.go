@@ -295,6 +295,27 @@ func TestLabels(t *testing.T) {
 	eq(t, "both override e", l.Existing, "E")
 }
 
+// An empty kind or label is unset. Twin of 'empty-kind-and-labels-are-unset'
+// in ts/test/diff.test.ts.
+func TestEmptyKindAndLabelsAreUnset(t *testing.T) {
+	dflt := Merge("X\n", "", "Y\n", DiffSpec{}).Content
+	eq(t, "kind", Merge("X\n", "", "Y\n", DiffSpec{Kind: ""}).Content, dflt)
+	eq(t, "generated", Merge("X\n", "", "Y\n",
+		DiffSpec{Labels: &DiffLabels{Generated: ""}}).Content, dflt)
+	eq(t, "existing", Merge("X\n", "", "Y\n",
+		DiffSpec{Labels: &DiffLabels{Existing: ""}}).Content, dflt)
+
+	// So a bare ">>>>>>> " line is not an unresolved conflict.
+	if HasConflictsLabel("a\n>>>>>>> \nb", "") {
+		t.Error("an empty label should check only the default sentinel")
+	}
+	res := Merge("X\n", "A\n", "A\n>>>>>>> \n", DiffSpec{Labels: &DiffLabels{Existing: ""}})
+	if res.Outcome != MergeMerged || !strings.HasSuffix(res.Content,
+		">>>>>>> \n>>>>>>> EXISTING: 1970-01-01T00:00:00.000Z/merge\n") {
+		t.Errorf("merge = %s %q", res.Outcome, res.Content)
+	}
+}
+
 // Twin of 'labels-extended-years-and-range' in ts/test/diff.test.ts; the
 // boundary rows in test/spec/diff.tsv hold both stacks to the same text.
 func TestLabelsExtendedYearsAndRange(t *testing.T) {
