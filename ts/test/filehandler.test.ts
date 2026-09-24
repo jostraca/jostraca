@@ -378,6 +378,11 @@ describe('filehandler', () => {
       ['out//', cwd + '/out'],
       ['out\\', cwd + '/out'],
       ['/abs/out/', '/abs/out'],
+      // Separators are folded BEFORE the path is normalised, so a
+      // backslash `..` segment resolves as a slash one does.
+      ['o\\..\\out', cwd + '/out'],
+      ['o/x\\..\\..\\out\\', cwd + '/out'],
+      ['/abs/o\\..\\out', '/abs/out'],
     ]) {
       const { fs } = memfs({})
       const j = Jostraca({ log: quiet })
@@ -402,6 +407,52 @@ describe('filehandler', () => {
       expect(res.files.merged[0].endsWith('/a.txt')).equal(true)
       const text = fs.readFileSync(base + '/a.txt', 'utf8')
       expect(text.includes('U\n') && text.includes('G\n')).equal(true)
+    }
+  })
+
+
+  // A backslash `..` segment in the output folder or a Project folder is
+  // folded, then resolved, so the run leaves no stray directory for the
+  // segment it walked back out of, and its bookkeeping sits under the folder
+  // its files are written to.
+  test('backslash-dot-dot-folders', async () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'jostraca-bsdd-'))
+    try {
+      const base = dir.replace(/\\/g, '/')
+      await Jostraca({ now: () => NOW, log: quiet })
+        .generate({ folder: base + '/o\\..\\out' }, () => {
+          Project({}, () => File({ name: 'a.txt' }, () => Content('A')))
+          Project({ folder: 'p\\..\\q' }, () => File({ name: 'b.txt' }, () => Content('B')))
+        })
+
+      const got: string[] = []
+      const walk = (d: string) => {
+        for (const e of Fs.readdirSync(d, { withFileTypes: true })) {
+          const p = Path.join(d, e.name)
+          got.push(Path.relative(dir, p).replace(/\\/g, '/') + (e.isDirectory() ? '/' : ''))
+          if (e.isDirectory()) walk(p)
+        }
+      }
+      walk(dir)
+      got.sort()
+      expect(got).equal([
+        'out/',
+        'out/.jostraca/',
+        'out/.jostraca/.gitignore',
+        'out/.jostraca/generated/',
+        'out/.jostraca/generated/a.txt',
+        'out/.jostraca/generated/q/',
+        'out/.jostraca/generated/q/b.txt',
+        'out/.jostraca/jostraca.meta.log',
+        'out/a.txt',
+        'out/q/',
+        'out/q/b.txt',
+      ])
+      expect(Object.keys(metaOf(Fs, base + '/out/.jostraca/jostraca.meta.log').files))
+        .equal(['a.txt', 'q/b.txt'])
+    }
+    finally {
+      Fs.rmSync(dir, { recursive: true, force: true })
     }
   })
 

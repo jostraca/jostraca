@@ -430,6 +430,11 @@ func TestFolderTrailingSlash(t *testing.T) {
 		{"out//", cwd + "/out"},
 		{"out\\", cwd + "/out"},
 		{"/abs/out/", "/abs/out"},
+		// Separators are folded BEFORE the path is cleaned, so a backslash
+		// `..` segment resolves as a slash one does.
+		{"o\\..\\out", cwd + "/out"},
+		{"o/x\\..\\..\\out\\", cwd + "/out"},
+		{"/abs/o\\..\\out", "/abs/out"},
 	} {
 		folder, base := c[0], c[1]
 		mem := NewMemFS()

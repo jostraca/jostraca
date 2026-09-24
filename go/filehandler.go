@@ -123,11 +123,12 @@ func newFileHandler(b *buildCtx) (*fileHandler, error) {
 }
 
 // canonFolder is the output folder canonicalised once, as TS's canonFolder:
-// cleaned, separators folded, and trailing separators stripped except
-// from a filesystem root. A folder ending in a backslash kept it through
-// filepath.Clean off Windows, and folding it left a trailing slash.
+// separators folded, then cleaned, and trailing separators stripped except
+// from a filesystem root. Folded first, as canonOutPath is: cleaning first
+// kept a backslash `..` segment (`o\..\p` stayed `o/../p`), so no file
+// path, all of which came out as `p/...`, was inside the folder.
 func canonFolder(folder string) string {
-	norm := fwd(filepath.Clean(folder))
+	norm := fwd(filepath.Clean(fwd(folder)))
 	if norm == "/" || isDriveKey(norm) && len(norm) == 3 {
 		return norm
 	}

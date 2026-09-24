@@ -5,12 +5,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProjectOp = void 0;
 const node_path_1 = __importDefault(require("node:path"));
+const FileHandler_1 = require("../build/FileHandler");
 const ProjectOp = {
     before(node, ctx$, buildctx) {
         node.folder = null == node.folder || '' === node.folder ? '.' : node.folder;
-        node.folder =
-            node_path_1.default.isAbsolute(node.folder) ? node.folder : node_path_1.default.join(ctx$.folder, node.folder);
-        node.folder = node.folder.replace(/\\/g, '/');
+        // Folded, then joined and normalised, as canonPath orders it. Joining
+        // first kept a backslash `..` segment (`p\..\q` became `out/p/../q`),
+        // so the folder created a stray `out/p` beside the files' `out/q`.
+        node.folder = (0, FileHandler_1.canonPath)(node_path_1.default.isAbsolute(node.folder) ? node.folder : ctx$.folder + '/' + node.folder);
         // A Project's folder applies to its own subtree only. The enclosing
         // folder state is put back in after(), so a later sibling -- or the
         // Folder around a nested Project, which pops one segment when it

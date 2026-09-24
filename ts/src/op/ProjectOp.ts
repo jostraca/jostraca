@@ -3,14 +3,18 @@ import Path from 'node:path'
 
 import type { Node, BuildContext } from '../jostraca'
 
+import { canonPath } from '../build/FileHandler'
+
 
 const ProjectOp = {
 
   before(node: Node, ctx$: any, buildctx: BuildContext) {
     node.folder = null == node.folder || '' === node.folder ? '.' : node.folder
-    node.folder =
-      Path.isAbsolute(node.folder) ? node.folder : Path.join(ctx$.folder, node.folder)
-    node.folder = node.folder.replace(/\\/g, '/')
+    // Folded, then joined and normalised, as canonPath orders it. Joining
+    // first kept a backslash `..` segment (`p\..\q` became `out/p/../q`),
+    // so the folder created a stray `out/p` beside the files' `out/q`.
+    node.folder = canonPath(
+      Path.isAbsolute(node.folder) ? node.folder : ctx$.folder + '/' + node.folder)
 
     // A Project's folder applies to its own subtree only. The enclosing
     // folder state is put back in after(), so a later sibling -- or the

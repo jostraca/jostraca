@@ -160,9 +160,11 @@ class BuildContext {
 
   duplicateFolder() {
     if (null == this.dfolder) {
+      // From the handler's canonical folder, not the raw option, so the
+      // baselines sit under the same folder the files do.
       this.dfolder =
         Path.normalize(
-          Path.join(this.folder, this.bmeta.next.foldername, 'generated'))
+          Path.join(this.fh.folder, this.bmeta.next.foldername, 'generated'))
     }
 
     return this.dfolder

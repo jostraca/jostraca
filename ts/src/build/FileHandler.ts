@@ -25,8 +25,9 @@ function fwd(p: string): string {
   return p.includes('\\') ? p.replace(/\\/g, '/') : p
 }
 
-// THE ONE CANONICAL FORM OF AN OUTPUT PATH: separators collapsed, `.`
-// and `..` segments resolved, forward slashes.
+// THE ONE CANONICAL FORM OF AN OUTPUT PATH: separators folded, then `.`
+// and `..` segments resolved, forward slashes. Folded FIRST, so that a
+// backslash `..` segment resolves as a slash one does, as in Go.
 //
 // Exported because `save` is not the only place that has to agree about
 // what "the same file" means. `FileOp.before` composes a path from the
@@ -37,17 +38,17 @@ function fwd(p: string): string {
 // case the guard exists to refuse. Go has never had it: `fileBefore`
 // does `path.Clean(fwd(raw))` BEFORE recording anything.
 function canonPath(path: string): string {
-  return fwd(Path.normalize(path))
+  return fwd(Path.normalize(fwd(path)))
 }
 
-// The output folder, canonicalised once: separators folded, normalised,
-// and trailing separators stripped except from a filesystem root. `out/`
-// kept its slash through Path.normalize, so every prefix test below looked
-// for `out//`: no path was inside the folder, meta keys kept the folder
-// prefix, no baseline was written, and a later merge found no ancestor
-// and overwrote the user's edits. Go's filepath.Clean never kept it.
+// The output folder, canonicalised once as canonPath does, with trailing
+// separators stripped except from a filesystem root. A kept slash (`out/`)
+// or an unresolved backslash `..` (`o\..\p`, when this normalised before
+// folding) left the folder unlike every file path under it, so no path was
+// inside it: meta keys kept the folder prefix, no baseline was written,
+// and a later merge found no ancestor and overwrote the user's edits.
 function canonFolder(folder: string): string {
-  const norm = fwd(Path.normalize(folder))
+  const norm = canonPath(folder)
   if ('/' === norm || /^[A-Za-z]:\/$/.test(norm)) {
     return norm
   }
@@ -252,7 +253,7 @@ class FileHandler {
       // baseline — `.jostraca/generated` joined to the relative path — nor-
       // malize to a location outside the baseline directory entirely, and
       // silently overwrite whatever was there.
-      const norm = fwd(Path.normalize(path))
+      const norm = canonPath(path)
       return '..' !== norm && !norm.startsWith('../')
     }
     if ('/' === this.folder) {
@@ -743,7 +744,7 @@ class FileHandler {
     // Paths are canonical (already folder-prefixed by the build phase, or
     // absolute); use them directly. Do NOT re-join `this.folder`, which would
     // double-prefix relative non-`.` output folders. Matches the Go port.
-    const fullpath = fwd(Path.normalize(path))
+    const fullpath = canonPath(path)
 
     try {
       const exists = fs.existsSync(fullpath)
@@ -771,8 +772,8 @@ class FileHandler {
     validPath(topath, this.maxdepth, CN + FN + 'to:' + wstr)
 
     // Canonical paths: use directly, do not re-join `this.folder` (see existsFile).
-    const fulltopath = fwd(Path.normalize(topath))
-    const fullfrompath = fwd(Path.normalize(frompath))
+    const fulltopath = canonPath(topath)
+    const fullfrompath = canonPath(frompath)
 
     try {
       const existed = fs.existsSync(fulltopath)
@@ -1126,7 +1127,7 @@ class FileHandler {
 
     try {
       // Canonical path: use directly, do not re-join `this.folder` (see existsFile).
-      path = fwd(Path.normalize(path))
+      path = canonPath(path)
       const fullpath = path
       const parentfolder = fwd(Path.dirname(fullpath))
       const existed = fs.existsSync(fullpath)

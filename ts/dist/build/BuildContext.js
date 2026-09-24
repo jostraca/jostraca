@@ -98,8 +98,10 @@ class BuildContext {
     }
     duplicateFolder() {
         if (null == this.dfolder) {
+            // From the handler's canonical folder, not the raw option, so the
+            // baselines sit under the same folder the files do.
             this.dfolder =
-                node_path_1.default.normalize(node_path_1.default.join(this.folder, this.bmeta.next.foldername, 'generated'));
+                node_path_1.default.normalize(node_path_1.default.join(this.fh.folder, this.bmeta.next.foldername, 'generated'));
         }
         return this.dfolder;
     }

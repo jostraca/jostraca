@@ -163,3 +163,63 @@ func TestBackslashInCopySourceNames(t *testing.T) {
 		t.Errorf("written = %v", written)
 	}
 }
+
+// A backslash `..` segment in the output folder or a Project folder is
+// folded, then resolved, so the run leaves no stray directory for the
+// segment it walked back out of, and its bookkeeping sits under the folder
+// its files are written to. Twin of 'backslash-dot-dot-folders' in
+// ts/test/filehandler.test.ts.
+func TestBackslashDotDotFolders(t *testing.T) {
+	dir := t.TempDir()
+	base := filepath.ToSlash(dir)
+	_, err := New(WithFolder(base+"/o\\..\\out"), WithNow(func() int64 { return fhNow })).
+		Generate(Options{}, func(j *J) {
+			j.Project(ProjectProps{}, func(j *J) {
+				j.File("a.txt", func(j *J) { j.Content("A") })
+			})
+			j.Project(ProjectProps{Folder: "p\\..\\q"}, func(j *J) {
+				j.File("b.txt", func(j *J) { j.Content("B") })
+			})
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var got []string
+	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
+		if err == nil && p != dir {
+			rel, _ := filepath.Rel(dir, p)
+			if info.IsDir() {
+				rel += "/"
+			}
+			got = append(got, filepath.ToSlash(rel))
+		}
+		return nil
+	})
+	sort.Strings(got)
+	want := []string{
+		"out/",
+		"out/.jostraca/",
+		"out/.jostraca/.gitignore",
+		"out/.jostraca/generated/",
+		"out/.jostraca/generated/a.txt",
+		"out/.jostraca/generated/q/",
+		"out/.jostraca/generated/q/b.txt",
+		"out/.jostraca/jostraca.meta.log",
+		"out/a.txt",
+		"out/q/",
+		"out/q/b.txt",
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("tree:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	files, _ := fhMeta(t, OsFS{}, base+"/out/.jostraca/jostraca.meta.log")["files"].(map[string]any)
+	keys := make([]string, 0, len(files))
+	for k := range files {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	if strings.Join(keys, ",") != "a.txt,q/b.txt" {
+		t.Errorf("meta keys = %v", keys)
+	}
+}

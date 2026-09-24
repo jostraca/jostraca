@@ -32,7 +32,7 @@ Jostraca Options: Validation failed for object "{folder:/out,bogus:1}" because t
 
 | option | type | default | effect |
 |---|---|---|---|
-| `folder` | `string` | `'.'` | Base output folder. A trailing separator is ignored, so `out/`, `./out/` and `out//` behave as `out`. An empty string is refused. |
+| `folder` | `string` | `'.'` | Base output folder. A backslash is a separator, folded before the path is normalised, and a trailing separator is ignored, so `out/`, `./out/`, `out//` and `o\..\out` behave as `out`. An empty string is refused. |
 | `model` | any | `{}` | The data model. Reaches components as `props.ctx$.model`, and drives `$$path$$` substitution. |
 | `meta` | `object` | `{}` | Arbitrary data, reachable as `props.ctx$.meta`. Jostraca does not read it. |
 | `fs` | `() => FS` | `node:fs` | Filesystem provider factory. |

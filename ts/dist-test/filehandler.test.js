@@ -330,6 +330,11 @@ function metaOf(fs, path = META) {
             ['out//', cwd + '/out'],
             ['out\\', cwd + '/out'],
             ['/abs/out/', '/abs/out'],
+            // Separators are folded BEFORE the path is normalised, so a
+            // backslash `..` segment resolves as a slash one does.
+            ['o\\..\\out', cwd + '/out'],
+            ['o/x\\..\\..\\out\\', cwd + '/out'],
+            ['/abs/o\\..\\out', '/abs/out'],
         ]) {
             const { fs } = (0, memfs_1.memfs)({});
             const j = (0, __1.Jostraca)({ log: quiet });
@@ -352,6 +357,50 @@ function metaOf(fs, path = META) {
             (0, expect_1.expect)(res.files.merged[0].endsWith('/a.txt')).equal(true);
             const text = fs.readFileSync(base + '/a.txt', 'utf8');
             (0, expect_1.expect)(text.includes('U\n') && text.includes('G\n')).equal(true);
+        }
+    });
+    // A backslash `..` segment in the output folder or a Project folder is
+    // folded, then resolved, so the run leaves no stray directory for the
+    // segment it walked back out of, and its bookkeeping sits under the folder
+    // its files are written to.
+    (0, node_test_1.test)('backslash-dot-dot-folders', async () => {
+        const dir = node_fs_1.default.mkdtempSync(node_path_1.default.join(node_os_1.default.tmpdir(), 'jostraca-bsdd-'));
+        try {
+            const base = dir.replace(/\\/g, '/');
+            await (0, __1.Jostraca)({ now: () => NOW, log: quiet })
+                .generate({ folder: base + '/o\\..\\out' }, () => {
+                (0, __1.Project)({}, () => (0, __1.File)({ name: 'a.txt' }, () => (0, __1.Content)('A')));
+                (0, __1.Project)({ folder: 'p\\..\\q' }, () => (0, __1.File)({ name: 'b.txt' }, () => (0, __1.Content)('B')));
+            });
+            const got = [];
+            const walk = (d) => {
+                for (const e of node_fs_1.default.readdirSync(d, { withFileTypes: true })) {
+                    const p = node_path_1.default.join(d, e.name);
+                    got.push(node_path_1.default.relative(dir, p).replace(/\\/g, '/') + (e.isDirectory() ? '/' : ''));
+                    if (e.isDirectory())
+                        walk(p);
+                }
+            };
+            walk(dir);
+            got.sort();
+            (0, expect_1.expect)(got).equal([
+                'out/',
+                'out/.jostraca/',
+                'out/.jostraca/.gitignore',
+                'out/.jostraca/generated/',
+                'out/.jostraca/generated/a.txt',
+                'out/.jostraca/generated/q/',
+                'out/.jostraca/generated/q/b.txt',
+                'out/.jostraca/jostraca.meta.log',
+                'out/a.txt',
+                'out/q/',
+                'out/q/b.txt',
+            ]);
+            (0, expect_1.expect)(Object.keys(metaOf(node_fs_1.default, base + '/out/.jostraca/jostraca.meta.log').files))
+                .equal(['a.txt', 'q/b.txt']);
+        }
+        finally {
+            node_fs_1.default.rmSync(dir, { recursive: true, force: true });
         }
     });
     // A backslash in an output-path component is a separator on every

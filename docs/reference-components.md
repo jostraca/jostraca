@@ -166,7 +166,7 @@ Project(props, children)
 
 | prop | type | default | effect |
 |---|---|---|---|
-| `folder` | `string` | `'.'` | The only prop that changes the output path. An absolute value is used as-is; a relative one joins onto the base output folder. Backslashes become `/`, a trailing `/` is stripped. |
+| `folder` | `string` | `'.'` | The only prop that changes the output path. An absolute value replaces the base output folder; a relative one joins onto it. Backslashes become `/` before the path is normalised, so `p\..\q` is `q`, and a trailing `/` is stripped. |
 | `name` | `string` |—| Adds **no** path segment. It joins the component path that `File.exclude` matches against, and nothing else. |
 
 Project is the only container that passes its props to its children:
