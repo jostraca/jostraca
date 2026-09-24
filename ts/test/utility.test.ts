@@ -5,6 +5,8 @@ import { expect } from './expect'
 
 import * as Package from '../'
 import { memfs } from '../dist/util/memfs'
+import { humanify } from '../dist/util/basic'
+import { decodeText, encodeText } from '../dist/util/bytes'
 
 
 import {
@@ -21,6 +23,8 @@ import {
   ucf,
   deep,
   omap,
+  cmap,
+  vmap,
 } from '../'
 
 
@@ -214,6 +218,58 @@ describe('util', () => {
     // numerically (10 < 9 is false).
     expect(getx({ a: '10' }, 'a<9')).equal({ a: '10' })
     expect(getx({ a: 10 }, 'a<9')).equal(undefined)
+  })
+
+
+  // The in-memory readdirSync lists names in JavaScript's string order, by
+  // UTF-16 code unit, which puts U+1F600 before U+FF5A where byte order
+  // would not. Go's MemFS.ReadDir is held to the same list:
+  // TestMemFSReadDirOrder.
+  test('memfs-readdir-order', () => {
+    const names = ['z.txt', '\uff5a.txt', '\u{1f600}.txt', '\u00e9.txt',
+      'a.txt', 'Z.txt', '9.txt', '10.txt', '_x.txt']
+    const { fs } = memfs({})
+    fs.mkdirSync('/d', { recursive: true })
+    for (const n of names) {
+      fs.writeFileSync('/d/' + n, n)
+    }
+    fs.mkdirSync('/d/sub')
+    expect(fs.readdirSync('/d')).equal(['10.txt', '9.txt', 'Z.txt', '_x.txt', 'a.txt',
+      'sub', 'z.txt', '\u00e9.txt', '\u{1f600}.txt', '\uff5a.txt'])
+  })
+
+
+  // The byte-transparent text form: any bytes round-trip exactly, valid
+  // UTF-8 decodes as Buffer's codec does, and only an invalid byte becomes
+  // an escape.
+  test('bytes-round-trip', () => {
+    const edge = [
+      [0xed, 0xb2, 0x80], [0xf4, 0x90, 0x80, 0x80], [0xc0, 0x80], [0xe0, 0x80, 0x80],
+      [0xf0, 0x8f, 0xbf, 0xbf], [0xe2, 0x82], [0xff], [0x80], [0xf0, 0x9f, 0x98],
+      [0xe2, 0x82, 0xac], [0xf0, 0x9f, 0x98, 0x80], [0xef, 0xbb, 0xbf, 0x41],
+    ].map((b) => Buffer.from(b))
+
+    let seed = 7
+    const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) % 256
+    const random = Array.from({ length: 400 }, (_, i) =>
+      Buffer.from(Array.from({ length: i % 23 }, rnd)))
+
+    for (const buf of [...edge, ...random]) {
+      const { text, escaped } = decodeText(buf)
+      expect({ hex: encodeText(text).toString('hex') }).equal({ hex: buf.toString('hex') })
+      const valid = Buffer.from(buf.toString('utf8'), 'utf8').equals(buf)
+      expect({ hex: buf.toString('hex'), escaped }).equal({ hex: buf.toString('hex'), escaped: !valid })
+      if (valid) {
+        expect(text).equal(buf.toString('utf8'))
+      }
+    }
+
+    // A three-byte surrogate is three escapes, not one lone surrogate.
+    expect(decodeText(Buffer.from([0xed, 0xb2, 0x80])).text).equal('\udced\udcb2\udc80')
+
+    // Text from anywhere else encodes as UTF-8, a surrogate pair included.
+    expect(encodeText('\ud83d\udc80').toString('hex')).equal('f09f9280')
+    expect(encodeText('a\u00e9').toString('hex')).equal('61c3a9')
   })
 
 
@@ -535,6 +591,72 @@ describe('util', () => {
 
 })
 
+// A count that is not finite adds nothing; test/spec/text.tsv cannot
+// carry NaN or Infinity. go/util_test.go TestIndentNonFiniteAndTyped pins
+// the same for Go.
+describe('indent-counts', () => {
+
+  test('non-finite', () => {
+    expect(indent('a', Infinity)).equal('a')
+    expect(indent('a', -Infinity)).equal('a')
+    expect(indent('a', NaN)).equal('a')
+  })
+
+})
+
+
+// humanify formats any number it is given, 0 included: only a missing
+// value means now. Past year 9007 the digit form exceeds 2^53 and rounds
+// here, where go/util_test.go TestHumanifyRangeTail pins Go's exact
+// 9999123123595999.
+describe('humanify', () => {
+
+  test('zero-is-the-epoch', () => {
+    expect(humanify(0)).equal(1970010100000000)
+    expect(humanify(0, { parts: true, terse: true }))
+      .equal({ ty: 1970, tm: 1, td: 1, th: 0, tn: 0, ts: 0, ti: 0 })
+  })
+
+  test('range-tail', () => {
+    expect(humanify(253402300799999)).equal(9999123123596000)
+  })
+
+})
+
+
+// FILTER(fn): fn's result is written, except that an array [flag, value]
+// drops the entry when flag is truthy and writes value otherwise. A bare
+// FILTER keeps a truthy field and drops the entry for a falsy one. The
+// Go port pins the same cases in go/util_test.go TestCMapFilterFn.
+describe('cmap-filter', () => {
+
+  test('filter-fn', () => {
+    const src = { a: { x: 1 }, b: { x: 2 }, c: { x: 3 } }
+    for (const map of [cmap, vmap] as any[]) {
+      const out = map(src, {
+        x: map.FILTER((v: number) => [2 === v, v * 10]),
+        k: map.KEY,
+      })
+      const want = [{ k: 'a', x: 10 }, { k: 'c', x: 30 }]
+      expect(cmap === map ? out : { a: out[0], c: out[1] })
+        .equal({ a: want[0], c: want[1] })
+    }
+    expect(cmap(src, { x: cmap.FILTER((v: number) => v + 1) }))
+      .equal({ a: { x: 2 }, b: { x: 3 }, c: { x: 4 } })
+    expect(cmap(src, { x: cmap.FILTER('lit') }))
+      .equal({ a: { x: 'lit' }, b: { x: 'lit' }, c: { x: 'lit' } })
+    expect(cmap(src, { x: (v: number) => 2 === v ? cmap.FILTER : v }))
+      .equal({ a: { x: 1 }, c: { x: 3 } })
+  })
+
+  test('null-child', () => {
+    expect(cmap({ a: null, b: { x: 5 } }, { x: cmap.COPY, k: cmap.KEY }))
+      .equal({ a: { x: undefined, k: 'a' }, b: { x: 5, k: 'b' } })
+  })
+
+})
+
+
 // Caller-side state is recorded by no corpus: all four record OUTPUT only,
 // never the model, the options object, or returned slices. So a helper that
 // quietly mutates its input is invisible cross-stack, and one did -- getx's `?`
@@ -574,6 +696,27 @@ describe('caller-state', () => {
     // The specific leak: `y` was filtered out and kept its bookkeeping key.
     expect(undefined === rejected.key$).true()
     expect(undefined === rejected.index$).true()
+  })
+
+
+  // The filter reads the RAW children, so nothing is stamped at all: not on
+  // a survivor, not on a rejected child, and not on a scalar's wrapper,
+  // because there is none.
+  test('getx-filter-stamps-nothing', () => {
+    const model: any = {
+      o: { x: { v: 1 }, y: { v: 2 }, n: 3 },
+      a: [{ v: 1 }, { v: 2 }, 3],
+    }
+    const before = JSON.stringify(model)
+
+    expect(getx(model, 'o?v=1')).equal({ x: { v: 1 } })
+    expect(getx(model, 'a?v=1')).equal([{ v: 1 }])
+    expect(getx(model, 'o?q~u')).equal({ x: { v: 1 }, y: { v: 2 } })
+
+    for (const c of [model.o.x, model.o.y, model.a[0], model.a[1], model.a]) {
+      expect(Object.keys(c).filter((k: string) => k.endsWith('$'))).equal([])
+    }
+    expect(JSON.stringify(model)).equal(before)
   })
 
 

@@ -1,0 +1,14 @@
+{
+  "scenario": "copy_exclude_number",
+  "opts": {},
+  "prepopulate": {
+    "/tm/tree/a.txt": "A\n"
+  },
+  "error": true,
+  "errorBody": "CopyFiles: Value \"5\" for property \"exclude\" does not satisfy one of: Boolean, String, RegExp, [\"One(String,)\"]",
+  "files": null,
+  "audit": null,
+  "vol": {
+    "/tm/tree/a.txt": "A\n"
+  }
+}

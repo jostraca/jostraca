@@ -3,6 +3,9 @@
   "opts": {},
   "prepopulate": {},
   "error": true,
+  "errorBody": "inject target does not exist, path=/out/app/does-not-exist.txt (Inject rewrites an existing file; use File to create one)",
+  "files": null,
+  "audit": null,
   "vol": {
     "/out/app": null
   }

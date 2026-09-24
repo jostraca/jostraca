@@ -1,0 +1,28 @@
+# cmpTree refusals, and trees both ports accept. `cmptree` builds the
+# define-phase callback and returns "ok"; the refusals happen there, so a
+# refused tree has written nothing. An error row holds the full message.
+id	fn	args	expect	error
+tree-basic	cmptree	[[{"cmp":"Project","props":{"folder":"p"},"children":[{"cmp":"File","props":{"name":"a.txt"},"children":[{"cmp":"Content","props":{"arg":"A"}}]}]}]]	"ok"	
+tree-deprecated-names	cmptree	[[{"cmp":"File","props":{"name":"a.txt"},"children":[{"cmp":"List","props":{"item":[1]},"children":[{"cmp":"Content","props":{"src":"x"}}]}]},{"cmp":"Copy","props":{"from":"/nonexistent-is-checked-later"}}]]	"ok"	
+tree-folder-null-project	cmptree	[{"cmp":"Project","props":{"folder":null},"children":[{"cmp":"File","props":{"name":"a.txt"}}]}]	"ok"	
+tree-folder-null-folder	cmptree	[{"cmp":"Folder","props":{"name":"d","folder":null}}]	"ok"	
+tree-folder-null-file	cmptree	[{"cmp":"File","props":{"name":"a.txt","folder":null}}]	"ok"	
+tree-unknown-cmp	cmptree	[{"cmp":"Nope"}]	-	cmpTree: unknown component: Nope (at [0])
+tree-unknown-cmp-bad-child	cmptree	[[{"cmp":"Nope","children":[{"cmp":5}]}]]	-	cmpTree: unknown component: Nope (at [0])
+tree-unknown-cmp-bad-props	cmptree	[[{"cmp":"Nope","props":5}]]	-	cmpTree: unknown component: Nope (at [0])
+tree-unknown-cmp-bad-folder	cmptree	[[{"cmp":"Nope","props":{"folder":"/abs"}}]]	-	cmpTree: unknown component: Nope (at [0])
+tree-unknown-cmp-inherited-name	cmptree	[{"cmp":"toString"}]	-	cmpTree: unknown component: toString (at [0])
+tree-unknown-cmp-nested	cmptree	[{"cmp":"Folder","props":{"name":"d"},"children":[{"cmp":"Nope"}]}]	-	cmpTree: unknown component: Nope (at [0]/Folder[0])
+tree-deprecated-err-path	cmptree	[[{"cmp":"List","props":{"item":[1]},"children":[{"cmp":""}]}]]	-	cmpTree: node has no cmp name (at [0]/List[0])
+tree-deprecated-copy-err-path	cmptree	[[{"cmp":"Folder","props":{"name":"d"},"children":[{"cmp":"Copy","children":[{}]}]}]]	-	cmpTree: node has no cmp name (at [0]/Folder[0]/Copy[0])
+tree-node-not-object	cmptree	[5]	-	cmpTree: node is not an object (at [0])
+tree-props-not-object	cmptree	[{"cmp":"File","props":[]}]	-	cmpTree: props is not an object (at [0])
+tree-children-not-array	cmptree	[{"cmp":"File","props":{"name":"a"},"children":{}}]	-	cmpTree: children is not an array (at [0])
+tree-folder-absolute	cmptree	[{"cmp":"Project","props":{"folder":"/abs"}}]	-	cmpTree: folder must not be absolute: /abs (at [0])
+tree-folder-not-string	cmptree	[{"cmp":"Project","props":{"folder":5}}]	-	cmpTree: folder is not a string (at [0])
+tree-closed-props-bindings-admitted	cmptree	[{"cmp":"File","props":{"name":"a.txt"},"children":[{"cmp":"Fragment","props":{"from":"f.txt","indent":2,"replace":{},"eject":["a","b"],"item":1}},{"cmp":"CopyFiles","props":{"from":"x","to":"y","replace":{},"exclude":true,"item":1,"indent":2}}]}]	"ok"	
+tree-closed-props	cmptree	[{"cmp":"File","props":{"name":"a.txt"},"children":[{"cmp":"Fragment","props":{"from":"frag.txt","bogus":1}}]}]	-	cmpTree: Fragment: prop not allowed: bogus (at [0]/File[0])
+tree-closed-props-sorted	cmptree	[{"cmp":"CopyFiles","props":{"from":"x","zed":1,"alpha":2}}]	-	cmpTree: CopyFiles: prop not allowed: alpha, zed (at [0])
+tree-closed-props-alias	cmptree	[{"cmp":"Copy","props":{"from":"x","tag":1}}]	-	cmpTree: CopyFiles: prop not allowed: tag (at [0])
+tree-closed-props-under-empty-list	cmptree	[{"cmp":"File","props":{"name":"a.txt"},"children":[{"cmp":"ListItems","props":{"item":[]},"children":[{"cmp":"Fragment","props":{"from":"f.txt","bogus":1}}]}]}]	-	cmpTree: Fragment: prop not allowed: bogus (at [0]/File[0]/ListItems[0])
+tree-closed-props-under-content	cmptree	[{"cmp":"Content","children":[{"cmp":"CopyFiles","props":{"from":"x","tag":1}}]}]	-	cmpTree: CopyFiles: prop not allowed: tag (at [0]/Content[0])

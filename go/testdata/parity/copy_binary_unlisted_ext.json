@@ -12,6 +12,114 @@
     "/tm/readme.txt": "hello $$v$$\n"
   },
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/p/mod.wasm",
+      "/out/p/readme.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
+  "audit": [
+    [
+      "FileHandler:existsFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "exists": false
+      }
+    ],
+    [
+      "FileHandler:saveFile:Copy:copyFile:write:",
+      {
+        "path": "/out/p/mod.wasm",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 16
+      }
+    ],
+    [
+      "FileHandler:save:Copy:copyFile::write",
+      {
+        "action": "write",
+        "path": "/out/p/mod.wasm",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:Copy:copyFile:write:",
+      {
+        "path": "/out/p/readme.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 8
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/p/readme.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 655
+      }
+    ],
+    [
+      "FileHandler:saveJSON:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "size": 655
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/.gitignore",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 29
+      }
+    ]
+  ],
   "vol": {
     "/tm/mod.wasm": {
       "b64": "AGFzbQEAAAAkJHYkJP/+gA=="

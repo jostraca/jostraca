@@ -1,0 +1,8 @@
+id	fn	args	expect	error
+humanify-zero	humanify	[0]	1970010100000000	
+humanify-ms	humanify	[1735689600123]	2025010100000012	
+humanify-epoch	humanify	[1735689600000]	2025010100000000	
+humanify-neg	humanify	[-1]	1969123123595999	
+humanify-zero-parts	humanify	[0,{"parts":true}]	{"year":1970,"month":1,"day":1,"hour":0,"minute":0,"second":0,"milli":0}	
+humanify-zero-terse	humanify	[0,{"parts":true,"terse":true}]	{"ty":1970,"tm":1,"td":1,"th":0,"tn":0,"ts":0,"ti":0}	
+humanify-ms-parts	humanify	[1735689600123,{"parts":true}]	{"year":2025,"month":1,"day":1,"hour":0,"minute":0,"second":0,"milli":123}	

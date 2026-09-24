@@ -47,6 +47,13 @@ type scenarioCorpusCase struct {
 	Sources  map[string]corpusBytes   `json:"sources"`
 	Vol      map[string]corpusBytes   `json:"vol"`
 	Error    bool                     `json:"error"`
+	Lists    *Files                   `json:"lists"`
+
+	// The counter-clock cases: every clock sample ticks, and Result.When
+	// and the audit trail are recorded too.
+	Clock string `json:"clock"`
+	When  *int64 `json:"when"`
+	Audit []any  `json:"audit"`
 }
 
 type scenarioCorpusFile struct {
@@ -138,9 +145,9 @@ func TestScenarioCorpusMatchesTS(t *testing.T) {
 		mem := NewMemFS()
 
 		// A relative folder is passed through exactly as recorded — that is
-		// the point of the axis. TS strips memfs's process.cwd() prefix
-		// when generating, so the recorded keys are already relative and
-		// line up with what Go's MemFS (which has no cwd) produces.
+		// the point of the axis. Both in-memory providers resolve a relative
+		// key against the working directory, and TS strips that prefix when
+		// generating, so the Go keys are stripped the same way below.
 		folder := "."
 		if c.Folder != nil {
 			folder = *c.Folder
@@ -191,13 +198,18 @@ func TestScenarioCorpusMatchesTS(t *testing.T) {
 			}
 		}
 
-		opts := []Option{WithFS(mem), WithNow(func() int64 { return 1735689600000 })}
+		now := func() int64 { return 1735689600000 }
+		if c.Clock == "counter" {
+			tick := int64(1735689600000)
+			now = func() int64 { v := tick; tick++; return v }
+		}
+		opts := []Option{WithFS(mem), WithNow(now)}
 		if c.Folder != nil {
 			opts = append(opts, WithFolder(*c.Folder))
 		}
 		j := New(opts...)
 
-		_, gerr := j.Generate(Options{
+		res, gerr := j.Generate(Options{
 			Existing: existingFromCorpus(t, c.Existing),
 			// Matches MODEL in ts/tools/scenario-corpus.js. Only the binary
 			// payloads carry a `$$v$$` marker, where substituting it is the
@@ -257,9 +269,10 @@ func TestScenarioCorpusMatchesTS(t *testing.T) {
 		// map[string]string is lossless even for the binary cases — and it
 		// keeps sameTree/showTree at the signatures the other corpora in
 		// this package share.
+		cwd := memCwd() + "/"
 		got := map[string]string{}
 		for k, v := range mem.Vol() {
-			got[k] = string(v)
+			got[strings.TrimPrefix(k, cwd)] = string(v)
 		}
 		want := map[string]string{}
 		for k, v := range c.Vol {
@@ -271,6 +284,27 @@ func TestScenarioCorpusMatchesTS(t *testing.T) {
 			if mismatch <= 12 {
 				t.Errorf("%s: output tree differs\n go=%s\n ts=%s",
 					c.Name, showTree(got), showTree(want))
+			}
+		} else if c.Lists != nil {
+			g, _ := json.Marshal(res.Files.listed())
+			w, _ := json.Marshal(c.Lists.listed())
+			if string(g) != string(w) {
+				mismatch++
+				if mismatch <= 12 {
+					t.Errorf("%s: files lists differ\n go=%s\n ts=%s", c.Name, g, w)
+				}
+			} else if c.When != nil && res.When != *c.When {
+				mismatch++
+				if mismatch <= 12 {
+					t.Errorf("%s: when %d, TS %d", c.Name, res.When, *c.When)
+				}
+			} else if c.Audit != nil {
+				if g, w := auditPair(t, res.Audit(), c.Audit); g != w {
+					mismatch++
+					if mismatch <= 12 {
+						t.Errorf("%s: audit differs\n go=%s\n ts=%s", c.Name, g, w)
+					}
+				}
 			}
 		}
 	}

@@ -12,6 +12,91 @@
     "/out/app/a.txt": "# JOSTRACA_PROTECT\nkeep me\n"
   },
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [],
+    "presented": [
+      "/out/app/a.txt"
+    ],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
+  "audit": [
+    [
+      "FileHandler:existsFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "exists": false
+      }
+    ],
+    [
+      "FileHandler:loadFile:",
+      {
+        "path": "/out/app/a.txt",
+        "when": 1735689600000,
+        "size": 27
+      }
+    ],
+    [
+      "FileHandler:saveFile:FileOp:after:present::",
+      {
+        "path": "/out/app/a.new.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 4
+      }
+    ],
+    [
+      "FileHandler:save:present",
+      {
+        "action": "present",
+        "path": "/out/app/a.txt",
+        "exists": true,
+        "actions": [
+          "present"
+        ],
+        "protect": true,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<Wx>",
+          "exists-0",
+          "present-0",
+          "content-1"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 394
+      }
+    ],
+    [
+      "FileHandler:saveJSON:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "size": 394
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/.gitignore",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 29
+      }
+    ]
+  ],
   "vol": {
     "/out/app/a.txt": "# JOSTRACA_PROTECT\nkeep me\n",
     "/out/app/a.new.txt": "NEW\n",

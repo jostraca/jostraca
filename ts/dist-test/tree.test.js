@@ -274,7 +274,7 @@ const gen = async (tree, opts, seed) => {
         const seed = {
             [from]: 'HEADER\n<[SLOT]>\nFOOTER\n',
             '/src/copied.txt': 'COPIED\n',
-            '/top/sdk/inject.txt': 'A\n#--START--#\n\n#--END--#\nB\n',
+            '/top/inject.txt': 'A\n#--START--#\n\n#--END--#\nB\n',
         };
         // One node per component, each in a place its op accepts.
         const tree = [
@@ -300,6 +300,8 @@ const gen = async (tree, opts, seed) => {
                             }],
                     }],
             },
+            // A sibling of the Project, so it edits a file at the output root:
+            // a Project's folder does not outlive its subtree (#26).
             {
                 cmp: 'Inject', props: { name: 'inject.txt' },
                 children: [{ cmp: 'Content', props: { src: 'INJECTED\n' } }],
@@ -313,7 +315,7 @@ const gen = async (tree, opts, seed) => {
         const { vol } = await gen(tree, { raw: true }, seed);
         // The run completed, and `raw` reached the two that render text.
         Assert.equal(vol['/top/sdk/f/x.txt'], 'cl\nHEADER\n\nFOOTER\ni\nCOPIED\n');
-        Assert.equal(vol['/top/sdk/inject.txt'], 'A\n#--START--#\nINJECTED\n\n#--END--#\nB\n');
+        Assert.equal(vol['/top/inject.txt'], 'A\n#--START--#\nINJECTED\n\n#--END--#\nB\n');
     });
     // A caller may add their own component, or override one.
     (0, node_test_1.test)('custom-components', async () => {
@@ -629,6 +631,71 @@ const gen = async (tree, opts, seed) => {
         Object.freeze(replace);
         const second = await gen(tree, undefined, seed);
         Assert.equal(second.vol['/top/f.txt'], 'HEADER\nBODY\n\nFOOTER\n');
+    });
+    // A node's component is resolved by the name AS WRITTEN: the caller's
+    // override, then the built-in, then the deprecated alias of a built-in.
+    // Go twins in go/tree_resolution_test.go; the refusals, with their
+    // paths, are rows in test/spec/tree.tsv.
+    (0, node_test_1.describe)('tree-resolution', () => {
+        (0, node_test_1.test)('an-override-of-deprecated-copy-runs', async () => {
+            const Custom = (0, __1.cmp)(function Custom(props) {
+                (0, __1.File)({ name: 'custom.txt' }, () => (0, __1.Content)('CUSTOM ' + props.tag));
+            });
+            const { vol } = await gen({ cmp: 'Copy', props: { tag: 'T' } }, { cmp: { Copy: Custom } });
+            Assert.equal(vol['/top/custom.txt'], 'CUSTOM T');
+        });
+        (0, node_test_1.test)('an-override-of-deprecated-list-runs', async () => {
+            const Custom = (0, __1.cmp)(function Custom(props) {
+                (0, __1.Content)('LIST ' + props.n);
+            });
+            const { vol } = await gen({
+                cmp: 'File', props: { name: 'x.txt' },
+                children: [{ cmp: 'List', props: { n: 'L' } }],
+            }, { cmp: { List: Custom } });
+            Assert.equal(vol['/top/x.txt'], 'LIST L');
+        });
+        // An override keyed only by the canonical name does not capture the
+        // deprecated spelling: `Copy` still runs the built-in, closed prop
+        // set and all.
+        (0, node_test_1.test)('a-canonical-override-leaves-the-alias-built-in', async () => {
+            const Custom = (0, __1.cmp)(function Custom() { });
+            await Assert.rejects(async () => gen({ cmp: 'Copy', props: { tag: 'T' } }, { cmp: { CopyFiles: Custom } }), /tag/);
+        });
+    });
+    // The closed prop set of the built-in Fragment and CopyFiles is
+    // checked when the tree is READ, like every other refusal here, so a
+    // malformed node is refused by cmpTree() itself even where it would
+    // never run. Its shape used to run only on invocation, so a bad node
+    // under an empty ListItems generated. Go twin:
+    // TestCmpTreeClosedSetsMatchTypeScript, plus the rows in
+    // test/spec/tree.tsv.
+    (0, node_test_1.describe)('tree-closed-props', () => {
+        (0, node_test_1.test)('cmptree-itself-refuses-a-closed-prop', () => {
+            Assert.throws(() => (0, __1.cmpTree)({
+                cmp: 'File', props: { name: 'a.txt' },
+                children: [{ cmp: 'Fragment', props: { from: 'frag.txt', bogus: 1 } }],
+            }), { message: 'cmpTree: Fragment: prop not allowed: bogus (at [0]/File[0])' });
+        });
+        (0, node_test_1.test)('an-uninvoked-node-is-refused', () => {
+            Assert.throws(() => (0, __1.cmpTree)({
+                cmp: 'File', props: { name: 'a.txt' },
+                children: [{
+                        cmp: 'ListItems', props: { item: [] },
+                        children: [{ cmp: 'Fragment', props: { from: 'f.txt', bogus: 1 } }],
+                    }],
+            }), /cmpTree: Fragment: prop not allowed: bogus/);
+            Assert.throws(() => (0, __1.cmpTree)({
+                cmp: 'Content',
+                children: [{ cmp: 'CopyFiles', props: { from: 'x', tag: 1 } }],
+            }), /cmpTree: CopyFiles: prop not allowed: tag/);
+        });
+        (0, node_test_1.test)('an-override-lifts-the-check', async () => {
+            const Custom = (0, __1.cmp)(function Custom(props) {
+                (0, __1.File)({ name: 'x.txt' }, () => (0, __1.Content)('X ' + props.bogus));
+            });
+            const { vol } = await gen({ cmp: 'Fragment', props: { bogus: 1 } }, { cmp: { Fragment: Custom } });
+            Assert.equal(vol['/top/x.txt'], 'X 1');
+        });
     });
 });
 //# sourceMappingURL=tree.test.js.map

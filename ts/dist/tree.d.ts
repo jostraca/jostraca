@@ -11,6 +11,7 @@ type CmpTreeOptions = {
 declare const TREE_CMP: Record<string, Component>;
 declare const TREE_CMP_DEPRECATED: Record<string, Component>;
 declare const TREE_RAW_CMP: Component[];
+declare const TREE_CLOSED_CMP: Map<Component, string[]>;
 declare function cmpTree(root: CmpTreeNode | CmpTreeNode[], opts?: CmpTreeOptions): () => void;
 export type { CmpTreeNode, CmpTreeOptions, };
-export { TREE_CMP, TREE_CMP_DEPRECATED, TREE_RAW_CMP, cmpTree, };
+export { TREE_CMP, TREE_CMP_DEPRECATED, TREE_RAW_CMP, TREE_CLOSED_CMP, cmpTree, };

@@ -4,6 +4,7 @@
 // the other is exactly how the two stacks drifted apart before.
 
 import { test, describe } from 'node:test'
+import { createHash } from 'node:crypto'
 import { expect } from './expect'
 
 import { DiffUtil } from '../'
@@ -268,6 +269,53 @@ describe('diff-engine', () => {
     res = merge('X\n', '', 'Y\n', { labels: { existing: 'E' } })
     expect(res.content.includes(MARK_END + 'E\n')).true()
     expect(res.content.includes(MARK_START + 'GENERATED: ')).true()
+  })
+
+
+  // An empty kind or label is unset, as in Go. Twin of
+  // TestEmptyKindAndLabelsAreUnset in go/diff_engine_test.go.
+  test('empty-kind-and-labels-are-unset', () => {
+    const dflt = merge('X\n', '', 'Y\n').content
+    expect(merge('X\n', '', 'Y\n', { kind: '' }).content).equal(dflt)
+    expect(merge('X\n', '', 'Y\n', { labels: { generated: '' } }).content).equal(dflt)
+    expect(merge('X\n', '', 'Y\n', { labels: { existing: '' } }).content).equal(dflt)
+
+    // So a bare `>>>>>>> ` line is not an unresolved conflict.
+    expect(hasConflicts('a\n>>>>>>> \nb', '')).false()
+    const res = merge('X\n', 'A\n', 'A\n>>>>>>> \n', { labels: { existing: '' } })
+    expect(res.outcome).equal('merged')
+    expect(res.content.endsWith('>>>>>>> \n>>>>>>> EXISTING: ' +
+      '1970-01-01T00:00:00.000Z/merge\n')).true()
+  })
+
+
+  // Twin of TestLabelsExtendedYearsAndRange in go/diff_engine_test.go; the
+  // boundary rows in test/spec/diff.tsv hold both stacks to the same text.
+  test('labels-extended-years-and-range', () => {
+    const gen = (when: any) =>
+      diff('X\n', 'Y\n', { when }).content.split('\n')[5]
+
+    expect(gen(253402300800000))
+      .equal('>>>>>>> GENERATED: +010000-01-01T00:00:00.000Z/diff')
+    expect(gen(-62198755200001))
+      .equal('>>>>>>> GENERATED: -000002-12-31T23:59:59.999Z/diff')
+
+    // Clamped to the Date range rather than throwing RangeError.
+    expect(gen(8640000000000001))
+      .equal('>>>>>>> GENERATED: +275760-09-13T00:00:00.000Z/diff')
+    expect(gen(-8640000000000001))
+      .equal('>>>>>>> GENERATED: -271821-04-20T00:00:00.000Z/diff')
+
+    // Not a finite number: the epoch, as for an unset when. TS only; Go's
+    // int64 cannot hold these.
+    for (const when of [NaN, Infinity, -Infinity, undefined, '5', null]) {
+      expect(gen(when)).equal('>>>>>>> GENERATED: 1970-01-01T00:00:00.000Z/diff')
+    }
+
+    // The unresolved check runs before any label is formatted.
+    const res = merge('X\n', 'A\n', 'A\n>>>>>>> EXISTING: z\n',
+      { when: 8640000000000001 })
+    expect(res.outcome).equal('unresolved')
   })
 
 
@@ -641,6 +689,71 @@ describe('diff-engine', () => {
     // The default sentinel still matches whatever timestamp follows.
     const dflt = merge('NEW\n', 'OLD\n', 'a\n>>>>>>> EXISTING: T/merge\n')
     expect(dflt.outcome).equal('unresolved')
+  })
+
+
+  // Regions and unchanged hunks past about 125k lines used to throw
+  // RangeError in TS. Lengths and digests are shared with
+  // TestLargeRegionsDoNotOverflow in go/diff_engine_test.go.
+  test('large-regions-do-not-overflow', () => {
+    const n = 200000
+    let big = ''
+    let other = ''
+    for (let i = 0; i < n; i++) {
+      big += 'x' + i + '\n'
+      other += 'y' + i + '\n'
+    }
+    const sha = (s: string) => createHash('sha256').update(s).digest('hex')
+
+    const S1 = 'd062790b21f6b3c2541c4dadd78cb4ce982cddde3d4b3872af398ecd703c033a'
+    const S2 = 'fb1363f2a2c668d0daae627b7f603a599eff8b4bf034b4005978ae27a5475d2f'
+    const S3 = '3786ede66f5c65bab821eb7dcb1d5b56d3d0f2ae0349fe6adcc3e93b4b1e4586'
+
+    const shapes: [string, () => any, string, boolean, number, string][] = [
+      ['diff-same-hunk', () => diff(big + 'A\n', big + 'B\n', L),
+        'changed', true, 1488934,
+        '587be7b2d4bdcfd0ae57fba1f79691f9a6417a162f3f96a961cf0c26536e429b'],
+      ['merge-region', () => merge('head\n' + big, 'head\n', 'head\nuser\n', L),
+        'merged', true, 1488928,
+        '155c3e5904be5bbcc6832326f829de7185aa0ab2c18c8b4cbcc63cdc4fd0a989'],
+      ['merge-tail', () => merge(big, '', other, L),
+        'merged', true, 2977808,
+        '517c79d677a06d856a708162ddbb3464e5623880e03f36fed0dd0daff725c671'],
+      ['merge-existing-grows', () => merge('head\n', 'head\nz\n', 'head\n' + big, L),
+        'merged', true, 1488923,
+        '4b8d814bf4729e2274186dd99422f0b97c04277198b42e56ed920f6bd9e979a8'],
+
+      // The merge's three copy paths, each carrying one big run with no
+      // conflict or the same run on both sides: an anchor (S1-S3), a
+      // region (S4-S6) and the tail (S7-S9).
+      ['anchor-both', () => merge('a\n' + big + 'b\nG\n', 'a\nb\nc\n', 'a\n' + big + 'b\nE\n', L),
+        'merged', true, 1488926, S1],
+      ['anchor-existing', () => merge('a\nb\nG\n', 'a\nb\nc\n', 'a\n' + big + 'b\nc\n', L),
+        'merged', false, 1488896, S2],
+      ['anchor-generated', () => merge('a\n' + big + 'b\nc\n', 'a\nb\nc\n', 'a\nb\nE\n', L),
+        'merged', false, 1488896, S3],
+      ['region-existing', () => merge('a\nX\nb\nG\n', 'a\nX\nb\nc\n', 'a\n' + big + 'b\nc\n', L),
+        'merged', false, 1488896, S2],
+      ['region-generated', () => merge('a\n' + big + 'b\nc\n', 'a\nX\nb\nc\n', 'a\nX\nb\nE\n', L),
+        'merged', false, 1488896, S3],
+      ['region-both', () => merge('a\n' + big + 'b\nG\n', 'a\nX\nb\nc\n', 'a\n' + big + 'b\nE\n', L),
+        'merged', true, 1488926, S1],
+      ['tail-both', () => merge('G\na\n' + big, 'a\n', 'E\na\n' + big, L),
+        'merged', true, 1488924,
+        '20c311d84dad6acb7f4c8ce8e58328b5daa6b8510b046e707f6d6739efa8fc39'],
+      ['tail-existing', () => merge('G\na\n', 'a\n', 'a\n' + big, L),
+        'merged', false, 1488894,
+        '265226e32a1d87ec609b5c96c9ea5d4fa1e09960ca7fe8e249b6424ba9d5b29c'],
+      ['tail-generated', () => merge('a\n' + big, 'a\n', 'E\na\n', L),
+        'merged', false, 1488894,
+        '481a383f43c7ca124a16be1977a37db091082b779f727422fa592afd0b942b81'],
+    ]
+
+    for (const [name, run, outcome, conflict, length, digest] of shapes) {
+      const res = run()
+      expect([name, res.outcome, res.conflict, res.content.length, sha(res.content)])
+        .equal([name, outcome, conflict, length, digest])
+    }
   })
 
 })

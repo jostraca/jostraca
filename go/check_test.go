@@ -462,6 +462,194 @@ func TestCheckAbsoluteProjectFolderOutsideRoot(t *testing.T) {
 	}
 }
 
+// memBase builds an in-memory committed tree.
+func memBase(t *testing.T, committed map[string][]byte) *MemFS {
+	t.Helper()
+	base := NewMemFS()
+	for p, data := range committed {
+		if err := base.MkdirAll(filepath.ToSlash(filepath.Dir(p))); err != nil {
+			t.Fatal(err)
+		}
+		if err := base.WriteFile(p, data); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return base
+}
+
+// driftKinds flattens drift to "path:kind" for a one-line assertion.
+func driftKinds(res CheckResult) string {
+	out := []string{}
+	for _, d := range res.Drift {
+		out = append(out, d.Path+":"+string(d.Kind))
+	}
+	return strings.Join(out, ",")
+}
+
+// A GLOBAL DRYRUN DOES NOT BLANK A CHECK. The check forces Dryrun off
+// for its own run, after the merge, and keeps every other global flag.
+func TestCheckIgnoresGlobalDryrun(t *testing.T) {
+	base := memBase(t, map[string][]byte{"/app/a.txt": []byte("STALE\n")})
+	res, err := New(WithControl(Control{Dryrun: true})).
+		Check(Options{Folder: "/app", FS: base}, func(j *J) {
+			j.File("a.txt", func(j *J) { j.Content("A\n") })
+			j.File("b.txt", func(j *J) { j.Content("B\n") })
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(res.Checked, ",") != "a.txt,b.txt" {
+		t.Fatalf("checked: %v", res.Checked)
+	}
+	if got := driftKinds(res); got != "a.txt:content,b.txt:missing" {
+		t.Fatalf("drift: %s", got)
+	}
+}
+
+// A CHECK ALWAYS BUILDS. Build false, per call or global, would never
+// reach the file handler and report every folder clean -- the one answer
+// a gate must never give. Each case runs on an empty folder and on a
+// stale committed file.
+func TestCheckForcesBuildPerCall(t *testing.T) {
+	off := false
+	checkForcesBuild(t, New(), Options{Build: &off})
+}
+
+func TestCheckForcesBuildGlobal(t *testing.T) {
+	checkForcesBuild(t, New(WithBuild(false)), Options{})
+}
+
+func checkForcesBuild(t *testing.T, j *J, opts Options) {
+	t.Helper()
+	root := func(j *J) { j.File("a.txt", func(j *J) { j.Content("A\n") }) }
+
+	for _, tc := range []struct {
+		name      string
+		committed map[string][]byte
+		want      string
+	}{
+		{"empty", map[string][]byte{}, "a.txt:missing"},
+		{"stale", map[string][]byte{"/app/a.txt": []byte("STALE\n")}, "a.txt:content"},
+	} {
+		run := opts
+		run.Folder = "/app"
+		run.FS = memBase(t, tc.committed)
+		res, err := j.Check(run, root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Join(res.Checked, ",") != "a.txt" {
+			t.Fatalf("%s: checked: %v", tc.name, res.Checked)
+		}
+		if got := driftKinds(res); got != tc.want {
+			t.Fatalf("%s: drift: %s", tc.name, got)
+		}
+		if strings.Join(res.Files.Written, ",") != "/app/a.txt" {
+			t.Fatalf("%s: files: %+v", tc.name, res.Files)
+		}
+	}
+}
+
+// THE FOLDER AND FILESYSTEM RESOLVE AS GENERATE RESOLVES THEM: the
+// per-call value, else the one given to New, else the default.
+func TestCheckGlobalFolder(t *testing.T) {
+	dir := fwd(t.TempDir())
+	out := dir + "/out"
+	if err := os.MkdirAll(out, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(out+"/a.txt", []byte("A\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res, err := New(WithFolder(out)).Check(Options{}, func(j *J) {
+		j.File("a.txt", func(j *J) { j.Content("A\n") })
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Folder != out {
+		t.Fatalf("folder: %q", res.Folder)
+	}
+	if strings.Join(res.Checked, ",") != "a.txt" || len(res.Drift) != 0 {
+		t.Fatalf("checked: %v drift: %s", res.Checked, driftKinds(res))
+	}
+}
+
+func TestCheckGlobalFS(t *testing.T) {
+	base := memBase(t, map[string][]byte{"/out/a.txt": []byte("A\n")})
+	res, err := New(WithFS(base)).Check(Options{Folder: "/out"}, func(j *J) {
+		j.File("a.txt", func(j *J) { j.Content("A\n") })
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(res.Checked, ",") != "a.txt" || len(res.Drift) != 0 {
+		t.Fatalf("checked: %v drift: %s", res.Checked, driftKinds(res))
+	}
+}
+
+// CheckResult.Files IS THE RUN REPORT OF A PLAIN GENERATE, path form
+// included: a relative folder reports relative paths, as TypeScript
+// does. The committed file is PROTECTED, so the case also holds the
+// routing: under a relative folder the shadow must still send the run's
+// reads to memory, or the protect marker would suppress its own write.
+//
+// A REAL FILESYSTEM, because a relative folder means nothing without a
+// working directory to be relative to.
+func TestCheckFilesPathsAsGiven(t *testing.T) {
+	for _, tc := range []struct{ spelling, prefix string }{
+		{"rel", "rel/"},
+		{"./rel", "rel/"},
+		{".", ""},
+	} {
+		t.Run(tc.spelling, func(t *testing.T) {
+			tmp := t.TempDir()
+			rel := filepath.Join(tmp, "rel")
+			if err := os.MkdirAll(rel, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(rel, "a.txt"),
+				[]byte("# JOSTRACA_PROTECT\nSTALE\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			at := tmp
+			if tc.spelling == "." {
+				at = rel
+			}
+			prev, err := os.Getwd()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Chdir(at); err != nil {
+				t.Fatal(err)
+			}
+			defer os.Chdir(prev)
+
+			res, err := New().Check(Options{Folder: tc.spelling}, func(j *J) {
+				j.File("a.txt", func(j *J) { j.Content("A\n") })
+				j.Folder("sub", func(j *J) {
+					j.File("b.txt", func(j *J) { j.Content("B\n") })
+				})
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			want := tc.prefix + "a.txt," + tc.prefix + "sub/b.txt"
+			if got := strings.Join(res.Files.Written, ","); got != want {
+				t.Fatalf("files.written: %s, want %s", got, want)
+			}
+			if res.Folder != tc.spelling {
+				t.Fatalf("folder: %q", res.Folder)
+			}
+			if got := driftKinds(res); got != "a.txt:content,sub/b.txt:missing" {
+				t.Fatalf("drift: %s", got)
+			}
+		})
+	}
+}
+
 // treeRoot decodes a component tree and returns its define-phase
 // callback, failing the test rather than returning an error.
 func treeRoot(t *testing.T, src string, opts ...CmpTreeOptions) func(*J) {

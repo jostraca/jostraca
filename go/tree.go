@@ -53,7 +53,6 @@ import (
 	"io/fs"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -95,7 +94,9 @@ var treeCmpDeprecated = map[string]string{
 // treeClosedCmp is the components that REFUSE an unknown prop, and the
 // props each admits. Two of the ten: their TypeScript twins validate a
 // closed shape (FragmentShape, CopyFilesShape) and the other eight read
-// the props they know and drop the rest.
+// the props they know and drop the rest. Both ports check these sets
+// when the tree is read; TestCmpTreeClosedSetsMatchTypeScript holds this
+// one to the spec TypeScript builds its shapes from.
 //
 // THE PORTS HAVE TO AGREE ABOUT THIS, because the data path is the
 // contract a generator in another language writes against, and a tree
@@ -249,8 +250,10 @@ func propMarkers(p map[string]any) [2]string {
 // already refused a ".." segment; `folder` had no such check because
 // nothing could reach it from data.
 func validFolder(props map[string]any, path string) error {
+	// A JSON null is absent, as `null == folder` is in TypeScript, and as
+	// a null `props` or `children` already is here.
 	raw, present := props["folder"]
-	if !present {
+	if !present || raw == nil {
 		return nil
 	}
 	folder, ok := raw.(string)
@@ -318,8 +321,22 @@ func nodeThunk(
 	if !ok || name == "" {
 		return nil, treeErr("node has no cmp name", path)
 	}
-	if canon, dep := treeCmpDeprecated[name]; dep {
-		name = canon
+
+	// Resolved by the name AS WRITTEN, in TypeScript's order: the caller's
+	// override, the built-in, then the deprecated alias of a built-in. So
+	// an override keyed `Copy` runs, and a `Copy` node with an override
+	// keyed only `CopyFiles` runs the built-in. An unknown name is refused
+	// HERE, before its props or children are looked at.
+	custom, hasCustom := cmps[name]
+	builtin := ""
+	if !hasCustom {
+		if treeBuild[name] != nil {
+			builtin = name
+		} else if canon, dep := treeCmpDeprecated[name]; dep {
+			builtin = canon
+		} else {
+			return nil, treeErr("unknown component: "+name, path)
+		}
 	}
 
 	props := map[string]any{}
@@ -332,14 +349,13 @@ func nodeThunk(
 	if err := validFolder(props, path); err != nil {
 		return nil, err
 	}
-	// The closed prop set is the BUILT-IN component's, so a caller who
-	// replaces that component through CmpTreeOptions.Cmp is not bound by
-	// it: their Fragment may take whatever props it likes. TypeScript
-	// gets this for free -- an override replaces the component, and
-	// FragmentShape goes with it -- and checking here regardless
-	// refused a tree TypeScript generates.
-	if _, overridden := cmps[name]; !overridden {
-		if err := validClosedProps(name, props, path); err != nil {
+	// The closed prop set is the BUILT-IN component's, so it applies to
+	// what the name resolved to, alias included, and not to a caller's
+	// override: their Fragment may take whatever props it likes, as in
+	// TypeScript, where FragmentShape goes with the component it
+	// validates.
+	if builtin != "" {
+		if err := validClosedProps(builtin, props, path); err != nil {
 			return nil, err
 		}
 	}
@@ -362,7 +378,7 @@ func nodeThunk(
 		children = append(children, th)
 	}
 
-	if custom, has := cmps[name]; has {
+	if hasCustom {
 		return func(j *J, inherit map[string]any) {
 			p := propsMerge(nil, inherit, props)
 			plain := make([]func(*J), 0, len(children))
@@ -374,12 +390,9 @@ func nodeThunk(
 		}, nil
 	}
 
-	build := treeBuild[name]
-	if build == nil {
-		return nil, treeErr("unknown component: "+name, path)
-	}
+	build := treeBuild[builtin]
 	nodeDefaults := defaults
-	if !treeRawCmp[name] {
+	if !treeRawCmp[builtin] {
 		nodeDefaults = nil
 	}
 	return func(j *J, inherit map[string]any) {
@@ -416,6 +429,9 @@ func init() {
 			j.LineP(contentProps(p))
 		},
 		"Fragment": func(j *J, p map[string]any, c []treeThunk) {
+			if j.refuseProps("Fragment", "fragment", p) {
+				return
+			}
 			j.FragmentP(FragmentProps{
 				From:    propString(p, "from"),
 				Indent:  p["indent"],
@@ -434,6 +450,9 @@ func init() {
 			}, runChildren(c, nil))
 		},
 		"CopyFiles": func(j *J, p map[string]any, _ []treeThunk) {
+			if j.refuseProps("CopyFiles", "copy", p) {
+				return
+			}
 			j.CopyFiles(CopyFilesProps{
 				From:    propString(p, "from"),
 				To:      propString(p, "to"),
@@ -446,6 +465,10 @@ func init() {
 			if b, ok := p["line"].(bool); ok {
 				noline = !b
 			}
+			// An unset indent is no binding at all, as TypeScript's
+			// undefined is, so that a child's own "indent": null, and a
+			// ListItems' own, stay values a closed shape can refuse.
+			_, indentSet := p["indent"]
 			j.ListItemsP(ListItemsProps{
 				Item:   p["item"],
 				NoLine: noline,
@@ -457,8 +480,10 @@ func init() {
 				// props -- context first, the author's statement last.
 				inherit := map[string]any{
 					"item":    it.Item,
-					"indent":  it.Indent,
 					"replace": it.Replace,
+				}
+				if indentSet {
+					inherit["indent"] = it.Indent
 				}
 				for _, ch := range c {
 					ch(j, inherit)
@@ -484,45 +509,6 @@ func propSrc(p map[string]any) string {
 		return jsString(arg)
 	}
 	return propString(p, "src")
-}
-
-// jsString reproduces what JavaScript's `String(value)` gives for a
-// decoded JSON value, which is the conversion `Content` gets for free
-// when it concatenates a non-string `arg`. Arrays join their elements
-// with commas and any other object is `[object Object]`, both of which
-// are JavaScript's rules rather than anything chosen here.
-//
-// Written as String(value) rather than as the empty-string
-// concatenation on purpose. Two apostrophes in a row are the troff
-// convention for a closing quote, and gofmt's doc-comment formatter
-// rewrites them to a curly one: the lint gate then fails and the
-// sentence says something else than it did.
-func jsString(v any) string {
-	switch t := v.(type) {
-	case string:
-		return t
-	case bool:
-		if t {
-			return "true"
-		}
-		return "false"
-	case float64:
-		return strconv.FormatFloat(t, 'g', -1, 64)
-	case []any:
-		parts := make([]string, 0, len(t))
-		for _, el := range t {
-			if el == nil {
-				parts = append(parts, "")
-				continue
-			}
-			parts = append(parts, jsString(el))
-		}
-		return strings.Join(parts, ",")
-	case nil:
-		return ""
-	default:
-		return "[object Object]"
-	}
 }
 
 func contentProps(p map[string]any) ContentProps {

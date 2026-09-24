@@ -37,7 +37,8 @@ type Node struct {
 	Exclude  any
 
 	// Mode sets POSIX permission bits on the generated file. Zero means
-	// unset: keep the platform default, or the file's current mode.
+	// unset: keep the platform default (0666 less the umask), or the file's
+	// current mode.
 	Mode fs.FileMode
 
 	Replace  map[string]any

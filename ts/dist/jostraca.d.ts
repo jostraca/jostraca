@@ -44,13 +44,13 @@ declare const OptionsShape: {
         now: any;
         log: any;
         debug: string | undefined;
-        exclude: boolean;
+        exclude: boolean | undefined;
         existing: {
             txt: {};
             bin: {};
         };
         model: any;
-        build: boolean;
+        build: boolean | undefined;
         mem: boolean | undefined;
         vol: {} | undefined;
         cmp: {
@@ -81,13 +81,13 @@ declare const OptionsShape: {
         now: any;
         log: any;
         debug: string | undefined;
-        exclude: boolean;
+        exclude: boolean | undefined;
         existing: {
             txt: {};
             bin: {};
         };
         model: any;
-        build: boolean;
+        build: boolean | undefined;
         mem: boolean | undefined;
         vol: {} | undefined;
         cmp: {
@@ -118,13 +118,13 @@ declare const OptionsShape: {
         now: any;
         log: any;
         debug: string | undefined;
-        exclude: boolean;
+        exclude: boolean | undefined;
         existing: {
             txt: {};
             bin: {};
         };
         model: any;
-        build: boolean;
+        build: boolean | undefined;
         mem: boolean | undefined;
         vol: {} | undefined;
         cmp: {
@@ -156,13 +156,13 @@ declare const OptionsShape: {
         now: any;
         log: any;
         debug: string | undefined;
-        exclude: boolean;
+        exclude: boolean | undefined;
         existing: {
             txt: {};
             bin: {};
         };
         model: any;
-        build: boolean;
+        build: boolean | undefined;
         mem: boolean | undefined;
         vol: {} | undefined;
         cmp: {
@@ -197,13 +197,13 @@ declare const OptionsShape: {
         readonly now: any;
         readonly log: any;
         readonly debug: import("shape").Node<string | undefined>;
-        readonly exclude: false;
+        readonly exclude: import("shape").Node<BooleanConstructor | undefined>;
         readonly existing: {
             txt: {};
             bin: {};
         };
         readonly model: any;
-        readonly build: true;
+        readonly build: import("shape").Node<BooleanConstructor | undefined>;
         readonly mem: import("shape").Node<BooleanConstructor | undefined>;
         readonly vol: import("shape").Node<{} | undefined>;
         readonly cmp: {

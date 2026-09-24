@@ -53,9 +53,9 @@ Two more rules to keep in mind:
 - `Folder({})` with no name adds no segment. That makes it a grouping
   container, useful for applying one `each` loop to a set of files that
   belong at the same level.
-- Do not nest `File` inside `File`. The inner one takes over as the
-  current file and never gives it back, so the outer file's content is
-  written to the inner file's path and the outer file never appears.
+- A `File` nested inside a `File` is written to its own path and
+  leaves the outer file's content alone, but sibling `File` calls read
+  more plainly.
 
 ## See also
 

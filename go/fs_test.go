@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -243,12 +244,15 @@ func TestMemFSVolReturnsCopy(t *testing.T) {
 	if err := fs.WriteFile("a", []byte("v1")); err != nil {
 		t.Fatal(err)
 	}
+	// A relative key resolves against the working directory, as the TS
+	// in-memory provider's does.
+	key := memClean("a")
 	v := fs.Vol()
-	if string(v["a"]) != "v1" {
-		t.Errorf("Vol[a] = %q, want %q", v["a"], "v1")
+	if string(v[key]) != "v1" {
+		t.Errorf("Vol[%s] = %q, want %q", key, v[key], "v1")
 	}
 	// Mutating the returned map must not affect the FS.
-	v["a"] = []byte("MUTATED")
+	v[key] = []byte("MUTATED")
 	got, _ := fs.ReadFile("a")
 	if string(got) != "v1" {
 		t.Errorf("ReadFile after Vol mutation = %q, want %q", got, "v1")
@@ -260,5 +264,36 @@ func TestMemFSReadMissing(t *testing.T) {
 	_, err := fs.ReadFile("nope")
 	if !errors.Is(err, os.ErrNotExist) {
 		t.Errorf("ReadFile(nope) err = %v, want fs.ErrNotExist", err)
+	}
+}
+
+// MemFS.ReadDir lists names in JavaScript's string order, by UTF-16 code
+// unit, as ts/src/util/memfs.ts readdirSync does: U+1F600 sorts before
+// U+FF5A, where byte order puts it after. The copy walk sorts its entries
+// again, so only a direct call sees this. Twin of 'memfs-readdir-order' in
+// ts/test/utility.test.ts.
+func TestMemFSReadDirOrder(t *testing.T) {
+	m := NewMemFS()
+	for _, n := range []string{"z.txt", "\uff5a.txt", "\U0001f600.txt", "\u00e9.txt",
+		"a.txt", "Z.txt", "9.txt", "10.txt", "_x.txt"} {
+		if err := m.WriteFile("/d/"+n, []byte(n)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := m.MkdirAll("/d/sub"); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := m.ReadDir("/d")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, e := range entries {
+		got = append(got, e.Name)
+	}
+	want := []string{"10.txt", "9.txt", "Z.txt", "_x.txt", "a.txt",
+		"sub", "z.txt", "\u00e9.txt", "\U0001f600.txt", "\uff5a.txt"}
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Errorf("ReadDir = %q\nwant %q", got, want)
 	}
 }

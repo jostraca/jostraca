@@ -1,6 +1,8 @@
 package jostraca
 
 import (
+	"fmt"
+	"strings"
 	"sync"
 	"time"
 )
@@ -41,20 +43,37 @@ func NewDLog(tag, file string) *DLog {
 
 // Log appends an entry. Safe for concurrent use.
 func (d *DLog) Log(args ...any) {
+	d.record(args...)
+}
+
+// record appends an entry and returns it.
+func (d *DLog) record(args ...any) dLogEntry {
 	if d == nil {
-		return
+		return dLogEntry{}
+	}
+	e := dLogEntry{
+		Tag:  d.tag,
+		File: d.file,
+		When: time.Now().UnixMilli(),
+		Args: append([]any(nil), args...),
 	}
 	dLogMu.Lock()
 	defer dLogMu.Unlock()
 	if len(dLogEntries) >= dLogMax {
 		dLogEntries = append([]dLogEntry(nil), dLogEntries[len(dLogEntries)-dLogMax+1:]...)
 	}
-	dLogEntries = append(dLogEntries, dLogEntry{
-		Tag:  d.tag,
-		File: d.file,
-		When: time.Now().UnixMilli(),
-		Args: append([]any(nil), args...),
-	})
+	dLogEntries = append(dLogEntries, e)
+	return e
+}
+
+// String joins the entry's fields with commas, as JavaScript's String()
+// joins TS's entry array; TS's trailing stack has no Go counterpart.
+func (e dLogEntry) String() string {
+	parts := []string{e.Tag, e.File, fmt.Sprint(e.When)}
+	for _, a := range e.Args {
+		parts = append(parts, fmt.Sprint(a))
+	}
+	return strings.Join(parts, ",")
 }
 
 // Entries returns a snapshot of all entries (optionally filtered by

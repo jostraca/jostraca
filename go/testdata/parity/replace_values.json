@@ -1,0 +1,199 @@
+{
+  "scenario": "replace_values",
+  "opts": {
+    "model": {
+      "name": "N"
+    }
+  },
+  "prepopulate": {
+    "/tpl/frag.txt": "FOO and BAR\n",
+    "/tpl/copy.txt": "copy FOO\n",
+    "/tpl/dir/c.txt": "C World\n"
+  },
+  "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/c.txt",
+      "/out/app/f.txt",
+      "/out/app/copy.txt",
+      "/out/app/r/c.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
+  "audit": [
+    [
+      "FileHandler:existsFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "exists": false
+      }
+    ],
+    [
+      "FileHandler:saveFile:FileOp:after:write:",
+      {
+        "path": "/out/app/c.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 126
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/c.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:FileOp:after:write:",
+      {
+        "path": "/out/app/f.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 50
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/f.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:Copy:copyFile:write:",
+      {
+        "path": "/out/app/copy.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 18
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/copy.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:Copy:copyFile:write:",
+      {
+        "path": "/out/app/r/c.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 10
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/r/c.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 1167
+      }
+    ],
+    [
+      "FileHandler:saveJSON:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "size": 1167
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/.gitignore",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 29
+      }
+    ]
+  ],
+  "vol": {
+    "/tpl/frag.txt": "FOO and BAR\n",
+    "/tpl/copy.txt": "copy FOO\n",
+    "/tpl/dir/c.txt": "C World\n",
+    "/out/app/c.txt": "zero=0;false=false;null=;empty=;arr=[1,\"a\"];obj={\"a\":[2,\"x\"],\"b\":1};big=1000000;huge=1e+21;tiny=1e-7;neg=-5\nline=123456789012\n",
+    "/out/app/f.txt": "5 and {\"a\":[true],\"k\":1}\nfalse and 2.5e-8\nfn and \n",
+    "/out/app/copy.txt": "copy 123456789012\n",
+    "/out/app/r/c.txt": "Z {\"o\":1}\n",
+    "/out/.jostraca/generated/app/c.txt": "zero=0;false=false;null=;empty=;arr=[1,\"a\"];obj={\"a\":[2,\"x\"],\"b\":1};big=1000000;huge=1e+21;tiny=1e-7;neg=-5\nline=123456789012\n",
+    "/out/.jostraca/generated/app/f.txt": "5 and {\"a\":[true],\"k\":1}\nfalse and 2.5e-8\nfn and \n",
+    "/out/.jostraca/generated/app/copy.txt": "copy 123456789012\n",
+    "/out/.jostraca/generated/app/r/c.txt": "Z {\"o\":1}\n",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/c.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/c.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/f.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/f.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/copy.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/copy.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/r/c.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/r/c.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}

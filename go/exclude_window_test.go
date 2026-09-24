@@ -182,3 +182,60 @@ func TestWithoutExcludeUserEditIsOverwritten(t *testing.T) {
 			got, "V2\n")
 	}
 }
+
+// The window compares WHOLE milliseconds: an output file is left alone when
+// its mtime, truncated to the millisecond, is later than `last`. A write
+// inside the millisecond `last` names is not newer than the build. TS
+// compared the fractional mtimeMs and moved to floor it, since the build's
+// own last write routinely lands in that millisecond. Mirrors
+// 'exclude-window-whole-milliseconds' in ts/test/jostraca.test.ts. Repro:
+// the excl_submillis audit case.
+func TestExcludeWindowWholeMilliseconds(t *testing.T) {
+	const t0 = int64(1735689600000)
+	dir := t.TempDir()
+	p := filepath.Join(dir, "a.txt")
+
+	run := func(now int64, src string, exclude bool) Result {
+		t.Helper()
+		res, err := New(WithFolder(fwd(dir)), WithNow(func() int64 { return now })).
+			Generate(Options{Exclude: exclude}, func(j *J) {
+				j.Project(ProjectProps{Folder: "."}, func(j *J) {
+					j.File("a.txt", func(j *J) { j.Content(src) })
+				})
+			})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res
+	}
+
+	for _, c := range []struct {
+		delta time.Duration
+		kept  bool
+	}{
+		{500 * time.Microsecond, false},
+		{999 * time.Microsecond, false},
+		{time.Millisecond, true},
+	} {
+		run(t0, "A\n", false)
+		if err := os.WriteFile(p, []byte("U\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		mt := time.UnixMilli(t0).Add(c.delta)
+		if err := os.Chtimes(p, mt, mt); err != nil {
+			t.Fatal(err)
+		}
+
+		res := run(t0+100000, "A2\n", true)
+		wantWritten, wantBody := 1, "A2\n"
+		if c.kept {
+			wantWritten, wantBody = 0, "U\n"
+		}
+		if len(res.Files.Written) != wantWritten {
+			t.Errorf("%v: written %v", c.delta, res.Files.Written)
+		}
+		if b, _ := os.ReadFile(p); string(b) != wantBody {
+			t.Errorf("%v: a.txt = %q, want %q", c.delta, b, wantBody)
+		}
+	}
+}

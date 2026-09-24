@@ -3,6 +3,7 @@ package jostraca
 import (
 	"fmt"
 	"path"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -19,7 +20,7 @@ type op struct {
 
 var ops = [kindCount]op{
 	KindNone:     {},
-	KindProject:  {before: projectBefore},
+	KindProject:  {before: projectBefore, after: projectAfter},
 	KindFolder:   {before: folderBefore, after: folderAfter},
 	KindFile:     {before: fileBefore, after: fileAfter},
 	KindContent:  {before: contentBefore},
@@ -35,7 +36,7 @@ func step(n *Node, st *jstate, b *buildCtx) error {
 		return nil
 	}
 	if int(n.Kind) >= int(kindCount) {
-		return wrap(n, fmt.Errorf("%w: %d", ErrMissingOp, n.Kind))
+		return wrap(n, fmt.Errorf("%w: %s", ErrMissingOp, kindName(n.Kind)))
 	}
 	o := ops[n.Kind]
 	if o.before != nil {
@@ -56,28 +57,44 @@ func step(n *Node, st *jstate, b *buildCtx) error {
 	return nil
 }
 
-// runBuild is the entry point used by Generate after the define phase.
-// Phase 6 onward: ops actually touch the filesystem via fileHandler.
-func runBuild(st *jstate) (*buildCtx, error) {
-	if st.root == nil {
-		return nil, nil
-	}
+// newBuild constructs the build context, its file handler and the meta
+// log load, as TS's BuildContext constructor does after every define
+// phase, build or no build. That is one clock sample for Result.When and
+// the meta log's existsFile, audited.
+func newBuild(st *jstate) (*buildCtx, error) {
 	b := newBuildCtx(st)
-	b.fh = newFileHandler(b)
-	if err := step(st.root, st, b); err != nil {
+	fh, err := newFileHandler(b)
+	if err != nil {
 		return b, err
 	}
-	if b.fh != nil && b.fh.bmeta != nil {
-		if err := b.fh.bmeta.done(); err != nil {
-			return b, err
-		}
-	}
+	b.fh = fh
 	return b, nil
+}
+
+// runBuild walks the tree and writes the meta log. A define phase that
+// produced nothing walks nothing and records nothing, as TS's build().
+func runBuild(st *jstate, b *buildCtx) error {
+	if st.root == nil {
+		return nil
+	}
+	if err := step(st.root, st, b); err != nil {
+		return err
+	}
+	return b.fh.bmeta.done()
 }
 
 // --- Op implementations (Phase 5 stubs unless noted). ---
 
 func projectBefore(n *Node, st *jstate, b *buildCtx) error {
+	// A Project's folder applies to its own subtree only: projectAfter puts
+	// the enclosing state back, so a later sibling, or the Folder around a
+	// nested Project, sees the path it had before. The path is copied
+	// because folderBefore appends to it.
+	prev := b.current.folder
+	prev.path = append([]string(nil), prev.path...)
+	n.Meta["projectPrevFolder"] = prev
+	n.Meta["projectPrevProject"] = b.current.project
+
 	b.current.project = n
 	folder := st.folder
 	if folder == "" {
@@ -107,6 +124,15 @@ func projectBefore(n *Node, st *jstate, b *buildCtx) error {
 	if b.fh != nil {
 		_ = b.fh.ensureFolder(parent)
 	}
+	return nil
+}
+
+func projectAfter(n *Node, _ *jstate, b *buildCtx) error {
+	if prev, ok := n.Meta["projectPrevFolder"].(folderRef); ok {
+		b.current.folder = prev
+	}
+	prevProject, _ := n.Meta["projectPrevProject"].(*Node)
+	b.current.project = prevProject
 	return nil
 }
 
@@ -172,7 +198,9 @@ func resolveFragmentFrom(st *jstate, from string) string {
 	if folder == "" {
 		folder = "."
 	}
-	return path.Clean(fwd(folder + "/" + from))
+	// A source keeps its platform meaning: TS joins it with Path.join and
+	// folds nothing on POSIX.
+	return path.Clean(filepath.ToSlash(folder + "/" + from))
 }
 
 // isAbsPath reports whether p is an absolute canonical-/ path.
@@ -200,7 +228,7 @@ func validName(name, kind string) error {
 		return r == '/' || r == '\\'
 	}) {
 		if seg == ".." {
-			return fmt.Errorf("%w: %s name=%s", ErrNameTraversal, kind, name)
+			return fmt.Errorf("%s %w, name=%s", kind, ErrNameTraversal, name)
 		}
 	}
 	return nil
@@ -258,11 +286,10 @@ func fileBefore(n *Node, st *jstate, b *buildCtx) error {
 	} else {
 		raw = parent + "/" + n.Name
 	}
-	// path.Clean collapses // and resolves . / ..; matches TS's
-	// Path.normalize at src/build/FileHandler.ts:151. This lets
-	// Folder({name: '/code/js'}) compose with Project({folder: '/top/sdk'})
-	// into a clean /top/sdk/code/js path.
-	n.FullPath = path.Clean(fwd(raw))
+	// canonOutPath collapses // and resolves . / .., as TS's canonPath
+	// does. This lets Folder({name: '/code/js'}) compose with
+	// Project({folder: '/top/sdk'}) into a clean /top/sdk/code/js path.
+	n.FullPath = canonOutPath(raw)
 	_ = st
 
 	// TWO FILES AT ONE PATH IS REFUSED, not resolved. See claimFile.
@@ -305,23 +332,23 @@ func (b *buildCtx) claimFile(fullpath, where string) error {
 	return nil
 }
 
-// collectInPlace appends the in-place content of `parent`'s children, in
-// source order, for the kinds `want` accepts.
+// collectInPlace appends, in source order, the text a File, an Inject or a
+// Fragment takes from its children: the Content of each Content, Fragment,
+// Inject and Copy child.
 //
-// KindNone is walked THROUGH rather than skipped. A user component wraps its
-// children in one (see Cmp in builder.go, mirroring TS's cmp()), and in TS
-// the nesting is invisible at this point because Content pushes into the
-// ambient current-file buffer at whatever depth it sits. Go collects from the
-// tree instead, so this walk has to do what TS's ambient buffer did for free
-// -- otherwise wrapping content in a user component emitted nothing at all.
-// See #29.
-func collectInPlace(sb *strings.Builder, parent *Node, want func(Kind) bool) {
+// Go collects from the tree where TS pushes into an ambient current-file
+// buffer, so the walk has to pass through every node that never becomes
+// the current file in TS: a user component's KindNone node (#29), a Folder,
+// a Project, and a Slot outside a Fragment, whose children render in place.
+// A File, an Inject and a directory copy write their own targets. Inside a
+// Fragment the replay renders a Slot, and a Fragment contributes its
+// rendered Content, so the walk never reaches that Slot from here.
+func collectInPlace(sb *strings.Builder, parent *Node) {
 	for _, c := range parent.Children {
-		if c.Kind == KindNone {
-			collectInPlace(sb, c, want)
-			continue
-		}
-		if want(c.Kind) {
+		switch c.Kind {
+		case KindNone, KindSlot, KindFolder, KindProject:
+			collectInPlace(sb, c)
+		case KindContent, KindFragment, KindInject, KindCopy:
 			for _, s := range c.Content {
 				sb.WriteString(s)
 			}
@@ -330,18 +357,12 @@ func collectInPlace(sb *strings.Builder, parent *Node, want func(Kind) bool) {
 }
 
 func fileAfter(n *Node, st *jstate, b *buildCtx) error {
-	// In-place content emission. Fragment/Inject/Copy/Slot ops stash their
-	// accumulated text in n.Content during their after-hooks; this splices
-	// it into the parent file's stream at the position where the child sat
-	// in source order.
+	// In-place content emission. Fragment/Inject/Copy ops stash their
+	// accumulated text in n.Content during their hooks; this splices it into
+	// the parent file's stream at the position where the child sat in source
+	// order.
 	var sb strings.Builder
-	collectInPlace(&sb, n, func(k Kind) bool {
-		switch k {
-		case KindContent, KindFragment, KindInject, KindCopy, KindSlot:
-			return true
-		}
-		return false
-	})
+	collectInPlace(&sb, n)
 	body := sb.String()
 	n.Content = []string{body}
 
@@ -351,8 +372,10 @@ func fileAfter(n *Node, st *jstate, b *buildCtx) error {
 	if n.FullPath == "" {
 		return nil
 	}
-	// Honour Exclude=true (skip).
-	if ex, ok := n.Exclude.(bool); ok && ex && b.fh.fs.Exists(n.FullPath) {
+	// An existing file is left alone when its exclude names it: true, or a
+	// string or list of strings equal to its component path. Mirrors
+	// FileOp.after in TS.
+	if fileExcluded(n) && b.fh.fs.Exists(n.FullPath) {
 		return nil
 	}
 	// Honour global Options.Exclude time-window: skip files modified on
@@ -365,50 +388,35 @@ func fileAfter(n *Node, st *jstate, b *buildCtx) error {
 			}
 		}
 	}
-	return b.fh.saveMode(n.FullPath, []byte(body), "FileOp:after", n.Mode)
+	return b.fh.saveMode(n.FullPath, []byte(body), "FileOp:after:", n.Mode)
 }
 
-// nodeText renders a node from a *replayed* subtree to its text.
-//
-// A replay (Fragment's slot/default handlers, and user func(*J) replace
-// callbacks) builds nodes outside the main tree walk, so their ops never
-// fire. Content nodes already carry their text, but a nested Fragment has
-// to be rendered here on demand. Inject and Copy are rendered by their own
-// after-hooks during the real walk, so their Content is taken as-is.
-//
-// Any other container is descended into, so content nested arbitrarily
-// deep is collected — matching TS, which accumulates into the current
-// file's buffer as the walk descends and so never had a depth limit.
-func nodeText(n *Node, st *jstate, b *buildCtx) string {
-	if n == nil {
-		return ""
-	}
-
-	var sb strings.Builder
-
-	switch n.Kind {
-	case KindContent, KindInject, KindCopy:
-		for _, s := range n.Content {
-			sb.WriteString(s)
-		}
-		return sb.String()
-
-	case KindFragment:
-		if len(n.Content) == 0 {
-			if err := fragmentAfter(n, st, b); err != nil && b.replayErr == nil {
-				b.replayErr = err
+// fileExcluded reports whether a File's exclude prop names it. The value
+// is compared with the component path, node.path.join('/') in TS: true
+// always matches, a string by equality, a list when it holds an equal
+// string. Anything else, a regexp entry included, matches nothing, as
+// Array.includes compares by equality.
+func fileExcluded(n *Node) bool {
+	rpath := strings.Join(n.Path, "/")
+	switch v := n.Exclude.(type) {
+	case bool:
+		return v
+	case string:
+		return v == rpath
+	case []string:
+		for _, s := range v {
+			if s == rpath {
+				return true
 			}
 		}
-		for _, s := range n.Content {
-			sb.WriteString(s)
+	case []any:
+		for _, x := range v {
+			if s, ok := x.(string); ok && s == rpath {
+				return true
+			}
 		}
-		return sb.String()
 	}
-
-	for _, c := range n.Children {
-		sb.WriteString(nodeText(c, st, b))
-	}
-	return sb.String()
+	return false
 }
 
 func contentBefore(n *Node, _ *jstate, b *buildCtx) error {
@@ -419,6 +427,9 @@ func contentBefore(n *Node, _ *jstate, b *buildCtx) error {
 	return nil
 }
 
+// copyFileWhence is the whence TS's CopyOp copyFile helper saves with.
+const copyFileWhence = "Copy:copyFile:"
+
 // copyBefore resolves single-file vs directory copies. For a single
 // file, it reads the source, applies template substitution to text
 // files, and queues a write at the resolved destination. For a
@@ -427,16 +438,17 @@ func copyBefore(n *Node, st *jstate, b *buildCtx) error {
 	if b.fh == nil {
 		return nil
 	}
-	// n.Name carries the Copy `To` prop.
-	if err := validName(n.Name, "Copy(To)"); err != nil {
-		return err
-	}
 	from := n.From
 	fi, err := b.fh.fs.Stat(from)
 	if err != nil {
 		return fmt.Errorf("Copy: stat %s: %w", from, err)
 	}
+	// n.Name carries the Copy `To` prop. TS checks a single file as the
+	// File it becomes and a directory as `Copy(to)`, and names it so.
 	if fi.IsDir {
+		if err := validName(n.Name, "Copy(to)"); err != nil {
+			return err
+		}
 		// Walk handled in copyAfter.
 		n.After = &AfterRef{Kind: "copy"}
 		return nil
@@ -446,6 +458,9 @@ func copyBefore(n *Node, st *jstate, b *buildCtx) error {
 	if name == "" {
 		name = pathBase(from)
 	}
+	if err := validName(name, "File"); err != nil {
+		return err
+	}
 	parent := b.current.folder.parent
 	dir := strings.Join(b.current.folder.path, "/")
 	dest := parent
@@ -453,7 +468,7 @@ func copyBefore(n *Node, st *jstate, b *buildCtx) error {
 		dest = dest + "/" + dir
 	}
 	dest = dest + "/" + name
-	dest = fwd(dest)
+	dest = canonOutPath(dest)
 
 	body, err := b.fh.fs.ReadFile(from)
 	if err != nil {
@@ -491,9 +506,9 @@ func copyAfter(n *Node, st *jstate, b *buildCtx) error {
 		// content-detected binary with an unlisted extension is governed by
 		// existing.bin rather than existing.txt.
 		if bin, _ := n.Meta["copyBinary"].(bool); bin {
-			return b.fh.saveBinary(n.FullPath, []byte(n.Content[0]), "CopyOp:after")
+			return b.fh.saveBinary(n.FullPath, []byte(n.Content[0]), copyFileWhence)
 		}
-		return b.fh.save(n.FullPath, []byte(n.Content[0]), "CopyOp:after")
+		return b.fh.save(n.FullPath, []byte(n.Content[0]), copyFileWhence)
 	case "copy":
 		return copyWalk(n, st, b)
 	}
@@ -553,7 +568,7 @@ func walkCopyDepth(b *buildCtx, st *jstate, from, to string, n *Node,
 	// dropped. Mirrors ts/src/op/CopyOp.ts.
 	real := realpathOf(b.fh.fs, from)
 	if _, seen := visited[real]; seen {
-		copyDlog.Log("copy", "symlink cycle, not descending: "+from+" -> "+real)
+		st.warn(copyDlog, "copy", "symlink cycle, not descending: "+from+" -> "+real)
 		return nil
 	}
 	visited[real] = struct{}{}
@@ -563,6 +578,9 @@ func walkCopyDepth(b *buildCtx, st *jstate, from, to string, n *Node,
 	if err != nil {
 		return err
 	}
+	// TS sorts readdirSync() with the default comparator, so a provider's
+	// own byte order is not enough once a name leaves the BMP.
+	sortDirEntriesJS(entries)
 	for _, e := range entries {
 		src := from + "/" + e.Name
 		dst := to + "/" + e.Name
@@ -590,23 +608,31 @@ func walkCopyDepth(b *buildCtx, st *jstate, from, to string, n *Node,
 			}
 			continue
 		}
+		// A listed binary extension goes through the handler's copy, which
+		// reads the source with an audited loadFile; anything else is read
+		// directly, sniffed and templated, as TS's walk routes on
+		// isTemplate(name).
+		if IsBinExt(e.Name) {
+			if err := b.fh.copy(src, dst); err != nil {
+				return err
+			}
+			continue
+		}
 		body, err := b.fh.fs.ReadFile(src)
 		if err != nil {
 			return err
 		}
-		isBin := IsBinExt(src) || IsBinContent(body)
-		if !isBin {
-			rendered, err := Template(string(body), st.model, &TemplateSpec{Replace: n.Replace})
-			if err != nil {
+		if IsBinExt(src) || IsBinContent(body) {
+			if err := b.fh.saveBinary(dst, body, copyFileWhence); err != nil {
 				return err
 			}
-			body = []byte(rendered)
+			continue
 		}
-		if isBin {
-			if err := b.fh.saveBinary(dst, body, "CopyOp:walk"); err != nil {
-				return err
-			}
-		} else if err := b.fh.save(dst, body, "CopyOp:walk"); err != nil {
+		rendered, err := Template(string(body), st.model, &TemplateSpec{Replace: n.Replace})
+		if err != nil {
+			return err
+		}
+		if err := b.fh.save(dst, []byte(rendered), copyFileWhence); err != nil {
 			return err
 		}
 	}
@@ -624,42 +650,6 @@ var injectDlog = NewDLog("jostraca", "build.go")
 // copyDlog records non-fatal Copy weirdness, mirroring the dlog in
 // ts/src/op/CopyOp.ts.
 var copyDlog = NewDLog("jostraca", "build.go")
-
-// injectExcluded reports whether name is excluded by the user's Inject
-// Exclude setting. Accepts bool (true → always exclude), string,
-// *regexp.Regexp, or a []any of those.
-func injectExcluded(name string, exclude any) bool {
-	switch v := exclude.(type) {
-	case nil:
-		return false
-	case bool:
-		return v
-	case string:
-		return v == name
-	case *regexp.Regexp:
-		return v != nil && v.MatchString(name)
-	case []any:
-		for _, x := range v {
-			switch xv := x.(type) {
-			case string:
-				if xv == name {
-					return true
-				}
-			case *regexp.Regexp:
-				if xv != nil && xv.MatchString(name) {
-					return true
-				}
-			}
-		}
-	case []string:
-		for _, s := range v {
-			if s == name {
-				return true
-			}
-		}
-	}
-	return false
-}
 
 // shouldIgnoreCopyPath decides whether a copy entry is skipped.
 //
@@ -686,6 +676,11 @@ func shouldIgnoreCopyPath(name, rel string, exclude any, ignores []*regexp.Regex
 	}
 	if rel == "" {
 		rel = name
+	}
+	// A []string or []*regexp.Regexp is the same list a []any is. The
+	// shape check accepts all three, so the walk has to honour all three.
+	if list, ok := propList(exclude); ok {
+		exclude = list
 	}
 	switch v := exclude.(type) {
 	case nil, bool:
@@ -725,7 +720,7 @@ func injectBefore(n *Node, _ *jstate, b *buildCtx) error {
 	} else {
 		n.FullPath = parent + "/" + n.Name
 	}
-	n.FullPath = fwd(n.FullPath)
+	n.FullPath = canonOutPath(n.FullPath)
 	b.current.file = n
 	return nil
 }
@@ -736,17 +731,17 @@ func injectAfter(n *Node, _ *jstate, b *buildCtx) error {
 	if b.fh == nil {
 		return nil
 	}
-	if injectExcluded(n.Name, n.Exclude) {
+	if jsTruthy(n.Exclude) {
 		return nil
 	}
 	var sb strings.Builder
-	collectInPlace(&sb, n, func(k Kind) bool { return k == KindContent })
+	collectInPlace(&sb, n)
 	body := sb.String()
 
 	// Inject rewrites a region of an existing file; a missing target is a
 	// user error. TS throws here, so the port must too.
 	if !b.fh.fs.Exists(n.FullPath) {
-		return fmt.Errorf("%w: path=%s (Inject rewrites an existing file; use File to create one)",
+		return fmt.Errorf("%w, path=%s (Inject rewrites an existing file; use File to create one)",
 			ErrInjectTargetMissing, n.FullPath)
 	}
 	src, err := b.fh.fs.ReadFile(n.FullPath)
@@ -807,12 +802,15 @@ func injectAfter(n *Node, _ *jstate, b *buildCtx) error {
 	if !matched {
 		// Nothing to inject into. Not fatal — the target may not be marked
 		// up yet — but it should not be invisible.
-		injectDlog.Log("inject", "markers not found, nothing injected: path="+n.FullPath)
-		return b.fh.save(n.FullPath, src, "InjectOp:after")
+		pair, _ := marshalJSLike(n.Markers[:])
+		b.st.warn(injectDlog, "inject", "markers not found, nothing injected: path="+
+			n.FullPath+" markers="+pair)
+		return b.fh.save(n.FullPath, src, "")
 	}
 	out.WriteString(s[pos:])
 
-	return b.fh.save(n.FullPath, []byte(out.String()), "InjectOp:after")
+	// TS saves an Inject with no whence of its own.
+	return b.fh.save(n.FullPath, []byte(out.String()), "")
 }
 
 // fragmentBefore stashes the parent file's current content slot so we
@@ -822,162 +820,18 @@ func fragmentBefore(n *Node, _ *jstate, b *buildCtx) error {
 	return nil
 }
 
-// fragmentAfter reads the From file, runs Template with replay
-// callbacks per Slot name, and appends output as a new Content node
-// on the parent File.
-func fragmentAfter(n *Node, st *jstate, b *buildCtx) error {
-	if b.fh == nil {
-		return nil
-	}
-	body, _ := n.Meta["fragmentBody"].(func(*J))
-	slotNames, _ := n.Meta["slotNames"].([]string)
-
-	// Already resolved at define time by FragmentP (see resolveFragmentFrom),
-	// and resolution is NOT idempotent for a relative output folder other
-	// than ".": re-resolving turned "generated/frag.txt" into
-	// "generated/generated/frag.txt", so define-time validation passed and
-	// then the read failed. Read the stored path, as ts/src/cmp/Fragment.ts
-	// does.
-	src, err := b.fh.fs.ReadFile(n.From)
-	if err != nil {
-		return err
-	}
-
-	// Build the replace map: one entry per named slot, plus a default
-	// <[SLOT]> handler for non-Slot children. Source iteration is
-	// alphabetical for cross-stack determinism.
-	//
-	// User-supplied func(*J) callbacks let replace handlers re-enter
-	// the component system. Wrap them here so the J they receive is
-	// bound to a fresh buffer node; the buffer's accumulated Content
-	// children become the replacement text. Mirrors TS Fragment's
-	// `handle: s => Content(s)` re-entrant pattern.
-	replace := map[string]any{}
-	for _, k := range sortedKeys(n.Replace) {
-		v := n.Replace[k]
-		if subFn, ok := v.(func(*J)); ok {
-			subFn := subFn
-			replace[k] = ReplaceFunc(func(_ map[string]string, _ string) string {
-				buffer := &Node{Kind: KindFragment, Meta: map[string]any{}}
-				subFn(&J{st: st, cur: buffer})
-				var sb strings.Builder
-				for _, c := range buffer.Children {
-					if c.Kind == KindContent {
-						for _, s := range c.Content {
-							sb.WriteString(s)
-						}
-					}
-				}
-				return sb.String()
-			})
-		} else {
-			replace[k] = v
-		}
-	}
-	// replayWithFilter runs the user's Fragment body against a fresh
-	// throwaway parent node carrying filter. Slot's check at SlotP looks
-	// at j.cur.Filter, so the filter must live on the throwaway, not on n.
-	replayWithFilter := func(filter FilterFunc, collect func(*Node) string) string {
-		// A Fragment may legitimately have no body: FragmentP returns before
-		// stashing one when body == nil (builder.go). Calling it anyway was a
-		// nil func call, so a two-line program -- a bodyless Fragment over a
-		// source containing an unnamed <[SLOT]> marker -- panicked and killed
-		// the caller's goroutine. TS renders the marker as empty in that case
-		// (each over null children is a no-op, ts/src/cmp/Fragment.ts), so an
-		// empty replay is the matching answer. See docs/design/PARITY_PLAN.md 3.
-		if body == nil {
-			return ""
-		}
-		throwaway := &Node{Kind: KindFragment, Meta: map[string]any{}, Filter: filter}
-		body(&J{st: st, cur: throwaway})
-		return collect(throwaway)
-	}
-	// Collect the replayed subtree in source order, at any depth. These used
-	// to look only one level down (Slot's direct Content grandchildren, or
-	// the parent's direct Content children), so anything nested deeper — a
-	// Fragment inside a Slot, most obviously — was silently dropped where TS
-	// emits it.
-	collectSlot := func(parent *Node) string {
-		var sb strings.Builder
-		for _, c := range parent.Children {
-			if c.Kind == KindSlot {
-				sb.WriteString(nodeText(c, st, b))
-			}
-		}
-		return sb.String()
-	}
-	collectContent := func(parent *Node) string {
-		var sb strings.Builder
-		for _, c := range parent.Children {
-			if c.Kind != KindSlot {
-				sb.WriteString(nodeText(c, st, b))
-			}
-		}
-		return sb.String()
-	}
-	for _, name := range slotNames {
-		name := name
-		key := "/[ \\t]*[-<!/#*]*[ \\t]*<\\[SLOT:" + EscRE(name) + "\\]>[ \\t]*[->/#*]*[ \\t]*/"
-		replace[key] = ReplaceFunc(func(_ map[string]string, _ string) string {
-			return replayWithFilter(
-				func(kind, slotName string) bool { return kind == "slot" && slotName == name },
-				collectSlot,
-			)
-		})
-	}
-	// Default <[SLOT]> matches non-Slot children.
-	//
-	// defaultSlot is set from inside the replacement rather than by
-	// re-testing the marker regex against the source: Template owns the
-	// matching, so asking Template is the only way to be sure the check
-	// below and the substitution can never disagree. Mirrors
-	// ts/src/cmp/Fragment.ts.
-	defaultSlot := false
-	replace["/[ \\t]*[-<!/#*]*[ \\t]*<\\[SLOT\\]>[ \\t]*[->/#*]*[ \\t]*/"] =
-		ReplaceFunc(func(_ map[string]string, _ string) string {
-			defaultSlot = true
-			return replayWithFilter(
-				func(kind, _ string) bool { return kind != "slot" },
-				collectContent,
-			)
-		})
-
-	rendered, err := Template(string(src), st.model, &TemplateSpec{
-		Replace: replace,
-		Eject:   n.Meta["fragmentEject"],
-	})
-	if err != nil {
-		return err
-	}
-	if b.replayErr != nil {
-		err, b.replayErr = b.replayErr, nil
-		return err
-	}
-	// Non-Slot children of a Fragment are the content of the *unnamed*
-	// <[SLOT]> marker. If the source has no unnamed marker there is
-	// nowhere for them to go, and both stacks used to drop them without a
-	// word.
-	//
-	// The signal is a flag set by the scan filter, not `len(n.Children)`:
-	// since the filter moved to attachAndDescend, nothing attaches during
-	// the scan at all, so children are always empty here. TS reads its own
-	// `sawnonslot` local at the same point.
-	_, sawNonSlot := n.Meta["fragmentSawNonSlot"]
-	if sawNonSlot && !defaultSlot {
-		return &NodeError{Step: "fragment", Err: fmtErrorf(
-			"Fragment has non-Slot children, but %s contains no unnamed "+
-				"<[SLOT]> marker to receive them; their output would be "+
-				"silently discarded. Add an unnamed <[SLOT]> marker to the "+
-				"fragment source, or wrap the children in a named Slot.",
-			n.From)}
-	}
+// fragmentAfter joins what the define-phase render attached, in source
+// order, and applies Indent. Nested components have run their own ops by
+// now, so a CopyFiles or a nested Fragment contributes its text here.
+func fragmentAfter(n *Node, _ *jstate, _ *buildCtx) error {
+	var sb strings.Builder
+	collectInPlace(&sb, n)
+	rendered := sb.String()
 	if n.Indent != nil {
 		rendered = Indent(rendered, n.Indent)
 	}
 
-	// Stash the rendered output on the Fragment node so the parent's
-	// fileAfter walks Children in source order and splices Fragment's
-	// content in place (not appended at the end).
+	// Stored on the node so the parent's collector splices it in place.
 	n.Content = []string{rendered}
 	return nil
 }

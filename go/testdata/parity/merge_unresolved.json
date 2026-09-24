@@ -1,0 +1,333 @@
+{
+  "scenario": "merge_unresolved",
+  "runs": [
+    {
+      "files": {
+        "preserved": [],
+        "written": [
+          "/out/app/a.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "audit": [
+        [
+          "FileHandler:existsFile:",
+          {
+            "path": "/out/.jostraca/jostraca.meta.log",
+            "when": 1735689600000,
+            "exists": false
+          }
+        ],
+        [
+          "FileHandler:saveFile:FileOp:after:write:",
+          {
+            "path": "/out/app/a.txt",
+            "when": 1735689600000,
+            "existed": false,
+            "size": 2
+          }
+        ],
+        [
+          "FileHandler:save:write",
+          {
+            "action": "write",
+            "path": "/out/app/a.txt",
+            "exists": false,
+            "actions": [
+              "write"
+            ],
+            "protect": false,
+            "conflict": false,
+            "when": 1735689600000,
+            "hwhen": 2025010100000000,
+            "why": [
+              "start<wX>",
+              "write-1",
+              "duplicate-1",
+              "within-0"
+            ]
+          }
+        ],
+        [
+          "FileHandler:saveFile:",
+          {
+            "path": "/out/.jostraca/jostraca.meta.log",
+            "when": 1735689600000,
+            "existed": false,
+            "size": 392
+          }
+        ],
+        [
+          "FileHandler:saveJSON:",
+          {
+            "path": "/out/.jostraca/jostraca.meta.log",
+            "when": 1735689600000,
+            "size": 392
+          }
+        ],
+        [
+          "FileHandler:saveFile:",
+          {
+            "path": "/out/.jostraca/.gitignore",
+            "when": 1735689600000,
+            "existed": false,
+            "size": 29
+          }
+        ]
+      ]
+    },
+    {
+      "files": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "/out/app/a.txt"
+        ],
+        "conflicted": [
+          "/out/app/a.txt"
+        ],
+        "unchanged": []
+      },
+      "audit": [
+        [
+          "FileHandler:existsFile:",
+          {
+            "path": "/out/.jostraca/jostraca.meta.log",
+            "when": 1735689600000,
+            "exists": true
+          }
+        ],
+        [
+          "FileHandler:loadFile:",
+          {
+            "path": "/out/.jostraca/jostraca.meta.log",
+            "when": 1735689600000,
+            "size": 392
+          }
+        ],
+        [
+          "FileHandler:loadJSON:",
+          {
+            "path": "/out/.jostraca/jostraca.meta.log",
+            "when": 1735689600000,
+            "size": 392
+          }
+        ],
+        [
+          "FileHandler:loadFile:",
+          {
+            "path": "/out/app/a.txt",
+            "when": 1735689600000,
+            "size": 7
+          }
+        ],
+        [
+          "FileHandler:existsFile:",
+          {
+            "path": "/out/.jostraca/generated/app/a.txt",
+            "when": 1735689600000,
+            "exists": true
+          }
+        ],
+        [
+          "FileHandler:loadFile:",
+          {
+            "path": "/out/.jostraca/generated/app/a.txt",
+            "when": 1735689600000,
+            "size": 2
+          }
+        ],
+        [
+          "FileHandler:saveFile:FileOp:after:merge:",
+          {
+            "path": "/out/app/a.txt",
+            "when": 1735689600000,
+            "existed": true,
+            "size": 118
+          }
+        ],
+        [
+          "FileHandler:save:merge",
+          {
+            "action": "merge",
+            "path": "/out/app/a.txt",
+            "exists": true,
+            "actions": [
+              "merge"
+            ],
+            "protect": false,
+            "conflict": true,
+            "when": 1735689600000,
+            "hwhen": 2025010100000000,
+            "why": [
+              "start<Wx>",
+              "exists-0",
+              "write-0",
+              "not-protect-1",
+              "merge-0",
+              "content-3",
+              "duplicate-0",
+              "dupexists-0",
+              "merge-run-0"
+            ]
+          }
+        ],
+        [
+          "FileHandler:saveFile:",
+          {
+            "path": "/out/.jostraca/jostraca.meta.log",
+            "when": 1735689600000,
+            "existed": true,
+            "size": 390
+          }
+        ],
+        [
+          "FileHandler:saveJSON:",
+          {
+            "path": "/out/.jostraca/jostraca.meta.log",
+            "when": 1735689600000,
+            "size": 390
+          }
+        ],
+        [
+          "FileHandler:saveFile:",
+          {
+            "path": "/out/.jostraca/.gitignore",
+            "when": 1735689600000,
+            "existed": true,
+            "size": 29
+          }
+        ]
+      ]
+    },
+    {
+      "files": {
+        "preserved": [],
+        "written": [],
+        "presented": [],
+        "diffed": [],
+        "merged": [
+          "/out/app/a.txt"
+        ],
+        "conflicted": [
+          "/out/app/a.txt"
+        ],
+        "unchanged": []
+      },
+      "audit": [
+        [
+          "FileHandler:existsFile:",
+          {
+            "path": "/out/.jostraca/jostraca.meta.log",
+            "when": 1735689600000,
+            "exists": true
+          }
+        ],
+        [
+          "FileHandler:loadFile:",
+          {
+            "path": "/out/.jostraca/jostraca.meta.log",
+            "when": 1735689600000,
+            "size": 390
+          }
+        ],
+        [
+          "FileHandler:loadJSON:",
+          {
+            "path": "/out/.jostraca/jostraca.meta.log",
+            "when": 1735689600000,
+            "size": 390
+          }
+        ],
+        [
+          "FileHandler:loadFile:",
+          {
+            "path": "/out/app/a.txt",
+            "when": 1735689600000,
+            "size": 118
+          }
+        ],
+        [
+          "FileHandler:existsFile:",
+          {
+            "path": "/out/.jostraca/generated/app/a.txt",
+            "when": 1735689600000,
+            "exists": true
+          }
+        ],
+        [
+          "FileHandler:loadFile:",
+          {
+            "path": "/out/.jostraca/generated/app/a.txt",
+            "when": 1735689600000,
+            "size": 6
+          }
+        ],
+        [
+          "FileHandler:save:merge",
+          {
+            "action": "merge",
+            "path": "/out/app/a.txt",
+            "exists": true,
+            "actions": [
+              "merge"
+            ],
+            "protect": false,
+            "conflict": true,
+            "when": 1735689600000,
+            "hwhen": 2025010100000000,
+            "why": [
+              "start<Wx>",
+              "exists-0",
+              "write-0",
+              "not-protect-1",
+              "merge-0",
+              "content-3",
+              "duplicate-0",
+              "dupexists-0",
+              "merge-unresolved-0"
+            ]
+          }
+        ],
+        [
+          "FileHandler:saveFile:",
+          {
+            "path": "/out/.jostraca/jostraca.meta.log",
+            "when": 1735689600000,
+            "existed": true,
+            "size": 390
+          }
+        ],
+        [
+          "FileHandler:saveJSON:",
+          {
+            "path": "/out/.jostraca/jostraca.meta.log",
+            "when": 1735689600000,
+            "size": 390
+          }
+        ],
+        [
+          "FileHandler:saveFile:",
+          {
+            "path": "/out/.jostraca/.gitignore",
+            "when": 1735689600000,
+            "existed": true,
+            "size": 29
+          }
+        ]
+      ]
+    }
+  ],
+  "vol": {
+    "/out/app/a.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\ngen\n=======\nuser\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
+    "/out/.jostraca/generated/app/a.txt": "A\ngen2\n",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"app/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}

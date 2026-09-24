@@ -1,6 +1,9 @@
 
 import { test, describe } from 'node:test'
 import * as Assert from 'node:assert'
+import * as Fs from 'node:fs'
+import * as Os from 'node:os'
+import * as Path from 'node:path'
 import { expect } from './expect'
 
 import { memfs } from '../dist/util/memfs'
@@ -14,12 +17,14 @@ import {
   Fragment,
   Content,
   Copy,
+  CopyFiles,
   Inject,
   Line,
   List,
   Slot,
 
   cmp,
+  cmpTree,
   each,
 } from '../'
 
@@ -543,6 +548,149 @@ describe('jostraca', () => {
   })
 
 
+  // A directory Copy walks its source in readdirSync().sort() order, which
+  // is JavaScript's UTF-16 code unit order: a name starting with U+1F600
+  // (a surrogate pair) sorts BEFORE one starting with U+FF5A, where byte
+  // order puts it after. files.written and the meta log follow the walk,
+  // so the order is pinned on memfs and on the real filesystem, and
+  // go/copy_test.go pins the same list.
+  const COPY_ORDER = [
+    '10.txt', '9.txt', 'B.txt', 'Z.txt', '_x.txt', 'a.txt',
+    '\u00e9.txt', '\u{1F600}.txt', '\uFF5A.txt',
+  ]
+
+  async function copyOrder(fs: any, src: string, out: string, join: Function) {
+    const info = await Jostraca({ now: () => 0 }).generate(
+      { fs: () => fs, folder: out },
+      cmp(() => { Project({ folder: '.' }, () => { Copy({ from: src }) }) }))
+    expect(info.files.written.map((p: string) => Path.basename(p)))
+      .equal(COPY_ORDER)
+    const meta = JSON.parse(fs.readFileSync(
+      join(out, '.jostraca', 'jostraca.meta.log'), 'utf8'))
+    expect(Object.keys(meta.files)).equal(COPY_ORDER)
+  }
+
+  test('copy-order-utf16-memfs', async () => {
+    const files: any = {}
+    for (const n of COPY_ORDER) { files['/tpl/order/' + n] = n + '\n' }
+    await copyOrder(memfs(files).fs, '/tpl/order', '/out', Path.posix.join)
+  })
+
+  test('copy-order-utf16-realfs', async () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'jostraca-order-'))
+    try {
+      Fs.mkdirSync(Path.join(dir, 'tpl'))
+      for (const n of COPY_ORDER) {
+        Fs.writeFileSync(Path.join(dir, 'tpl', n), n + '\n')
+      }
+      await copyOrder(Fs, Path.join(dir, 'tpl'), Path.join(dir, 'out'), Path.join)
+    }
+    finally {
+      Fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+
+  // The meta log is JSON.stringify output, so '&', '<', '>' and U+2028 in
+  // a path are written raw. go/filehandler_test.go
+  // TestMetaLogQuotesLikeJSONStringify holds these bytes as its golden.
+  test('meta-log-quotes-raw', async () => {
+    const { fs, vol } = memfs({})
+    await Jostraca({ now: () => START_TIME }).generate(
+      { fs: () => fs, folder: '/out' },
+      cmp(() => {
+        Project({ folder: '.' }, () => {
+          for (const n of ['a&b.txt', 'x<y>.txt', 'u\u2028v.txt']) {
+            File({ name: n }, () => { Content('A\n') })
+          }
+        })
+      }))
+    const meta = (vol.toJSON() as any)['/out/.jostraca/jostraca.meta.log']
+    for (const raw of ['"a&b.txt": {', '"path": "x<y>.txt"', '"u\u2028v.txt": {']) {
+      expect(meta.includes(raw)).equal(true)
+    }
+    expect(/\\u(0026|003c|003e|2028)/.test(meta)).equal(false)
+  })
+
+
+  // A model path resolves through OWN properties only, so a macro naming
+  // an Object.prototype member is an unresolved path and stays in place;
+  // it used to render the member ('A[object Undefined]B') or throw. And a
+  // path through a null intermediate is a miss rather than a TypeError
+  // that aborted the whole generate.
+  test('macro-own-properties-only', async () => {
+    const { fs, vol } = memfs({})
+    await Jostraca({ now: () => START_TIME }).generate(
+      { fs: () => fs, folder: '/out', model: { a: { n: null } } },
+      cmp(() => {
+        Project({ folder: '.' }, () => {
+          File({ name: 'a.txt' }, () => {
+            Content('A$$toString$$B\n')
+            Content('C$$hasOwnProperty$$D$$a.n.x$$E\n')
+          })
+        })
+      }))
+    expect((vol.toJSON() as any)['/out/a.txt'])
+      .equal('A$$toString$$B\nC$$hasOwnProperty$$D$$a.n.x$$E\n')
+  })
+
+
+  // A plain replace value formats as a function's return does, in every
+  // component that takes a replace map: 0 and false print instead of
+  // collapsing to '', and objects are JSON. go/template_test.go
+  // TestReplaceValuesFormatInComponents expects the same bytes.
+  test('replace-values-format-in-components', async () => {
+    const { fs, vol } = memfs({
+      '/tpl/frag.txt': 'FOO and BAR\n',
+      '/tpl/copy.txt': 'copy FOO\n',
+    })
+    await Jostraca({ now: () => START_TIME }).generate(
+      { fs: () => fs, folder: '/out' },
+      cmp(() => {
+        Project({ folder: '.' }, () => {
+          File({ name: 'c.txt' }, () => {
+            Content({ src: 'zero=FOO;', replace: { FOO: 0 } })
+            Content({ src: 'false=FOO;', replace: { FOO: false } })
+            Content({ src: 'big=FOO;', replace: { FOO: 1e6 } })
+            Content({ src: 'obj=FOO\n', replace: { FOO: { b: 1, a: [2, 'x'] } } })
+          })
+          File({ name: 'f.txt' }, () => {
+            Fragment({ from: '/tpl/frag.txt', replace: { FOO: false, BAR: 2.5e-8 } })
+          })
+          Copy({ from: '/tpl/copy.txt', replace: { FOO: 123456789012 } })
+        })
+      }))
+    const out: any = vol.toJSON()
+    expect(out['/out/c.txt'])
+      .equal('zero=0;false=false;big=1000000;obj={"a":[2,"x"],"b":1}\n')
+    expect(out['/out/f.txt']).equal('false and 2.5e-8\n')
+    expect(out['/out/copy.txt']).equal('copy 123456789012\n')
+  })
+
+
+  // A fixed clock of () => 0 is the natural golden-file choice, so it must
+  // give byte-stable output: humanify(0) is the epoch, not the wall clock.
+  // go/filehandler_test.go TestNowZeroIsDeterministic pins the same bytes.
+  test('now-zero-is-deterministic', async () => {
+    const run = async () => {
+      const { fs, vol } = memfs({})
+      await Jostraca({ now: () => 0 }).generate(
+        { fs: () => fs, folder: '/out' },
+        cmp(() => {
+          Project({ folder: '.' }, () => {
+            File({ name: 'a.txt' }, () => { Content('A\n') })
+          })
+        }))
+      return (vol.toJSON() as any)['/out/.jostraca/jostraca.meta.log']
+    }
+    const first = await run()
+    expect(first.includes('"hlast": 1970010100000000,')).equal(true)
+    expect(first.includes('"hwhen": 1970010100000000')).equal(true)
+    await new Promise((r) => setTimeout(r, 15))
+    expect(await run()).equal(first)
+  })
+
+
   test('fragment-basic', async () => {
     let nowI = 0
     const now = () => START_TIME + (++nowI * (60 * 1000))
@@ -666,6 +814,21 @@ describe('jostraca', () => {
     err = undefined
     await gen('/tmp/both.txt').catch((e: any) => err = e)
     expect(err).equal(undefined)
+
+    // A child the scan rejects is never called, so its own `from` is not
+    // checked: with no unnamed marker the refusal is the non-Slot one,
+    // whatever the child. Go: TestFragmentNonSlotChildWithoutDefaultSlot.
+    for (const child of [
+      () => Fragment({ from: '/tmp/missing.txt' }),
+      () => CopyFiles({ from: '/tmp/missing.txt' }),
+    ]) {
+      err = undefined
+      await Jostraca({}).generate({ fs: () => fs, folder: '/top' },
+        () => Project({}, () => File({ name: 'foo.txt' }, () =>
+          Fragment({ from: '/tmp/named.txt' }, child))))
+        .catch((e: any) => err = e)
+      expect(/no unnamed <\[SLOT\]> marker/.test(String(err?.message))).equal(true)
+    }
   })
 
 
@@ -1738,6 +1901,570 @@ describe('list-string-child', () => {
   test('keeps-the-bare-item-limit', async () => {
     expect(await gen(list({ item: ['a', 'b'], line: false }, 'v={item}\n')))
       .equal('v=\nv=\n')
+  })
+
+})
+
+
+// Component behaviour both ports pin with the same expected output. The Go
+// mirrors live beside the tests each one names.
+describe('components', () => {
+
+  const gen = async (fsdef: any, def: any, gopts?: any) => {
+    const { fs, vol } = memfs(fsdef)
+    await Jostraca({ now: () => START_TIME, ...(gopts || {}) })
+      .generate({ fs: () => fs, folder: '/out' }, cmp(def))
+    const out: any = {}
+    for (const [k, v] of Object.entries(vol.toJSON() as any)) {
+      if (k.startsWith('/out/' + META_FOLDER)) continue
+      out[k] = v
+    }
+    return out
+  }
+
+
+  // A Fragment is templated once. A `$$x$$` that arrives inside a model
+  // value, a plain replace value or a replace function's return is text,
+  // as it is in a plain Content. Go: TestFragmentTemplatesOnce.
+  test('fragment-templates-once', async () => {
+    const out = await gen({
+      '/tm/double.txt': '[$$a$$]\n',
+      '/tm/replace.txt': 'FOO and BAR $$name$$\n',
+    }, () => Project({}, () => {
+      File({ name: 'double.txt' }, () => {
+        Fragment({ from: '/tm/double.txt' })
+        Content('content:$$a$$\n')
+      })
+      File({ name: 'r1.txt' }, () => Fragment({
+        from: '/tm/replace.txt', replace: { FOO: '$$b$$', BAR: 'bar' }
+      }))
+      File({ name: 'r2.txt' }, () => Fragment({
+        from: '/tm/replace.txt',
+        replace: { FOO: '$$"q"$$', BAR: () => '$$name$$' }
+      }))
+    }), { model: { a: '$$b$$', b: 'X', name: 'N' } })
+
+    expect(out['/out/double.txt']).equal('[$$b$$]\ncontent:$$b$$\n')
+    expect(out['/out/r1.txt']).equal('$$b$$ and bar N\n')
+    expect(out['/out/r2.txt']).equal('$$"q"$$ and $$name$$ N\n')
+  })
+
+
+  // A Fragment renders when it is called, in the define phase: the source
+  // is read, the slots replayed and the template run there, and whatever a
+  // slot or replace handler emits becomes a child the build walk visits.
+  // Go: go/fragment_timing_test.go, which pins each of these.
+  const genErr = async (fsdef: any, def: any, gopts?: any) => {
+    const { fs, vol } = memfs(fsdef)
+    let err: any = null
+    try {
+      await Jostraca({ now: () => START_TIME, ...(gopts || {}) })
+        .generate({ fs: () => fs, folder: '/out' }, cmp(def))
+    }
+    catch (e: any) {
+      err = e
+    }
+    return { err, vol: vol.toJSON() as any }
+  }
+
+  const FRAG_SRC = {
+    '/tm/noslot.txt': 'no markers $$name$$\n',
+    '/tm/model.txt': 'M=$$name$$\n',
+    '/tm/twice.txt': '1 <[SLOT:a]>\n2 <[SLOT:a]>\n3 <[SLOT]>\n4 <[SLOT]>\n',
+    '/tm/replace.txt': 'FOO and BAR $$name$$\n',
+    '/tm/slot.txt': 'HEAD<[SLOT:s]>TAIL\n',
+    '/tm/c.txt': 'copied $$name$$\n',
+  }
+
+  const noOutput = (vol: any) =>
+    Object.keys(vol).filter((k: string) => k.startsWith('/out'))
+
+  test('fragment-render-error-writes-nothing', async () => {
+    const nonslot = await genErr(FRAG_SRC, () => Project({}, () => {
+      File({ name: 'ok.txt' }, () => Content('ok'))
+      File({ name: 'n.txt' }, () =>
+        Fragment({ from: '/tm/noslot.txt' }, () => Content('lost')))
+    }))
+    Assert.match(nonslot.err.message, /Fragment has non-Slot children/)
+    expect(noOutput(nonslot.vol)).equal([])
+
+    const empty = await genErr(FRAG_SRC, () => Project({}, () => {
+      File({ name: 'first.txt' }, () => Content('first'))
+      File({ name: 'e.txt' }, () =>
+        Fragment({ from: '/tm/model.txt', replace: { '/x*/': 'y' } }))
+    }), { model: { name: 'World' } })
+    Assert.match(empty.err.message, /matches empty string/)
+    expect(noOutput(empty.vol)).equal([])
+  })
+
+  test('fragment-reads-the-model-when-called', async () => {
+    const model: any = { name: 'World' }
+    const out = await gen(FRAG_SRC, () => Project({}, () => {
+      File({ name: 'm.txt' }, () => {
+        Fragment({ from: '/tm/model.txt' })
+        Content('content=$$name$$\n')
+        model.name = 'CHANGED'
+      })
+    }), { model })
+    expect(out['/out/m.txt']).equal('M=World\ncontent=World\n')
+  })
+
+  test('fragment-body-runs-in-the-define-phase', async () => {
+    let n = 0
+    const out = await gen(FRAG_SRC, () => Project({}, () => {
+      File({ name: 'c.txt' }, () => {
+        Fragment({ from: '/tm/twice.txt' }, () => {
+          n++
+          Slot({ name: 'a' }, () => Content('a' + n))
+          Content('d' + n)
+        })
+        Content('after=' + n + '\n')
+      })
+    }))
+    expect(out['/out/c.txt']).equal('1a2\n2a3\n3d4\n4d5\nafter=5\n')
+  })
+
+  test('fragment-reads-its-source-before-the-run-writes-it', async () => {
+    const out = await gen({ ...FRAG_SRC, '/out/tpl.txt': 'OLD $$name$$ <[SLOT]>\n' },
+      () => Project({}, () => {
+        File({ name: 'tpl.txt' }, () => Content('NEW $$name$$ <[SLOT]>\n'))
+        File({ name: 'use.txt' }, () => Fragment({ from: 'tpl.txt' }, () => Content('S')))
+      }), { model: { name: 'World' } })
+    expect(out['/out/tpl.txt']).equal('NEW World <[SLOT]>\n')
+    expect(out['/out/use.txt']).equal('OLD WorldS\n')
+  })
+
+  test('fragment-slot-copy-runs-in-the-build', async () => {
+    const out = await gen(FRAG_SRC, () => Project({}, () => {
+      File({ name: 'f.txt' }, () => {
+        Fragment({ from: '/tm/slot.txt' }, () => {
+          Slot({ name: 's' }, () => {
+            Content('pre;')
+            CopyFiles({ from: '/tm/c.txt', to: 'c.txt' })
+            Content('post;')
+          })
+        })
+      })
+    }), { model: { name: 'World' } })
+    expect(out['/out/c.txt']).equal('copied World\n')
+    expect(out['/out/f.txt']).equal('HEADpre;copied World\npost;TAIL\n')
+  })
+
+  // Everything a replace handler emits lands at the marker, in emission
+  // order: ListItems, Line, a nested Fragment and a user component.
+  test('fragment-replace-handler-emissions', async () => {
+    const Wrap = cmp(function Wrap(_props: any, children: any) {
+      Content('<')
+      each(children, { call: true })
+      Content('>')
+    })
+    const out = await gen(FRAG_SRC, () => Project({}, () => {
+      File({ name: 'f.txt' }, () => {
+        Fragment({
+          from: '/tm/replace.txt', replace: {
+            FOO: () => {
+              List({ item: [{ n: 1 }, { n: 2 }], line: false },
+                ({ replace }: any) => Content({ src: '[{item.n}]', replace }))
+            },
+            BAR: () => { Line('bar') },
+          }
+        })
+        Fragment({
+          from: '/tm/replace.txt', replace: {
+            FOO: () => { Fragment({ from: '/tm/model.txt' }) },
+            BAR: () => { Wrap(() => Content('w')) },
+          }
+        })
+      })
+    }), { model: { name: 'World' } })
+    expect(out['/out/f.txt'])
+      .equal('[1][2] and bar\n World\nM=World\n and <w> World\n')
+  })
+
+
+  // A Folder or a Project in a Slot never becomes the current file, so
+  // the Content inside it lands at the marker, and the directories are
+  // still made. Go: TestFragmentFolderAndProjectInASlot.
+  test('fragment-folder-and-project-in-a-slot', async () => {
+    const { fs, vol } = memfs({ '/tm/s2.txt': 'A<[SLOT:s]>B<[SLOT]>C\n' })
+    await Jostraca({ now: () => START_TIME }).generate({ fs: () => fs, folder: '/out' },
+      cmp(() => Project({}, () => {
+        File({ name: 'f.txt' }, () => Fragment({ from: '/tm/s2.txt' }, () => {
+          Slot({ name: 's' }, () => Folder({ name: 'd' }, () => Content('x')))
+          Folder({ name: 'e' }, () => Content('y'))
+        }))
+        File({ name: 'g.txt' }, () => Fragment({ from: '/tm/s2.txt' }, () => {
+          Slot({ name: 's' }, () => Project({ folder: 'p' }, () => Content('x')))
+        }))
+      })))
+    const out: any = vol.toJSON()
+    expect(out['/out/f.txt']).equal('AxByC\n')
+    expect(out['/out/g.txt']).equal('AxBC\n')
+    expect([out['/out/d'], out['/out/e'], out['/out/p']]).equal([null, null, null])
+  })
+
+
+  // A Project's folder applies only to its own subtree. When it closes the
+  // enclosing folder state comes back, so a later sibling lands where it
+  // would have without the Project, and nothing is written outside the
+  // output folder. Go: go/project_scope_test.go.
+  const genIn = async (folder: string, def: any) => {
+    const { fs, vol } = memfs({})
+    const info = await Jostraca({ now: () => START_TIME })
+      .generate({ fs: () => fs, folder }, cmp(def))
+    const files = Object.keys(vol.toJSON() as any)
+      .filter((k: string) => !k.includes('/' + META_FOLDER + '/')).sort()
+    return { files, written: info.files.written.slice().sort() }
+  }
+
+  test('project-nested-in-folder', async () => {
+    const { files } = await genIn('/out', () => Project({ folder: '.' }, () => {
+      Folder({ name: 'a' }, () => {
+        Project({ folder: 'p2' }, () => File({ name: 'x.txt' }, () => Content('x')))
+      })
+      File({ name: 'y.txt' }, () => Content('y'))
+    }))
+    expect(files).equal(['/out/a', '/out/p2/x.txt', '/out/y.txt'])
+  })
+
+  test('project-nested-two-folders', async () => {
+    const { files } = await genIn('/w/out', () => Project({ folder: '.' }, () => {
+      Folder({ name: 'a' }, () => {
+        Folder({ name: 'b' }, () => {
+          Project({ folder: 'p2' }, () => File({ name: 'x.txt' }, () => Content('x')))
+        })
+        File({ name: 'z.txt' }, () => Content('z'))
+      })
+      File({ name: 'y.txt' }, () => Content('y'))
+    }))
+    expect(files).equal(
+      ['/w/out/a/b', '/w/out/a/z.txt', '/w/out/p2/x.txt', '/w/out/y.txt'])
+  })
+
+  // #26: a File after a sibling Project lands in the enclosing folder, not
+  // in the Project's.
+  test('project-then-sibling-file', async () => {
+    const nested = await genIn('/out', () => Project({ folder: '.' }, () => {
+      Project({ folder: 'p' }, () => File({ name: 'a.txt' }, () => Content('a')))
+      File({ name: 'y.txt' }, () => Content('y'))
+    }))
+    expect(nested.files).equal(['/out/p/a.txt', '/out/y.txt'])
+
+    const top = await genIn('/out', () => {
+      Project({ folder: 'p' }, () => File({ name: 'a.txt' }, () => Content('a')))
+      File({ name: 'y.txt' }, () => Content('y'))
+    })
+    expect(top.files).equal(['/out/p/a.txt', '/out/y.txt'])
+  })
+
+  test('two-sibling-projects', async () => {
+    const { files } = await genIn('/out', () => {
+      Project({ folder: 'a' }, () => File({ name: 'x.txt' }, () => Content('x')))
+      Project({ folder: 'b' }, () => File({ name: 'y.txt' }, () => Content('y')))
+    })
+    expect(files).equal(['/out/a/x.txt', '/out/b/y.txt'])
+  })
+
+
+  // A File nested in a File, directly or through a Folder, is written to
+  // its own path and the outer File keeps all of its own content, before
+  // and after it. Go: TestFileInsideFile in go/nested_emitters_test.go.
+  test('file-inside-file', async () => {
+    const direct = await genIn('/out', () => Project({}, () => {
+      File({ name: 'outer.txt' }, () => {
+        Content('1')
+        File({ name: 'inner.txt' }, () => Content('2'))
+        Content('3')
+      })
+    }))
+    expect(direct.files).equal(['/out/inner.txt', '/out/outer.txt'])
+    expect(direct.written).equal(['/out/inner.txt', '/out/outer.txt'])
+
+    const out = await gen({}, () => Project({}, () => {
+      File({ name: 'outer.txt' }, () => {
+        Content('1')
+        File({ name: 'inner.txt' }, () => Content('2'))
+        Content('3')
+      })
+      File({ name: 'outer2.txt' }, () => {
+        Content('1')
+        Folder({ name: 'sub' }, () => File({ name: 'inner.txt' }, () => Content('2')))
+        Content('3')
+      })
+    }))
+    expect(out).equal({
+      '/out/outer.txt': '13',
+      '/out/inner.txt': '2',
+      '/out/outer2.txt': '13',
+      '/out/sub/inner.txt': '2',
+    })
+  })
+
+
+  // A Folder or a Project inside a File never becomes the current file, so
+  // what its children emit lands in the File, in source order, and the
+  // directories are still made. A File or an Inject in there writes its own
+  // target. Go: TestFolderAndProjectInsideFile.
+  test('folder-and-project-inside-file', async () => {
+    const out = await gen({
+      '/src/c.txt': 'C$$name$$\n',
+      '/tm/f.txt': '[F<[SLOT]>]\n',
+      '/out/inj.txt': 'h\n#--START--#\nold\n#--END--#\nt\n',
+    }, () => Project({}, () => {
+      File({ name: 'f.txt' }, () => {
+        Content('1'); Folder({ name: 'd' }, () => Content('x')); Content('2')
+      })
+      File({ name: 'g.txt' }, () => {
+        Content('1'); Project({ folder: 'p' }, () => Content('y')); Content('2')
+      })
+      File({ name: 'h.txt' }, () => {
+        Content('1')
+        Folder({ name: 'e' }, () => Copy({ from: '/src/c.txt', to: 'c2.txt' }))
+        Content('2')
+      })
+      File({ name: 'i.txt' }, () => {
+        Content('1')
+        Folder({ name: 'k' }, () =>
+          Folder({ name: 'l' }, () => Fragment({ from: '/tm/f.txt' }, () => Content('S'))))
+        Content('2')
+      })
+      File({ name: 'j.txt' }, () => {
+        Content('1')
+        Folder({ name: 'm' }, () => {
+          File({ name: 'inner.txt' }, () => Content('I'))
+          Content('z')
+        })
+        Content('2')
+      })
+      File({ name: 'n.txt' }, () => {
+        Content('1')
+        Folder({ name: '.' }, () => Inject({ name: 'inj.txt' }, () => Content('NEW')))
+        Content('2')
+      })
+    }), { model: { name: 'N' } })
+    expect(out).equal({
+      '/src/c.txt': 'C$$name$$\n',
+      '/tm/f.txt': '[F<[SLOT]>]\n',
+      '/out/d': null,
+      '/out/p': null,
+      '/out/k/l': null,
+      '/out/f.txt': '1x2',
+      '/out/g.txt': '1y2',
+      '/out/e/c2.txt': 'CN\n',
+      '/out/h.txt': '1CN\n2',
+      '/out/i.txt': '1[FS]\n2',
+      '/out/m/inner.txt': 'I',
+      '/out/j.txt': '1z2',
+      '/out/inj.txt': 'h\n#--START--#\nNEW\n#--END--#\nt\n',
+      '/out/n.txt': '12',
+    })
+  })
+
+
+  // The global exclude window compares WHOLE milliseconds: an output file is
+  // left alone when floor(mtimeMs) > last. A write inside the millisecond
+  // `last` names is not newer than the build. Real filesystem, because the
+  // point is a sub-millisecond mtime. Go: TestExcludeWindowWholeMilliseconds.
+  test('exclude-window-whole-milliseconds', async () => {
+    const T0 = START_TIME
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'jostraca-excl-'))
+    const p = Path.join(dir, 'a.txt')
+    const run = (now: number, src: string, exclude: boolean) =>
+      Jostraca({ now: () => now }).generate(
+        { fs: () => Fs, folder: dir, exclude },
+        cmp(() => Project({ folder: '.' }, () =>
+          File({ name: 'a.txt' }, () => Content(src)))))
+
+    try {
+      for (const [delta, kept] of [[0.5, false], [0.999, false], [1, true]] as const) {
+        await run(T0, 'A\n', false)
+        Fs.writeFileSync(p, 'U\n')
+        Fs.utimesSync(p, (T0 + delta) / 1000, (T0 + delta) / 1000)
+
+        const info = await run(T0 + 100000, 'A2\n', true)
+        expect([delta, info.files.written.length]).equal([delta, kept ? 0 : 1])
+        expect([delta, Fs.readFileSync(p, 'utf8')]).equal([delta, kept ? 'U\n' : 'A2\n'])
+      }
+    }
+    finally {
+      Fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+
+  // A single-file text CopyFiles inside a File or an Inject splices exactly
+  // the text it writes to its own target: model substitution AND its
+  // `replace`. Go: TestCopyInsideFileReplace.
+  test('copy-inside-file-replace', async () => {
+    const out = await gen({ '/tm/single.txt': 'single $$name$$ FOO\n' },
+      () => Project({}, () => {
+        File({ name: 'host.txt' }, () => {
+          Content('pre\n')
+          CopyFiles({ from: '/tm/single.txt', to: 'spliced.txt', replace: { FOO: 'bar' } })
+          Content('post\n')
+        })
+      }), { model: { name: 'World' } })
+    expect(out['/out/spliced.txt']).equal('single World bar\n')
+    expect(out['/out/host.txt']).equal('pre\nsingle World bar\npost\n')
+
+    const inj = await gen({
+      '/tm/single.txt': 'single $$name$$ FOO\n',
+      '/out/t.txt': 'head\n#--START--#\nold\n#--END--#\ntail\n',
+    }, () => Project({}, () => {
+      Inject({ name: 't.txt' }, () => {
+        Content('pre;')
+        CopyFiles({ from: '/tm/single.txt', to: 'spliced.txt', replace: { FOO: 'bar' } })
+        Content('post;')
+      })
+    }), { model: { name: 'World' } })
+    expect(inj['/out/spliced.txt']).equal('single World bar\n')
+    expect(inj['/out/t.txt'])
+      .equal('head\n#--START--#\npre;single World bar\npost;\n#--END--#\ntail\n')
+  })
+
+
+  // A component's indent is the indent() helper's: a string pad is literal,
+  // `$`-patterns included, and a count that is negative, zero or not finite
+  // adds nothing, through Content, Line, Fragment and a ListItems binding.
+  // Go: the component_indent parity scenario.
+  test('component-indent', async () => {
+    const out = await gen({ '/tpl/f.txt': 'F1\nF2\n' }, () => Project({}, () => {
+      File({ name: 'a.txt' }, () => {
+        Content({ src: 'a\nb\n', indent: '$$ ' })
+        Line({ src: 'c', indent: '$& ' })
+        Fragment({ from: '/tpl/f.txt', indent: '$1|' })
+        Content({ src: 'd\n', indent: "$'" })
+        Content({ src: 'e\n', indent: '$`' })
+        Content({ src: 'g\nh\n', indent: -1 })
+        Line({ src: 'i', indent: -1 })
+        Fragment({ from: '/tpl/f.txt', indent: -1 })
+        Content({ src: 'j\n', indent: 2.7 })
+        Content({ src: 'k\n', indent: -0.5 })
+        List({ item: [{ n: 'x' }], indent: '$$ ', line: false },
+          ({ item, indent }: any) => Content({ src: item.n + '\n', indent }))
+      })
+    }))
+    expect(out['/out/a.txt']).equal('$$ a\n$$ b\n$& c\n$1|F1\n$1|F2\n$\'d\n$`e\n' +
+      'g\nh\ni\nF1\nF2\n  j\nk\n$$ x\n')
+  })
+
+
+  // Fragment and CopyFiles refuse a wrongly typed prop when they are
+  // called, before anything is written, whether the tree is code or data.
+  // Content has no shape, so its indent is stringified. Go:
+  // TestClosedShapePropTypes, TestCmpTreeClosedPropTypes and
+  // TestContentIndentIsNotTypeChecked.
+  test('closed-shape-prop-types', async () => {
+    const SRC = { '/tm/model.txt': 'M=$$name$$\n', '/tm/tree/a.txt': 'A\n' }
+    const refused = async (def: any, want: RegExp) => {
+      const { err, vol } = await genErr(SRC, () => Project({}, () => {
+        File({ name: 'first.txt' }, () => Content('first'))
+        def()
+      }), { model: { name: 'World' } })
+      expect(null == err).equal(false)
+      Assert.match(err.message, want)
+      expect(noOutput(vol)).equal([])
+    }
+
+    await refused(() => CopyFiles({ from: '/tm/tree', to: 'n', exclude: 5 as any }),
+      /Value "5" for property "exclude" does not satisfy one of: Boolean, String, RegExp/)
+    await refused(() => File({ name: 'b.txt' }, () =>
+      Fragment({ from: '/tm/model.txt', indent: true as any })),
+      /Fragment: Value "true" for property "indent" does not satisfy one of: String, Number/)
+
+    const tree = (node: any) => () => cmpTree([node])()
+    await refused(tree({ cmp: 'CopyFiles', props: { from: '/tm/tree', exclude: { a: 1 } } }),
+      /Value "\{a:1\}" for property "exclude"/)
+    await refused(tree({ cmp: 'CopyFiles', props: { from: '/tm/tree', to: 5 } }),
+      /property "to" with number "5" because the number is not of type string/)
+    await refused(tree({
+      cmp: 'File', props: { name: 'b.txt' },
+      children: [{ cmp: 'Fragment', props: { from: '/tm/model.txt', indent: ['>'] } }],
+    }), /Value "\[>\]" for property "indent"/)
+
+    // A null indent is a value, refused, whether the node states it or a
+    // ListItems binds it; an unset one binds nothing, and passes.
+    const NULL_INDENT =
+      /Fragment: Value "null" for property "indent" does not satisfy one of: String, Number/
+    const listed = (listProps: any, fragProps: any) => tree({
+      cmp: 'File', props: { name: 'l.txt' },
+      children: [{
+        cmp: 'ListItems', props: { item: [{ n: 1 }], line: false, ...listProps },
+        children: [{ cmp: 'Fragment', props: { from: '/tm/model.txt', ...fragProps } }],
+      }],
+    })
+    await refused(tree({
+      cmp: 'File', props: { name: 'b.txt' },
+      children: [{ cmp: 'Fragment', props: { from: '/tm/model.txt', indent: null } }],
+    }), NULL_INDENT)
+    await refused(listed({ indent: null }, {}), NULL_INDENT)
+    await refused(listed({ indent: 2 }, { indent: null }), NULL_INDENT)
+    for (const [listProps, want] of [[{}, 'M=World\n'], [{ indent: 2 }, '  M=World\n']]) {
+      const out = await gen(SRC, () => Project({}, listed(listProps, {})),
+        { model: { name: 'World' } })
+      expect({ listProps, got: out['/out/l.txt'] }).equal({ listProps, got: want })
+    }
+
+    const out = await gen({}, () => Project({}, () =>
+      File({ name: 'c.txt' }, () => Content({ src: 'x\ny\n', indent: true as any }))))
+    expect(out['/out/c.txt']).equal('truex\ntruey\n')
+  })
+
+
+  // A component used outside a generate callback throws at once, naming
+  // itself, before and after a generate has run. Go panics with the same
+  // text on the *J that New returned: TestComponentOutsideGenerate.
+  test('component-outside-generate', async () => {
+    const Wrap = cmp(function Wrap() { Content('w') })
+    const Anon = cmp(() => { Content('a') })
+    let ran = false
+    const body = () => { ran = true }
+
+    const calls: [string, () => any][] = [
+      ['Project', () => Project({ folder: 'p' }, body)],
+      ['Folder', () => Folder({ name: 'd' }, body)],
+      ['File', () => File({ name: 'x.txt' }, body)],
+      ['Content', () => Content('x')],
+      ['Line', () => Line('x')],
+      ['Slot', () => Slot({ name: 's' }, body)],
+      ['Inject', () => Inject({ name: 't.txt' }, body)],
+      ['Fragment', () => Fragment({ from: '/f.txt' }, body)],
+      ['CopyFiles', () => CopyFiles({ from: '/f.txt' })],
+      ['CopyFiles', () => Copy({ from: '/f.txt' })],
+      ['ListItems', () => List({ item: [1] }, body)],
+      ['Wrap', () => Wrap({})],
+      ['<anon>', () => Anon({})],
+    ]
+
+    const check = () => {
+      for (const [name, call] of calls) {
+        Assert.throws(call, {
+          message: 'jostraca: component ' + name + ' called outside generate(); ' +
+            'components can only be used inside the callback passed to ' +
+            'Jostraca().generate()'
+        })
+      }
+      expect(ran).equal(false)
+    }
+
+    check()
+
+    // A call kept from inside the callback and made once generate() has
+    // returned throws too, as Go's kept *J panics: TestComponentOutsideGenerate.
+    const kept: (() => any)[] = []
+    const out = await gen({ '/f.txt': 'F\n' }, () =>
+      File({ name: 'ok.txt' }, () => {
+        kept.push(() => Content('late'))
+        Content('OK')
+      }))
+    expect(out['/out/ok.txt']).equal('OK')
+
+    check()
+    Assert.throws(kept[0], {
+      message: 'jostraca: component Content called outside generate(); ' +
+        'components can only be used inside the callback passed to ' +
+        'Jostraca().generate()'
+    })
   })
 
 })

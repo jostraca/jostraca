@@ -26,6 +26,7 @@ const node_test_1 = require("node:test");
 const expect_1 = require("./expect");
 const node_path_1 = __importDefault(require("node:path"));
 const memfs_1 = require("../dist/util/memfs");
+const basic_1 = require("../dist/util/basic");
 // Must stay identical to absBoundaryCases in go/platform_test.go.
 const ABS_BOUNDARY = [
     // path, posix, win32
@@ -45,6 +46,31 @@ const ABS_BOUNDARY = [
     ['1:/x', false, false], // digit is not a drive letter
     [':/x', false, false], // empty drive letter
 ];
+// Must stay identical to extBoundaryCases in go/platform_test.go: node's
+// path.extname on both platforms, which isbinext follows.
+const EXT_BOUNDARY = [
+    // path, posix, win32
+    ["a.png", ".png", ".png"],
+    ["a.png/", ".png", ".png"],
+    ["a.png//", ".png", ".png"],
+    ["a/b.PNG/", ".PNG", ".PNG"],
+    ["/a.png/", ".png", ".png"],
+    ["x\\.png", ".png", ""],
+    ["x\\a.png", ".png", ".png"],
+    ["a.b\\c", ".b\\c", ""],
+    [".gitignore", "", ""],
+    ["..", "", ""],
+    ["a.", ".", "."],
+    ["C:a.png", ".png", ".png"],
+    ["C:.png", ".png", ""],
+    ["", "", ""],
+    ["/", "", ""],
+    ["a..png", ".png", ".png"],
+    [".a.png", ".png", ".png"],
+    ["a.png\\", ".png\\", ".png"],
+    [".png/", "", ""],
+    ["x/.png//", "", ""],
+];
 (0, node_test_1.describe)('platform', () => {
     // Compared as whole tables rather than case by case: a mismatch then
     // names the offending path in the diff, which a bare `false !== true`
@@ -60,6 +86,17 @@ const ABS_BOUNDARY = [
         const windows = 'win32' === process.platform;
         const actual = ABS_BOUNDARY.map(([path]) => [path, node_path_1.default.isAbsolute(path)]);
         (0, expect_1.expect)(actual).equal(ABS_BOUNDARY.map(([path, posix, win32]) => [path, windows ? win32 : posix]));
+    });
+    (0, node_test_1.test)('extname-boundary', async () => {
+        const actual = EXT_BOUNDARY.map(([path]) => [path, node_path_1.default.posix.extname(path), node_path_1.default.win32.extname(path)]);
+        (0, expect_1.expect)(actual).equal(EXT_BOUNDARY);
+    });
+    // isbinext follows the host's leg: a backslash is part of a POSIX name,
+    // so 'x\\.png' is a PNG there and a hidden '.png' file on Windows.
+    (0, node_test_1.test)('isbinext-dispatch', async () => {
+        const windows = 'win32' === process.platform;
+        (0, expect_1.expect)((0, basic_1.isbinext)('x\\.png')).equal(!windows);
+        (0, expect_1.expect)((0, basic_1.isbinext)('a.png/')).equal(true);
     });
     // A WINDOWS DRIVE PATH IN THE MEMORY FILESYSTEM, and it is asserted on
     // every platform because the bug had nothing to do with the host: it

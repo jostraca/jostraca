@@ -45,6 +45,7 @@ const node_path_1 = __importDefault(require("node:path"));
 // already reaches into dist/ the same way.
 const Basic = __importStar(require("../dist/util/basic"));
 const DiffUtil = __importStar(require("../dist/diff"));
+const __1 = require("../");
 // The shared corpus, driven by both stacks. See test/spec/README.md.
 // __dirname is ts/dist-test at run time, so the repo root is two up.
 const SPEC_DIR = node_path_1.default.join(__dirname, '..', '..', 'test', 'spec');
@@ -66,13 +67,43 @@ const FN = {
     getx: (a) => Basic.getx(a[0], a[1]),
     deep: (a) => Basic.deep(...a),
     omap: (a) => Object.entries(Basic.omap(a[0])),
+    // Flags are booleans only; Go's EachSpec holds their inverses.
+    // Projection values '$COPY', '$KEY' and '$FILTER' stand for the
+    // sentinels, which JSON cannot carry.
+    cmap: (a) => Basic.cmap(a[0], mapSpec(a[1], Basic.cmap)),
+    vmap: (a) => Basic.vmap(a[0], mapSpec(a[1], Basic.vmap)),
+    humanify: (a) => Basic.humanify(a[0], a[1]),
+    each: (a) => 1 === a.length
+        ? Basic.each(a[0])
+        : Basic.each(a[0], a[1]),
     template: (a) => Basic.template(a[0], a[1], a[2]),
     names: (a) => 2 === a.length
         ? Basic.names(a[0], a[1])
         : Basic.names(a[0], a[1], a[2]),
     lines: (a) => DiffUtil.lines(a[0]),
     lcs: (a) => DiffUtil.lcs(a[0], a[1]),
+    merge: (a) => DiffUtil.merge(a[0], a[1], a[2], a[3]),
+    diff: (a) => DiffUtil.diff(a[0], a[1], a[2]),
+    hasConflicts: (a) => DiffUtil.hasConflicts(a[0], a[1]),
+    // Option validation. Jostraca() runs OptionsShape; ExistingShape runs
+    // only inside generate, so a define-only generate follows.
+    options: async (a) => {
+        (0, __1.Jostraca)(structuredClone(a[0]));
+        await (0, __1.Jostraca)({ mem: true })
+            .generate({ ...structuredClone(a[0]), build: false }, () => { });
+        return 'ok';
+    },
+    // cmpTree refuses a malformed tree when it builds the callback.
+    cmptree: (a) => ((0, __1.cmpTree)(a[0]), 'ok'),
 };
+function mapSpec(p, fn) {
+    const S = { $COPY: fn.COPY, $KEY: fn.KEY, $FILTER: fn.FILTER };
+    const out = {};
+    for (const [k, v] of Object.entries(p)) {
+        out[k] = 'string' === typeof v && S[v] ? S[v] : v;
+    }
+    return out;
+}
 function loadCases() {
     const out = [];
     const files = node_fs_1.default.readdirSync(SPEC_DIR)
@@ -167,18 +198,20 @@ function sorted(val) {
             seen.set(key, c.file);
         }
     });
+    // Async, because an adapter may return a promise (`options` validates
+    // through generate); a synchronous throw becomes a rejection here.
     for (const c of cases) {
-        (0, node_test_1.test)(`${c.file}/${c.id}`, () => {
+        (0, node_test_1.test)(`${c.file}/${c.id}`, async () => {
             const where = `${c.file}:${c.line} ${c.id}`;
             if ('' !== c.error) {
-                node_assert_1.default.throws(() => FN[c.fn](c.args), (err) => {
+                await node_assert_1.default.rejects(async () => FN[c.fn](c.args), (err) => {
                     node_assert_1.default.ok(String(err.message).includes(c.error), `${where}: message ${JSON.stringify(err.message)} ` +
                         `does not contain ${JSON.stringify(c.error)}`);
                     return true;
                 }, `${where}: expected a throw containing ${JSON.stringify(c.error)}`);
                 return;
             }
-            const actual = FN[c.fn](c.args);
+            const actual = await FN[c.fn](c.args);
             node_assert_1.default.equal(canon(actual), canon(c.expect), where);
         });
     }

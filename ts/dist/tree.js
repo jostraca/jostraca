@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TREE_RAW_CMP = exports.TREE_CMP_DEPRECATED = exports.TREE_CMP = void 0;
+exports.TREE_CLOSED_CMP = exports.TREE_RAW_CMP = exports.TREE_CMP_DEPRECATED = exports.TREE_CMP = void 0;
 exports.cmpTree = cmpTree;
 // THE DATA-DRIVEN DEFINE PHASE. A SUPPORTED SURFACE: exported from the
 // package, documented in docs/reference-components.md (`cmpTree()`) and
@@ -155,6 +155,19 @@ exports.TREE_CMP_DEPRECATED = TREE_CMP_DEPRECATED;
 // in a consumer's pipeline.
 const TREE_RAW_CMP = [Content_1.Content, Line_1.Line];
 exports.TREE_RAW_CMP = TREE_RAW_CMP;
+// THE COMPONENTS WHOSE PROP SET IS CLOSED, by identity, with the props a
+// node may state: the two built-ins that validate a closed shape. Checked
+// over each node's OWN props when the tree is read, like every other
+// refusal here, so a malformed node is refused even when it would never
+// run -- under an empty ListItems, or as a child of Content. The shapes
+// still validate at call time. By identity, so the deprecated `Copy`
+// alias is covered and a caller's override, which replaces the component
+// and the shape with it, is not.
+const TREE_CLOSED_CMP = new Map([
+    [Fragment_1.Fragment, Fragment_1.FRAGMENT_PROPS],
+    [CopyFiles_1.CopyFiles, CopyFiles_1.COPYFILES_PROPS],
+]);
+exports.TREE_CLOSED_CMP = TREE_CLOSED_CMP;
 const ON = 'cmpTree:';
 function nodeErr(msg, path) {
     return new Error(ON + ' ' + msg + ' (at ' + (path || '<root>') + ')');
@@ -242,6 +255,13 @@ function nodeThunk(node, cmps, path, defaults) {
         throw nodeErr('props is not an object', path);
     }
     validFolder(props, path);
+    const closed = TREE_CLOSED_CMP.get(component);
+    if (null != closed && null != props) {
+        const bad = Object.keys(props).filter((k) => !closed.includes(k)).sort();
+        if (0 < bad.length) {
+            throw nodeErr(component.name + ': prop not allowed: ' + bad.join(', '), path);
+        }
+    }
     const kids = node.children;
     if (null != kids && !Array.isArray(kids)) {
         throw nodeErr('children is not an array', path);

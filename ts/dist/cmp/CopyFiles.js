@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Copy = exports.CopyFiles = void 0;
+exports.COPYFILES_PROPS = exports.Copy = exports.CopyFiles = void 0;
 const jostraca_1 = require("../jostraca");
 const shape_1 = require("shape");
 const From = (from, _, s) => s.ctx.meta.fs().statSync(from);
@@ -11,7 +11,7 @@ const From = (from, _, s) => s.ctx.meta.fs().statSync(from);
 // component reads, and it is a prop besides; `item` and `indent` it
 // does not, which is why they are here and not in `CopyFilesProps`. A
 // props type says what a CALLER writes, and nobody writes a binding.
-const CopyFilesShape = (0, shape_1.Shape)({
+const CopyFilesSpec = {
     ctx$: Object,
     // The From path is independent of the project folder.
     from: (0, shape_1.Check)(From).String(),
@@ -30,7 +30,11 @@ const CopyFilesShape = (0, shape_1.Shape)({
     // `Indent` field was removed rather than kept as a promise.
     item: (0, shape_1.Skip)(),
     indent: (0, shape_1.Skip)(),
-}, { name: 'CopyFiles' });
+};
+// The props a data node may state -- see FRAGMENT_PROPS in Fragment.ts.
+const COPYFILES_PROPS = Object.keys(CopyFilesSpec).filter((k) => 'ctx$' !== k);
+exports.COPYFILES_PROPS = COPYFILES_PROPS;
+const CopyFilesShape = (0, shape_1.Shape)(CopyFilesSpec, { name: 'CopyFiles' });
 const CopyFiles = (0, jostraca_1.cmp)(function CopyFiles(props, _children) {
     const ctx = props.ctx$;
     const node = ctx.node;

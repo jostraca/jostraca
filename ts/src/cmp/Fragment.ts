@@ -7,6 +7,8 @@ import { cmp, template, each, escre, Content } from '../jostraca'
 
 import { Shape, One, Optional, Check, Empty, Skip } from 'shape'
 
+import { decodeText } from '../util/bytes'
+
 
 /**
  * The props `Fragment` reads.
@@ -63,14 +65,22 @@ const From = (from: any, _: any, s: any) => s.ctx.fs().statSync(from)
 // than becoming the one declaration that means nothing. A tree that
 // passes it is refused by name from here on, which is the diagnostic it
 // should have had all along.
-const FragmentShape = Shape({
+const FragmentSpec = {
   ctx$: Object,
   from: Check(From).String() as unknown as string,
   indent: Optional(One(Empty(String), Number)),
   replace: {} as any,
   eject: Optional([One(String, RegExp)]) as unknown as any[],
   item: Skip() as any,
-}, { name: 'Fragment' })
+}
+
+// The props a data node may state: the closed set less the context the
+// define phase adds. `cmpTree` checks a node against it when it reads
+// the tree, so a malformed node is refused even if it never runs.
+const FRAGMENT_PROPS: string[] =
+  Object.keys(FragmentSpec).filter((k) => 'ctx$' !== k)
+
+const FragmentShape = Shape(FragmentSpec, { name: 'Fragment' })
 
 
 // Discard a replace function's return value when the call emitted
@@ -160,7 +170,13 @@ const Fragment = cmp<FragmentProps>(function Fragment(props, children) {
   // Already absolute by here: resolved above, before validation.
   const frompath = node.from as string
 
-  let src = fs.readFileSync(frompath, 'utf8')
+  // Bytes that are not UTF-8 survive as escapes, and the file the text
+  // lands in is then written through encodeText. See util/bytes.
+  const decoded = decodeText(fs.readFileSync(frompath))
+  const src = decoded.text
+  if (decoded.escaped) {
+    node.meta.escaped = true
+  }
 
   const slotnames: Record<string, boolean> = {}
 
@@ -207,10 +223,15 @@ const Fragment = cmp<FragmentProps>(function Fragment(props, children) {
     }
   })
 
+  // RAW: `template` has already substituted the model and the replace
+  // values, so each segment is final text. Templating it again expanded a
+  // `$$x$$` that arrived inside a model value, a replace value or a replace
+  // function's return, which is the injection `raw` exists to prevent. A
+  // plain Content is one pass, and so is a Fragment.
   template(src, model, {
     replace,
     eject: props?.eject,
-    handle: (s?: string) => null == s ? null : Content(s)
+    handle: (s?: string) => null == s ? null : Content({ src: s, raw: true })
   })
 
   if (sawnonslot && !defaultslot) {
@@ -224,7 +245,8 @@ const Fragment = cmp<FragmentProps>(function Fragment(props, children) {
 
 
 export {
-  Fragment
+  Fragment,
+  FRAGMENT_PROPS,
 }
 
 export type {

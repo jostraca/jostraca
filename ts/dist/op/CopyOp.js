@@ -7,6 +7,7 @@ exports.CopyOp = void 0;
 const node_path_1 = __importDefault(require("node:path"));
 const jostraca_1 = require("../jostraca");
 const basic_1 = require("../util/basic");
+const bytes_1 = require("../util/bytes");
 // Log non-fatal weirdness.
 const dlog = (0, basic_1.getdlog)('jostraca', __filename);
 const FileHandler_1 = require("../build/FileHandler");
@@ -35,12 +36,16 @@ const CopyOp = {
             node.meta.copy_file = buildctx.current.file;
             FileOp_1.FileOp.before(node, ctx$, buildctx);
             const topath = node.path;
+            // `node` carries the copy's `replace`, which processTemplate reads.
+            // Without it the text spliced into the enclosing file skipped the
+            // replacements the copy's own target got in after().
             const state = {
                 fileCount: 0,
                 folderCount: 0,
                 tmCount: 0,
                 ctx$,
                 buildctx,
+                node,
             };
             const spec = { name, frompath: from, topath: topath.join('/') };
             let content = processTemplate(state, fs.readFileSync(from), spec);
@@ -85,6 +90,7 @@ const CopyOp = {
             for (const part of copied) {
                 buildctx.current.file.content.push(part);
             }
+            (0, bytes_1.escapedInto)(node, buildctx.current.file);
         }
         const frompath = node.from;
         let topath = buildctx.folderPath();
@@ -246,9 +252,10 @@ function copyFile(frompath, topath, state, buildctx, fs) {
         buildctx.fh.saveBinary(topath, raw, ON + FN);
         return;
     }
-    const src = raw.toString('utf8');
-    const out = (0, jostraca_1.template)(src, state.ctx$.model, { replace: state.node.replace });
-    buildctx.fh.save(topath, out, ON + FN);
+    // Bytes that are not UTF-8 survive the template as escapes.
+    const src = (0, bytes_1.decodeText)(raw);
+    const out = (0, jostraca_1.template)(src.text, state.ctx$.model, { replace: state.node.replace });
+    buildctx.fh.save(topath, src.escaped ? (0, bytes_1.encodeText)(out) : out, ON + FN);
 }
 // TODO: needs an option
 function ignored(state, nodepath, name, topath) {
@@ -344,7 +351,11 @@ function processTemplate(state, raw, spec) {
     // Same reasoning as copyFile: the extension check alone is not enough to
     // know a file is safe to decode and re-encode as utf8.
     if (isTemplate(spec.name) && !(0, basic_1.isbincontent)(raw)) {
-        return (0, jostraca_1.template)(raw.toString('utf8'), state.ctx$.model, {
+        const src = (0, bytes_1.decodeText)(raw);
+        if (src.escaped) {
+            state.node.meta.escaped = true;
+        }
+        return (0, jostraca_1.template)(src.text, state.ctx$.model, {
             replace: {
                 ...(state.node?.replace || {}),
             }

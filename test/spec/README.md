@@ -54,9 +54,15 @@ Three rules make a single expectation work in two languages:
   `[key, value]` pairs rather than an object — see the `omap` cases. This
   is the only form that can express ordering to both stacks.
 
+- **Never index into an astral character.** Its surrogate halves differ
+  in corpus JSON between the stacks, even though the bytes written to
+  disk agree. A string holding one is fine, and an index past it counts
+  both halves, which is what the `*-string-utf16-*` rows pin.
+
 Error messages are worded differently by the two implementations, so
 `error` holds a short portable fragment both must contain, not a full
-message.
+message. Where both stacks produce the same text by construction, as
+`options.tsv` does through `shape`, a row may hold the full message.
 
 ## The `isbincontent` 8 KB bound
 
@@ -81,6 +87,20 @@ between the two units, not the behaviour.
 
 Append a row. Both runners pick it up with no code change, provided `fn`
 is already dispatched.
+
+Some functions take arguments JSON cannot carry directly:
+
+- `each` takes `[subject, {mark, oval, sort}]`, booleans only; Go maps
+  them to `EachSpec`'s inverted fields.
+- `cmap` and `vmap` take the projection values `"$COPY"`, `"$KEY"` and
+  `"$FILTER"` for the sentinels.
+- `humanify` takes `[when, {parts, terse}]`.
+- A `template` row may carry `open`, `close` and `ref` in its spec. Keep
+  them non-empty, since an empty one means the default in Go.
+
+An adapter may return a promise; the TypeScript runner awaits it, so a
+function that validates inside `generate` (the `options` function) can be
+a corpus function too.
 
 Adding a *function* means adding an adapter to both runners. Each runner
 fails on an unknown `fn` rather than skipping it, so a corpus entry can

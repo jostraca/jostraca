@@ -104,6 +104,9 @@ const LABEL_EXISTING = 'EXISTING'
 // this has an unresolved merge in it.
 const UNRESOLVED_MARK = MARK_END + LABEL_EXISTING + ':'
 
+// The largest epoch-ms magnitude a Date holds.
+const MAX_DATE_MS = 8.64e15
+
 
 // Whether text still holds an unresolved conflict from an earlier merge.
 // Keyed on the closing EXISTING marker alone: a half-resolved file, where
@@ -134,24 +137,31 @@ function hasConflicts(text: string, existingLabel?: string): boolean {
   // merge returned `unresolved` — silently suppressing a legitimate
   // regeneration over a marker the engine never emitted. writeConflict
   // always appends '\n', so the newline is safe to require.
-  return null != existingLabel &&
+  return null != existingLabel && '' !== existingLabel &&
     text.includes(MARK_END + existingLabel + '\n')
 }
 
 
+// Total, so a cosmetic label can never abort a generate: an out-of-range
+// value is clamped to the Date range, and one that is not a finite number
+// is the epoch. go/diff.go isoOf formats the same strings.
 function isoOf(when?: number): string {
-  return new Date(null == when ? 0 : when).toISOString()
+  const ms = ('number' === typeof when && isFinite(when)) ?
+    Math.max(-MAX_DATE_MS, Math.min(MAX_DATE_MS, Math.trunc(when))) : 0
+  return new Date(ms).toISOString()
 }
 
 
+// An empty kind or label is unset, as it is in Go, whose plain string
+// fields cannot tell the two apart.
 function labelsOf(spec: DiffSpec | undefined, defaultKind: string): DiffLabels {
-  const kind = null == spec?.kind ? defaultKind : spec.kind
+  const kind = null == spec?.kind || '' === spec.kind ? defaultKind : spec.kind
 
   return {
-    generated: null == spec?.labels?.generated ?
+    generated: null == spec?.labels?.generated || '' === spec.labels.generated ?
       LABEL_GENERATED + ': ' + isoOf(spec?.when) + '/' + kind :
       spec.labels.generated,
-    existing: null == spec?.labels?.existing ?
+    existing: null == spec?.labels?.existing || '' === spec.labels.existing ?
       LABEL_EXISTING + ': ' + isoOf(spec?.last) + '/' + kind :
       spec.labels.existing,
   }
@@ -346,6 +356,15 @@ function sameLines(a: string[], b: string[]): boolean {
 }
 
 
+// Not `out.push(...xs)`: V8 bounds spread arguments by stack size, so a
+// region of about 125k lines threw RangeError where Go's append does not.
+function pushAll(out: string[], xs: string[]): void {
+  for (const x of xs) {
+    out.push(x)
+  }
+}
+
+
 // Whether the text accumulated so far ends with a newline, so a marker
 // always starts on its own line.
 //
@@ -364,13 +383,13 @@ function writeConflict(
   labels: DiffLabels,
 ): void {
   out.push(MARK_START + labels.generated + '\n')
-  out.push(...generated)
+  pushAll(out, generated)
   if (!endsWithNewline(out)) {
     out.push('\n')
   }
 
   out.push(MARK_MID)
-  out.push(...existing)
+  pushAll(out, existing)
   if (!endsWithNewline(out)) {
     out.push('\n')
   }
@@ -410,8 +429,6 @@ function merge(
     return { content: generated, conflict: false, outcome: 'clean' }
   }
 
-  const labels = labelsOf(spec, 'merge')
-
   // Never merge into an unresolved merge — that stacks conflict markers
   // inside conflict markers and is unreadable. Leave it for the user.
   // Pass the EXPLICIT custom label, not the formatted one: the formatted
@@ -419,6 +436,8 @@ function merge(
   if (hasConflicts(existing, spec?.labels?.existing)) {
     return { content: existing, conflict: false, outcome: 'unresolved' }
   }
+
+  const labels = labelsOf(spec, 'merge')
 
   const gl = lines(generated)
   const bl = lines(baseline)
@@ -442,13 +461,13 @@ function merge(
       const eIns = el.slice(ei, eMap[bi])
 
       if (sameLines(gIns, eIns)) {
-        out.push(...gIns)
+        pushAll(out, gIns)
       }
       else if (0 === gIns.length) {
-        out.push(...eIns)
+        pushAll(out, eIns)
       }
       else if (0 === eIns.length) {
-        out.push(...gIns)
+        pushAll(out, gIns)
       }
       else {
         writeConflict(out, gIns, eIns, labels)
@@ -484,15 +503,15 @@ function merge(
 
     if (sameLines(bRegion, gRegion)) {
       // Only the user changed this region.
-      out.push(...eRegion)
+      pushAll(out, eRegion)
     }
     else if (sameLines(bRegion, eRegion)) {
       // Only the generator changed this region.
-      out.push(...gRegion)
+      pushAll(out, gRegion)
     }
     else if (sameLines(gRegion, eRegion)) {
       // Both made the same change.
-      out.push(...gRegion)
+      pushAll(out, gRegion)
     }
     else {
       writeConflict(out, gRegion, eRegion, labels)
@@ -516,13 +535,13 @@ function merge(
     const eTail = el.slice(ei)
 
     if (sameLines(gTail, eTail)) {
-      out.push(...gTail)
+      pushAll(out, gTail)
     }
     else if (0 === gTail.length) {
-      out.push(...eTail)
+      pushAll(out, eTail)
     }
     else if (0 === eTail.length) {
-      out.push(...gTail)
+      pushAll(out, gTail)
     }
     else {
       writeConflict(out, gTail, eTail, labels)
@@ -622,7 +641,7 @@ function diff(generated: string, existing: string, spec?: DiffSpec): DiffResult 
 
   for (const hunk of hunks(lines(generated), lines(existing))) {
     if (HUNK_SAME === hunk.kind) {
-      out.push(...hunk.generated)
+      pushAll(out, hunk.generated)
       continue
     }
     if (0 < hunk.existing.length) {

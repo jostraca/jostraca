@@ -25,6 +25,7 @@ type FragmentProps = {
     /** A start and end marker pair: only the region between them is read. */
     eject?: (string | RegExp)[];
 };
+declare const FRAGMENT_PROPS: string[];
 declare const Fragment: import("../types").Component<FragmentProps, never, never>;
-export { Fragment };
+export { Fragment, FRAGMENT_PROPS, };
 export type { FragmentProps };

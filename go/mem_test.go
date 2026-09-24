@@ -1,9 +1,11 @@
 package jostraca
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -13,9 +15,10 @@ import (
 // test translated from TS by keeping those two options passed while writing
 // into the working directory. See #37 and docs/design/PARITY_PLAN.md.
 //
-// TS's rules, mirrored here: `mem` is the switch and `vol` is the seed; an
-// explicit filesystem beats both; and a GLOBAL mem is reused across
-// Generate calls so a second run sees what the first wrote.
+// TS's rules, mirrored here: `mem` is the switch and `vol` is the seed; a
+// per-call filesystem beats both, and both beat a global filesystem; and a
+// GLOBAL mem is reused across Generate calls so a second run sees what the
+// first wrote.
 
 func memTree(name, body string) func(*J) {
 	return func(j *J) {
@@ -62,9 +65,11 @@ func TestWithMemDoesNotTouchTheRealFilesystem(t *testing.T) {
 		t.Error("Result.FS is nil")
 	}
 
+	// Keys are absolute, resolved against the working directory, as in
+	// the TS in-memory provider.
 	found := false
 	for _, k := range volKeys(t, res) {
-		if k == "out/p/a.txt" {
+		if k == memClean("out/p/a.txt") {
 			found = true
 		}
 	}
@@ -134,9 +139,35 @@ func TestPerCallVolGetsAFreshVolume(t *testing.T) {
 	}
 }
 
-// An explicit filesystem wins over Mem, as it does in TS where `opts.fs`
-// comes first in the chain that picks one.
-func TestExplicitFSBeatsMem(t *testing.T) {
+// The provider is chosen per call, in TS's order: the per-call FS, else
+// the in-memory volume when Mem is on for the call, else the global FS,
+// else OsFS. A per-call FS beats Mem...
+func TestPerCallFSBeatsMem(t *testing.T) {
+	own := NewMemFS()
+	j := New(WithMem(), WithFolder("/out"), WithNow(func() int64 { return 1 }))
+	res, err := j.Generate(Options{FS: own}, memTree("a.txt", "A"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(own.Vol()["/out/p/a.txt"]) != "A" {
+		t.Error("output did not land in the per-call filesystem")
+	}
+	if res.FS == nil || res.FS() != FS(own) {
+		t.Error("Result.FS must be the provider actually used")
+	}
+	if res.Vol == nil {
+		t.Fatal("Result.Vol is nil with Mem on")
+	}
+	if _, leaked := res.Vol()["/out/p/a.txt"]; leaked {
+		t.Error("Result.Vol must be the untouched instance volume")
+	}
+}
+
+// ...but a GLOBAL FS does not: TS reads `opts.fs || memfs || gOpts.fs`,
+// so an instance with both writes to memory. Go ranked the global FS
+// first until this was measured.
+func TestGlobalMemBeatsGlobalFS(t *testing.T) {
 	own := NewMemFS()
 	res, err := New(WithMem(), WithFS(own), WithFolder("/out"), WithNow(func() int64 { return 1 })).
 		Generate(Options{}, memTree("a.txt", "A"))
@@ -144,14 +175,123 @@ func TestExplicitFSBeatsMem(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if len(own.Vol()) != 0 {
+		t.Errorf("the global FS was written: %v", keysOf(own.Vol()))
+	}
+	if res.Vol == nil || string(res.Vol()["/out/p/a.txt"]) != "A" {
+		t.Fatal("output did not land in the instance volume")
+	}
+	if res.FS() == FS(own) {
+		t.Error("Result.FS must be the instance volume")
+	}
+}
+
+// The instance volume is built from Mem alone, whatever FS says, so calls
+// share it; a fresh volume per call would lose the first call's output.
+// TS twin: global-mem-beside-global-fs-is-shared-across-calls.
+func TestGlobalMemBesideGlobalFSIsSharedAcrossCalls(t *testing.T) {
+	own := NewMemFS()
+	j := New(WithMem(), WithFS(own), WithFolder("/out"), WithNow(func() int64 { return 1 }))
+	one, err := j.Generate(Options{}, memTree("a.txt", "A"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	two, err := j.Generate(Options{}, memTree("b.txt", "B"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	vol := two.Vol()
+	if string(vol["/out/p/a.txt"]) != "A" || string(vol["/out/p/b.txt"]) != "B" {
+		t.Fatalf("the second call did not see the first call's output: %v", keysOf(vol))
+	}
+	if two.FS() != one.FS() {
+		t.Error("the two calls used different volumes")
+	}
+	if len(own.Vol()) != 0 {
+		t.Errorf("the global FS was written: %v", keysOf(own.Vol()))
+	}
+}
+
+// A per-call Mem:true beats a global FS the same way.
+func TestPerCallMemBeatsGlobalFS(t *testing.T) {
+	own := NewMemFS()
+	on := true
+	res, err := New(WithFS(own), WithFolder("/out"), WithNow(func() int64 { return 1 })).
+		Generate(Options{Mem: &on}, memTree("a.txt", "A"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(own.Vol()) != 0 {
+		t.Errorf("the global FS was written: %v", keysOf(own.Vol()))
+	}
+	if res.Vol == nil || string(res.Vol()["/out/p/a.txt"]) != "A" {
+		t.Fatal("output did not land in memory")
+	}
+}
+
+// A caller-supplied provider, even a MemFS, gets no accessors: they are
+// present exactly when Mem is on, as vol() and fs() are in TS.
+func TestExplicitMemFSHasNoAccessors(t *testing.T) {
+	own := NewMemFS()
+	res, err := New(WithFS(own), WithFolder("/out"), WithNow(func() int64 { return 1 })).
+		Generate(Options{}, memTree("a.txt", "A"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if string(own.Vol()["/out/p/a.txt"]) != "A" {
 		t.Error("output did not land in the caller's own filesystem")
 	}
-	if res.FS == nil {
-		t.Fatal("Result.FS is nil")
+	if res.Vol != nil || res.FS != nil {
+		t.Error("a supplied provider must get no Vol or FS accessor")
 	}
-	if res.FS() != FS(own) {
-		t.Error("Result.FS is not the filesystem the caller supplied")
+}
+
+// Every Files category is a list, empty rather than nil, on a basic run,
+// a define-only run, an empty define and a refused one, so the serialised
+// Files has TS's shape and no null.
+func TestFilesListsAreEmptyNotNil(t *testing.T) {
+	off := false
+	runs := map[string]func() (Result, error){
+		"basic": func() (Result, error) {
+			return New(WithMem(), WithFolder("/out")).
+				Generate(Options{}, memTree("a.txt", "A"))
+		},
+		"build-false": func() (Result, error) {
+			return New(WithMem(), WithFolder("/out")).
+				Generate(Options{Build: &off}, memTree("a.txt", "A"))
+		},
+		"empty-define": func() (Result, error) {
+			return New(WithMem(), WithFolder("/out")).
+				Generate(Options{}, func(j *J) {})
+		},
+		"nil-root": func() (Result, error) {
+			return New(WithMem()).Generate(Options{}, nil)
+		},
+	}
+	for name, run := range runs {
+		res, _ := run()
+		f := res.Files
+		for cat, l := range map[string][]string{
+			"preserved": f.Preserved, "written": f.Written,
+			"presented": f.Presented, "diffed": f.Diffed, "merged": f.Merged,
+			"conflicted": f.Conflicted, "unchanged": f.Unchanged,
+		} {
+			if l == nil {
+				t.Errorf("%s: %s is nil", name, cat)
+			}
+		}
+		b, err := json.Marshal(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(b), "null") {
+			t.Errorf("%s: %s", name, b)
+		}
+		if name == "basic" && string(b) != `{"preserved":[],"written":["/out/p/a.txt"],`+
+			`"presented":[],"diffed":[],"merged":[],"conflicted":[],"unchanged":[]}` {
+			t.Errorf("basic: %s", b)
+		}
 	}
 }
 

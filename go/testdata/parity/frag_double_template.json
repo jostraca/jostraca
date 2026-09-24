@@ -1,0 +1,166 @@
+{
+  "scenario": "frag_double_template",
+  "opts": {
+    "model": {
+      "a": "$$b$$",
+      "b": "X",
+      "name": "N"
+    }
+  },
+  "prepopulate": {
+    "/tm/double.txt": "[$$a$$]\n",
+    "/tm/replace.txt": "FOO and BAR $$name$$\n"
+  },
+  "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/double.txt",
+      "/out/app/r1.txt",
+      "/out/app/r2.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
+  "audit": [
+    [
+      "FileHandler:existsFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "exists": false
+      }
+    ],
+    [
+      "FileHandler:saveFile:FileOp:after:write:",
+      {
+        "path": "/out/app/double.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 22
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/double.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:FileOp:after:write:",
+      {
+        "path": "/out/app/r1.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 16
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/r1.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:FileOp:after:write:",
+      {
+        "path": "/out/app/r2.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 23
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/r2.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 916
+      }
+    ],
+    [
+      "FileHandler:saveJSON:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "size": 916
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/.gitignore",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 29
+      }
+    ]
+  ],
+  "vol": {
+    "/tm/double.txt": "[$$a$$]\n",
+    "/tm/replace.txt": "FOO and BAR $$name$$\n",
+    "/out/app/double.txt": "[$$b$$]\ncontent:$$b$$\n",
+    "/out/app/r1.txt": "$$b$$ and bar N\n",
+    "/out/app/r2.txt": "$$\"q\"$$ and $$name$$ N\n",
+    "/out/.jostraca/generated/app/double.txt": "[$$b$$]\ncontent:$$b$$\n",
+    "/out/.jostraca/generated/app/r1.txt": "$$b$$ and bar N\n",
+    "/out/.jostraca/generated/app/r2.txt": "$$\"q\"$$ and $$name$$ N\n",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/double.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/double.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/r1.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/r1.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/r2.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/r2.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}

@@ -3,6 +3,8 @@ import type { Node } from '../jostraca'
 
 import { indent } from '../jostraca'
 
+import { escapedInto } from '../util/bytes'
+
 
 const FragmentOp = {
 
@@ -24,6 +26,7 @@ const FragmentOp = {
 
     buildctx.current.file = node.meta.fragment_file
     buildctx.current.file.content.push(src)
+    escapedInto(node, buildctx.current.file)
   },
 
 }

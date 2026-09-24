@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SlotOp = void 0;
+const bytes_1 = require("../util/bytes");
 const SlotOp = {
     before(node, _ctx$, buildctx) {
         node.meta.fragment_file = buildctx.current.file;
@@ -12,6 +13,7 @@ const SlotOp = {
         let src = node.content?.join('') || '';
         buildctx.current.file = node.meta.fragment_file;
         buildctx.current.file.content.push(src);
+        (0, bytes_1.escapedInto)(node, buildctx.current.file);
     },
 };
 exports.SlotOp = SlotOp;

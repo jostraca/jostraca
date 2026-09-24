@@ -38,6 +38,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FileHandler = void 0;
 exports.annotatedPath = annotatedPath;
+exports.canonFolder = canonFolder;
 exports.canonPath = canonPath;
 exports.validName = validName;
 exports.validPath = validPath;
@@ -51,8 +52,9 @@ const CN = 'FileHandler:';
 function fwd(p) {
     return p.includes('\\') ? p.replace(/\\/g, '/') : p;
 }
-// THE ONE CANONICAL FORM OF AN OUTPUT PATH: separators collapsed, `.`
-// and `..` segments resolved, forward slashes.
+// THE ONE CANONICAL FORM OF AN OUTPUT PATH: separators folded, then `.`
+// and `..` segments resolved, forward slashes. Folded FIRST, so that a
+// backslash `..` segment resolves as a slash one does, as in Go.
 //
 // Exported because `save` is not the only place that has to agree about
 // what "the same file" means. `FileOp.before` composes a path from the
@@ -63,7 +65,21 @@ function fwd(p) {
 // case the guard exists to refuse. Go has never had it: `fileBefore`
 // does `path.Clean(fwd(raw))` BEFORE recording anything.
 function canonPath(path) {
-    return fwd(node_path_1.default.normalize(path));
+    return fwd(node_path_1.default.normalize(fwd(path)));
+}
+// The output folder, canonicalised once as canonPath does, with trailing
+// separators stripped except from a filesystem root. A kept slash (`out/`)
+// or an unresolved backslash `..` (`o\..\p`, when this normalised before
+// folding) left the folder unlike every file path under it, so no path was
+// inside it: meta keys kept the folder prefix, no baseline was written,
+// and a later merge found no ancestor and overwrote the user's edits.
+function canonFolder(folder) {
+    const norm = canonPath(folder);
+    if ('/' === norm || /^[A-Za-z]:\/$/.test(norm)) {
+        return norm;
+    }
+    const stripped = norm.replace(/\/+$/, '');
+    return '' === stripped ? '.' : stripped;
 }
 const JOSTRACA_PROTECT = 'JOSTRACA_PROTECT';
 // Audit breadcrumb per merge outcome, so the `why` trail says which fast
@@ -126,11 +142,12 @@ class FileHandler {
     files;
     createdDirs;
     savedPaths;
+    filelogged;
     constructor(bctx, existing, control) {
         this.fs = bctx.fs;
         this.now = bctx.now;
         this.when = bctx.when;
-        this.folder = fwd(node_path_1.default.normalize(bctx.folder));
+        this.folder = canonFolder(bctx.folder);
         this.audit = bctx.audit;
         this.existing = existing;
         this.control = control;
@@ -146,6 +163,7 @@ class FileHandler {
         };
         this.createdDirs = new Set();
         this.savedPaths = new Set();
+        this.filelogged = {};
         // Yikes!
         this.duplicateFolder = bctx.duplicateFolder.bind(bctx);
         this.last = () => bctx.bmeta.prev.last;
@@ -210,7 +228,7 @@ class FileHandler {
             // baseline — `.jostraca/generated` joined to the relative path — nor-
             // malize to a location outside the baseline directory entirely, and
             // silently overwrite whatever was there.
-            const norm = fwd(node_path_1.default.normalize(path));
+            const norm = canonPath(path);
             return '..' !== norm && !norm.startsWith('../');
         }
         if ('/' === this.folder) {
@@ -302,22 +320,17 @@ class FileHandler {
         // Tracks whether the generated content actually differs from what is
         // already on disk, so the write path can skip a no-op rewrite.
         let unchanged = false;
+        // Whether the save ends in a write or skip record.
+        let final = false;
         if (exists) {
             why.push('exists-0');
-            // Load the existing bytes in the SAME SHAPE as the incoming content.
-            // `loadFile` decodes utf8 by default, so a Copy-routed binary file --
-            // whose content arrives here as a Buffer -- was compared as
-            // `string === Buffer`, which is false whatever the bytes are. A target
-            // already holding exactly those bytes was therefore "changed" on every
-            // run: `bin.preserve` wrote a `.old` backup of a file about to be
-            // rewritten identically, `bin.present` wrote a `.new` sidecar of the
-            // same bytes, and the unchanged-file optimisation was defeated for
-            // every binary. Issue #30. Go has always used bytes.Equal.
-            //
-            // Decoding cannot be fixed by converting one side afterwards: utf8
-            // decoding is lossy for binary, so the string no longer carries the
-            // bytes to compare.
-            let currentContent = this.loadFile(path, isTextFile ? undefined : { encoding: null });
+            // The existing file is handled as BYTES, text included, as Go does.
+            // Decoding it as UTF-8 turned every invalid byte into U+FFFD, so a
+            // file the user saved in Latin-1 was judged "unchanged" against a
+            // generate holding U+FFFD, and diff and merge wrote the replacement
+            // characters back over the user's bytes. Every comparison below is
+            // on bytes; diff and merge run over a byte-transparent latin1 form.
+            const currentContent = this.loadFile(path, { encoding: null });
             const protect = 0 <= currentContent.indexOf(JOSTRACA_PROTECT);
             meta.protect = protect;
             unchanged = sameContent(currentContent, newContentSource);
@@ -327,7 +340,7 @@ class FileHandler {
                     why.push('protect-0');
                     write = false;
                 }
-                else if (!sameContent(currentContent, newContentSource)) {
+                else if (!unchanged) {
                     why.push('content-0');
                     let oldpath = annotatedPath(path, 'old');
                     this.copyFile(path, oldpath, whence + 'preserve:');
@@ -336,8 +349,7 @@ class FileHandler {
                     meta.action = 'preserve';
                     whenify(meta, this.now());
                     meta.actions.push(meta.action);
-                    this.audit.push([CN + FN + wstr + meta.action,
-                        { ...meta, why, action: meta.action, path }]);
+                    this.decision(CN + FN + wstr, meta, why, path);
                 }
             }
             if (existing.write && !protect) {
@@ -346,7 +358,7 @@ class FileHandler {
             }
             else if (existing.present) {
                 why.push('present-0');
-                if (!sameContent(currentContent, newContentSource)) {
+                if (!unchanged) {
                     why.push('content-1');
                     let newpath = annotatedPath(path, 'new');
                     this.saveFile(newpath, newContentSource, { flush: true }, whence + 'present:');
@@ -354,8 +366,7 @@ class FileHandler {
                     meta.action = 'present';
                     whenify(meta, this.now());
                     meta.actions.push(meta.action);
-                    this.audit.push([CN + FN + wstr + meta.action,
-                        { ...meta, why, action: meta.action, path }]);
+                    this.decision(CN + FN + wstr, meta, why, path);
                 }
             }
             if (!protect) {
@@ -363,13 +374,12 @@ class FileHandler {
                 if (existing.diff) {
                     why.push('diff-0');
                     write = false;
-                    if (!sameContent(currentContent, newContentSource)) {
+                    if (!unchanged) {
                         why.push('content-2');
                         meta.action = 'diff';
-                        const newContent = 'string' === typeof newContentSource ? newContentSource :
-                            newContentSource.toString('utf8');
-                        const diffContent = this.diff(newContent, currentContent.toString());
-                        this.saveFile(path, diffContent, { encoding: 'utf8', ...modeopts() }, whence + meta.action);
+                        const newContent = latin1(newContentSource);
+                        const diffContent = this.diff(newContent, latin1(currentContent));
+                        this.saveFile(path, Buffer.from(diffContent, 'latin1'), modeopts(), whence + meta.action);
                         // this.files.diffed.push(path)
                         this.filelog('diffed', path);
                         const conflict = newContent !== diffContent;
@@ -380,8 +390,7 @@ class FileHandler {
                         whenify(meta, this.now());
                         meta.actions.push(meta.action);
                         meta.conflict = conflict;
-                        this.audit.push([CN + FN + wstr + meta.action,
-                            { ...meta, why, action: meta.action, path }]);
+                        this.decision(CN + FN + wstr, meta, why, path);
                     }
                     else {
                         // Equal content is still not a no-op when an explicit mode was
@@ -396,7 +405,7 @@ class FileHandler {
                 }
                 else if (existing.merge) {
                     why.push('merge-0');
-                    if (!sameContent(currentContent, newContentSource)) {
+                    if (!unchanged) {
                         why.push('content-3');
                         if (this.control.duplicate) {
                             why.push('duplicate-0');
@@ -406,16 +415,27 @@ class FileHandler {
                                 why.push('dupexists-0');
                                 write = false;
                                 meta.action = 'merge';
-                                const newContent = 'string' === typeof newContentSource ? newContentSource :
-                                    newContentSource.toString('utf8');
-                                const prevGenContent = this.loadFile(dpath, { encoding: 'utf8' });
-                                const mergeres = this.merge(newContent, // generated
-                                prevGenContent, // baseline (last generate)
-                                currentContent.toString(), // existing (on disk)
+                                const prevGenContent = this.loadFile(dpath, { encoding: null });
+                                const mergeres = this.merge(latin1(newContentSource), // generated
+                                latin1(prevGenContent), // baseline (last generate)
+                                latin1(currentContent), // existing (on disk)
                                 why);
                                 const diffcontent = mergeres.content;
-                                const conflict = mergeres.conflict;
-                                this.saveFile(path, diffcontent, { encoding: 'utf8', ...modeopts() }, whence + meta.action);
+                                // A file still holding an earlier merge's markers is left
+                                // byte-for-byte untouched, and reported conflicted: it
+                                // still carries markers, and the documented guard on
+                                // files.conflicted must not pass over it. Rewriting it
+                                // bumped the mtime for nothing.
+                                const unresolved = 'unresolved' === mergeres.outcome;
+                                const conflict = mergeres.conflict || unresolved;
+                                if (unresolved) {
+                                    if (this.chmodUnchanged(path, mode)) {
+                                        why.push('chmod-0');
+                                    }
+                                }
+                                else {
+                                    this.saveFile(path, Buffer.from(diffcontent, 'latin1'), modeopts(), whence + meta.action);
+                                }
                                 // this.files.merged.push(path)
                                 this.filelog('merged', path);
                                 if (conflict) {
@@ -425,8 +445,7 @@ class FileHandler {
                                 whenify(meta, this.now());
                                 meta.actions.push(meta.action);
                                 meta.conflict = conflict;
-                                this.audit.push([CN + FN + wstr + meta.action,
-                                    { ...meta, why, action: meta.action, path }]);
+                                this.decision(CN + FN + wstr, meta, why, path);
                             }
                         }
                     }
@@ -473,15 +492,14 @@ class FileHandler {
             }
             meta.actions.push(meta.action);
             whenify(meta, this.now());
-            this.audit.push([CN + FN + wstr + meta.action,
-                { ...meta, why, action: meta.action, path }]);
+            final = true;
         }
         else if (0 === meta.actions.length) {
             why.push('skip-0');
             meta.action = 'skip';
             meta.actions.push(meta.action);
-            this.audit.push([CN + FN + wstr + meta.action,
-                { ...meta, why, action: meta.action, path }]);
+            whenify(meta, this.now());
+            final = true;
         }
         if (this.control.duplicate) {
             why.push('duplicate-1');
@@ -493,13 +511,22 @@ class FileHandler {
                     this.ensureDir(fwd(node_path_1.default.dirname(dpath)));
                     this.writeFileAtomic(dpath, newContentSource, { flush: true });
                 }
-                if (null == meta.when) {
-                    whenify(meta, this.now());
-                }
             }
         }
-        // console.log('WHY', path, why)
+        // The write or skip record is the save's last word, so it carries the
+        // baseline breadcrumbs too.
+        if (final) {
+            this.decision(CN + FN + wstr, meta, why, path);
+        }
         this.addmeta(path, meta);
+    }
+    // Push a decision record as a SNAPSHOT. The record used to share the live
+    // `why` and `meta.actions` arrays, so an early record (a preserve) later
+    // reported the whole save's actions and breadcrumbs.
+    decision(tag, meta, why, path) {
+        this.audit.push([tag + meta.action, {
+                ...meta, actions: [...meta.actions], why: [...why], action: meta.action, path,
+            }]);
     }
     copy(frompath, topath, write, whence) {
         const wstr = null == whence ? '' : whence + ':';
@@ -533,7 +560,7 @@ class FileHandler {
         //
         // CopyOp's own copyFile reads a Buffer and go/build.go reads bytes;
         // this is now the same shape as both, with no order to get wrong.
-        const raw = this.loadFile(frompath, { encoding: null }, whence);
+        const raw = this.loadSource(frompath, { encoding: null }, whence);
         // The SOURCE decides: a binary source stays governed by `existing.bin`
         // even when copied to a destination whose extension is not on the
         // list. Same rule as CopyOp's own copy paths and go/build.go's
@@ -562,7 +589,7 @@ class FileHandler {
             kind: 'merge',
         });
         why.push(MERGE_WHY[res.outcome]);
-        return { content: res.content, conflict: res.conflict };
+        return { content: res.content, conflict: res.conflict, outcome: res.outcome };
     }
     // Annotated two-way view of the difference between the new generate and
     // what is on disk.
@@ -582,7 +609,7 @@ class FileHandler {
         // Paths are canonical (already folder-prefixed by the build phase, or
         // absolute); use them directly. Do NOT re-join `this.folder`, which would
         // double-prefix relative non-`.` output folders. Matches the Go port.
-        const fullpath = fwd(node_path_1.default.normalize(path));
+        const fullpath = canonPath(path);
         try {
             const exists = fs.existsSync(fullpath);
             this.audit.push([CN + FN + wstr,
@@ -605,8 +632,8 @@ class FileHandler {
         validPath(frompath, this.maxdepth, CN + FN + 'from:' + wstr);
         validPath(topath, this.maxdepth, CN + FN + 'to:' + wstr);
         // Canonical paths: use directly, do not re-join `this.folder` (see existsFile).
-        const fulltopath = fwd(node_path_1.default.normalize(topath));
-        const fullfrompath = fwd(node_path_1.default.normalize(frompath));
+        const fulltopath = canonPath(topath);
+        const fullfrompath = canonPath(frompath);
         try {
             const existed = fs.existsSync(fulltopath);
             // Copy BYTES, always — never decode as UTF-8 first.
@@ -657,7 +684,7 @@ class FileHandler {
             const cstr = 'string' === typeof content ? content : content.toString(opts.encoding);
             const json = JSON.parse(cstr);
             this.audit.push([CN + FN + wstr,
-                { path, when, size: content.length }]);
+                { path, when, size: byteLength(content) }]);
             return json;
         }
         catch (err) {
@@ -683,7 +710,7 @@ class FileHandler {
             const jstr = 'string' === typeof json ? json : JSON.stringify(json, null, 2);
             this.saveFile(path, jstr, opts, whence);
             this.audit.push([CN + FN + wstr,
-                { path, when, size: jstr.length }]);
+                { path, when, size: byteLength(jstr) }]);
             return jstr;
         }
         catch (err) {
@@ -694,6 +721,18 @@ class FileHandler {
         }
     }
     loadFile(path, opts, whence) {
+        return this.load(path, canonPath(path), opts, whence);
+    }
+    // loadFile for the SOURCE of a copy, read at the path as given. A source
+    // keeps its platform meaning, as every other source read does (CopyOp
+    // stats and reads its entries raw): on POSIX a backslash is an ordinary
+    // name character. Folding it here, as an output path is folded, sent a
+    // binary tree entry named `b\in.png` to `b/in.png`, and the copy failed
+    // with ENOENT while the text entry beside it was copied.
+    loadSource(path, opts, whence) {
+        return this.load(path, path, opts, whence);
+    }
+    load(path, fullpath, opts, whence) {
         const when = this.now();
         const wstr = null == whence ? '' : whence + ':';
         const fs = this.fs();
@@ -708,11 +747,10 @@ class FileHandler {
         opts.encoding = undefined === opts.encoding ? 'utf8' : opts.encoding;
         validPath(path, this.maxdepth, CN + FN + wstr);
         try {
-            // Canonical path: use directly, do not re-join `this.folder` (see existsFile).
-            const fullpath = fwd(node_path_1.default.normalize(path));
+            // Used directly, never re-joined to `this.folder` (see existsFile).
             const content = fs.readFileSync(fullpath, opts);
             this.audit.push([CN + FN + wstr,
-                { path, when, size: content.length }]);
+                { path, when, size: byteLength(content) }]);
             return content;
         }
         catch (err) {
@@ -816,9 +854,10 @@ class FileHandler {
                     // is the R12 case, and `created` must stay false so the cleanup
                     // does not delete somebody else's file.
                     //
-                    // Any OTHER error (ENOSPC, EIO) happened AFTER the create
-                    // succeeded, so a partial temp file is on disk and is ours to
-                    // remove. Without this it survived the failed build.
+                    // Any OTHER error may have come AFTER the create succeeded
+                    // (ENOSPC, EIO), leaving a partial temp file that is ours to
+                    // remove. Without this it survived the failed build. If the
+                    // create itself failed (EACCES), the cleanup finds nothing.
                     if ('EEXIST' !== err?.code) {
                         created = true;
                     }
@@ -859,7 +898,10 @@ class FileHandler {
                 }
             }
             catch (cleanuperr) {
-                dlog('writeFileAtomic', 'temp cleanup failed: ' + tmppath);
+                // Already gone is not a failed cleanup: nothing was left behind.
+                if ('ENOENT' !== cleanuperr?.code) {
+                    dlog('writeFileAtomic', 'temp cleanup failed: ' + tmppath);
+                }
             }
             throw err;
         }
@@ -884,7 +926,7 @@ class FileHandler {
         }
         try {
             // Canonical path: use directly, do not re-join `this.folder` (see existsFile).
-            path = fwd(node_path_1.default.normalize(path));
+            path = canonPath(path);
             const fullpath = path;
             const parentfolder = fwd(node_path_1.default.dirname(fullpath));
             const existed = fs.existsSync(fullpath);
@@ -893,25 +935,29 @@ class FileHandler {
                 this.writeFileAtomic(fullpath, content, opts, opts.mode);
             }
             this.audit.push([CN + FN + wstr,
-                { path, when, existed, size: content.length }]);
+                { path, when, existed, size: byteLength(content) }]);
         }
         catch (err) {
             this.audit.push(['ERROR:' + CN + FN + wstr,
-                { path, when, size: content.length, err }]);
+                { path, when, size: byteLength(content), err }]);
             err.message = CN + FN + wstr + ' path=' + path + ':' + err.message;
             throw err;
         }
     }
+    // A path appears at most once per kind, at its first position. Only the
+    // LAST entry used to be checked, so File t, File u, Inject t listed t
+    // twice and the list depended on sibling order.
     filelog(kind, path) {
         path = fwd(path);
         let files = this.files;
         if (files[kind]) {
-            const kindlog = files[kind];
-            if (path === kindlog[kindlog.length - 1]) {
+            const seen = this.filelogged[kind] = this.filelogged[kind] || new Set();
+            if (seen.has(path)) {
                 dlog('filelog', kind, 'duplicate: ' + path);
             }
             else {
-                kindlog.push(path);
+                seen.add(path);
+                files[kind].push(path);
             }
         }
         else {
@@ -920,6 +966,19 @@ class FileHandler {
     }
 }
 exports.FileHandler = FileHandler;
+// The byte-transparent string form of content: one char per byte, so the
+// diff engine's line splitting and equality are byte-exact and a round trip
+// through Buffer.from(s, 'latin1') restores every byte. For valid UTF-8 the
+// engine's output is byte-identical to running it on the decoded text.
+function latin1(content) {
+    return (Buffer.isBuffer(content) ? content : Buffer.from(content, 'utf8'))
+        .toString('latin1');
+}
+// Audit sizes are byte lengths, whether the content is a string or a
+// Buffer; `length` counted UTF-16 units for a string.
+function byteLength(content) {
+    return 'string' === typeof content ? Buffer.byteLength(content, 'utf8') : content.length;
+}
 function whenify(meta, now) {
     meta.when = now;
     meta.hwhen = (0, basic_1.humanify)(now);

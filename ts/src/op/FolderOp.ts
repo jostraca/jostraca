@@ -3,7 +3,7 @@ import Path from 'node:path'
 
 import type { Node, BuildContext } from '../jostraca'
 
-import { validName } from '../build/FileHandler'
+import { canonPath, validName } from '../build/FileHandler'
 
 
 const ON = 'FolderOp:'
@@ -22,8 +22,9 @@ const FolderOp = {
     let fullpath = cfolder.path.join('/')
 
     if ('' !== fullpath) {
-      // ctx$.fs().mkdirSync(fullpath, { recursive: true )}
-      buildctx.fh.ensureFolder(fullpath)
+      // Canonical, as FileOp's paths are: a backslash in a name is a
+      // separator, so `x\y` must not also leave a literal `x\y` folder.
+      buildctx.fh.ensureFolder(canonPath(fullpath))
     }
   },
 

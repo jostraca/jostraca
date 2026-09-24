@@ -34,6 +34,9 @@ the deviation with reasoning.
 - `log.go` — `Log` interface; `DefaultLog` with mutex-guarded ISO-8601
   output to `Out` (defaults to `os.Stderr`); internal `nopLog` for
   callers who didn't supply a logger.
+  **Changed (2026-09-24):** `nopLog` is gone. `DefaultLog` is the default,
+  and with `Out` nil it splits the levels between stdout and stderr as
+  TS's console logger does.
 - `options.go` — `Options` + child structs (`Existing`, `ExistingTxt`,
   `ExistingBin`, `Control`, `CmpOptions`, `CopyCmpOptions`,
   `NameOptions`, `NameAffix`, `NameMatcher`); functional `WithFolder`,
@@ -72,6 +75,7 @@ the deviation with reasoning.
    contract still satisfies the Phase 1 test ("no error on empty").
    **Plan delta:** §4.3 + §10 to record this carve-out. Tracked in
    "Plan deltas" section below.
+   **Resolved (2026-09-24):** `OptionsFromMap` now validates against a schema mirroring `OptionsShape`/`ExistingShape` through `shape`, refusing unknown keys and mistyped values with the TypeScript message text; pinned by `test/spec/options.tsv`.
 
 3. **`mergeOptions` is shallow scalar merge in Phase 1.** Plan §4.3
    says "deep-merge semantics matching TS `deep(...)`". Maps (`Model`,
@@ -624,10 +628,15 @@ one fixup (test correction). Total: 2 commits.
    `src/op/FileOp.ts:51-62`) are deferred — none of the Phase 6
    tests exercise them. **Plan delta:** track in §6.3 as a Phase 9
    add-on (alongside Copy's full Exclude support).
+   **Resolved (2026-09-24):** the string and list forms are honoured,
+   matched against the component path as TS's `FileOp.after` does. A
+   regexp entry matches nothing, as `Array.includes` compares by
+   equality.
 
 **Plan deltas captured.**
 - §6.3: add `ensureFolder` helper distinct from `ensureDirOf`.
 - §6.3: explicit list/regex Exclude semantics deferred to Phase 9.
+  Resolved (2026-09-24): see note 5.
 
 **Open questions surfaced.**
 - The TS `BuildMeta.last()` returns the previous build's mtime so
@@ -637,6 +646,8 @@ one fixup (test correction). Total: 2 commits.
 - `JOSTRACA_PROTECT` substring detection works inside binary files
   too. Plan §7.2 implied text-only; my code only tests text via
   `IsBinExt`. Conservative: confirmed protect only triggers for text.
+  **Superseded (2026-09-24):** the marker protects binary targets too,
+  as in TS.
 - `Control.Duplicate` defaults to `false` because Go zero-value of
   `Control{}` has `Duplicate: false`, but the plan §7.5 says
   "default true". Phase 6 doesn't surface this — the Phase 11 merge
@@ -926,6 +937,7 @@ the missing `regexp` import. Total: 2 commits.
 - Full shape-validated `OptionsFromMap` — Phase 1 ships a narrowed
   switch over the common keys; full schema validation needs the
   option surface to be final, which it now is.
+  **Resolved (2026-09-24):** `OptionsFromMap` now validates against a schema mirroring `OptionsShape`/`ExistingShape` through `shape`, refusing unknown keys and mistyped values with the TypeScript message text; pinned by `test/spec/options.tsv`.
 - `Point*` orchestration utility — to land as `go/point/`
   sub-package when a downstream consumer needs it.
 - Parity-snapshot driver against the TS test suite — manual
@@ -1048,6 +1060,7 @@ Includes:
   unified GENERATED/EXISTING block. Diff parity scenario not yet
   added (merge parity is done, which is the load-bearing case).
 - `OptionsFromMap` shape validation still narrow (Phase 1 carve-out).
+  **Resolved (2026-09-24):** `OptionsFromMap` now validates against a schema mirroring `OptionsShape`/`ExistingShape` through `shape`, refusing unknown keys and mistyped values with the TypeScript message text; pinned by `test/spec/options.tsv`.
 - `Point*` orchestration utility deferred to a future sub-package.
 
 **Alignment grade:** behavioural byte-equality on the 8 happy-path

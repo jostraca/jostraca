@@ -164,7 +164,7 @@ The TS suite has no equivalent because Node single-threads JS execution; this te
 2. Every component method early-returns when `j.st.err != nil`. Subsequent calls in the same callback (and all nested callbacks) become no-ops.
 3. `Generate` returns `(Result, error)` — the stored `err` is surfaced after the `root()` callback returns.
 4. Build-phase errors are wrapped in `NodeError{Step, Path, Callsite, Err}` and returned the same way.
-5. `panic` is reserved for genuine programmer errors (nil dereference of `*J`); it is not used as control flow.
+5. `panic` is reserved for genuine programmer errors (nil dereference of `*J`, and a component called on the builder `New` returned, outside any `Generate`, or on a `*J` kept from a callback after its `Generate` returned, which panics naming the component: `mustBeInGenerate` in `builder.go`); it is not used as control flow.
 
 **Worked equivalence.** The TS push/pop:
 
@@ -317,7 +317,7 @@ type Node struct {
 type AfterRef struct{ Kind string }
 ```
 
-**Rationale.** TS lets `node.meta`, `node.indent`, and `node.exclude` carry heterogeneous values. Go's strongly-typed analogue is `any` plus runtime checks at the few op sites that consume them. Every other field has a stable Go type. `Meta` stays `map[string]any` because it's op-private scratch (callsite stack, parent-file restore, debug payload) and typing it would push private fields into the public surface.
+**Rationale.** TS lets `node.meta`, `node.indent`, and `node.exclude` carry heterogeneous values. Go's strongly-typed analogue is `any` plus runtime checks at the few op sites that consume them. As built, `Fragment` `Indent`/`Eject` and `CopyFiles` `Exclude` are type-checked when the component is called, with shape's message (`go/cmpshape.go`), as TS's closed shapes check them. Every other field has a stable Go type. `Meta` stays `map[string]any` because it's op-private scratch (callsite stack, parent-file restore, debug payload) and typing it would push private fields into the public surface.
 
 #### 4.2 `J` and `jstate`
 
@@ -450,12 +450,12 @@ func OptionsFromMap(m map[string]any) (Options, error)
 
 Implementation: a `shape.MustShape(...)` schema with the same field set as `OptionsShape` at `src/jostraca.ts:99-153`, validated, then assembled into the typed `Options`.
 
-**Phasing note.** Phase 1 ships a narrowed implementation that handles
-`folder`, `debug`, `mem`, `model`, `meta` directly and silently ignores
-unknown keys, because the nested option structs (`Existing`, `Control`,
-`Cmp`, `Name`) need a stable surface before a single shape schema can
-validate them all. The full shape-validated `OptionsFromMap` lands in
-the Phase 12 doc pass once the option surface is final.
+**As built.** The schema mirrors `OptionsShape` and `ExistingShape` key
+for key and produces the TypeScript message text; `Fault` supplies the
+text where TypeScript names a type Go has no token for (`Buffer`,
+`RegExp`). Unknown keys at any depth and mistyped values are refused.
+Pinned by the shared corpus `test/spec/options.tsv`. (The Phase 1
+narrowed switch this note used to describe is gone.)
 
 **Per-call vs global merge.** `New(opts...)` stores baseline options on the `*J`. `Generate(callOpts, root)` applies `callOpts` over the baseline using deep-merge semantics matching TS `deep(...)` from jsonic — same precedence as `src/jostraca.ts:208-256`. The `deep` helper is ported in §10.
 
@@ -474,7 +474,7 @@ type Log interface {
 }
 ```
 
-`DefaultLog{ Out io.Writer }` writes ISO-8601-prefixed lines with the level tag, matching `DEFAULT_LOGGER` at `src/jostraca.ts:85-92`. Future-proof note: a thin `slog.Handler` adapter is trivial to add but not in v1.
+`DefaultLog{ Out io.Writer }` writes ISO-8601-prefixed lines with the level tag, matching `DEFAULT_LOGGER` in `src/jostraca.ts`: with `Out` nil, trace, debug and info go to stdout and warn, error and fatal to stderr, the split between `console.log` and `console.error`; a non-nil `Out` takes every level. It is the default when no `Log` is given. Future-proof note: a thin `slog.Handler` adapter is trivial to add but not in v1.
 
 `dLog` (unexported) is the `getdlog`-equivalent collector — a package-level `[]dlogEntry` guarded by `sync.Mutex`. See §10.
 
@@ -531,10 +531,10 @@ Sentinels:
 
 ```go
 var (
-    ErrMissingOp        = errors.New("jostraca: missing op for node kind")
+    ErrMissingOp        = errors.New("missing op")   // wrapped as `missing op: <kind>`, the kind named as its step does
     ErrInvalidPath      = errors.New("jostraca: invalid path")
-    ErrEmptyMatchRegex  = errors.New("jostraca: regex matches empty string")
-    ErrLookbehind       = errors.New("jostraca: lookbehind not supported (RE2)")
+    ErrEmptyMatchRegex  = errors.New("Regular expression matches empty string")   // TS's text; wrapped with the regex in TS's /(?<name>...)/ form
+    ErrLookbehind       = errors.New("jostraca: look-around not supported (RE2)")   // lookahead too; the name predates that
     ErrMergeConflict    = errors.New("jostraca: 3-way merge produced conflicts")
     ErrNilRoot          = errors.New("jostraca: Generate root callback is nil")
 )
@@ -811,6 +811,10 @@ func (j *J) InjectP(p InjectProps, body func(*J)) {
 
 Fragment is the most subtle: at define time it walks its children twice with two different filters to (1) collect Slot names and (2) replay slots back into the template `<[SLOT:name]>` markers. The template invocation streams parts via the `Handle` callback (§9 gap #8).
 
+**As built (`go/fragment.go`).** `FragmentP` renders at define time, as TS does: it reads `From`, scans the body for slot names, and runs `Template` with `Handle` attaching each segment as a raw Content child of the Fragment node. Slot and default-slot handlers and `func(*J)` replace values replay with J bound to the Fragment node, so what they emit becomes real children the build walk visits. `fragmentAfter` only joins those children, walking through Slot, KindNone, Folder and Project nodes with the same collector File and Inject use (`collectInPlace`), and applies Indent. The slot keys are the bytes TS's `replace` keys are. The sketch below predates this and is kept for the design record.
+
+**Bytes that are not UTF-8.** A Fragment source, a text `CopyFiles` source and an `Inject` target are Go byte strings, so an invalid byte passes through `Template` and the Inject splice untouched. TS reads the same three as bytes and carries an invalid byte through its template as a lone-surrogate escape that it writes back as that byte (`ts/src/util/bytes.ts`), and splices an Inject target in a one-char-per-byte form, so the written files, the baselines and the audit sizes are byte-identical. Pinned by the `nonutf8_sources` parity scenario and `TestNonUTF8SourcesByteForByte` / 'nonutf8-sources-byte-for-byte'.
+
 ```go
 type FragmentProps struct {
     From    string
@@ -1018,7 +1022,7 @@ type op struct {
 
 var ops = [kindCount]op{
     KindNone:     {noopOp, noopOp},
-    KindProject:  {projectBefore, noopOp},
+    KindProject:  {projectBefore, projectAfter},
     KindFolder:   {folderBefore, folderAfter},
     KindFile:     {fileBefore, fileAfter},
     KindContent:  {contentBefore, noopOp},
@@ -1104,13 +1108,13 @@ Each op is a pair of small functions in `build.go` (or a peer file when it grows
 
 | Kind | `before` | `after` | Reads | Writes |
 |---|---|---|---|---|
-| Project | normalise folder, set `bctx.current.project`, `ensureFolder` (`src/op/ProjectOp.ts:6-28`) | — | `st.folder` | filesystem (mkdir) |
+| Project | normalise folder, save then set `bctx.current.project` and the folder ref, `ensureFolder` (`src/op/ProjectOp.ts`) | restore the folder ref and current project saved by `before`, so a Project's folder applies to its own subtree only (#26) | `st.folder` | filesystem (mkdir) |
 | Folder | append name to `bctx.current.folder.path`, `ensureFolder` (`src/op/FolderOp.ts:9-22`) | pop name from `bctx.current.folder.path` (`:25-28`) | — | filesystem (mkdir) |
 | File | set `bctx.current.file = node`, compute `fullpath`, init content slice (`src/op/FileOp.ts:11-18`) | join content, apply exclude rules, call `bctx.fh.save(...)` (`:21-74`) | `st.fs`, `st.opts.Exclude` | filesystem (write) |
 | Content | append rendered string to `bctx.current.file.content` (with `Indent` applied) | — | — | in-memory |
 | Copy | resolve from-path; for files call `FileOp.before`, for dirs walk and queue per-entry actions (`src/op/CopyOp.ts:18-...`) | call `bctx.fh.copy(...)` per entry; apply replace/template; respect `Exclude` and `CopyCmpOptions.Ignore` | `st.fs`, `st.opts.Cmp.Copy.Ignore` | filesystem (copy/write) |
 | Inject | set `bctx.current.file = node` to a pseudo-file with the target path (`src/op/InjectOp.ts:?`) | read existing file; replace content between `Markers`; `bctx.fh.save(...)` | `st.fs` | filesystem (write) |
-| Fragment | save parent file ctx, init fragment file ctx (`src/op/FragmentOp.ts:?`) | apply `Indent`, restore parent, append fragment content to parent file | — | in-memory accumulation |
+| Fragment | save parent file ctx, init fragment file ctx (`src/op/FragmentOp.ts:?`) | join the define-time children in source order, apply `Indent`, store on the node for the parent's collector | — | in-memory accumulation |
 | Slot | save parent file ctx, init slot pseudo-file (`src/op/SlotOp.ts:?`) | restore parent, append slot content to parent | — | in-memory accumulation |
 | None | — | — | — | — |
 
@@ -1154,7 +1158,7 @@ type buildLog struct {
 }
 ```
 
-`buildCtx` is created by `newBuildCtx(st)` once per `Generate` call before the walk starts. It owns the `fileHandler` (§7) and `buildMeta` (§7.4), and accumulates `audit` entries that surface via `Result.Audit()`.
+`buildCtx` is created by `newBuild(st)` on every `Generate` call, build or no build, and loads the meta log as TS's `BuildContext` does. (The `newBuildCtx` sketches in this section predate that.) It owns the `fileHandler` (§7) and `buildMeta` (§7.4), and accumulates `audit` entries that surface via `Result.Audit()`.
 
 #### 6.6 Synchronous, not concurrent
 
@@ -1293,9 +1297,9 @@ func (fh *fileHandler) relative(path, whence string) string
 func (fh *fileHandler) filelog(kind fileKind, path string)
 ```
 
-`whence` strings (e.g. `"FileOp:after"`, `"CopyOp:before"`) appear in audit and error messages, matching `ON + FN` patterns at `src/op/FileOp.ts:7,22`. `relative` strips `fh.folder` prefix and forces forward slashes (matches TS `relative` and `fwd` at lines 24-26 and 110-124).
+`whence` strings are TS's `ON + FN` values: `"FileOp:after:"`, `"Copy:copyFile:"`, and `"copy:"` for a binary tree-walk entry; an Inject saves with no whence. They appear in audit and error messages. `relative` strips `fh.folder` prefix and forces forward slashes (matches TS `relative` and `fwd` at lines 24-26 and 110-124).
 
-Path safety: `validPath(p)` checks `maxDepth` (default 22, matches TS line 84) and rejects empty paths. Returns `ErrInvalidPath` if violated.
+Path safety: `validPath(p)` checks `maxDepth` (default 22, matches TS line 84) and rejects empty paths. Returns `ErrInvalidPath` if violated. The error text is TS's, e.g. `saveFile: path too deep, path=<p>`, and it unwraps to `ErrInvalidPath`.
 
 #### 7.4 `buildMeta`
 
@@ -1323,7 +1327,7 @@ func (m *buildMeta) done() error             // saves next; called at end of Gen
 func (m *buildMeta) last() int64             // returns prev.Last for incremental builds
 ```
 
-Persists JSON to `<folder>/.jostraca/jostraca.meta.log`. `done()` also writes `<folder>/.jostraca/.gitignore` containing `*` so the generator artifacts don't get committed accidentally — matches TS `BuildMeta.done` behaviour.
+Persists JSON to `<folder>/.jostraca/jostraca.meta.log`. `done()` also writes `<folder>/.jostraca/.gitignore` containing the meta log name and `generated`, through the same atomic writer as the outputs; a failure writing either file is returned. Matches TS `BuildMeta.done` behaviour.
 
 #### 7.5 `duplicateFolder`
 
@@ -1384,15 +1388,7 @@ func (fh *fileHandler) save(path string, content []byte, whence string) error {
 
 #### 7.7 Audit
 
-Every action records `(tag, payload)` to `audit`:
-
-```go
-fh.audit.append("save", map[string]any{
-    "path": rpath, "kind": "written", "size": len(content), "whence": whence,
-})
-```
-
-Surfaced via `Result.Audit()`. Tag set: `save`, `copy`, `mkdir`, `preserve`, `present`, `diff`, `merge`, `conflict`, `protect`, `unchanged`.
+Every low-level call records `FileHandler:<method>:<whence>` and each save one `FileHandler:save:<action>` decision record, exactly as TS; see `docs/reference-options.md` `audit()` for the fields and order. Surfaced via `Result.Audit()`, which returns an empty, non-nil slice when nothing was recorded. The tag set sketched here originally (`save`, `copy`, `mkdir`, ...) was never TS's and is gone.
 
 #### 7.8 Cross-references
 
@@ -1583,7 +1579,7 @@ func (fh *fileHandler) saveDiff(p string, newContent, existing []byte, rpath, wh
     if !bytes.Equal(rendered, newContent) {
         fh.filelog(kindConflicted, rpath)
     }
-    fh.audit.append("diff", map[string]any{"path": rpath, "out": fh.relative(out, whence)})
+    fh.audit.append("diff", map[string]any{"path": rpath, "out": fh.relative(out, whence)})   // sketch only; the audit is as §7.7
     return nil
 }
 
@@ -1599,7 +1595,7 @@ func (fh *fileHandler) saveMerge(p string, newContent, existing []byte, rpath, w
     if err := fh.fs.WriteFile(p, res.Content); err != nil { return err }
     fh.filelog(kindMerged, rpath)
     if res.Conflict { fh.filelog(kindConflicted, rpath) }
-    fh.audit.append("merge", map[string]any{"path": rpath, "conflict": res.Conflict})
+    fh.audit.append("merge", map[string]any{"path": rpath, "conflict": res.Conflict})   // sketch only; the audit is as §7.7
     return nil
 }
 ```
@@ -1709,7 +1705,7 @@ else if ('__JOSTRACA_REPLACE__' === ref) {
 }
 ```
 
-When `ref` (the captured `J_R` group) equals `__JOSTRACA_REPLACE__`, return the literal source of the compiled regex. Used for debugging/inspection. Go: stash the compiled regex's `String()` into the substitution path.
+When `ref` (the captured `J_R` group) equals `__JOSTRACA_REPLACE__`, return the literal source of the compiled regex. Used for debugging/inspection. Go: stash the compiled regex's `String()` into the substitution path. **As built:** `formatJSStyleRegex` prints it as a JS RegExp prints itself, `(?P<` as `(?<` and the source escaped as V8's `RegExp.prototype.source` escapes it (`jsRegexSource`: an unescaped `/` outside a class and each line terminator), so a literal key `//` reads `\/\/` in both; pinned by the `template-replace-matcher-*` rows of `test/spec/template.tsv`.
 
 ##### 5. Quoted ref `$$"foo"$$`
 
@@ -1731,6 +1727,8 @@ case func() string: return v(), true
 ```
 
 ##### 7. JSON-stringification for non-string values
+
+**Done.** A plain replace value formats as a replace function's return does, in both stacks: `nil` inserts nothing, a `float64` prints as JavaScript prints a number, an integer in decimal, and a composite through the `JSON.stringify` emitter. The original note follows.
 
 TS coerces objects/arrays via `String(value)` which JSON-stringifies for plain objects. Go's existing `default: return fmt.Sprintf("%v", v)` produces Go-syntax output that won't round-trip. Replace with:
 
@@ -1784,6 +1782,8 @@ if ('' === ref) {
 ```
 
 Critical for not entering an infinite loop when a user-supplied regex matches empty. Go: detect when `ReplaceAllStringFunc`'s match is the empty string and `r.err = ErrEmptyMatchRegex` (per §4.6 sentinel), abort.
+
+**Done**, including a model-ref match whose ref capture is empty, which fails with the empty-match error as TS throws. The message is TS's text with the regex printed in TS's `/(?<name>...)/` form.
 
 ##### 11. Regex LRU cache (cap 100)
 
@@ -1840,6 +1840,8 @@ TS at `:437-439`:
 
 Tag-prefixed keys (`#Foo`) come first, then by descending length. Without this, multi-key patterns produce non-deterministic output. Go: a custom `sort.Slice` matching the comparator exactly.
 
+**As built.** Both stacks sort by one total order that depends only on the key set: rank (`#Tag-Name` keys first), then UTF-16 length descending, then UTF-16 code unit. TS's declaration-order tie-break is gone, and with it the issue #42 deviation.
+
 ##### 14. `indent()` helper
 
 TS at `src/util/basic.ts:594-601`:
@@ -1875,7 +1877,7 @@ Go's `regexp` package is RE2: no backreferences, no lookahead, no lookbehind. Al
 - The `indent` lookbehind — replaced with `strings.ReplaceAll` (above).
 - User-supplied regex keys may contain `(?=...)` or `(?<=...)`. Detect at compile time and return `ErrLookbehind` (§4.6) with a clear message:
   ```
-  jostraca: lookbehind not supported (RE2): /(?<=foo)bar/
+  jostraca: look-around not supported (RE2): /(?<=foo)bar/
   ```
 
 The detection regex:
@@ -2110,7 +2112,7 @@ func (d *dLog) Log(args ...any)                         // append entry
 func (d *dLog) Entries(filterFile string) []dLogEntry   // read filtered
 ```
 
-The single-package-scope log replaces `global.__dlog__` from `basic.ts:686-688`. Internal callers use `newDLog`; `Generate` flushes the log at end-of-call into `Options.Log.Debug`, mirroring the TS pattern at `src/jostraca.ts:301-306`.
+The single-package-scope log replaces `global.__dlog__` from `basic.ts:686-688`. Internal callers use `newDLog`. Each `Generate` also collects the entries it raised on its own state and, after a successful run, replays each to `Options.Log.Debug` with the payload `{"point": "jostraca-warning", "dlogentry": entry, "note": entry.String()}`, mirroring TS; a concurrent call's warnings never reach another call's log. The package buffer (`DLogSnapshot`) is unchanged.
 
 #### 10.7 `Deep` and `OMap` (jsonic ports)
 
@@ -2530,7 +2532,7 @@ V1 ships full TS parity (including 3-way merge — user opted into the diff3 han
 - Directory walk: enumerate via `fs.ReadDir`, recurse, route through `fh.save`/`fh.copy` per entry.
 - Apply `Replace` template substitution to text files; binary files copied verbatim (`IsBinExt`).
 - Honor `Exclude` (bool/string/regexp/list) and `Options.Cmp.Copy.Ignore` (default `[~$]`).
-- `Inject.Exclude` accepts the same forms (string, []any of strings/regexps); Phase 8 shipped only the `bool` shorthand and the rest landed during the parity push.
+- `Inject.Exclude`: TS coerces it with `!!props.exclude`; Go applies the same JavaScript truthiness (`jsTruthy` in `go/jsvalue.go`). nil, false, "", zero and NaN do not exclude; any other value does, an empty list or map included, whatever it names.
 
 **Tests.** `testdata/fixtures/assets/` with mixed text/binary entries and a `~b.tmp` confirming default ignore. Round-trip into MemFS and assert resulting `Vol()`.
 
@@ -2684,12 +2686,12 @@ Each deviation is intentional and documented in `go/README.md` and `doc.go`. Whe
 #### D2. `Generate` returns `(Result, error)` instead of throwing
 **TS.** `await jostraca.generate(opts, root)` rejects on error.
 **Go.** `result, err := j.Generate(opts, root)`.
-**Reason.** Idiomatic Go; `panic` is reserved for true programmer errors (nil dereferences). Define-phase errors accumulate on `j.st.err` and are returned after the user callback completes (§2).
+**Reason.** Idiomatic Go; `panic` is reserved for true programmer errors (nil dereferences, and a component called on the builder `New` returned, outside any `Generate`, or on a `*J` kept from a callback after its `Generate` returned, which panics naming the component: `mustBeInGenerate` in `builder.go`). Define-phase errors accumulate on `j.st.err` and are returned after the user callback completes (§2).
 **Mitigation.** Component methods early-return when `j.st.err != nil`, so a single error stops a long callback cleanly without checks at every call site.
 
 #### D3. Options: struct + functional opts + `OptionsFromMap`
 **TS.** Single `OptionsShape`-validated map at `src/jostraca.ts:99-153`.
-**Go.** Typed `Options` struct + `WithX(...) Option` constructors + `OptionsFromMap(map[string]any) (Options, error)` (validated by `shape`).
+**Go.** Typed `Options` struct + `WithX(...) Option` constructors + `OptionsFromMap(map[string]any) (Options, error)` (validated by `shape`). The schema mirrors `OptionsShape` and `ExistingShape` key for key and produces the TypeScript message text; `Fault` supplies the text where TypeScript names a type Go has no token for (`Buffer`, `RegExp`).
 **Reason.** Type safety, IDE auto-complete, compile-time field checking. The map-based form is preserved for callers loading config from JSON/YAML.
 **Mitigation.** None needed; the typed surface is strictly nicer.
 
@@ -2714,8 +2716,10 @@ Each deviation is intentional and documented in `go/README.md` and `doc.go`. Whe
 #### D7. No global `__dlog__`; package-level locked slice
 **TS.** `global.__dlog__` array shared across modules; `getdlog()` returns a logger appending to it.
 **Go.** Package-level `[]dLogEntry` guarded by `sync.Mutex`. `newDLog(tag, file)` returns a struct with `Log` / `Entries` methods.
-**Reason.** Avoid hidden process-global state. Multiple `Generate` calls (concurrent or sequential) share the buffer — same surface for end-of-call flush via `Options.Log.Debug`, no cross-package leak.
-**Mitigation.** §10.6 documents the API; consumer-facing behaviour matches TS (debug entries flush at end-of-`Generate`).
+Each `Generate` also collects the entries it raised on its own state and, after a successful run, replays each to `Options.Log.Debug` with the payload `{"point": "jostraca-warning", "dlogentry": entry, "note": entry.String()}`; the package buffer (`DLogSnapshot`) is unchanged.
+**Reason.** Avoid hidden process-global state. The package buffer is shared by every `Generate`, so the replay is scoped per call: a concurrent call's warnings never reach another call's log (TS scopes the same way through its async store).
+**Mitigation.** §10.6 documents the API; consumer-facing behaviour matches TS (debug entries replay at end-of-`Generate`). `'baseline path escapes the duplicate folder, skipping: <path>'` is Go-only: Go re-checks containment before writing the merge baseline, a clamp TS does not have.
+**Decided (2026-09-24).** Go mirrors the TS default logger. With no `Log` given, `DefaultLog` prints each replayed warning, as TS's console logger does; the payload prints as each runtime renders it.
 
 #### D8. `Each` uses reflection
 **TS.** Naturally polymorphic via JS dynamic typing.
@@ -2725,7 +2729,7 @@ Each deviation is intentional and documented in `go/README.md` and `doc.go`. Whe
 
 #### D9. Canonical-`/` internal paths; OS conversion only in `OsFS`
 **TS.** Uses `fwd()` helper to normalise to forward slashes (`src/build/FileHandler.ts:24-26`).
-**Go.** Same policy: every internal path is canonical-`/`. Conversion via `filepath.FromSlash` happens only at the OS boundary inside `OsFS`.
+**Go.** Same policy: every internal path is canonical-`/`. Conversion via `filepath.FromSlash` happens only at the OS boundary inside `OsFS`. A backslash in an OUTPUT path is a separator on every platform (`fwd` folds it, as TS's does). A SOURCE path (Fragment and Copy `from`) is not an output path and is read as given in both stacks, so on POSIX a backslash in it is a name character: the binary tree-copy read goes through `loadSource`, not `loadFile`, in both (`TestBackslashInCopySourceNames`, 'backslash-in-copy-source-names').
 **Reason.** Cross-platform stability; matches existing TS contract.
 **Mitigation.** A single chokepoint (`OsFS`) for the conversion makes Windows-specific bugs easy to localise.
 
@@ -2751,7 +2755,8 @@ Each deviation is intentional and documented in `go/README.md` and `doc.go`. Whe
 **TS.** Mix of `Date.now()` and `Date` objects.
 **Go.** Single `func() int64` returning epoch ms; matches `Options.Now`. `Humanify` converts on demand.
 **Reason.** Avoids timezone confusion; serialises cleanly to/from JSON.
-**Mitigation.** `Humanify(now, ...)` provides the human-readable form when needed (e.g., `BuildMeta.HLast`).
+**Mitigation.** `Humanify(now, ...)` provides the human-readable form when needed (e.g., `BuildMeta.HLast`). Conflict-marker labels format that int64 as `Date.prototype.toISOString` does, extended years and clamping to ±8.64e15 included (`isoOf` in `go/diff.go`), so the labels are byte-identical to TS for every value.
+**Residual.** The `Humanify` digit form passes 2^53 after the year 9007: TS's number result rounds (`253402300799999` gives `9999123123596000`) while Go's `int64` is exact (`9999123123595999`). Outside years 0000..9999 the JavaScript ISO year format differs, and beyond ±8.64e15 ms TS throws a `RangeError` while Go formats.
 
 #### D14. Component prop structs have explicit `…P` variants
 **TS.** Optional positional/object overloads inferred from runtime type checks (`null == props || 'object' !== typeof props ? props = {arg: props} : props`, `src/jostraca.ts:387-388`).
@@ -2765,13 +2770,25 @@ Each deviation is intentional and documented in `go/README.md` and `doc.go`. Whe
 **Reason.** Not used by core; only re-exported. Splitting into a sub-package isolates its dependencies (logging, runner) from the generator.
 **Mitigation.** README calls out the omission with a forward reference; users who need orchestration can stay on TS until v2.
 
+#### D16. Zero-value options cannot clear a global value
+**TS.** `{dryrun: false}` is distinguishable from `{}`, so a per-call `false` overrides a global `true` for `control.dryrun`, `control.version`, `control.duplicate` and `exclude`.
+**Go.** `Control`'s fields and `Options.Exclude` are plain `bool`s. `mergeOptions` merges each Control flag as `global || call` and Exclude the same way, so a per-call `false` cannot clear a global `true`, while a per-call value never discards an unrelated global flag. `Options.Folder` `""` likewise means "not supplied" and falls back to the global folder, then `"."`, where TS refuses an empty folder. `TemplateSpec.Open`, `Close` and `Ref` use the default when empty, where TS uses an explicit `''` as given. A `Slot` with no name is `Name: ""`, which fills a `<[SLOT:]>` marker as TS's `Slot({name: ''})` does, where TS's `Slot({})` drops its content and blanks `<[SLOT:undefined]>`.
+**Reason.** Pointer fields would break every `Control{Dryrun: true}` literal for a narrow case.
+**Mitigation.** `OptionsFromMap` can tell `""` from absent and rejects it as TS does. `(?:)` is the Go spelling of an empty delimiter. Pinned by `TestPerCallCannotClearGlobalDryrun`, `TestPerCallCannotClearGlobalExclude` and `TestEmptyFolderMeansUnset`.
+
+#### D17. Error wrappers differ; bodies do not
+**TS.** A build-phase error carries `err.jostraca` and `err.step`, and its message is prefixed `<ERROR:>?<Op>:<phase>: `.
+**Go.** A build-phase error is a `*NodeError` with `Step`, `Path` and an `Err` that `errors.Is` matches against the sentinels; its message is prefixed `jostraca <step> @<path>: `.
+**Parity.** The message BODY, after either prefix, is the same text in both ports for every error jostraca raises itself; the parity corpus records it as `errorBody` for its failing scenarios and Go is held to it. An error that wraps a filesystem failure embeds the host's own text (`ENOENT: …` in Node, `stat …: no such file or directory` in Go) and can report a different errno for the same condition (mkdir over a file is EEXIST in Node and ENOTDIR in Go's MkdirAll); the refusal, the step and the partial tree still match. Callers branch on the step, the sentinels or the body, never on the OS tail. An output path in a body keeps a trailing slash, as Node's `Path.normalize` does (`canonOutPath`), so a File, Inject or Copy name that is empty or ends in `/` is refused with the same `path=` in both, and no file is written there (`TestTrailingSlashOutputNames`, 'trailing-slash-output-names'). TS's `CopyFiles` validation message also carries a `(<model name>: <node path>): ` prefix and a JavaScript call-site suffix that Go does not; the prefix reads `(undefined: ): ` for most models, since `ctx.model.name` is rarely set.
+**Residuals.** Temp-path exhaustion: Go returns `jostraca: no free temp path for <p> after <n> attempts` where TS rethrows the last `EEXIST` from the exclusive create; both refuse the write. The Go `shape` port clips a rendered value at 111 bytes where TS's `shape` counts UTF-16 units, so an `OptionsFromMap` refusal quoting a long non-ASCII value is clipped early (an upstream fix; jostraca's own `shapeValueText` clips by UTF-16 units).
+
 #### Surface that *doesn't* deviate (parity guarantee)
 
 To avoid surprise: these stay identical to TS, byte-equivalent where it makes sense:
 - Output file contents for the quickstart, fragments, copy, inject scenarios.
 - Existing-file mode markers (`<<<<<<< GENERATED:`, `||||||| BASELINE:`, `=======`, `>>>>>>> EXISTING:`).
 - `BuildMeta` JSON file format (so a TS-generated `.jostraca/jostraca.meta.log` is readable by Go and vice versa).
-- Audit tag set (`save`, `copy`, `mkdir`, `preserve`, `present`, `diff`, `merge`, `conflict`, `protect`, `unchanged`).
+- Audit trail: TS's tags (`FileHandler:<method>:<whence>`, `FileHandler:save:<action>`), fields and order; see `docs/reference-options.md` `audit()`.
 - File outcome categories (`Files.Written`, `.Preserved`, `.Presented`, `.Diffed`, `.Merged`, `.Conflicted`, `.Unchanged`).
 - Default options (`folder = "."`, `Control.Duplicate = true`, ignore-pattern `~$` for Copy, marker pair for Inject).
 - Template syntax (`$$path$$`, `#Tag` markers, eject regions, replace keys).
@@ -2837,8 +2854,8 @@ Sorted by severity (impact × likelihood). Each risk lists the trigger, what fai
 **Trigger.** `OptionsFromMap` validates against a `shape.MustShape(...)` schema. If the schema drifts from `Options` struct fields (e.g., new `Mem` field added to struct but not schema), map-loaded callers silently miss the new option.
 **Impact.** Map-config users can't use new features added struct-side.
 **Mitigation.**
-- Single source of truth: a code-gen check in `options_test.go` that asserts every `Options` field appears in the shape schema. Catches drift in CI.
-- `OptionsFromMap` returns an error on unknown keys (shape default), not silent acceptance — prevents users from typoing keys.
+- Single source of truth: the shared corpus `test/spec/options.tsv`, which both stacks run, and `TestOptionsFromMapRejectsUnknownKeys`.
+- `OptionsFromMap` returns an error on unknown keys (shape default), not silent acceptance — prevents users from typoing keys. Now true.
 
 #### R8. 2-way diff library divergence from TS `diff` package
 **Trigger.** `sergi/go-diff/diffmatchpatch` line-mode produces hunk boundaries that differ from `kpdecker/jsdiff` (the TS `diff` package). Conflict-marker output drifts from TS byte-for-byte.

@@ -48,6 +48,29 @@ func TestFragmentNonSlotChildWithoutDefaultSlot(t *testing.T) {
 	if err := gen("Q+<[SLOT]>+// <[SLOT:alice]>\n"); err != nil {
 		t.Fatalf("unnamed marker present, should be legal: %v", err)
 	}
+
+	// A child the scan rejects is never called, so its own From is not
+	// checked: with no unnamed marker the refusal is the non-Slot one,
+	// whatever the child. TS's cmp() consults the filter before the
+	// component body runs its checks.
+	for name, child := range map[string]func(*J){
+		"Fragment":  func(g *J) { g.Fragment(FragmentProps{From: "/missing.txt"}, nil) },
+		"CopyFiles": func(g *J) { g.CopyFiles(CopyFilesProps{From: "/missing.txt"}) },
+	} {
+		mem := NewMemFS()
+		_ = mem.WriteFile("/f01.txt", []byte("Q+// <[SLOT:alice]>\n"))
+		_, err := New(WithFS(mem), WithFolder("/top"), WithNow(func() int64 { return 1735689600000 })).
+			Generate(Options{}, func(g *J) {
+				g.Project(ProjectProps{}, func(g *J) {
+					g.File("foo.txt", func(g *J) {
+						g.FragmentP(FragmentProps{From: "/f01.txt"}, child)
+					})
+				})
+			})
+		if err == nil || !strings.Contains(err.Error(), "no unnamed <[SLOT]> marker") {
+			t.Errorf("%s child: err = %v, want the non-Slot refusal", name, err)
+		}
+	}
 }
 
 // #29: a user component used as a direct Fragment child.

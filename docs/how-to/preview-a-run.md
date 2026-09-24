@@ -11,8 +11,9 @@ happen. The decision tree runs, the result arrays fill in, the audit is
 recorded—and the filesystem is not touched, not even to create the
 `.jostraca` folder.
 
-Set it on the `generate()` call. A global `control` is ignored, which
-is a defect worth knowing rather than a design.
+Set it on the `generate()` call or on `Jostraca()`. A per-call `control`
+merges over the global one key by key, so a global `dryrun` holds when a
+call sets only `version`.
 
 <!-- test: scenario regen-dryrun -->
 

@@ -39,3 +39,86 @@ getx-array-filter	getx	[{"a":[{"b":1},{"b":2}]},"a?b=2"]	[{"b":2}]
 getx-ne-filter	getx	[{"a":1},"a!=2"]	{"a":1}	
 getx-gt-filter	getx	[{"a":3},"a>2"]	{"a":3}	
 getx-lt-filter	getx	[{"a":1},"a<2"]	{"a":1}	
+getx-proto-constructor	getx	[{},"constructor"]	null	
+getx-proto-tostring	getx	[{},"toString"]	null	
+getx-proto-dunder	getx	[{},"__proto__"]	null	
+get-proto-constructor	get	[{},"constructor"]	null	
+getx-number-method	getx	[{"a":5},"a.toFixed"]	null	
+getx-own-dunder-key	getx	[{"__proto__":1},"__proto__"]	1	
+getx-null-intermediate	getx	[{"a":{"n":null}},"a.n.x"]	null	
+getx-null-top-intermediate	getx	[{"nul":null},"nul.x"]	null	
+getx-null-array-element	getx	[{"a":[null]},"a.0.b"]	null	
+getx-ancestry-through-null	getx	[{"a":{"n":null,"b":1}},"a:n:c"]	null	
+getx-step-then-ancestry-null	getx	[{"a":{"n":null,"b":1}},"a.n:c"]	null	
+get-string-length	get	[{"a":{"s":"xyz","arr":[10,20,30]},"list":[1,2,3,4,5],"":"emptykey","null":"NUL"},"a.s.length"]	3	
+get-string-index	get	[{"a":{"s":"xyz","arr":[10,20,30]},"list":[1,2,3,4,5],"":"emptykey","null":"NUL"},"a.s.0"]	"x"	
+get-string-index-oob	get	[{"a":{"s":"xyz","arr":[10,20,30]},"list":[1,2,3,4,5],"":"emptykey","null":"NUL"},"a.s.3"]	null	
+get-array-length	get	[{"a":{"s":"xyz","arr":[10,20,30]},"list":[1,2,3,4,5],"":"emptykey","null":"NUL"},"a.arr.length"]	3	
+get-top-array-length	get	[{"a":{"s":"xyz","arr":[10,20,30]},"list":[1,2,3,4,5],"":"emptykey","null":"NUL"},"list.length"]	5	
+getx-string-length	getx	[{"a":{"s":"xyz","arr":[10,20,30]},"list":[1,2,3,4,5],"":"emptykey","null":"NUL"},"a.s.length"]	3	
+getx-string-index	getx	[{"a":{"s":"xyz","arr":[10,20,30]},"list":[1,2,3,4,5],"":"emptykey","null":"NUL"},"a.s.0"]	"x"	
+getx-string-index-oob	getx	[{"a":{"s":"xyz","arr":[10,20,30]},"list":[1,2,3,4,5],"":"emptykey","null":"NUL"},"a.s.3"]	null	
+getx-array-length	getx	[{"a":{"s":"xyz","arr":[10,20,30]},"list":[1,2,3,4,5],"":"emptykey","null":"NUL"},"a.arr.length"]	3	
+getx-top-array-length	getx	[{"a":{"s":"xyz","arr":[10,20,30]},"list":[1,2,3,4,5],"":"emptykey","null":"NUL"},"list.length"]	5	
+get-string-utf16-bmp	get	[{"s":"aé😀z"},"s.1"]	"é"	
+get-string-utf16-after-astral	get	[{"s":"aé😀z"},"s.4"]	"z"	
+get-string-utf16-length	get	[{"s":"aé😀z"},"s.length"]	5	
+getx-string-utf16-bmp	getx	[{"s":"aé😀z"},"s.1"]	"é"	
+getx-string-utf16-after-astral	getx	[{"s":"aé😀z"},"s.4"]	"z"	
+getx-string-utf16-length	getx	[{"s":"aé😀z"},"s.length"]	5	
+get-array-index-leading-zero	get	[{"a":{"s":"xyz","arr":[10,20,30]},"list":[1,2,3,4,5],"":"emptykey","null":"NUL"},"a.arr.01"]	null	
+get-array-index-plus	get	[{"a":{"s":"xyz","arr":[10,20,30]},"list":[1,2,3,4,5],"":"emptykey","null":"NUL"},"a.arr.+1"]	null	
+get-array-index-minus-zero	get	[{"a":{"s":"xyz","arr":[10,20,30]},"list":[1,2,3,4,5],"":"emptykey","null":"NUL"},"a.arr.-0"]	null	
+getx-array-index-leading-zero-token	getx	[{"a":{"s":"xyz","arr":[10,20,30]},"list":[1,2,3,4,5],"":"emptykey","null":"NUL"},["a","arr","01"]]	null	
+get-empty-path-key	get	[{"a":{"s":"xyz","arr":[10,20,30]},"list":[1,2,3,4,5],"":"emptykey","null":"NUL"},""]	"emptykey"	
+get-string-root-length	get	["str","length"]	3	
+getx-null-token	getx	[{"a":{"s":"xyz","arr":[10,20,30]},"list":[1,2,3,4,5],"":"emptykey","null":"NUL"},[null]]	"NUL"	
+getx-number-token	getx	[{"a":[10,20]},["a",1]]	20	
+getx-ancestry-null-leaf	getx	[{"a":{"n":null,"b":1}},"a:n"]	{"a":{"n":null,"b":1}}	
+getx-ancestry-absent-leaf	getx	[{"a":{"n":null,"b":1}},"a:x"]	null	
+getx-token-dot-space	getx	[{"a":{"b":1,"arr":[10,20,30]},"a.b":"dotkey","a b":"spacekey","":"emptykey"},"a. b"]	1	
+getx-token-spaced-dot	getx	[{"a":{"b":1,"arr":[10,20,30]},"a.b":"dotkey","a b":"spacekey","":"emptykey"},"a . b"]	1	
+getx-token-dot-question	getx	[{"a":{"b":1,"arr":[10,20,30]},"a.b":"dotkey","a b":"spacekey","":"emptykey"},"a.?b"]	1	
+getx-token-question-dot	getx	[{"a":{"b":1,"arr":[10,20,30]},"a.b":"dotkey","a b":"spacekey","":"emptykey"},"a?.b"]	1	
+getx-token-dot-dollar	getx	[{"a":{"b":1,"arr":[10,20,30]},"a.b":"dotkey","a b":"spacekey","":"emptykey"},"a.$"]	{"arr":[10,20,30],"b":1}	
+getx-token-dot-plus	getx	[{"a":{"b":1,"arr":[10,20,30]},"a.b":"dotkey","a b":"spacekey","":"emptykey"},"a.arr.+1"]	20	
+getx-token-dot-minus	getx	[{"a":{"b":1,"arr":[10,20,30]},"a.b":"dotkey","a b":"spacekey","":"emptykey"},"a.arr.-0"]	10	
+getx-token-quoted-dot	getx	[{"a":{"b":1,"arr":[10,20,30]},"a.b":"dotkey","a b":"spacekey","":"emptykey"},"\"a.b\""]	null	
+getx-token-quoted-space	getx	[{"a":{"b":1,"arr":[10,20,30]},"a.b":"dotkey","a b":"spacekey","":"emptykey"},"\"a b\""]	null	
+getx-token-empty-quotes	getx	[{"a":{"b":1,"arr":[10,20,30]},"a.b":"dotkey","a b":"spacekey","":"emptykey"},"\"\""]	null	
+getx-token-bom-is-space	getx	[{"a":{"b":1}},"a\ufeffb"]	1	
+getx-token-vtab-is-space	getx	[{"a":{"b":1}},"a\u000bb"]	1	
+getx-token-nel-is-not-space	getx	[{"a":{"b":1}},"a\u0085b"]	null	
+getx-js-a-b-eq-true	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"a.b=true"]	{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}}	
+getx-js-a-t-eq-1	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"a.t=1"]	{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}}	
+getx-js-a-z-eq-false	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"a.z=false"]	{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}}	
+getx-js-a-f-eq-0	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"a.f=0"]	{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}}	
+getx-js-a-t-gt-0	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"a.t>0"]	{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}}	
+getx-js-a-n-lt-1	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"a.n<1"]	{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}}	
+getx-js-a-n-ge-0	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"a.n>=0"]	{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}}	
+getx-js-a-n-eq-none	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"a.n="]	{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}}	
+getx-js-a-x-eq-none	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"a.x="]	{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}}	
+getx-js-a-n-re-null	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"a.n~null"]	{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}}	
+getx-js-a-x-re-undef	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"a.x~undef"]	{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}}	
+getx-js-a-c-re-object	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"a.c~Object"]	{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}}	
+getx-js-nan-eq-nan	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"nan=NaN"]	{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true}	
+getx-js-hex-eq-0x10	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"hex=0x10"]	{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true}	
+getx-js-zero-eq-false	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"zero=false"]	{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true}	
+getx-js-bool-gt-0	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"bool>0"]	{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true}	
+getx-js-nan-ne-nan	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"nan!=NaN"]	null	
+getx-js-one-eq-1	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"one=1"]	null	
+getx-js-e1-eq-10	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"e1=10"]	null	
+getx-js-a-b-seq-1	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"a.b==1"]	null	
+getx-js-a-n-seq-none	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"a.n=="]	null	
+getx-js-a-x-ne-none	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"a.x!="]	null	
+getx-js-a-b-le-1	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"a.b<=1"]	{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}}	
+getx-js-a-b-ge-2	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"a.b>=2"]	null	
+getx-js-a-t-lt-2	getx	[{"a":{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}},"nan":"NaN","one":"1.0","e1":"1e1","hex":16,"zero":0,"bool":true},"a.t<2"]	{"b":1,"t":true,"z":0,"f":false,"n":null,"c":{"d":"x"}}	
+getx-filter-raw-children	getx	[{"obj":{"x":{"k":1},"y":{"k":2},"w":7}},"obj?q~u"]	{"x":{"k":1},"y":{"k":2}}	
+getx-filter-over-number	getx	[{"num":5},"num?k=1"]	null	
+getx-filter-over-null	getx	[{"nul":null},"nul?k=1"]	null	
+getx-filter-over-string	getx	[{"s":"abc"},"s?length=1"]	null	
+getx-filter-scalar-children-never-pass	getx	[{"l":[1,2]},["l","?","val$","=","1"]]	[]	
+getx-filter-key-not-stamped	getx	[{"o":{"x":{"k":1},"y":{"k":2}}},["o","?","key$","=","x"]]	{}	
+getx-filter-end-unanchored	getx	[{"list":[{"v":"t-w","k":"K1"},{"v":"o","k":"K2"}]},["list","?","v","=","t-w","k"]]	null	
+getx-filter-end-unanchored-index	getx	[{"list":[{"v":"t-w","k":"K1"},{"v":"o","k":"K2"}]},["list","?","v","=","t-w","0","k"]]	"K1"	

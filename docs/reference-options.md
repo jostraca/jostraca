@@ -32,20 +32,20 @@ Jostraca Options: Validation failed for object "{folder:/out,bogus:1}" because t
 
 | option | type | default | effect |
 |---|---|---|---|
-| `folder` | `string` | `'.'` | Base output folder. |
+| `folder` | `string` | `'.'` | Base output folder. A backslash is a separator, folded before the path is normalised, and a trailing separator is ignored, so `out/`, `./out/`, `out//` and `o\..\out` behave as `out`. An empty string is refused. |
 | `model` | any | `{}` | The data model. Reaches components as `props.ctx$.model`, and drives `$$path$$` substitution. |
 | `meta` | `object` | `{}` | Arbitrary data, reachable as `props.ctx$.meta`. Jostraca does not read it. |
 | `fs` | `() => FS` | `node:fs` | Filesystem provider factory. |
-| `now` | `() => number` | `Date.now` | Clock. Pin it for reproducible output. |
-| `log` | `Log` | a console logger | Receives `log.debug` warnings, and nothing else. |
+| `now` | `() => number` | `Date.now` | Clock. Pin it for reproducible output. Anything but a function, or `null` for the default, is refused. |
+| `log` | `Log` | a console logger | Receives `log.debug` warnings, and nothing else, so it must have a `debug` function; anything else is refused. `null` is the default. The console logger prints each call as `<ISO time> LEVEL <args>`: `trace`, `debug` and `info` to standard output, the rest to standard error. |
 | `debug` | `string` | `'.'` | Must be a string; a boolean throws. Truthy makes `cmp()` stamp a callsite on each node. |
 | `build` | `boolean` | `true` | Run the build phase. `false` runs define only and writes nothing. |
 | `mem` | `boolean` |—| Generate onto an in-memory filesystem. |
-| `vol` | `object` |—| Seed for the in-memory filesystem. Does nothing without `mem`. |
+| `vol` | `object` |—| Seed for the in-memory filesystem: each value a string or `Buffer` (a file, empty allowed) or `null` (an empty directory). Anything else is refused. Does nothing without `mem`. |
 | `existing` | `{txt, bin}` | see below | What to do with a file that already exists. |
 | `control` | `{dryrun, duplicate, version}` | see below | See [Control](#control). |
-| `cmp.Copy.ignore` | `RegExp[]` | `[/~$/]` | Extra names for `Copy` to skip. |
-| `exclude` | `boolean` | `false` | Skip output files modified since the last build. |
+| `cmp.Copy.ignore` | `(RegExp \| string)[]` | `[/~$/]` | Extra names for `Copy` to skip. A string is a regular expression source, the form JSON configuration can carry; an empty string or any other value is refused. |
+| `exclude` | `boolean` | `false` | Skip output files modified since the last build. See [`exclude`](#exclude). |
 
 `fs` takes a factory, not a filesystem, and `FS` is a small contract
 rather than the whole of `node:fs`. Six methods are required:
@@ -71,6 +71,12 @@ value, not as a default, so nothing sets it when you omit it and the
 fallback is the string `'.'`—which is truthy. Debug callsite stamping
 is therefore **on** by default.
 
+`now` is sampled more than once. A run samples it once for `when`, once
+per filesystem call the file handler makes, once per recorded action,
+and once for the meta log's `last`. A constant clock gives byte-identical
+meta logs, and a ticking one gives the same values in the TypeScript and
+Go ports.
+
 ### Options that exist and do nothing
 
 `name.file.prefix`, `name.file.suffix`, `name.folder.prefix`,
@@ -83,14 +89,14 @@ Setting them has no effect anywhere.
 
 ## How per-call options override global ones
 
-**The rule differs per option, and three of them ignore the global
-value entirely.** This is the part most likely to surprise you, so it
-is a table rather than a sentence:
+Every option given to `Jostraca()` is honoured by each call that does
+not set it, and the per-call value wins where it does. How the two
+combine differs by option:
 
 | option | rule | global honoured when the call omits it? |
 |---|---|---|
 | `folder` | per-call wins, else global, else `'.'` | yes |
-| `fs` | per-call wins, else global, else `node:fs` | yes |
+| `fs` | per-call wins, else the in-memory filesystem when `mem` is on for the call, else global, else `node:fs` | yes |
 | `now` | per-call wins, else global, else `Date.now` | yes |
 | `log`, `debug` | per-call wins, else global, else the default | yes |
 | `mem` | per-call wins if present, else global | yes |
@@ -99,18 +105,13 @@ is a table rather than a sentence:
 | `model` | per-call **replaces** wholesale | yes, replaced rather than merged |
 | `existing.txt` / `existing.bin` | deep merge, per key | yes |
 | `cmp` | deep merge over the built-in default | yes |
-| `build` |—| **no. The global value is silently ignored.** |
-| `control.*` |—| **no. The global value is silently ignored.** |
-| `exclude` |—| **no. The global value is silently ignored.** |
+| `build` | per-call wins, else global, else `true` | yes |
+| `control.*` | deep merge, per key: defaults, then global, then per-call | yes |
+| `exclude` | per-call wins, else global, else `false` | yes |
 
-The cause is one asymmetry in the shape. Keys declared as optional are
-simply absent when you omit them, so the `null ==` test that falls back
-to the global works. Keys with a materialised default (`build`,
-`control`, `exclude`) are **never** absent from the per-call object, so
-the fallback never fires and the per-call default wins over your global
-setting.
-
-Set `build`, `control` and `exclude` on the `generate()` call.
+A per-call `control` that sets one key leaves every other global key
+in force, so a call that asks for `version: true` under a global
+`dryrun: true` still writes nothing.
 
 ## The result
 
@@ -127,8 +128,8 @@ Set `build`, `control` and `exclude` on the `generate()` call.
     unchanged,   // byte-identical, so not rewritten
   },
   audit,      // () => [tag, data][]
-  vol,        // () => Volume  -- only when an in-memory fs was built
-  fs,         // () => FS      -- only when an in-memory fs was built
+  vol,        // () => Volume  -- only when mem is on for the call
+  fs,         // () => FS      -- only when mem is on for the call
 }
 ```
 
@@ -143,16 +144,12 @@ byte-identical rewrite would bump the mtime and re-trigger every
 watcher downstream, so Jostraca skips it and records the path here
 instead of in `written`. An explicit `File` `mode` is still applied.
 
-`vol()` and `fs()` are present only when an in-memory filesystem was
-constructed, and in two configurations one of them can mislead:
-
-- Global `mem: true` with a per-call `fs`: `fs()` is right, `vol()`
-  returns the untouched global volume.
-- Global `mem: true` with per-call `mem: false`: output still goes to
-  the global in-memory filesystem, and both accessors are absent.
-
-Neither is a configuration worth having. Pick one provider per
-instance.
+`vol()` and `fs()` are present exactly when `mem` is on for the call:
+`vol()` is the in-memory volume and `fs()` the provider the run
+actually used. A provider you supply yourself, even an in-memory one,
+gets neither, because you already hold it. One configuration
+can mislead: global `mem: true` with a per-call `fs`, where `fs()` is
+your provider and `vol()` returns the untouched global volume.
 
 ## `existing`
 
@@ -171,6 +168,11 @@ The extension decides first, by membership of the
 [`isbinext`](reference-utilities.md#isbinext-and-isbincontent) list, and content
 sniffing can then promote an unlisted extension to binary (a NUL byte
 in the first 8192). Sniffing never demotes a listed extension to text.
+
+The file on disk is compared and merged as bytes. Bytes that are not
+valid UTF-8, such as a file saved in Latin-1, survive `diff` and
+`merge` exactly, and a file whose bytes differ from the generate is
+never reported unchanged.
 
 ### The order the flags are checked
 
@@ -351,14 +353,18 @@ line3
 The two timestamps come from different clocks: the generated label is
 this run's `now()`, the existing label is the **previous** run's
 completion time. With no previous run that is `-1`, which renders as
-`1969-12-31T23:59:59.999Z`.
+`1969-12-31T23:59:59.999Z`. A meta log whose `last` is not a finite
+epoch-millisecond value within the JavaScript `Date` range counts as no
+previous run.
 
-A file that still carries an unresolved `>>>>>>> EXISTING:` marker from
-an earlier merge keeps its contents: the engine will not nest a second
-merge inside the first. The two stacks report that differently.
-TypeScript rewrites the identical bytes and lists the file under
-`merged`, with no conflict; Go does not write at all and records the
-file as skipped.
+A file that still holds the markers of an earlier merge is left
+byte-for-byte untouched: the engine will not nest a second merge inside
+the first. It is not rewritten, so its mtime does not move, though a
+requested `mode` is still applied. It is reported in both `merged` and
+`conflicted`, because it still carries markers, and the
+`.jostraca/generated` baseline is refreshed to the new generate. A clean
+merge over a file the user never edited is written even when the
+generated text itself contains a marker line.
 
 ### Merge needs a baseline, and degrades silently without one
 
@@ -404,7 +410,11 @@ you to expect.
 control: { dryrun: false, duplicate: true, version: false }
 ```
 
-Set these on the `generate()` call; a global `control` is ignored.
+A global `control` and a per-call one merge per key, so a call that
+sets `version` keeps a global `dryrun: true` in force. The per-call
+value wins for the keys it sets. [`check`](#check) forces
+`dryrun: false` and `duplicate: false` for its own run and keeps every
+other key.
 
 **`dryrun`** guards every mutation while letting everything else run.
 The decision tree, the audit and the `files` arrays all report what
@@ -432,6 +442,10 @@ seeds it.
   calls.
 - A per-call `vol` forks: it seeds a fresh volume from the global seed
   merged with yours, and that call's writes never reach the shared one.
+- A per-call `mem: false` turns memory mode off for that call: the run
+  uses the global `fs`, else `node:fs`, and never the shared volume.
+- With `mem: true`, the in-memory filesystem beats a global `fs`. Only
+  a per-call `fs` beats it.
 - A provider missing `existsSync` is rejected with
   `BuildContext: Invalid file system provider`.
 
@@ -509,11 +523,16 @@ The `jostraca.meta.log` it wrote, in full:
 `action` is the last action taken; `actions` is the ordered list.
 Observed values: `write`, `preserve`, `present`, `diff`, `merge`,
 `skip`. `hlast` and `hwhen` are the ISO timestamp with the non-digits
-stripped and the last digit dropped, as a number.
+stripped and the last digit dropped, as a number. A clock of `() => 0`
+is the epoch, not the wall clock, so it gives `1970010100000000` and a
+byte-stable meta log.
 
 An unreadable meta log is **not** fatal: a warning goes to `log.debug`
-and the run continues as though there were no previous build. Nothing
-is written at all when the root produced no components.
+and the run continues as though there were no previous build. A meta
+log whose `last` is not a finite epoch-millisecond value within the
+JavaScript `Date` range is read the same way, as no previous build, and
+a merge then labels the existing side `1969-12-31T23:59:59.999Z`.
+Nothing is written at all when the root produced no components.
 
 ## `check`
 
@@ -524,6 +543,13 @@ check(options, root) => Promise<CheckResult>
 Holds a committed folder to what the generators produce. It takes the
 same options as `generate` and runs the same generate; `folder` is the
 folder it checks.
+
+`folder` and `fs` resolve as they do for `generate`: the per-call value,
+else the one given to `Jostraca()`, else `'.'` and `node:fs`. `fs` is
+the filesystem holding the committed tree. The check always runs the
+build phase and never writes: `build: false`, `control.dryrun` and
+`control.duplicate` are overridden for its own run, whether they were
+set per call or given to `Jostraca()`.
 
 ```
 {
@@ -627,6 +653,21 @@ families: low-level filesystem calls, tagged
 tagged `FileHandler:save:<action>` and carrying the file's metadata
 plus a `why` breadcrumb array naming each branch the decision took.
 
+A low-level entry carries `{path, when, exists}` for `existsFile`,
+`{path, when, size}` or `{path, when, existed, size}` for `loadFile`,
+`loadJSON`, `saveFile` and `saveJSON`, and
+`{topath, frompath, when, existed, size}` for `copyFile`. `size` is a
+byte length, and the path is as the handler received it,
+folder-prefixed or absolute. The meta log's own read and write, and the
+`.gitignore`, are audited too. A decision record carries `action`,
+`path`, `exists`, `actions`, `protect`, `conflict`, `when`, `hwhen` and
+`why`, and it is a snapshot: `actions` and `why` are as they stood when
+the record was pushed, so a preserve record's `actions` is
+`[preserve]`. The write or skip record is pushed last and carries the
+baseline breadcrumbs (`duplicate-1 within-0`). A `build: false` run, or
+one whose define phase produced nothing, still reports one entry: the
+meta log's `existsFile`.
+
 A `why` trail reads, for a plain overwrite:
 
 <!-- test: skip an audit breadcrumb quoted for shape; the trails are pinned by ts/test suites -->
@@ -642,7 +683,8 @@ start<Wx> exists-0 skip-0 duplicate-1 within-0
 ```
 
 Note the missing `not-protect-1` in the second: protection
-short-circuits the whole diff and merge stage.
+short-circuits the whole diff and merge stage. `start<W...>` marks a
+target that already exists, and `w` a new one.
 
 Errors are tagged with an `ERROR:` prefix and carry `err`. The
 duplicate-baseline write does not appear in the audit at all; it
@@ -650,28 +692,43 @@ bypasses the audited writer.
 
 ## `exclude`
 
-`exclude: true` on the `generate()` call skips any output file that
-exists and whose mtime is later than the previous build's completion
+`exclude: true`, global or per call, skips any output file that exists
+and whose mtime is later than the previous build's completion
 stamp—a "do not touch what the user has been editing" switch. An
 excluded file appears in **none** of the `files` arrays.
 
-Two limits: the global form is ignored (see the override table), and
-`Inject` does not honour it. The equivalent block in the inject
-operation is commented out in the source, so an injection runs
+Both times are compared in whole milliseconds, so a write inside the
+same millisecond as that build's stamp does not count as newer than the
+build.
+
+One limit: `Inject` does not honour it. The equivalent block in the
+inject operation is commented out in the source, so an injection runs
 regardless.
 
 ## Errors
 
 An error out of the build phase carries `err.jostraca = true` and
 `err.step = <node kind>`. An error thrown during the define phase is
-not decorated, because the walk has not started.
+not decorated, because the walk has not started. A `root` that is not
+a function is refused with
+`jostraca: generate root callback is not a function`.
 
 `err.callsite` is never populated. The walker reads a property the
 component wrapper does not write. Treat it as absent.
 
 `log` receives `log.debug` calls and nothing else, and only to replay
-warnings: a duplicate save, an unreadable meta log, a failed chmod, a
-temp-file cleanup failure. A clean run logs nothing.
+warnings: a duplicate save, an unreadable meta log, an `Inject` whose
+markers were not found, a failed chmod of an unchanged file. The replay
+happens after a run that succeeds, one call per warning, with the
+payload `{point: 'jostraca-warning', dlogentry, note}`, and a run
+receives only the warnings it raised itself, even while another
+`generate` runs concurrently. A run that throws replays nothing. A
+clean run logs nothing.
+
+A write that fails leaves no temporary file behind where it can remove
+it. One it cannot remove is recorded as `temp cleanup failed: <path>`
+in the debug buffer; the failed write refuses the run, so that warning
+never reaches `log`.
 
 Next: the [component reference](reference-components.md) for the
 component surface, and the [utilities

@@ -1,0 +1,311 @@
+{
+  "scenario": "folder_and_project_in_file",
+  "opts": {
+    "model": {
+      "name": "N"
+    }
+  },
+  "prepopulate": {
+    "/src/c.txt": "C$$name$$\n",
+    "/tm/f.txt": "[F<[SLOT]>]\n",
+    "/out/app/inj.txt": "h\n#--START--#\nold\n#--END--#\nt\n"
+  },
+  "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/f.txt",
+      "/out/app/g.txt",
+      "/out/app/e/c2.txt",
+      "/out/app/h.txt",
+      "/out/app/m/inner.txt",
+      "/out/app/inj.txt",
+      "/out/app/j.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
+  "audit": [
+    [
+      "FileHandler:existsFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "exists": false
+      }
+    ],
+    [
+      "FileHandler:saveFile:FileOp:after:write:",
+      {
+        "path": "/out/app/f.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 3
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/f.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:FileOp:after:write:",
+      {
+        "path": "/out/app/g.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 3
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/g.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:Copy:copyFile:write:",
+      {
+        "path": "/out/app/e/c2.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 3
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/e/c2.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:FileOp:after:write:",
+      {
+        "path": "/out/app/h.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 10
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/h.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:FileOp:after:write:",
+      {
+        "path": "/out/app/m/inner.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 1
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/m/inner.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:loadFile:",
+      {
+        "path": "/out/app/inj.txt",
+        "when": 1735689600000,
+        "size": 30
+      }
+    ],
+    [
+      "FileHandler:saveFile:write:",
+      {
+        "path": "/out/app/inj.txt",
+        "when": 1735689600000,
+        "existed": true,
+        "size": 30
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/inj.txt",
+        "exists": true,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<Wx>",
+          "exists-0",
+          "write-0",
+          "not-protect-1",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:FileOp:after:write:",
+      {
+        "path": "/out/app/j.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 3
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/j.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 1943
+      }
+    ],
+    [
+      "FileHandler:saveJSON:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "size": 1943
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/.gitignore",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 29
+      }
+    ]
+  ],
+  "vol": {
+    "/src/c.txt": "C$$name$$\n",
+    "/tm/f.txt": "[F<[SLOT]>]\n",
+    "/out/app/inj.txt": "h\n#--START--#\nNEW\n#--END--#\nt\n",
+    "/out/app/d": null,
+    "/out/app/f.txt": "1x2",
+    "/out/app/g.txt": "1y2",
+    "/out/app/e/c2.txt": "CN\n",
+    "/out/app/k": null,
+    "/out/app/h.txt": "1CN\n[FS]\n2",
+    "/out/app/m/inner.txt": "I",
+    "/out/app/j.txt": "1z2",
+    "/out/.jostraca/generated/app/f.txt": "1x2",
+    "/out/.jostraca/generated/app/g.txt": "1y2",
+    "/out/.jostraca/generated/app/e/c2.txt": "CN\n",
+    "/out/.jostraca/generated/app/h.txt": "1CN\n[FS]\n2",
+    "/out/.jostraca/generated/app/m/inner.txt": "I",
+    "/out/.jostraca/generated/app/inj.txt": "h\n#--START--#\nNEW\n#--END--#\nt\n",
+    "/out/.jostraca/generated/app/j.txt": "1z2",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/f.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/f.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/g.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/g.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/e/c2.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/e/c2.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/h.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/h.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/m/inner.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/m/inner.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/inj.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/inj.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/j.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/j.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n",
+    "/out/p": null
+  }
+}

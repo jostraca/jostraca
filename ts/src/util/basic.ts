@@ -131,6 +131,18 @@ const GETX_TOKEN_RE = /\s*("(\\.|[^"\\])*"|[\w\d_]+|\s+|[^\w\d_]+)\s*/g
 // E: operator
 
 
+// One step of a path: an OWN property of an object, an array or a string,
+// and a miss for anything else. So `length` and canonical indices resolve
+// on arrays and strings, while inherited members (`toString`,
+// `constructor`, `__proto__`, a number's `toFixed`) do not, and stepping
+// from null or a scalar yields undefined instead of throwing.
+function step(node: any, key: any): any {
+  return null != node &&
+    ('object' === typeof node || 'string' === typeof node) &&
+    Object.prototype.hasOwnProperty.call(node, key) ? node[key] : undefined
+}
+
+
 function getx(root: any, path: string | string[]): any {
   if (null == root || 'object' !== typeof root) {
     return undefined
@@ -169,7 +181,7 @@ function getx(root: any, path: string | string[]): any {
     let t1 = tokens[i + 1]
 
     if (t1 && t1.match(/^(<=?|>=?|==?|!=|~)$/)) {
-      let val = node[t0]
+      let val = step(node, t0)
       let arg: any = tokens[i + 2]
 
       const argtype = typeof arg
@@ -213,7 +225,7 @@ function getx(root: any, path: string | string[]): any {
     else if (':' === t1) {
       if ('=' !== tokens[i + 2]) {
         out = !ancestry ? node : out
-        node = node[t0]
+        node = step(node, t0)
 
         if (undefined === node) {
           out = undefined
@@ -239,40 +251,23 @@ function getx(root: any, path: string | string[]): any {
       }
       ftokens.length = j
 
-      // `each` stamps key$/index$ onto the children IN PLACE, and those
-      // children are the caller's own objects. The cleanup below only ever
-      // reached the survivors, so a child the filter REJECTED kept the stamp
-      // and the caller's model was left polluted -- observable in generated
-      // output, because Content shallow-copies the model and every nested
-      // object is shared across the run. See docs/design/PARITY_PLAN.md 2.3. Go does not
-      // mutate here (it rebuilds), so TS was the side that was wrong.
-      const stamped: any[] = each(node)
-      out = stamped
-        .filter((child: any) => undefined != getx(child, ftokens))
-
-      if (null != node && 'object' === typeof node) {
-        if (Array.isArray(node)) {
-          out = out.map((n: any) => (delete n.index$, n))
-        }
-        else {
-          out = out.reduce((a: any, n: any) => (a[n.key$] = n, delete n.key$, a), {})
-        }
-
-        // Sweep the rejected children too. Survivors have already had theirs
-        // removed above, so this is a no-op for them.
-        for (const n of stamped) {
-          if (null != n && 'object' === typeof n) {
-            delete n.key$
-            delete n.index$
-          }
-        }
-      }
+      // The children are filtered as they are, not through each(): a
+      // scalar child is not wrapped, nothing is stamped on the caller's
+      // objects, and a filter over anything but an object or array is a
+      // miss rather than an empty list.
+      out =
+        null == node || 'object' !== typeof node ? undefined :
+          Array.isArray(node) ?
+            node.filter((child: any) => undefined != getx(child, ftokens)) :
+            Object.keys(node).sort()
+              .filter((k: string) => undefined != getx(node[k], ftokens))
+              .reduce((a: any, k: string) => (a[k] = node[k], a), {})
 
       node = out
       i += ftokens.length
     }
     else if (null != t1) {
-      node = node[t0]
+      node = step(node, t0)
 
       if (ancestry) {
         ancestry = false
@@ -281,7 +276,7 @@ function getx(root: any, path: string | string[]): any {
       }
     }
     else {
-      node = node[t0]
+      node = step(node, t0)
       out = (ancestry && undefined !== node) ? out : node
     }
 
@@ -295,7 +290,7 @@ function get(root: any, path: string | string[]): any {
   path = 'string' === typeof path ? path.split('.') : path
   let node = root
   for (let i = 0; i < path.length && null != node; i++) {
-    node = node[path[i]]
+    node = step(node, path[i])
   }
   return node
 }
@@ -304,7 +299,7 @@ function get(root: any, path: string | string[]): any {
 function camelify(input: any[] | string) {
   let parts = partify(input)
   return parts
-    .map((p: string) => p[0].toUpperCase() + p.substring(1))
+    .map((p: string) => ucf(p))
     .join('')
 }
 
@@ -324,15 +319,24 @@ function snakify(input: any[] | string) {
     .join('_')
 }
 
+// ucf and lcf change the first CODE POINT: s[0] is a lone surrogate for a
+// letter outside the BMP, and a lone surrogate has no case.
 function ucf(s: string) {
   s = ('string' === typeof s ? s : '' + s)
-  return 0 < s.length ? s[0].toUpperCase() + s.substring(1) : s
+  const c = firstCodePoint(s)
+  return c.toUpperCase() + s.substring(c.length)
 }
 
 
 function lcf(s: string) {
   s = ('string' === typeof s ? s : '' + s)
-  return 0 < s.length ? s[0].toLowerCase() + s.substring(1) : s
+  const c = firstCodePoint(s)
+  return c.toLowerCase() + s.substring(c.length)
+}
+
+
+function firstCodePoint(s: string): string {
+  return 0 < s.length ? String.fromCodePoint(s.codePointAt(0) as number) : ''
 }
 
 
@@ -393,8 +397,8 @@ function idenstr(s: string) { return s.replace(/[^\w\d]/g, '_') }
 
 
 // Cache for compiled template RegExps to avoid recompilation on repeated calls.
-// Stores regex and the mapping from original keys to normalized canon keys.
-const templateRECache = new Map<string, { re: RegExp, canonKeys: [string, string][] }>()
+// Stores the regex and, for each replace key's `J_K` group, the key itself.
+const templateRECache = new Map<string, { re: RegExp, groupKey: Record<string, string> }>()
 const TEMPLATE_RE_CACHE_MAX = 100
 
 // Cache for eject RegExps.
@@ -461,7 +465,11 @@ function template(
   let close = null == spec?.close ? '\\$\\$' : spec.close
   let ref = null == spec?.ref ? '[^$]+' : spec.ref
   let specReplaceMap = spec?.replace || {}
-  let specReplaceCanon: any = {}
+
+  // The replace key each `J_K` group stands for. The sanitised key in the
+  // group name is decoration only: 'a.b' and 'a_b' both sanitise to 'a_b',
+  // so looking a value up by it gave one key the other's value.
+  let groupKey: Record<string, string> = {}
 
   let insertRE: RegExp
   if (null != spec?.insert) {
@@ -473,14 +481,10 @@ function template(
     const cached = templateRECache.get(cacheKey)
     if (cached) {
       insertRE = cached.re
-      // Rebuild specReplaceCanon from current values using cached key mapping.
-      for (const [origKey, canonKey] of cached.canonKeys) {
-        specReplaceCanon[canonKey] = specReplaceMap[origKey]
-      }
+      groupKey = cached.groupKey
     }
     else {
       let ngI = 1
-      const canonKeys: [string, string][] = []
       insertRE = new RegExp(
 
         // Match alternate for `$$foo.bar$$` model replacements.
@@ -488,20 +492,18 @@ function template(
         '(?<J_R>' + ref + ')' +
         '(?<J_C>' + close + ')' +
 
-        // Template replace entries.
+        // Template replace entries, in an order that depends only on the
+        // key set, so the cache above is sound.
         ((Object.keys(specReplaceMap))
-          .sort((a, b) => a.startsWith('#') ?
-            (a.includes('-') ? b.includes('-') ? b.length - a.length : -1 : b.length - a.length) :
-            b.length - a.length)
+          .sort(replaceKeyOrder)
           .map((k: string, _: any) => (
 
             // Normalize key for use as group name as key could be a regexp ('/foo/' format).
-            _ = idenstr(k).replace(/_+/g, '_'),
-            specReplaceCanon[_] = specReplaceMap[k],
-            canonKeys.push([k, _]),
+            _ = `J_K${ngI++}_` + idenstr(k).replace(/_+/g, '_'),
+            groupKey[_] = k,
 
             // match alternate per key.
-            `|(?<J_K${ngI++}_${_}>` +
+            `|(?<${_}>` +
 
             // Custom regexp.
             (k.match(/^\/.+\/$/) ? k.substring(1, k.length - 1)
@@ -531,7 +533,7 @@ function template(
       if (templateRECache.size >= TEMPLATE_RE_CACHE_MAX) {
         templateRECache.clear()
       }
-      templateRECache.set(cacheKey, { re: insertRE, canonKeys })
+      templateRECache.set(cacheKey, { re: insertRE, groupKey })
     }
   }
 
@@ -558,9 +560,10 @@ function template(
       let insert
       let skip = 0
       let ref = mg.J_R // m[2]
+      const isref = null != ref
 
       // Get replacement from model path.
-      if (null != ref) {
+      if (isref) {
         const qm = ref.match(/^"(.+)"$/)
         if (qm) {
           insert = qm[1]
@@ -586,7 +589,8 @@ function template(
           filter(k => k.startsWith('J_K') && null != mg[k])[0]
         if (null != key) {
           ref = mg[key] || ''
-          insert = specReplaceCanon[key.replace(/^J_K\d+_/, '')] || ''
+          const value = specReplaceMap[groupKey[key]]
+          insert = null == value ? '' : value
         }
       }
 
@@ -597,10 +601,11 @@ function template(
       else {
         let ti = typeof insert
 
-        // Leave unmatched model paths in place so they can be debugged.
-        if (null == insert || ('number' === ti && isNaN(insert))) {
-          handle((0 === skip ? '' : mg.J_O) + ref +
-            (0 === skip ? '' : mg.J_C))
+        // Leave unmatched model paths in place so they can be debugged. A
+        // plain replace value never takes this branch: it formats like a
+        // function's return, so NaN prints as 'NaN'.
+        if (isref && (null == insert || ('number' === ti && isNaN(insert)))) {
+          handle(mg.J_O + ref + mg.J_C)
         }
 
         // Replacement is a function, so call it to generate a dynamic replacement string.
@@ -635,13 +640,14 @@ function template(
           // where an unresolved $$path$$ stays visible for debugging. That
           // asymmetry is the documented contract for `{item.path}` (see
           // docs/reference-components.md, List) and predates this.
-          handle(null == fnval ? '' :
-            'object' === typeof fnval ? jsonify(fnval) : fnval)
+          handle(formatInsert(fnval))
         }
 
-        // Insert a plain replacement value, JSONifying if necessary.
+        // Insert a plain replacement value: formatted exactly as a
+        // function's return value is, so 0 and false print rather than
+        // collapsing to the empty string.
         else {
-          handle(('object' === ti ? jsonify(insert) : insert))
+          handle(formatInsert(insert))
         }
 
         remain = remain.substring(mi + skip + ref.length)
@@ -655,6 +661,24 @@ function template(
 
 
   return hasCustomHandle ? out : parts.join('')
+}
+
+
+// Replace keys in one total order that depends only on the key set:
+// '#Tag-Name' keys first, then longer keys before shorter, then by UTF-16
+// code unit. The old comparator was inconsistent across its branches, so
+// the order came out of the sort algorithm, the declaration order and --
+// through the regex cache -- whichever call had built the regex first.
+function replaceKeyOrder(a: string, b: string): number {
+  const rank = (k: string) => k.startsWith('#') && k.includes('-') ? 0 : 1
+  return rank(a) - rank(b) || b.length - a.length || (a < b ? -1 : a > b ? 1 : 0)
+}
+
+
+// One inserted value, however it was supplied: null and undefined are
+// empty, objects are JSON, and anything else is String(v).
+function formatInsert(v: any): string {
+  return null == v ? '' : 'object' === typeof v ? jsonify(v) : String(v)
 }
 
 
@@ -717,14 +741,24 @@ function getCachedEjectRE(s: string): RegExp {
 }
 
 
+// A number is a count of spaces: floor(n) when n is finite and positive,
+// and no pad otherwise, so a negative count or NaN is not a RangeError
+// from String.repeat. A string is a literal prefix: a pad holding '$'
+// goes through a replacer function, so '$$', '$&' and '$1' in it are
+// ordinary text rather than replacement patterns. Any other pad keeps the
+// faster replacement string.
 function indent(src: string, indent: string | number | undefined) {
   src = null == src ? '' : '' + src
   indent = null == indent ? 2 : indent
-  indent = 'number' === typeof indent ? ' '.repeat(indent) : '' + indent
-  src = src.replace(/(\n|^)(?!$)/g, '$1' + indent)
-  // (_, p1) => p1 + indent)
-  return src
+  const pad = 'number' === typeof indent ?
+    ' '.repeat(Number.isFinite(indent) && 0 < indent ? Math.floor(indent) : 0) :
+    '' + indent
+  return pad.includes('$') ?
+    src.replace(INDENT_RE, (_: string, p1: string) => p1 + pad) :
+    src.replace(INDENT_RE, '$1' + pad)
 }
+
+const INDENT_RE = /(\n|^)(?!$)/g
 
 
 // Compare `[key, value]` entries by key. Sorted iteration is what keeps
@@ -736,7 +770,8 @@ const sortByKey = (a: any, b: any) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0
 // Map child objects to new child objects. Iterates source and spec
 // keys in alphabetical order for cross-stack determinism (Go map
 // iteration is randomised; sorting on both sides keeps output
-// byte-equal).
+// byte-equal). A child's field is read as an own property (step), so a
+// null or scalar child projects undefined rather than throwing.
 function cmap(o: any, p: any) {
   return Object
     .entries(o)
@@ -746,7 +781,7 @@ function cmap(o: any, p: any) {
       .sort(sortByKey)
       .reduce((s: any, m: any) => (cmap.FILTER === s ? s : (s[m[0]] = (
         // transfom(val,key,current,parentkey,parent)
-        'function' === typeof m[1] ? m[1](n[1][m[0]], {
+        'function' === typeof m[1] ? m[1](step(n[1], m[0]), {
           skey: m[0], self: n[1], key: n[0], parent: o
         }) : m[1]
       ), (cmap.FILTER === s[m[0]] ? cmap.FILTER : s))), {})
@@ -771,7 +806,7 @@ function vmap(o: any, p: any) {
       .reduce((s: any, m: any) => (vmap.FILTER === s ? s : (s[m[0]] = (
         // transfom(val,key,current,parentkey,parent)
         // 'function' === typeof m[1] ? m[1](n[1][m[0]], m[0], n[1], n[0], o) : m[1]
-        'function' === typeof m[1] ? m[1](n[1][m[0]], {
+        'function' === typeof m[1] ? m[1](step(n[1], m[0]), {
           skey: m[0], self: n[1], key: n[0], parent: o
         }) : m[1]
       ), (vmap.FILTER === s[m[0]] ? vmap.FILTER : s))), {})
@@ -922,7 +957,9 @@ function humanify(when?: number, flags: {
   parts?: boolean
   terse?: boolean
 } = {}) {
-  const d = when ? new Date(when) : new Date()
+  // Only a missing value means now: 0 is the epoch, which a fixed clock of
+  // () => 0 relies on for byte-stable output.
+  const d = null == when ? new Date() : new Date(when)
   const iso = d.toISOString()
 
   if (flags.parts) {
@@ -992,6 +1029,11 @@ function getdlog(
     const entry: any = [tag, file, Date.now(), ...args, stack]
     entry.seq = ++g.__dlogseq__
     g.__dlog__.push(entry)
+
+    // Also onto the running generate's own list, so a warning is replayed
+    // to the logger of the call that raised it and to no other. The
+    // process-global buffer cannot tell two concurrent calls apart.
+    g.jostraca?.getStore?.()?.dlogs?.push(entry)
   }
   dlog.tag = tag
   dlog.file = file

@@ -1,0 +1,291 @@
+{
+  "scenario": "audit_nested",
+  "runs": [
+    {
+      "files": {
+        "preserved": [],
+        "written": [
+          "/out/app/x/y/n.txt",
+          "/out/app/c/deep/i.png",
+          "/out/app/c/deep/m.bin",
+          "/out/app/c/t.txt",
+          "/out/app/one.txt",
+          "/out/app/j.txt"
+        ],
+        "presented": [],
+        "diffed": [],
+        "merged": [],
+        "conflicted": [],
+        "unchanged": []
+      },
+      "audit": [
+        [
+          "FileHandler:existsFile:",
+          {
+            "path": "/out/.jostraca/jostraca.meta.log",
+            "when": 1735689600000,
+            "exists": false
+          }
+        ],
+        [
+          "FileHandler:saveFile:FileOp:after:write:",
+          {
+            "path": "/out/app/x/y/n.txt",
+            "when": 1735689600000,
+            "existed": false,
+            "size": 1
+          }
+        ],
+        [
+          "FileHandler:save:write",
+          {
+            "action": "write",
+            "path": "/out/app/x/y/n.txt",
+            "exists": false,
+            "actions": [
+              "write"
+            ],
+            "protect": false,
+            "conflict": false,
+            "when": 1735689600000,
+            "hwhen": 2025010100000000,
+            "why": [
+              "start<wX>",
+              "write-1",
+              "duplicate-1",
+              "within-0"
+            ]
+          }
+        ],
+        [
+          "FileHandler:loadFile:copy::",
+          {
+            "path": "/src/tree/deep/i.png",
+            "when": 1735689600000,
+            "size": 4
+          }
+        ],
+        [
+          "FileHandler:saveFile:copy:write:",
+          {
+            "path": "/out/app/c/deep/i.png",
+            "when": 1735689600000,
+            "existed": false,
+            "size": 4
+          }
+        ],
+        [
+          "FileHandler:save:copy::write",
+          {
+            "action": "write",
+            "path": "/out/app/c/deep/i.png",
+            "exists": false,
+            "actions": [
+              "write"
+            ],
+            "protect": false,
+            "conflict": false,
+            "when": 1735689600000,
+            "hwhen": 2025010100000000,
+            "why": [
+              "start<wX>",
+              "write-1",
+              "duplicate-1",
+              "within-0"
+            ]
+          }
+        ],
+        [
+          "FileHandler:loadFile:copy::",
+          {
+            "path": "/src/tree/deep/m.bin",
+            "when": 1735689600000,
+            "size": 3
+          }
+        ],
+        [
+          "FileHandler:saveFile:copy:write:",
+          {
+            "path": "/out/app/c/deep/m.bin",
+            "when": 1735689600000,
+            "existed": false,
+            "size": 3
+          }
+        ],
+        [
+          "FileHandler:save:copy::write",
+          {
+            "action": "write",
+            "path": "/out/app/c/deep/m.bin",
+            "exists": false,
+            "actions": [
+              "write"
+            ],
+            "protect": false,
+            "conflict": false,
+            "when": 1735689600000,
+            "hwhen": 2025010100000000,
+            "why": [
+              "start<wX>",
+              "write-1",
+              "duplicate-1",
+              "within-0"
+            ]
+          }
+        ],
+        [
+          "FileHandler:saveFile:Copy:copyFile:write:",
+          {
+            "path": "/out/app/c/t.txt",
+            "when": 1735689600000,
+            "existed": false,
+            "size": 4
+          }
+        ],
+        [
+          "FileHandler:save:write",
+          {
+            "action": "write",
+            "path": "/out/app/c/t.txt",
+            "exists": false,
+            "actions": [
+              "write"
+            ],
+            "protect": false,
+            "conflict": false,
+            "when": 1735689600000,
+            "hwhen": 2025010100000000,
+            "why": [
+              "start<wX>",
+              "write-1",
+              "duplicate-1",
+              "within-0"
+            ]
+          }
+        ],
+        [
+          "FileHandler:saveFile:Copy:copyFile:write:",
+          {
+            "path": "/out/app/one.txt",
+            "when": 1735689600000,
+            "existed": false,
+            "size": 4
+          }
+        ],
+        [
+          "FileHandler:save:write",
+          {
+            "action": "write",
+            "path": "/out/app/one.txt",
+            "exists": false,
+            "actions": [
+              "write"
+            ],
+            "protect": false,
+            "conflict": false,
+            "when": 1735689600000,
+            "hwhen": 2025010100000000,
+            "why": [
+              "start<wX>",
+              "write-1",
+              "duplicate-1",
+              "within-0"
+            ]
+          }
+        ],
+        [
+          "FileHandler:loadFile:",
+          {
+            "path": "/out/app/j.txt",
+            "when": 1735689600000,
+            "size": 29
+          }
+        ],
+        [
+          "FileHandler:saveFile:write:",
+          {
+            "path": "/out/app/j.txt",
+            "when": 1735689600000,
+            "existed": true,
+            "size": 27
+          }
+        ],
+        [
+          "FileHandler:save:write",
+          {
+            "action": "write",
+            "path": "/out/app/j.txt",
+            "exists": true,
+            "actions": [
+              "write"
+            ],
+            "protect": false,
+            "conflict": false,
+            "when": 1735689600000,
+            "hwhen": 2025010100000000,
+            "why": [
+              "start<Wx>",
+              "exists-0",
+              "write-0",
+              "not-protect-1",
+              "write-1",
+              "duplicate-1",
+              "within-0"
+            ]
+          }
+        ],
+        [
+          "FileHandler:saveFile:",
+          {
+            "path": "/out/.jostraca/jostraca.meta.log",
+            "when": 1735689600000,
+            "existed": false,
+            "size": 1710
+          }
+        ],
+        [
+          "FileHandler:saveJSON:",
+          {
+            "path": "/out/.jostraca/jostraca.meta.log",
+            "when": 1735689600000,
+            "size": 1710
+          }
+        ],
+        [
+          "FileHandler:saveFile:",
+          {
+            "path": "/out/.jostraca/.gitignore",
+            "when": 1735689600000,
+            "existed": false,
+            "size": 29
+          }
+        ]
+      ]
+    }
+  ],
+  "vol": {
+    "/src/tree/deep/i.png": {
+      "b64": "iVAA/w=="
+    },
+    "/src/tree/deep/m.bin": "\u0000\u0001\u0002",
+    "/src/tree/t.txt": "T $$v$$\n",
+    "/out/app/j.txt": "<\n#--START--#\nJ\n#--END--#\n>",
+    "/out/app/x/y/n.txt": "N",
+    "/out/app/c/deep/i.png": {
+      "b64": "iVAA/w=="
+    },
+    "/out/app/c/deep/m.bin": "\u0000\u0001\u0002",
+    "/out/app/c/t.txt": "T V\n",
+    "/out/app/one.txt": "T V\n",
+    "/out/.jostraca/generated/app/x/y/n.txt": "N",
+    "/out/.jostraca/generated/app/c/deep/i.png": {
+      "b64": "iVAA/w=="
+    },
+    "/out/.jostraca/generated/app/c/deep/m.bin": "\u0000\u0001\u0002",
+    "/out/.jostraca/generated/app/c/t.txt": "T V\n",
+    "/out/.jostraca/generated/app/one.txt": "T V\n",
+    "/out/.jostraca/generated/app/j.txt": "<\n#--START--#\nJ\n#--END--#\n>",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/x/y/n.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/x/y/n.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/c/deep/i.png\": {\n      \"action\": \"write\",\n      \"path\": \"app/c/deep/i.png\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/c/deep/m.bin\": {\n      \"action\": \"write\",\n      \"path\": \"app/c/deep/m.bin\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/c/t.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/c/t.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/one.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/one.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/j.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/j.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}

@@ -133,23 +133,28 @@ and a warning goes to `log.debug`:
 ## Where content goes
 
 `Content`, `Line`, `List` and `Fragment` push into the *current file*.
-Four components set it, and only two put it back:
+`File`, `Inject`, `Fragment` and `Slot` each make themselves the current
+file for their children and put the previous one back when they close:
 
 | component | sets current file | restores it |
 |---|---|---|
-| `File` | yes | no |
-| `Inject` | yes | no |
+| `File` | yes | yes |
+| `Inject` | yes | yes |
 | `Fragment` | yes | yes |
 | `Slot` | yes | yes |
 
-Two consequences follow, and both are silent:
+Content with no enclosing `File` or `Inject` is discarded, silently.
 
-- Content with no enclosing `File` or `Inject` is discarded.
-- Nesting a `File` (or a `Folder`) inside a `File` loses the **outer**
-  file: the inner one sets the current file and never restores it, so
-  the outer file's content is written to the inner file's path.
+A `Folder` or a `Project` never becomes the current file. Inside a
+`File`, what its children emit lands in that `File`, in source order,
+and its directory is still made.
 
-Keep `File` calls as siblings, not nested.
+A `File` nested inside a `File`, directly or through a `Folder`, is
+written to its own path, and the outer file keeps its own content from
+both sides of the nested one. `File({name: 'outer.txt'},
+() => { Content('1'); File({name: 'inner.txt'}, () => Content('2'));
+Content('3') })` writes `outer.txt` as `13` and `inner.txt` as `2`.
+Sibling `File` calls still read more plainly.
 
 ## Project
 
@@ -161,14 +166,18 @@ Project(props, children)
 
 | prop | type | default | effect |
 |---|---|---|---|
-| `folder` | `string` | `'.'` | The only prop that changes the output path. An absolute value is used as-is; a relative one joins onto the base output folder. Backslashes become `/`, a trailing `/` is stripped. |
+| `folder` | `string` | `'.'` | The only prop that changes the output path. An absolute value replaces the base output folder; a relative one joins onto it. Backslashes become `/` before the path is normalised, so `p\..\q` is `q`, and a trailing `/` is stripped. |
 | `name` | `string` |—| Adds **no** path segment. It joins the component path that `File.exclude` matches against, and nothing else. |
 
 Project is the only container that passes its props to its children:
 each child function is called with `props` as its argument.
 
-`Project` resets the folder path outright, so a `Project` nested inside
-a `Folder` discards the enclosing segment.
+A `Project`'s folder applies to its own subtree only. Its `folder` joins
+the base output folder, not the enclosing `Folder`, so a `Project`
+nested inside a `Folder` does not take that `Folder`'s segment. When
+the `Project` closes, the enclosing folder is back in force: a sibling
+after it, and the rest of the enclosing `Folder`, land where they would
+have without it.
 
 Paths, with the generate folder set to `out`:
 
@@ -182,11 +191,17 @@ Paths, with the generate folder set to `out`:
 | `Project({folder: 'p/'})` | `out/p/a.txt` |
 | `Project({folder: '.'})` or `''` | `out/a.txt` |
 | `Project({folder: '/abs'})` | `/abs/a.txt` |
+| `Project({folder: 'p'})`, then a sibling `File` | `out/p/a.txt`, then the sibling in `out/` |
+| `Folder({name: 'a'})` holding `Project({folder: 'p2'})` | `out/p2/a.txt`, and `out/a` stays empty |
 | `Project({folder: '..'})` | escapes the output folder |
 
 That last row is the asymmetry to know about. `Folder({name: '..'})`
 throws; `Project({folder: '..'})` does not. The traversal guard covers
 `name` props, and `folder` is not one.
+
+A backslash is a separator in every output name: `Project`'s `folder`,
+`Folder`, `File`, `Inject` and `Copy`'s `to`. A `Fragment` or `Copy`
+`from` is a source path and keeps its platform meaning.
 
 <!-- test: scenario ref-project -->
 
@@ -246,7 +261,7 @@ File(props, children)
 
 | prop | type | default | effect |
 |---|---|---|---|
-| `name` | `string` |—| The filename. Slashes create nested directories. A `..` segment throws. Omitted, the file is literally called `undefined`. |
+| `name` | `string` |—| The filename. Slashes create nested directories. A `..` segment throws. Omitted, the file is literally called `undefined`. An empty name, or one ending in `/`, names a directory: nothing is written there, and the run fails. |
 | `exclude` | `boolean \| string \| (string\|RegExp)[]` |—| Skip the file, but **only when it already exists**. See below. |
 | `mode` | `number` | platform default | POSIX permission bits, re-applied after the atomic write-then-rename. |
 
@@ -463,6 +478,24 @@ absolute path from `import.meta.url` instead.
 missing, or the end precedes the start, or the array has one element,
 the source is used whole rather than erroring.
 
+A `Fragment` renders when it is called. Its source is read, its slots
+are replayed and its template runs inside the define callback, so a
+render error stops the run before anything is written, the model is
+read at that point, and a `from` file written earlier in the same run is
+read with its bytes from before the run. Text a `Slot` or a `replace`
+function emits (`Content`, `Line`, `ListItems`, a component of your own,
+a nested `Fragment`, a single-file `CopyFiles`) lands at the marker, in
+emission order, and a `CopyFiles` there also writes its own target. An
+`Inject` there rewrites its own target and puts nothing at the marker.
+
+The source is templated once. A `$$path$$` that arrives inside a model
+value, a `replace` value or the return of a `replace` function is written
+as text, exactly as a plain `Content` writes it.
+
+A source that is not valid UTF-8, such as a file saved in Latin-1, keeps
+its bytes: each byte outside a valid UTF-8 sequence reaches the output
+file unchanged, wherever the fragment lands.
+
 A `Fragment` outside any `File` is discarded, like any other content.
 
 ## Slot
@@ -581,7 +614,9 @@ Children build the replacement body exactly as they would inside a
 Both markers are matched literally: regular-expression metacharacters
 are escaped rather than interpreted. **Every** matching pair in the
 file is replaced, not only the first. The body is inserted verbatim, so
-`$&`, `$1` and `$$` in generated content survive.
+`$&`, `$1` and `$$` in generated content survive. The target is edited as
+bytes, so everything outside the markers is kept exactly, including bytes
+that are not valid UTF-8.
 
 Two failure modes, and they differ:
 
@@ -646,7 +681,7 @@ called.
 | `from` | `string`, required |—| Source file or directory. It is stat'd in the define phase and must exist. A relative `from` resolves against the **process working directory**—unlike `Fragment`, it is not joined to the output folder. |
 | `to` | non-empty `string` | source basename | For a file, the output name; for a directory, an output subfolder. May contain `/`. A `..` segment throws. |
 | `exclude` | `boolean \| string \| RegExp \| (string\|RegExp)[]` |—| Paths relative to the copied source root. A boolean is accepted and does nothing. |
-| `replace` | `Record<string, any>` |—| Custom replacements, applied to text files. |
+| `replace` | `Record<string, any>` |—| Custom replacements, applied to text files, including the text a single-file copy splices into an enclosing `File` or `Inject`. |
 
 ### Text or binary
 
@@ -660,6 +695,10 @@ unlisted file to binary, which is what keeps `.wasm`, `.zst` and
 extensionless files intact. Sniffing only ever promotes; it never
 demotes a listed extension to text.
 
+A text file that is not valid UTF-8 is still templated, and each byte
+outside a valid UTF-8 sequence is written back unchanged, in the copy and
+in any text it splices into an enclosing `File` or `Inject`.
+
 ### What is skipped
 
 Two rules, both matching on the bare entry name and both applying to
@@ -667,7 +706,7 @@ directories as well as files, so naming a directory prunes its subtree:
 
 - Built-in: anything ending `~` or `-jostraca-off`. Always on.
 - `cmp.Copy.ignore` from the options: a list of regular expressions,
-  defaulting to `[/~$/]`.
+  or of their sources as strings, defaulting to `[/~$/]`.
 
 `exclude` is separate, and is compared against the path **relative to
 the copied source root**, however deep in the output tree the `Copy`
@@ -948,8 +987,13 @@ Three keys, and two of them are optional:
 The vocabulary is the component surface itself, so it needs no entry
 per component and no version of its own: a component works as soon as
 it is exported. `Copy` and `List` resolve to `CopyFiles` and
-`ListItems`, the names those two shipped under. The root may be one
-node or a list of them, and a list becomes siblings.
+`ListItems`, the names those two shipped under. A name is looked up as
+written: your own component under that name first (see
+[`cmp`](#options)), then the exported one, then the deprecated
+spelling. So an override keyed `Copy` runs for a `Copy` node, while an
+override keyed only `CopyFiles` leaves `Copy` on the built-in. Error
+paths use the name as written: `[0]/List[0]`. The root may be one node
+or a list of them, and a list becomes siblings.
 
 `props` is passed to the component as written, so
 [every prop on this page](#the-exported-components) is reachable from a
@@ -958,9 +1002,20 @@ of that surface: a generator that emits trees from another language can
 check them against `FileProps` and the rest, in `dist/*.d.ts`, rather
 than against this page.
 
-A tree is data, though, and data never met the compiler, so the run-time
-answer still differs by component: `Fragment` and `CopyFiles` refuse an
-unknown prop and the other eight drop it.
+A tree is data, though, and data never met the compiler, so the answer
+still differs by component: `Fragment` and `CopyFiles` refuse an unknown
+prop and the other eight drop it. `cmpTree` checks the two closed sets
+over each node's own props when it reads the tree, so a bad node is
+refused even where it would never run, such as under an empty
+`ListItems`:
+
+```
+cmpTree: Fragment: prop not allowed: bogus (at [0]/File[0])
+```
+
+The props a parent binds for its children (`item`, `indent`,
+`replace`) are admitted, and a component you supply through `cmp`
+under either name is not checked.
 
 ### Options
 
@@ -987,14 +1042,17 @@ tree can say things a call site cannot:
 
 - **A tree may not choose the output root.** `Project.folder` is
   refused if it is absolute or holds a `..` segment. The operator picks
-  the root, through `generate()`; the tree fills it.
+  the root, through `generate()`; the tree fills it. A `folder` of
+  `null` is the same as no `folder`.
 - **`cmp` must name a component the registry owns.** `toString` and
   `constructor` answer on any ordinary object, and used to run as
-  components: no node, no output, no error.
+  components: no node, no output, no error. An unknown name is refused
+  before the node's props or children are looked at.
 - **A malformed tree is refused by the call that reads it.** `cmpTree`
   walks the whole tree before returning, so a bad node is reported
-  before the define phase has made a folder. Every refusal names the
-  node by path: `[0]/Folder[0]/File[0]`.
+  before the define phase has made a folder. That includes a prop
+  outside the closed set of `Fragment` or `CopyFiles`. Every refusal
+  names the node by path: `[0]/Folder[0]/File[0]`.
 
 The tree is your data and comes back unchanged. Components write into
 the props they are handed, so each node's props are copied on every
@@ -1041,6 +1099,9 @@ message, rather than failing on an undefined property read:
 ```
 jostraca: component Content called outside generate(); components can only be used inside the callback passed to Jostraca().generate()
 ```
+
+The Go port panics with the same text, naming `Generate()` as the
+entry point.
 
 `name` props are guarded against path traversal, on `File`, `Folder`,
 `Inject` and `Copy`'s `to`:

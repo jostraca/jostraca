@@ -277,11 +277,14 @@ function compare(base, folder, root, files, modes) {
 //
 // Takes the driver rather than building one, because `generate` closes
 // over the global options a `Jostraca()` was constructed with, and a
-// check has to run with exactly the ones the caller set up.
-async function checkRun(generate, opts, root) {
-    const folder = null == opts?.folder ? '.' : opts.folder;
+// check has to run with exactly the ones the caller set up. The folder
+// and filesystem resolve as generate resolves them: per-call, else
+// global, else the default.
+async function checkRun(generate, opts, root, gopts) {
+    const folder = opts?.folder ?? gopts?.folder ?? '.';
     const abs = canon(folder);
-    const base = (null != opts?.fs ? opts.fs() : Fs);
+    const base = (null != opts?.fs ? opts.fs() :
+        null != gopts?.fs ? gopts.fs() : Fs);
     const vol = (0, memfs_1.memfs)({});
     const modes = new Map();
     const res = await generate({

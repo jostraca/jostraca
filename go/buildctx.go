@@ -15,11 +15,6 @@ type buildCtx struct {
 	// each mapped to the node path of the File that claimed it. See
 	// claimFile in build.go.
 	filepaths map[string]string
-
-	// replayErr carries the first error raised while rendering a replayed
-	// subtree. Replay happens inside a ReplaceFunc, which returns a string
-	// and so cannot propagate one directly.
-	replayErr error
 }
 
 type currentRefs struct {

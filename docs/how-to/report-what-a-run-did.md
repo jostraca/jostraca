@@ -60,8 +60,9 @@ Each array answers a different question:
 | `written` | the file was written |
 | `preserved` | a `.old` backup was taken |
 | `presented` | a `.new` sidecar was written |
-| `diffed` / `merged` | the file was rewritten by the diff or merge engine |
-| `conflicted` | that rewrite left conflict markers |
+| `diffed` | the file was rewritten as a two-way diff |
+| `merged` | the file went through the merge engine: rewritten with the three-way result, or, when it still holds the markers of an earlier merge, left untouched and also listed in `conflicted` |
+| `conflicted` | the file carries conflict markers after the run |
 | `unchanged` | the bytes were already correct, so nothing was rewritten |
 
 `unchanged` is the one people miss. A byte-identical rewrite would bump

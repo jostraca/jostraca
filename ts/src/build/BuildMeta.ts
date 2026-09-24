@@ -1,7 +1,7 @@
 
 import Path from 'node:path'
 
-import { FileHandler } from './FileHandler'
+import { FileHandler, canonPath } from './FileHandler'
 
 import { humanify, getdlog } from '../util/basic'
 
@@ -82,7 +82,7 @@ class BuildMeta {
     saveMetaData(this.fh, this.next)
 
     if (false === this.fh.control.version) {
-      this.fh.saveFile(Path.join(this.fh.folder, this.next.foldername, '.gitignore'), `
+      this.fh.saveFile(canonPath(Path.join(this.fh.folder, this.next.foldername, '.gitignore')), `
 ${this.next.filename}
 generated
 `)
@@ -96,13 +96,13 @@ generated
 function loadMetaData(fh: FileHandler, bmeta: BuildMetaData) {
   // Full (folder-prefixed) path: the FileHandler FS methods use paths
   // directly and no longer re-join `this.folder`.
-  const metapath = Path.join(fh.folder, bmeta.foldername, bmeta.filename)
+  const metapath = canonPath(Path.join(fh.folder, bmeta.foldername, bmeta.filename))
   if (fh.existsFile(metapath)) {
     try {
       const json = fh.loadJSON(metapath)
-      bmeta.last = null == json?.last ? -1 : json.last
-      bmeta.hlast = null == json?.hlast ? -1 : json.hlast
-      bmeta.files = json?.files || {}
+      bmeta.last = isTime(json?.last) ? json.last : -1
+      bmeta.hlast = isTime(json?.hlast) ? json.hlast : -1
+      bmeta.files = isPlainObject(json?.files) ? json.files : {}
     }
     catch (err: any) {
       // A truncated or hand-edited meta log used to throw straight out of
@@ -122,10 +122,24 @@ function loadMetaData(fh: FileHandler, bmeta: BuildMetaData) {
 }
 
 
+// A previous `last` is used only when a Date can carry it. A string, a
+// boolean or 1e20 in a hand-edited log reached the merge labels and threw
+// "Invalid time value"; anything else is treated as absent, as an
+// unreadable log is.
+function isTime(v: any): boolean {
+  return 'number' === typeof v && Number.isFinite(v) && Math.abs(v) <= 8.64e15
+}
+
+
+function isPlainObject(v: any): boolean {
+  return null != v && 'object' === typeof v && !Array.isArray(v)
+}
+
+
 function saveMetaData(fh: FileHandler, bmeta: BuildMetaData) {
   // Full (folder-prefixed) path: the FileHandler FS methods use paths
   // directly and no longer re-join `this.folder`.
-  const metapath = Path.join(fh.folder, bmeta.foldername, bmeta.filename)
+  const metapath = canonPath(Path.join(fh.folder, bmeta.foldername, bmeta.filename))
   fh.saveJSON(metapath, bmeta)
 }
 

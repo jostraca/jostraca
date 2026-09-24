@@ -1,0 +1,484 @@
+{
+  "scenario": "nonutf8_sources",
+  "opts": {
+    "model": {
+      "m": "M"
+    }
+  },
+  "prepopulate": {
+    "/out/app/t.txt": {
+      "b64": "aGVhZCDpCiMtLVNUQVJULS0jCm9sZAojLS1FTkQtLSMKbWlkIP8KIy0tU1RBUlQtLSMKeAojLS1FTkQtLSMK"
+    },
+    "/src/f1.txt": {
+      "b64": "RjEgY2Fm6SAkJG0kJAo8W1NMT1RdPgplbmQg//4K"
+    },
+    "/src/f2.txt": {
+      "b64": "bGluZTEg6QpsaW5lMiDpCg=="
+    },
+    "/src/f4.txt": {
+      "b64": "b2RkIO2ygCD0kICAIMCAIOCAgCDwj7+/IG9r4oKsIHRydW5j4oI="
+    },
+    "/src/f5.txt": "outer <[SLOT:s]> tail\n",
+    "/src/f6.txt": {
+      "b64": "aW5uZXIg/iAkJG0kJAo="
+    },
+    "/src/c1.txt": {
+      "b64": "Y29weSDpICQkbSQkIEZPTwo="
+    },
+    "/src/tree/t1.txt": {
+      "b64": "dHJlZSDpICQkbSQkCg=="
+    }
+  },
+  "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/c2.txt",
+      "/out/app/t.txt",
+      "/out/app/a.txt",
+      "/out/app/ind.txt",
+      "/out/app/nest.txt",
+      "/out/app/c1.txt",
+      "/out/app/host.txt",
+      "/out/app/fold.txt",
+      "/out/app/odd.txt",
+      "/out/app/tr/t1.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
+  "audit": [
+    [
+      "FileHandler:existsFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "exists": false
+      }
+    ],
+    [
+      "FileHandler:saveFile:Copy:copyFile:write:",
+      {
+        "path": "/out/app/c2.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 13
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/c2.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:loadFile:",
+      {
+        "path": "/out/app/t.txt",
+        "when": 1735689600000,
+        "size": 63
+      }
+    ],
+    [
+      "FileHandler:saveFile:write:",
+      {
+        "path": "/out/app/t.txt",
+        "when": 1735689600000,
+        "existed": true,
+        "size": 113
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/t.txt",
+        "exists": true,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<Wx>",
+          "exists-0",
+          "write-0",
+          "not-protect-1",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:FileOp:after:write:",
+      {
+        "path": "/out/app/a.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 30
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/a.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:FileOp:after:write:",
+      {
+        "path": "/out/app/ind.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 20
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/ind.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:FileOp:after:write:",
+      {
+        "path": "/out/app/nest.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 20
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/nest.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:Copy:copyFile:write:",
+      {
+        "path": "/out/app/c1.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 13
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/c1.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:FileOp:after:write:",
+      {
+        "path": "/out/app/host.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 22
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/host.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:FileOp:after:write:",
+      {
+        "path": "/out/app/fold.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 18
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/fold.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:FileOp:after:write:",
+      {
+        "path": "/out/app/odd.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 38
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/odd.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:Copy:copyFile:write:",
+      {
+        "path": "/out/app/tr/t1.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 9
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/tr/t1.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 2724
+      }
+    ],
+    [
+      "FileHandler:saveJSON:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "size": 2724
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/.gitignore",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 29
+      }
+    ]
+  ],
+  "vol": {
+    "/out/app/t.txt": {
+      "b64": "aGVhZCDpCiMtLVNUQVJULS0jCkk7aW5uZXIg/iBNCmNvcHkg6SBNIEZPTwo7SgojLS1FTkQtLSMKbWlkIP8KIy0tU1RBUlQtLSMKSTtpbm5lciD+IE0KY29weSDpIE0gRk9PCjtKCiMtLUVORC0tIwo="
+    },
+    "/out/app/c2.txt": {
+      "b64": "Y29weSDpIE0gRk9PCg=="
+    },
+    "/out/app/a.txt": {
+      "b64": "YTtGMSBjYWbpIE0KU0xPVEJPRFkKZW5kIP/+Cjti"
+    },
+    "/out/app/ind.txt": {
+      "b64": "PiBsaW5lMSDpCj4gbGluZTIg6Qo="
+    },
+    "/out/app/nest.txt": {
+      "b64": "b3V0ZXJpbm5lciD+IE0KdGFpbAo="
+    },
+    "/out/app/c1.txt": {
+      "b64": "Y29weSDpIE0gYmFyCg=="
+    },
+    "/out/app/host.txt": {
+      "b64": "cHJlO2NvcHkg6SBNIGJhcgo7cG9zdA=="
+    },
+    "/out/app/d": null,
+    "/out/app/fold.txt": {
+      "b64": "MWxpbmUxIOkKbGluZTIg6Qoy"
+    },
+    "/out/app/odd.txt": {
+      "b64": "b2RkIO2ygCD0kICAIMCAIOCAgCDwj7+/IG9r4oKsIHRydW5j4oI="
+    },
+    "/out/app/tr/t1.txt": {
+      "b64": "dHJlZSDpIE0K"
+    },
+    "/out/.jostraca/generated/app/c2.txt": {
+      "b64": "Y29weSDpIE0gRk9PCg=="
+    },
+    "/out/.jostraca/generated/app/t.txt": {
+      "b64": "aGVhZCDpCiMtLVNUQVJULS0jCkk7aW5uZXIg/iBNCmNvcHkg6SBNIEZPTwo7SgojLS1FTkQtLSMKbWlkIP8KIy0tU1RBUlQtLSMKSTtpbm5lciD+IE0KY29weSDpIE0gRk9PCjtKCiMtLUVORC0tIwo="
+    },
+    "/out/.jostraca/generated/app/a.txt": {
+      "b64": "YTtGMSBjYWbpIE0KU0xPVEJPRFkKZW5kIP/+Cjti"
+    },
+    "/out/.jostraca/generated/app/ind.txt": {
+      "b64": "PiBsaW5lMSDpCj4gbGluZTIg6Qo="
+    },
+    "/out/.jostraca/generated/app/nest.txt": {
+      "b64": "b3V0ZXJpbm5lciD+IE0KdGFpbAo="
+    },
+    "/out/.jostraca/generated/app/c1.txt": {
+      "b64": "Y29weSDpIE0gYmFyCg=="
+    },
+    "/out/.jostraca/generated/app/host.txt": {
+      "b64": "cHJlO2NvcHkg6SBNIGJhcgo7cG9zdA=="
+    },
+    "/out/.jostraca/generated/app/fold.txt": {
+      "b64": "MWxpbmUxIOkKbGluZTIg6Qoy"
+    },
+    "/out/.jostraca/generated/app/odd.txt": {
+      "b64": "b2RkIO2ygCD0kICAIMCAIOCAgCDwj7+/IG9r4oKsIHRydW5j4oI="
+    },
+    "/out/.jostraca/generated/app/tr/t1.txt": {
+      "b64": "dHJlZSDpIE0K"
+    },
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/c2.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/c2.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/t.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/t.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/a.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/ind.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/ind.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/nest.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/nest.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/c1.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/c1.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/host.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/host.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/fold.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/fold.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/odd.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/odd.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/tr/t1.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/tr/t1.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n",
+    "/src/f1.txt": {
+      "b64": "RjEgY2Fm6SAkJG0kJAo8W1NMT1RdPgplbmQg//4K"
+    },
+    "/src/f2.txt": {
+      "b64": "bGluZTEg6QpsaW5lMiDpCg=="
+    },
+    "/src/f4.txt": {
+      "b64": "b2RkIO2ygCD0kICAIMCAIOCAgCDwj7+/IG9r4oKsIHRydW5j4oI="
+    },
+    "/src/f5.txt": "outer <[SLOT:s]> tail\n",
+    "/src/f6.txt": {
+      "b64": "aW5uZXIg/iAkJG0kJAo="
+    },
+    "/src/c1.txt": {
+      "b64": "Y29weSDpICQkbSQkIEZPTwo="
+    },
+    "/src/tree/t1.txt": {
+      "b64": "dHJlZSDpICQkbSQkCg=="
+    }
+  }
+}

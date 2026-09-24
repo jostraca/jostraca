@@ -1,0 +1,28 @@
+{
+  "scenario": "frag_template_error",
+  "opts": {
+    "model": {
+      "name": "World"
+    }
+  },
+  "prepopulate": {
+    "/tm/noslot.txt": "no markers $$name$$\n",
+    "/tm/model.txt": "M=$$name$$\n",
+    "/tm/twice.txt": "1 <[SLOT:a]>\n2 <[SLOT:a]>\n3 <[SLOT]>\n4 <[SLOT]>\n",
+    "/tm/replace.txt": "FOO and BAR $$name$$\n",
+    "/tm/slot.txt": "HEAD<[SLOT:s]>TAIL\n",
+    "/tm/c.txt": "copied $$name$$\n"
+  },
+  "error": true,
+  "errorBody": "Regular expression matches empty string: /(?<J_O>\\$\\$)(?<J_R>[^$]+)(?<J_C>\\$\\$)|(?<J_K1__t_t_SLOT_t_t_>[ \\t]*[-<!/#*]*[ \\t]*<\\[SLOT]>[ \\t]*[->/#*]*[ \\t]*)|(?<J_K2__x_>x*)/",
+  "files": null,
+  "audit": null,
+  "vol": {
+    "/tm/noslot.txt": "no markers $$name$$\n",
+    "/tm/model.txt": "M=$$name$$\n",
+    "/tm/twice.txt": "1 <[SLOT:a]>\n2 <[SLOT:a]>\n3 <[SLOT]>\n4 <[SLOT]>\n",
+    "/tm/replace.txt": "FOO and BAR $$name$$\n",
+    "/tm/slot.txt": "HEAD<[SLOT:s]>TAIL\n",
+    "/tm/c.txt": "copied $$name$$\n"
+  }
+}

@@ -67,15 +67,20 @@ describe('parity-fidelity', () => {
       })
     )
     const audit = res.audit()
-    // The save:write entry carries the why breadcrumbs.
-    const saveEntry = audit.find((e: any) =>
-      typeof e[0] === 'string' && e[0].includes('save:write'))
-    expect(saveEntry).exist()
-    expect(Array.isArray(saveEntry[1].why)).true()
-    expect(saveEntry[1].why.length > 0).true()
-    // Specific breadcrumb shape.
-    expect(saveEntry[1].why.includes('write-1')).true()
-    expect(saveEntry[1].why.includes('duplicate-1')).true()
+    // The save:write entry carries the why breadcrumbs, exactly.
+    const saveEntry = audit.find((e: any) => 'FileHandler:save:write' === e[0])
+    expect(saveEntry[1].why).equal(['start<wX>', 'write-1', 'duplicate-1', 'within-0'])
+
+    // A re-run over the file writes nothing new, and says why.
+    const res2: any = await j.generate(
+      { fs: () => mfs.fs, folder: '/out' },
+      () => Project({ folder: 'p' }, () => {
+        File({ name: 'a.txt' }, () => Content('hi'))
+      })
+    )
+    const again = res2.audit().find((e: any) => 'FileHandler:save:write' === e[0])
+    expect(again[1].why).equal(['start<Wx>', 'exists-0', 'write-0', 'not-protect-1',
+      'unchanged-0', 'duplicate-1', 'within-0'])
   })
 
 

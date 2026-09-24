@@ -1,6 +1,7 @@
 package jostraca
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"math/rand"
 	"runtime"
@@ -292,6 +293,52 @@ func TestLabels(t *testing.T) {
 	l = labelsOf(DiffSpec{Labels: &DiffLabels{Generated: "G", Existing: "E"}}, "merge")
 	eq(t, "both override g", l.Generated, "G")
 	eq(t, "both override e", l.Existing, "E")
+}
+
+// An empty kind or label is unset. Twin of 'empty-kind-and-labels-are-unset'
+// in ts/test/diff.test.ts.
+func TestEmptyKindAndLabelsAreUnset(t *testing.T) {
+	dflt := Merge("X\n", "", "Y\n", DiffSpec{}).Content
+	eq(t, "kind", Merge("X\n", "", "Y\n", DiffSpec{Kind: ""}).Content, dflt)
+	eq(t, "generated", Merge("X\n", "", "Y\n",
+		DiffSpec{Labels: &DiffLabels{Generated: ""}}).Content, dflt)
+	eq(t, "existing", Merge("X\n", "", "Y\n",
+		DiffSpec{Labels: &DiffLabels{Existing: ""}}).Content, dflt)
+
+	// So a bare ">>>>>>> " line is not an unresolved conflict.
+	if HasConflictsLabel("a\n>>>>>>> \nb", "") {
+		t.Error("an empty label should check only the default sentinel")
+	}
+	res := Merge("X\n", "A\n", "A\n>>>>>>> \n", DiffSpec{Labels: &DiffLabels{Existing: ""}})
+	if res.Outcome != MergeMerged || !strings.HasSuffix(res.Content,
+		">>>>>>> \n>>>>>>> EXISTING: 1970-01-01T00:00:00.000Z/merge\n") {
+		t.Errorf("merge = %s %q", res.Outcome, res.Content)
+	}
+}
+
+// Twin of 'labels-extended-years-and-range' in ts/test/diff.test.ts; the
+// boundary rows in test/spec/diff.tsv hold both stacks to the same text.
+func TestLabelsExtendedYearsAndRange(t *testing.T) {
+	gen := func(when int64) string {
+		return strings.Split(Diff("X\n", "Y\n", DiffSpec{When: when}).Content, "\n")[5]
+	}
+
+	eq(t, "year 10000", gen(253402300800000),
+		">>>>>>> GENERATED: +010000-01-01T00:00:00.000Z/diff")
+	eq(t, "year -2", gen(-62198755200001),
+		">>>>>>> GENERATED: -000002-12-31T23:59:59.999Z/diff")
+
+	// Clamped to the Date range, as TS clamps rather than throwing.
+	eq(t, "over max", gen(8640000000000001),
+		">>>>>>> GENERATED: +275760-09-13T00:00:00.000Z/diff")
+	eq(t, "under min", gen(-8640000000000001),
+		">>>>>>> GENERATED: -271821-04-20T00:00:00.000Z/diff")
+
+	// The unresolved check runs before any label is formatted.
+	res := Merge("X\n", "A\n", "A\n>>>>>>> EXISTING: z\n", DiffSpec{When: 8640000000000001})
+	if res.Outcome != MergeUnresolved {
+		t.Errorf("outcome = %s, want unresolved", res.Outcome)
+	}
 }
 
 func TestHasConflicts(t *testing.T) {
@@ -721,6 +768,80 @@ func TestMergeLargeRepeatedVocabularyIsFast(t *testing.T) {
 	// asymmetric case — see TestMergeMemoryAsymmetric.
 	if allocMB > 64 {
 		t.Errorf("allocated %.1f MB at %d lines; looks like a full DP table", allocMB, n)
+	}
+}
+
+// Regions and unchanged hunks past about 125k lines used to throw RangeError
+// in TS. Lengths and digests are shared with 'large-regions-do-not-overflow'
+// in ts/test/diff.test.ts.
+func TestLargeRegionsDoNotOverflow(t *testing.T) {
+	var b, o strings.Builder
+	for i := 0; i < 200000; i++ {
+		fmt.Fprintf(&b, "x%d\n", i)
+		fmt.Fprintf(&o, "y%d\n", i)
+	}
+	big, other := b.String(), o.String()
+	L := DiffSpec{Labels: &DiffLabels{Generated: "G", Existing: "E"}}
+
+	merge := func(g, b, e string) func() (string, bool, string) {
+		return func() (string, bool, string) {
+			r := Merge(g, b, e, L)
+			return string(r.Outcome), r.Conflict, r.Content
+		}
+	}
+	const (
+		s1 = "d062790b21f6b3c2541c4dadd78cb4ce982cddde3d4b3872af398ecd703c033a"
+		s2 = "fb1363f2a2c668d0daae627b7f603a599eff8b4bf034b4005978ae27a5475d2f"
+		s3 = "3786ede66f5c65bab821eb7dcb1d5b56d3d0f2ae0349fe6adcc3e93b4b1e4586"
+	)
+
+	for _, c := range []struct {
+		name     string
+		run      func() (string, bool, string)
+		outcome  string
+		conflict bool
+		length   int
+		digest   string
+	}{
+		{"diff-same-hunk", func() (string, bool, string) {
+			r := Diff(big+"A\n", big+"B\n", L)
+			return string(r.Outcome), r.Conflict, r.Content
+		}, "changed", true, 1488934, "587be7b2d4bdcfd0ae57fba1f79691f9a6417a162f3f96a961cf0c26536e429b"},
+		{"merge-region", merge("head\n"+big, "head\n", "head\nuser\n"),
+			"merged", true, 1488928, "155c3e5904be5bbcc6832326f829de7185aa0ab2c18c8b4cbcc63cdc4fd0a989"},
+		{"merge-tail", merge(big, "", other),
+			"merged", true, 2977808, "517c79d677a06d856a708162ddbb3464e5623880e03f36fed0dd0daff725c671"},
+		{"merge-existing-grows", merge("head\n", "head\nz\n", "head\n"+big),
+			"merged", true, 1488923, "4b8d814bf4729e2274186dd99422f0b97c04277198b42e56ed920f6bd9e979a8"},
+
+		// The merge's three copy paths, each carrying one big run with no
+		// conflict or the same run on both sides: an anchor, a region and
+		// the tail.
+		{"anchor-both", merge("a\n"+big+"b\nG\n", "a\nb\nc\n", "a\n"+big+"b\nE\n"),
+			"merged", true, 1488926, s1},
+		{"anchor-existing", merge("a\nb\nG\n", "a\nb\nc\n", "a\n"+big+"b\nc\n"),
+			"merged", false, 1488896, s2},
+		{"anchor-generated", merge("a\n"+big+"b\nc\n", "a\nb\nc\n", "a\nb\nE\n"),
+			"merged", false, 1488896, s3},
+		{"region-existing", merge("a\nX\nb\nG\n", "a\nX\nb\nc\n", "a\n"+big+"b\nc\n"),
+			"merged", false, 1488896, s2},
+		{"region-generated", merge("a\n"+big+"b\nc\n", "a\nX\nb\nc\n", "a\nX\nb\nE\n"),
+			"merged", false, 1488896, s3},
+		{"region-both", merge("a\n"+big+"b\nG\n", "a\nX\nb\nc\n", "a\n"+big+"b\nE\n"),
+			"merged", true, 1488926, s1},
+		{"tail-both", merge("G\na\n"+big, "a\n", "E\na\n"+big),
+			"merged", true, 1488924, "20c311d84dad6acb7f4c8ce8e58328b5daa6b8510b046e707f6d6739efa8fc39"},
+		{"tail-existing", merge("G\na\n", "a\n", "a\n"+big),
+			"merged", false, 1488894, "265226e32a1d87ec609b5c96c9ea5d4fa1e09960ca7fe8e249b6424ba9d5b29c"},
+		{"tail-generated", merge("a\n"+big, "a\n", "E\na\n"),
+			"merged", false, 1488894, "481a383f43c7ca124a16be1977a37db091082b779f727422fa592afd0b942b81"},
+	} {
+		outcome, conflict, content := c.run()
+		digest := fmt.Sprintf("%x", sha256.Sum256([]byte(content)))
+		if outcome != c.outcome || conflict != c.conflict || len(content) != c.length || digest != c.digest {
+			t.Errorf("%s: outcome=%s conflict=%v len=%d sha256=%s", c.name, outcome, conflict,
+				len(content), digest)
+		}
 	}
 }
 

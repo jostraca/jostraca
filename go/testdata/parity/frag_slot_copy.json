@@ -1,0 +1,139 @@
+{
+  "scenario": "frag_slot_copy",
+  "opts": {
+    "model": {
+      "name": "World"
+    }
+  },
+  "prepopulate": {
+    "/tm/noslot.txt": "no markers $$name$$\n",
+    "/tm/model.txt": "M=$$name$$\n",
+    "/tm/twice.txt": "1 <[SLOT:a]>\n2 <[SLOT:a]>\n3 <[SLOT]>\n4 <[SLOT]>\n",
+    "/tm/replace.txt": "FOO and BAR $$name$$\n",
+    "/tm/slot.txt": "HEAD<[SLOT:s]>TAIL\n",
+    "/tm/c.txt": "copied $$name$$\n"
+  },
+  "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/c.txt",
+      "/out/app/f.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
+  "audit": [
+    [
+      "FileHandler:existsFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "exists": false
+      }
+    ],
+    [
+      "FileHandler:saveFile:Copy:copyFile:write:",
+      {
+        "path": "/out/app/c.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 13
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/c.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:FileOp:after:write:",
+      {
+        "path": "/out/app/f.txt",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 31
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/f.txt",
+        "exists": false,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<wX>",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 647
+      }
+    ],
+    [
+      "FileHandler:saveJSON:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "size": 647
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/.gitignore",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 29
+      }
+    ]
+  ],
+  "vol": {
+    "/tm/noslot.txt": "no markers $$name$$\n",
+    "/tm/model.txt": "M=$$name$$\n",
+    "/tm/twice.txt": "1 <[SLOT:a]>\n2 <[SLOT:a]>\n3 <[SLOT]>\n4 <[SLOT]>\n",
+    "/tm/replace.txt": "FOO and BAR $$name$$\n",
+    "/tm/slot.txt": "HEAD<[SLOT:s]>TAIL\n",
+    "/tm/c.txt": "copied $$name$$\n",
+    "/out/app/c.txt": "copied World\n",
+    "/out/app/f.txt": "HEADpre;copied World\npost;TAIL\n",
+    "/out/.jostraca/generated/app/c.txt": "copied World\n",
+    "/out/.jostraca/generated/app/f.txt": "HEADpre;copied World\npost;TAIL\n",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/c.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/c.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/f.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/f.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
+  }
+}

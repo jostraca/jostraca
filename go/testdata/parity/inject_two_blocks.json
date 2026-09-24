@@ -5,6 +5,94 @@
     "/out/app/foo.txt": "A\n#--START--#\nold1\n#--END--#\nB\n#--START--#\nold2\n#--END--#\nC\n"
   },
   "error": false,
+  "files": {
+    "preserved": [],
+    "written": [
+      "/out/app/foo.txt"
+    ],
+    "presented": [],
+    "diffed": [],
+    "merged": [],
+    "conflicted": [],
+    "unchanged": []
+  },
+  "audit": [
+    [
+      "FileHandler:existsFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "exists": false
+      }
+    ],
+    [
+      "FileHandler:loadFile:",
+      {
+        "path": "/out/app/foo.txt",
+        "when": 1735689600000,
+        "size": 60
+      }
+    ],
+    [
+      "FileHandler:saveFile:write:",
+      {
+        "path": "/out/app/foo.txt",
+        "when": 1735689600000,
+        "existed": true,
+        "size": 58
+      }
+    ],
+    [
+      "FileHandler:save:write",
+      {
+        "action": "write",
+        "path": "/out/app/foo.txt",
+        "exists": true,
+        "actions": [
+          "write"
+        ],
+        "protect": false,
+        "conflict": false,
+        "when": 1735689600000,
+        "hwhen": 2025010100000000,
+        "why": [
+          "start<Wx>",
+          "exists-0",
+          "write-0",
+          "not-protect-1",
+          "write-1",
+          "duplicate-1",
+          "within-0"
+        ]
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 395
+      }
+    ],
+    [
+      "FileHandler:saveJSON:",
+      {
+        "path": "/out/.jostraca/jostraca.meta.log",
+        "when": 1735689600000,
+        "size": 395
+      }
+    ],
+    [
+      "FileHandler:saveFile:",
+      {
+        "path": "/out/.jostraca/.gitignore",
+        "when": 1735689600000,
+        "existed": false,
+        "size": 29
+      }
+    ]
+  ],
   "vol": {
     "/out/app/foo.txt": "A\n#--START--#\nNEW\n#--END--#\nB\n#--START--#\nNEW\n#--END--#\nC\n",
     "/out/.jostraca/generated/app/foo.txt": "A\n#--START--#\nNEW\n#--END--#\nB\n#--START--#\nNEW\n#--END--#\nC\n",
