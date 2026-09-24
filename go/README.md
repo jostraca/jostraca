@@ -173,12 +173,16 @@ attribute, so `0o755` has no execute-bit effect and nothing errors.
 ### Generate in memory
 
 ```go
-mem := jostraca.NewMemFS()
-j := jostraca.New(jostraca.WithFS(mem), jostraca.WithFolder("/out"))
+j := jostraca.New(jostraca.WithMem(), jostraca.WithFolder("/out"))
 res, _ := j.Generate(jostraca.Options{}, root)
 
 vol := res.Vol() // map[string][]byte snapshot
 ```
+
+To seed the volume by writing into it first, pass your own
+`jostraca.NewMemFS()` with `WithFS` and read the output with
+`mem.Vol()`: `res.Vol` is set only when `Mem` is on for the call. A
+`nil` value in `WithVol` seeds an empty directory.
 
 `Vol()` reports every file's content plus a **nil** entry for every EMPTY
 directory — a directory appears only while it is empty, otherwise its
@@ -227,10 +231,11 @@ type Result struct {
     When  int64                     // build timestamp (unix ms)
     Files Files                     // outcome lists per category
     Audit func() Audit              // ordered build action log
-    Vol   func() map[string][]byte  // populated when MemFS is in use
-    FS    func() FS                 // populated when MemFS is in use
+    Vol   func() map[string][]byte  // set when Mem is on for the call
+    FS    func() FS                 // set when Mem is on for the call
 }
 
+// Every category is non-nil, and the JSON keys are the TS ones.
 type Files struct {
     Preserved, Written, Presented, Diffed, Merged, Conflicted, Unchanged []string
 }
@@ -251,9 +256,13 @@ with `ErrLookbehind`.
 `diff.go` are jostraca's own engine, mirroring `ts/src/diff.ts`
 function-for-function so both stacks produce byte-identical output. The Go
 shape uses `DiffSpec{When, Last, Kind, Labels}` in place of the options
-object. `testdata/parity/diff_corpus.json` records TS's exact output for
-1,190 merge/diff cases; `TestDiffCorpusMatchesTS` replays them through Go
-and asserts byte equality. Both stacks hold `diff.go`/`diff.ts` at 100%
+object. The label timestamp follows `Date.prototype.toISOString`,
+extended years included, and an empty `Kind` or label means the default
+in both stacks. `testdata/parity/diff_corpus.json` records TS's exact
+output for 1,190 merge/diff cases; `TestDiffCorpusMatchesTS` replays
+them through Go and asserts byte equality. `test/spec/diff.tsv` runs
+`Merge`, `Diff` and `HasConflictsLabel` through both stacks for the
+label rules. Both stacks hold `diff.go`/`diff.ts` at 100%
 coverage, gated by `./check_diff_coverage.sh` and `npm run
 test-diff-coverage`.
 
@@ -309,9 +318,16 @@ same logical input:
 - Components are methods on `*J`, not free functions (receiver-shadowing
   closures replace `AsyncLocalStorage`).
 - `Generate` returns `(Result, error)` instead of throwing.
+- A component called on the builder `New` returned, outside any
+  `Generate`, panics at once with a message naming the component
+  (`jostraca: component File called outside Generate(); ...`), where TS
+  throws the same text naming `generate()`. It is a panic because
+  component methods have no error return, and a later `Generate` on the
+  same builder is unaffected.
 - `Options` is a typed struct + functional options
   (`jostraca.WithFolder(...)`, etc.) plus `OptionsFromMap` for config
-  sourced from JSON/YAML.
+  sourced from JSON/YAML. `OptionsFromMap` validates against the
+  TypeScript option schema, with the TypeScript error text.
 - `Each.OVal` is renamed to `Each.Raw` with inverted semantics so Go's
   zero-value default matches TS's `oval=true` annotation default. The TS
   overloaded callback shapes are reachable through narrower Go variants:
@@ -354,9 +370,11 @@ same logical input:
 - `Deep` builds a new map or slice instead of mutating and returning its
   first argument the way TS `deep` does. Callers that use the return value
   see no difference; callers relying on the aliasing would. Merge semantics
-  themselves match, nil/null included: a nil *argument* is skipped (TS
-  `undefined`), while a nil map value or slice element overwrites (TS
-  `null`). Only `[]any` merges index-by-index — a typed slice such as
+  themselves match, nil/null included: nil is TS `null` at every
+  position, so a nil *argument* replaces the accumulated base exactly as
+  a nil member does, and `Deep(m, nil)` is nil. TS `undefined`, which Go
+  does not have, is spelled by not passing the argument, and a typed nil
+  map merges as an empty one. Only `[]any` merges index-by-index — a typed slice such as
   `[]string` takes the right-wins path, as does any other value carrying a
   type of its own (`*regexp.Regexp`, `time.Time`, a struct), which is TS's
   "custom constructor" rule. TS applied that rule in only one of its two
@@ -369,16 +387,36 @@ same logical input:
   stacks (`template_format_test.go` pins this); beyond that there is
   nothing to reconcile.
 
-- A per-call `Control` cannot clear a global one. `Control` is a value
-  struct, so `Control{Dryrun: false}` IS the zero value and `mergeOptions`
-  reads it as "not supplied", keeping the global. TS can express
-  "globally dry, but write for THIS call" because `{dryrun: false}` is
-  distinguishable from `{}`. Closing it needs pointer fields on `Control`.
-  Pinned by `TestPerCallCannotClearGlobalDryrun`.
+- A per-call `Control` flag cannot clear a global one. `Control`'s
+  fields are plain `bool`s, so a per-call `false` is indistinguishable
+  from "not supplied", and `mergeOptions` merges each flag as
+  `global || call`. TS can express "globally dry, but write for THIS
+  call" because `{dryrun: false}` is distinguishable from `{}`; the same
+  holds for `version`, and for `duplicate: true` under a global
+  `duplicate: false`. A per-call `Control` never discards an unrelated
+  global flag: a global `Dryrun` survives a per-call `Version`. Closing
+  the residue needs pointer fields on `Control`. Pinned by
+  `TestPerCallCannotClearGlobalDryrun` and the
+  `TestGlobal*SurvivesPerCall*` cases in `control_precedence_test.go`.
+- A per-call `Exclude: false` cannot clear a global `Exclude: true`.
+  `Options.Exclude` is a plain `bool`, so `false` means "not supplied"
+  and the global stays in force; TS lets a per-call `exclude: false`
+  win. A global `Build` or `Exclude` is honoured on both sides. Pinned
+  by `TestPerCallCannotClearGlobalExclude`.
+- An empty `Options.Folder` or `WithFolder("")` means "not supplied" and
+  falls back to the global folder, then `"."`; TS refuses an empty
+  `folder` and writes nothing. A Go `string` cannot tell "explicitly
+  empty" from "unset". The map form can, so `OptionsFromMap` refuses
+  `{"folder": ""}` with TS's message. Pinned by
+  `TestEmptyFolderMeansUnset`.
 - `FileProps.Mode` of `0` means "unset" here (`node.go`), so the target
-  keeps its default `0644`. TS treats `mode: 0` as a real request and
-  writes an unreadable `0o000` file. Same zero-value limitation as
-  `Control` above.
+  keeps the platform default (0666 less the umask). TS treats `mode: 0`
+  as a real request and writes an unreadable `0o000` file. Same
+  zero-value limitation as `Control` above.
+- `TemplateSpec.Open`, `Close` and `Ref` use the default when empty,
+  because Go cannot tell an empty string from an unset field. TS uses an
+  explicit `''` as given. Pass the empty pattern `(?:)` for an empty
+  delimiter; it yields the same regular expression as TS's `''`.
 - Special permission bits use Go's encoding, not POSIX octal.
   `fs.FileMode` keeps setuid at `fs.ModeSetuid` (bit 23), not at `0o4000`,
   so a TS `mode: 0o4755` is spelled `0o755 | fs.ModeSetuid` here. The
@@ -387,8 +425,13 @@ same logical input:
   `mode_special_bits_test.go` pins both halves.
 - A template macro resolving to a `[]byte` renders as Go's `[104 105]`,
   and to a pointer as `&{1 x}`. Every OTHER composite — maps, slices,
-  arrays and structs, of any element type — JSONifies with keys sorted at
-  every depth, matching TS. Neither exception has an obvious right answer:
+  arrays and structs, of any element type — JSONifies with keys in
+  JavaScript's object key order at every depth (canonical array-index
+  keys first in ascending numeric order, then the rest by UTF-16 code
+  unit), matching TS. Strings are escaped exactly as `JSON.stringify`
+  escapes them, so `&`, `<`, `>`, U+2028 and U+2029 are written raw;
+  `-0` renders as `0`, and NaN or an infinity inside a composite renders
+  as `null`. The meta log uses the same string escaping. Neither exception has an obvious right answer:
   `encoding/json` renders a byte slice as base64 where TS renders a
   `Buffer` through its `toJSON` as `{"type":"Buffer","data":[...]}`, and
   dereferencing a pointer raises its own questions about nil and about
@@ -402,15 +445,6 @@ same logical input:
   the empty string in TS as well. `ListProps` has no `Replace` field,
   matching TS, where `List`'s own `replace` prop is accepted and never
   used.
-- Template replace keys of EQUAL length tie-break alphabetically here and by
-  declaration order in TS. TS sorts `Object.keys()`, which is insertion
-  ordered, with a stable sort; a Go map has no declaration order to
-  reproduce, the same reason `OMap` sorts. Go used to inherit the map's
-  randomised iteration order for such ties, which made output differ
-  between processes -- see issue #42. Deterministic and documented was
-  chosen over matching TS and random. The two agree whenever declaration
-  order happens to be alphabetical, which `test/spec/template.tsv`
-  (`template-replace-equal-length-keys`) pins.
 - An eject marker given as a slash-wrapped STRING (`"/START.*/"`) was
   compiled as a regex here and matched literally by TS, which always
   escapes (`ts/src/util/basic.ts` `getCachedEjectRE`). **Resolved
@@ -429,13 +463,15 @@ same logical input:
   object. The TypeScript side additionally refuses a `cmp` naming an
   inherited property (`toString`, `constructor`); a Go map answers only
   for keys it holds, so there is nothing here to guard against.
-- `CmpTree` refuses an unknown prop on `Fragment` and `CopyFiles`, whose
-  TypeScript twins validate a closed shape. Go's props are a struct, so
-  an unknown key in the decoded map was simply never read -- and a tree
-  that one port refuses and the other generates does not mean one thing,
-  which matters because the data path is the contract a generator in
-  another language writes against. `treeClosedCmp` in `tree.go` holds
-  the two sets.
+- `Fragment` and `CopyFiles` check the TYPES of their props when the
+  component is called, in the typed API and on the data path alike, as
+  their TS twins do: `Fragment` `from` and `CopyFiles` `from`/`to` are
+  strings, `replace` is an object, `Fragment` `indent` is a string or a
+  number, `eject` a list of non-empty strings or regexps, and
+  `CopyFiles` `exclude` a boolean, a non-empty string, a regexp, or a
+  list of those (`[]any`, `[]string` or `[]*regexp.Regexp`). A wrong
+  type stops the run before anything is written, with shape's message.
+  `Content` and `Line` `indent` are not checked in either port.
 - `CopyFilesProps` has no `Indent` field. It was set on the node and
   never read by the copy build step, so the only thing it did was accept
   a prop TypeScript refuses.
@@ -451,9 +487,9 @@ same logical input:
   than a prop, and `ListItemsProps.NoLine` inverts TypeScript's `line`
   so that Go's zero value matches its default. A third cannot appear
   without the test naming it.
-- `CmpTree` does NOT apply that closed check when the caller replaces
-  `Fragment` or `CopyFiles` through `CmpTreeOptions.Cmp`. The prop set
-  belongs to the built-in component, and an override replaces it -- in
+- Neither port applies the closed check to a caller's override of
+  `Fragment` or `CopyFiles` through `CmpTreeOptions.Cmp`: the prop set
+  belongs to the built-in component, and an override replaces it. In
   TypeScript `FragmentShape` goes with the component it validates.
 - `CmpTree` deep-copies each node's props on every invocation, the way
   the TypeScript twin does, so a component cannot write into the
@@ -465,6 +501,50 @@ same logical input:
   still state `arg`, which `CmpTree` reads with precedence over `src`
   and stringifies as JavaScript would, because the two ports have to
   produce the same bytes from the same tree.
+- `j.Cmp` takes no props, so a component of your own cannot push a
+  `name` onto the node path as a TypeScript component called with a
+  `name` prop does. A `File` exclude inside such a component names the
+  path without it.
+- `Each` stamps `key$`/`index$` only onto a `map[string]any` item. TS
+  also writes them onto an array (or any object) as a property JSON
+  never shows; Go cannot stamp a slice or a typed map. `EachSpec.Sort`
+  has no sort-by-property form.
+- An absent source field in a `CMap`/`VMap` projection gives nil, since
+  Go has no `undefined`: JSON then shows `null` where TS omits the key.
+- A replayed warning's `dlogentry` is each port's own record. In TS it
+  is the array `[tag, file, when, ...args, stack]`; here it is a struct
+  with `Tag`, `File`, `When` and `Args`, with no stack, and `note` joins
+  those fields with commas. The `args` (kind and message) are the same
+  on both sides, except that an error message embedded in one (a JSON
+  parse error in the unreadable-meta-log warning) is the text each
+  runtime gives. Go also has one warning TS lacks, "baseline path escapes the
+  duplicate folder", from a containment clamp TS does not have. When no
+  `Log` is given the default here is silent, where TS's prints to the
+  console.
+- Errors are wrapped differently: TS prefixes `<ERROR:>?<Op>:<phase>: `
+  and sets `err.step`; Go returns a `*NodeError` whose message starts
+  `jostraca <step> @<path>: ` and whose `Err` matches the sentinels with
+  `errors.Is`. The message body after either prefix is the same text,
+  except that a wrapped filesystem failure embeds the error text Go
+  gives (sometimes with a different error code than Node's), and TS's `CopyFiles`
+  validation message carries a `(model: path)` prefix and a JavaScript
+  call-site suffix. A Fragment or CopyFiles `From` of `""` is "not
+  supplied" here, so it reads as the missing-property message; TS
+  resolves `from: ''` to the output folder itself.
+- Past the year 9007 the meta log's `hlast`/`hwhen` digit form exceeds
+  2^53: TS's number result rounds (`253402300799999` gives
+  `9999123123596000`) while Go's `int64` is exact
+  (`9999123123595999`). Outside the years 0000..9999 the JavaScript ISO
+  year format differs, and beyond ±8.64e15 ms TS throws a `RangeError`
+  while Go formats.
+- The `GetX` `~` operator compiles its pattern with RE2, so a pattern RE2
+  rejects (a look-around assertion or a back-reference) is a non-match
+  where TS would throw, and the two regular-expression dialects differ
+  at their edges.
+- The case helpers (`Camelify`, `Snakify`, `Kebabify`, `Names`, `UCF`,
+  `LCF`) use JavaScript's case mapping, but Go's Unicode tables and
+  Node's ICU can differ by Unicode version for newly assigned
+  characters.
 
 ### Status
 

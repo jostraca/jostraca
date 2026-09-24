@@ -77,7 +77,8 @@ make perf            # performance baselines, both stacks (not part of test)
 ```
 
 When changing any pure helper (the name-case family, `template`, `deep`,
-`omap`, `getx`, `indent`, the diff primitives), add the case to
+`omap`, `getx`, `indent`, the diff engine: its primitives, and `merge`,
+`diff` and `hasConflicts`), add the case to
 `test/spec/` rather than to one stack's suite. Both runners pick up a new
 row with no code change, and an unknown `fn` is a hard failure in both —
 so a case can never be silently ignored by one side.

@@ -62,6 +62,7 @@ substring
 subtree
 templated
 tokenizer
+umask
 [Tt]ruthy
 
 # People and algorithms cited in the reference pages.

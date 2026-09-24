@@ -42,8 +42,9 @@ iterated.
 argument is ignored.
 
 **Object keys are always visited in sorted order**, whatever `sort`
-says. That is deliberate: a Go map has no insertion order for the port
-to reproduce, so sorted is the only order both stacks can agree on.
+says, by UTF-16 code unit, which is JavaScript's default string order.
+That is deliberate: a Go map has no insertion order for the port to
+reproduce, so sorted is the only order both stacks can agree on.
 
 `each` **mutates your objects**: `index$` and `key$` are written onto
 the source objects, not onto copies. Scalars are wrapped in new objects,
@@ -101,6 +102,12 @@ get(root, path) => any
 
 Plain dot-path lookup, with no operators. `getx` is the one with the
 grammar.
+
+Both step only through **own** properties of an object, an array, or
+a string. `length` and canonical indices resolve on arrays and strings,
+while inherited members such as `toString`, `constructor` or
+`__proto__` are misses. Stepping from `null`, or from any other value
+that has no such property, yields `undefined` rather than throwing.
 
 <!-- test: scenario util-get -->
 
@@ -171,13 +178,18 @@ Since `5 === '5'` is false, `==` is nearly useless against numbers: use
 is swallowed into the operator token. Use the array form for a real
 pattern.
 
-`?` filters the children of the current node, keeping those for which
-the trailing sub-path resolves, and mirrors the input shape: an array
-node gives an array, an object node gives an object keyed as before.
-Its end-of-filter detection is heuristic—the filter ends at the first
-pair of adjacent word tokens—so `'a?c:e=1'` works where `'a?c.e=1'`
-does not. The `?` filter also **mutates the source**, leaving `each`'s
-markers on the children that did not match.
+`?` filters the children of the current node, keeping the raw children
+for which the trailing sub-path resolves to something other than
+`undefined` or `null`, and mirrors the input shape: an array node gives
+the kept children in order, an object node gives an object of the kept
+children under their keys. Nothing is written to the source. A scalar
+child never passes, since a path from a scalar resolves to nothing, and
+`key$` and `index$` are not filterable. A filter over `null`, a scalar
+or a string is a miss (`undefined`), not an empty list.
+
+Its end-of-filter detection is heuristic: the filter ends at the first
+two adjacent tokens that each contain a word character, so `'a?c:e=1'`
+works where `'a?c.e=1'` does not, and `'v=t-w k'` ends after `t-w`.
 
 <!-- test: scenario util-getx -->
 
@@ -222,6 +234,10 @@ lcf(s) => string
 stringify a non-string input rather than throwing, and an array input
 is stringified element-wise with empties dropped.
 
+Case conversion is JavaScript's `toUpperCase` and `toLowerCase`: full
+Unicode case mapping, so a sharp s becomes `SS` in upper case, and a
+capital sigma at the end of a word becomes a final sigma in lower case.
+
 The splitting rules, in order:
 
 1. Collapse an acronym run (`FOOBar` becomes `FooBar`), guarded so a
@@ -239,7 +255,9 @@ Round trips are not guaranteed. `kebabify(camelify('a-b-c'))` is
 `'abc'`, because single-letter parts fuse.
 
 `ucf` and `lcf` touch the first character only, so `lcf('FOO')` is
-`'fOO'`.
+`'fOO'`. The first character is a code point, so a letter outside the
+Basic Multilingual Plane converts too; `camelify` capitalises the same
+way.
 
 <!-- test: scenario util-case -->
 
@@ -293,7 +311,9 @@ console.log(JSON.stringify(names({}, 'FooBar'), null, 1))
 ```
 
 With a `prop` other than `'name'`, the same six keys are written with
-that stem instead.
+that stem instead. An explicit empty `prop` is used as given, so
+`names(base, name, '')` writes the keys `__orig`, `''`, `_` and `-`;
+only an omitted `prop` defaults to `'name'`.
 
 ## `cmap` and `vmap`
 
@@ -315,16 +335,19 @@ Helpers: `cmap.COPY`, `cmap.KEY`, `cmap.FILTER`, and the matching
 compared by identity, so `vmap.FILTER` inside a `cmap` projection will
 not drop anything.
 
-`cmap.FILTER`'s polarity is the opposite of the obvious reading, and it
-only drops in two cases:
+`cmap.FILTER` takes three forms as a projection value:
 
-- `FILTER(falsyValue)` drops **every** entry.
-- `FILTER(fn)` where `fn` returns `[flag, value]` drops the entry when
-  `flag` is **truthy**, and otherwise writes `value`.
+- Bare `FILTER` keeps the child's field when it is truthy and drops the
+  whole entry otherwise. `FILTER(falsyValue)` returns `FILTER`
+  itself, so it behaves the same.
+- `FILTER(fn)` calls `fn(value, ctx)`. An array result `[flag, value]`
+  drops the entry when `flag` is **truthy** and otherwise writes
+  `value`; any other result is written as it is.
+- `FILTER(truthyValue)` writes that value.
 
-A function that returns anything other than an array is just a mapper;
-nothing is filtered. A projection key with no matching source key still
-creates the key, with value `undefined`.
+A projection key with no matching source key still creates the key,
+with value `undefined`. A `null` or scalar child is not an error: its
+projected fields are `undefined`, and `KEY` still gives the key.
 
 <!-- test: scenario util-cmap -->
 
@@ -445,6 +468,11 @@ Prefixes every line start that is not the end of the string. `indent`
 defaults to `2`; a number becomes that many spaces, anything else is
 stringified and used literally. `src` is coerced, so `null` gives `''`.
 
+A string pad is inserted literally: `$$`, `$&`, `$1`, `` $` `` and `$'`
+in it are ordinary text. A fractional count is floored. The same holds
+for the `indent` prop of `Content`, `Line`, `List` items and
+`Fragment`.
+
 A blank line inside the text **is** indented, which leaves trailing
 whitespace on it. A trailing newline is not followed by a line start,
 so nothing is appended after it.
@@ -473,7 +501,9 @@ console.log(JSON.stringify(indent(null, 2)))
 ""
 ```
 
-A negative number throws, since it reaches `String.repeat`.
+A negative or non-finite number adds nothing, so `indent: -1` on a
+component writes the text without indentation rather than aborting
+the generate.
 
 ## `isbinext` and `isbincontent`
 
@@ -484,7 +514,10 @@ isbincontent(content) => boolean
 
 `isbinext` tests the lower-cased final extension against a fixed set of
 around 250 names—`png`, `jpg`, `pdf`, `zip`, `exe`, `so`, `woff2`,
-`docx` and the rest. Only the last dot segment counts.
+`docx` and the rest. Only the last dot segment counts. The extension is
+the one Node's `path.extname` gives on the running platform: a trailing
+separator is ignored, and a basename starting with a dot has no
+extension.
 
 `isbincontent` looks for a NUL byte in the first 8192 bytes.
 
@@ -519,7 +552,14 @@ The substitution engine behind `Content`, `Fragment` and `Copy`.
 `$$path$$` resolves against the model with `getx`, so the full path
 grammar described earlier is available. An unresolved path is **left in place**,
 which is deliberate: a typo shows up in the output rather than
-vanishing.
+vanishing. A path naming an inherited member (`$$toString$$`), one that
+steps through a `null` (`$$a.n.x$$` with `a.n` null), and one that
+resolves to `NaN` are unresolved in that sense.
+
+`$$"text"$$` writes its own literal, but only when there is at least
+one character between the quotes and none of them is a line
+terminator (`\n`, `\r`, U+2028 or U+2029). `$$""$$` is a path
+instead, which names the two-character model key `""`.
 
 | spec field | effect |
 |---|---|
@@ -532,16 +572,32 @@ vanishing.
 
 Keys are matched in three ways:
 
-- A key wrapped in `/…/` is a raw regular expression.
+- A key of `/`, at least one character, then `/` is a raw regular
+  expression. So `/` and `//` are literal keys.
 - A key of the form `#Name` or `#Name-Tag` matches a comment tag line:
   `// #Name`.
 - Anything else is matched literally, escaped with `escre`.
 
-Values may be a string, a function returning a string, or a function
-that calls components.
+Keys are tried in this order: keys of the form `#Tag-Name` first, then
+longer keys before shorter, then by UTF-16 code unit. The order depends
+only on the set of keys, never on the order they were declared in. When
+a key matches, its own value is used, so two keys whose names sanitise
+alike (`a.b` and `a_b`) never share a value.
 
-A function value receives a groups object carrying any named capture
-groups, the whole match under `$&`, and the current `indent`.
+Values may be a string, any other plain value, a function returning a
+value, or a function that calls components. A plain value is formatted
+exactly as a function's return value is: `null` or `undefined` inserts
+nothing, an object or an array is JSON (keys sorted as for `$$path$$`),
+and anything else is `String(value)`, so `0`, `false` and `NaN` print
+as themselves and `1e6` as `1000000`. Only an unresolved `$$path$$` is
+left in place; a replace value never is. The same holds in `Content`,
+`Line`, `Fragment`, `Copy` and `template()`.
+
+A function value receives a groups object holding the whole match under
+`$&`, every named group of a regular-expression key that took part
+(one that matched the empty string included), and, for a `#Tag` key,
+`indent`, `TAG`, the tag's name under its own property for
+`#Tag-Name`, and `name`.
 
 One asymmetry to know: a replacement that **emits a component** lands in
 a different place depending on the caller. `Fragment` streams its
@@ -559,16 +615,12 @@ internally and has no stable published contract yet; read
 ## `DiffUtil`
 
 The line-diff and three-way-merge engine behind the `diff` and `merge`
-existing-file modes. `go/diff.go` mirrors it closely, and the 1200-case
+existing-file modes. `go/diff.go` mirrors it closely: the 1200-case
 corpus in `go/testdata/parity/diff_corpus.json` holds the two stacks to
-the same output. Two differences survive that corpus, because no case
-in it goes near them:
-
-- `hasConflicts` is one function in TypeScript and two in Go,
-  `HasConflicts` and `HasConflictsLabel`.
-- An empty-string `kind` or label is a value in TypeScript and an
-  absence in Go, which falls back to the default. Passing `''` is the
-  only way to reach it.
+the same output, and the rows in `test/spec/diff.tsv` hold them to the
+same labels. The one difference is in shape: `hasConflicts` is one
+function in TypeScript and two in Go, `HasConflicts` and
+`HasConflictsLabel`.
 
 ### `DiffUtil.merge(generated, baseline, existing, spec?)`
 
@@ -590,7 +642,21 @@ The first three are fast paths, each semantically identical to running
 the full merge and each skipping the quadratic core.
 
 `spec` takes `when`, `last` and `kind` for the marker labels, or
-`labels` to override either side outright.
+`labels` to override either side outright. `kind` defaults to `merge`
+here and to `diff` in `DiffUtil.diff`; an empty `kind` or label means
+the default, as an absent one does.
+
+A label's timestamp is `when` or `last`, in epoch milliseconds,
+formatted as `Date.prototype.toISOString` formats it. Years 0000 to
+9999 take four digits; any other year takes a sign and six digits, so
+`253402300800000` labels as `+010000-01-01T00:00:00.000Z`. A value
+outside the `Date` range of ±8.64e15 ms is clamped to it:
+`8640000000000001` labels as `+275760-09-13T00:00:00.000Z`. A value
+that is not a finite number labels as the epoch, as an unset one does.
+Formatting a label never throws, and `merge` formats none until it has
+ruled out `unresolved`. The boundary cases are rows in
+[`test/spec/diff.tsv`](https://github.com/jostraca/jostraca/tree/HEAD/test/spec/diff.tsv),
+which both stacks run.
 
 ### `DiffUtil.diff(generated, existing, spec?)`
 
@@ -618,7 +684,9 @@ check. Without it the check matches only the default
 `>>>>>>> EXISTING:` sentinel, so a
 conflict written under a custom `labels.existing` is not recognised,
 and the next merge nests a fresh set of markers inside the old ones.
-Pass the same `existingLabel` you passed to `merge`.
+Pass the same `existingLabel` you passed to `merge`. An empty
+`existingLabel` is the same as none: only the default sentinel is
+checked, so a bare `>>>>>>> ` line is not a conflict.
 
 ### Primitives
 
