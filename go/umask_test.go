@@ -51,6 +51,39 @@ func TestUmaskDefaultModes(t *testing.T) {
 	}
 }
 
+// OsFS itself takes the same defaults on every create it offers, the plain
+// WriteFile included, which the build never reaches: it writes through
+// WriteFileExcl. TS's provider is node:fs, whose writeFileSync and mkdirSync
+// default to 0666 and 0777.
+func TestOsFSDefaultModes(t *testing.T) {
+	old := syscall.Umask(0o002)
+	defer syscall.Umask(old)
+
+	dir := filepath.ToSlash(t.TempDir())
+	var o OsFS
+	if err := o.MkdirAll(dir + "/d/e"); err != nil {
+		t.Fatal(err)
+	}
+	if err := o.WriteFile(dir+"/d/w.txt", []byte("W")); err != nil {
+		t.Fatal(err)
+	}
+	if err := o.WriteFileExcl(dir+"/d/x.txt", []byte("X")); err != nil {
+		t.Fatal(err)
+	}
+	for rel, mode := range map[string]os.FileMode{
+		"d": 0o775, "d/e": 0o775, "d/w.txt": 0o664, "d/x.txt": 0o664,
+	} {
+		fi, err := o.Stat(dir + "/" + rel)
+		if err != nil {
+			t.Errorf("%s: %v", rel, err)
+			continue
+		}
+		if got := fi.Mode.Perm(); got != mode {
+			t.Errorf("%s: mode %o, want %o", rel, got, mode)
+		}
+	}
+}
+
 // The in-memory provider reports 0666 for a new file and 0777 for a
 // directory, as ts/src/util/memfs.ts does.
 func TestMemFSDefaultModes(t *testing.T) {

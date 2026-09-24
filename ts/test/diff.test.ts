@@ -705,25 +705,54 @@ describe('diff-engine', () => {
     }
     const sha = (s: string) => createHash('sha256').update(s).digest('hex')
 
-    const shapes: [string, () => any, string, number, string][] = [
+    const S1 = 'd062790b21f6b3c2541c4dadd78cb4ce982cddde3d4b3872af398ecd703c033a'
+    const S2 = 'fb1363f2a2c668d0daae627b7f603a599eff8b4bf034b4005978ae27a5475d2f'
+    const S3 = '3786ede66f5c65bab821eb7dcb1d5b56d3d0f2ae0349fe6adcc3e93b4b1e4586'
+
+    const shapes: [string, () => any, string, boolean, number, string][] = [
       ['diff-same-hunk', () => diff(big + 'A\n', big + 'B\n', L),
-        'changed', 1488934,
+        'changed', true, 1488934,
         '587be7b2d4bdcfd0ae57fba1f79691f9a6417a162f3f96a961cf0c26536e429b'],
       ['merge-region', () => merge('head\n' + big, 'head\n', 'head\nuser\n', L),
-        'merged', 1488928,
+        'merged', true, 1488928,
         '155c3e5904be5bbcc6832326f829de7185aa0ab2c18c8b4cbcc63cdc4fd0a989'],
       ['merge-tail', () => merge(big, '', other, L),
-        'merged', 2977808,
+        'merged', true, 2977808,
         '517c79d677a06d856a708162ddbb3464e5623880e03f36fed0dd0daff725c671'],
       ['merge-existing-grows', () => merge('head\n', 'head\nz\n', 'head\n' + big, L),
-        'merged', 1488923,
+        'merged', true, 1488923,
         '4b8d814bf4729e2274186dd99422f0b97c04277198b42e56ed920f6bd9e979a8'],
+
+      // The merge's three copy paths, each carrying one big run with no
+      // conflict or the same run on both sides: an anchor (S1-S3), a
+      // region (S4-S6) and the tail (S7-S9).
+      ['anchor-both', () => merge('a\n' + big + 'b\nG\n', 'a\nb\nc\n', 'a\n' + big + 'b\nE\n', L),
+        'merged', true, 1488926, S1],
+      ['anchor-existing', () => merge('a\nb\nG\n', 'a\nb\nc\n', 'a\n' + big + 'b\nc\n', L),
+        'merged', false, 1488896, S2],
+      ['anchor-generated', () => merge('a\n' + big + 'b\nc\n', 'a\nb\nc\n', 'a\nb\nE\n', L),
+        'merged', false, 1488896, S3],
+      ['region-existing', () => merge('a\nX\nb\nG\n', 'a\nX\nb\nc\n', 'a\n' + big + 'b\nc\n', L),
+        'merged', false, 1488896, S2],
+      ['region-generated', () => merge('a\n' + big + 'b\nc\n', 'a\nX\nb\nc\n', 'a\nX\nb\nE\n', L),
+        'merged', false, 1488896, S3],
+      ['region-both', () => merge('a\n' + big + 'b\nG\n', 'a\nX\nb\nc\n', 'a\n' + big + 'b\nE\n', L),
+        'merged', true, 1488926, S1],
+      ['tail-both', () => merge('G\na\n' + big, 'a\n', 'E\na\n' + big, L),
+        'merged', true, 1488924,
+        '20c311d84dad6acb7f4c8ce8e58328b5daa6b8510b046e707f6d6739efa8fc39'],
+      ['tail-existing', () => merge('G\na\n', 'a\n', 'a\n' + big, L),
+        'merged', false, 1488894,
+        '265226e32a1d87ec609b5c96c9ea5d4fa1e09960ca7fe8e249b6424ba9d5b29c'],
+      ['tail-generated', () => merge('a\n' + big, 'a\n', 'E\na\n', L),
+        'merged', false, 1488894,
+        '481a383f43c7ca124a16be1977a37db091082b779f727422fa592afd0b942b81'],
     ]
 
-    for (const [name, run, outcome, length, digest] of shapes) {
+    for (const [name, run, outcome, conflict, length, digest] of shapes) {
       const res = run()
       expect([name, res.outcome, res.conflict, res.content.length, sha(res.content)])
-        .equal([name, outcome, true, length, digest])
+        .equal([name, outcome, conflict, length, digest])
     }
   })
 

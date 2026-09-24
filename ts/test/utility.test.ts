@@ -221,6 +221,24 @@ describe('util', () => {
   })
 
 
+  // The in-memory readdirSync lists names in JavaScript's string order, by
+  // UTF-16 code unit, which puts U+1F600 before U+FF5A where byte order
+  // would not. Go's MemFS.ReadDir is held to the same list:
+  // TestMemFSReadDirOrder.
+  test('memfs-readdir-order', () => {
+    const names = ['z.txt', '\uff5a.txt', '\u{1f600}.txt', '\u00e9.txt',
+      'a.txt', 'Z.txt', '9.txt', '10.txt', '_x.txt']
+    const { fs } = memfs({})
+    fs.mkdirSync('/d', { recursive: true })
+    for (const n of names) {
+      fs.writeFileSync('/d/' + n, n)
+    }
+    fs.mkdirSync('/d/sub')
+    expect(fs.readdirSync('/d')).equal(['10.txt', '9.txt', 'Z.txt', '_x.txt', 'a.txt',
+      'sub', 'z.txt', '\u00e9.txt', '\u{1f600}.txt', '\uff5a.txt'])
+  })
+
+
   // The byte-transparent text form: any bytes round-trip exactly, valid
   // UTF-8 decodes as Buffer's codec does, and only an invalid byte becomes
   // an escape.

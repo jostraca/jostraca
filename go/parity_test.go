@@ -478,6 +478,29 @@ var scenarioRunners = map[string]func(j *J){
 			j.Folder("tr", func(j *J) { j.CopyFiles(CopyFilesProps{From: "/src/tree"}) })
 		})
 	},
+	// A component's indent is the indent() helper's: a literal pad, and no
+	// pad for a count that is negative, zero or not finite.
+	"component_indent": func(j *J) {
+		j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+			j.File("a.txt", func(j *J) {
+				j.ContentP(ContentProps{Src: "a\nb\n", Indent: "$$ "})
+				j.LineP(ContentProps{Src: "c", Indent: "$& "})
+				j.Fragment(FragmentProps{From: "/tpl/f.txt", Indent: "$1|"}, nil)
+				j.ContentP(ContentProps{Src: "d\n", Indent: "$'"})
+				j.ContentP(ContentProps{Src: "e\n", Indent: "$`"})
+				j.ContentP(ContentProps{Src: "g\nh\n", Indent: -1})
+				j.LineP(ContentProps{Src: "i", Indent: -1})
+				j.Fragment(FragmentProps{From: "/tpl/f.txt", Indent: -1}, nil)
+				j.ContentP(ContentProps{Src: "j\n", Indent: 2.7})
+				j.ContentP(ContentProps{Src: "k\n", Indent: -0.5})
+				j.ListItemsP(ListItemsProps{Item: []any{map[string]any{"n": "x"}}, Indent: "$$ ", NoLine: true},
+					func(j *J, it ListItemProps) {
+						n, _ := it.Item.(map[string]any)["n"].(string)
+						j.ContentP(ContentProps{Src: n + "\n", Indent: it.Indent})
+					})
+			})
+		})
+	},
 	// A Folder or a Project inside a File never becomes the current file.
 	"folder_and_project_in_file": func(j *J) {
 		j.Project(ProjectProps{Folder: "app"}, func(j *J) {

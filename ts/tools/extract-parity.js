@@ -1012,6 +1012,29 @@ async function main() {
     '/src/tree/t1.txt': nonutf8('tree \xe9 $$m$$\n'),
   })
 
+  // A component's indent reaches the same helper as indent(): a string pad
+  // is literal, `$`-patterns included, and a count that is negative, zero
+  // or not finite adds nothing, through Content, Line, Fragment and the
+  // binding ListItems hands its children.
+  await snapshot('component_indent', {}, () => {
+    Project({ folder: 'app' }, () => {
+      File({ name: 'a.txt' }, () => {
+        Content({ src: 'a\nb\n', indent: '$$ ' })
+        Line({ src: 'c', indent: '$& ' })
+        Fragment({ from: '/tpl/f.txt', indent: '$1|' })
+        Content({ src: 'd\n', indent: "$'" })
+        Content({ src: 'e\n', indent: '$`' })
+        Content({ src: 'g\nh\n', indent: -1 })
+        Line({ src: 'i', indent: -1 })
+        Fragment({ from: '/tpl/f.txt', indent: -1 })
+        Content({ src: 'j\n', indent: 2.7 })
+        Content({ src: 'k\n', indent: -0.5 })
+        List({ item: [{ n: 'x' }], indent: '$$ ', line: false },
+          ({ item, indent }) => Content({ src: item.n + '\n', indent }))
+      })
+    })
+  }, { '/tpl/f.txt': 'F1\nF2\n' })
+
   // A Slot outside a Fragment is transparent: its children render in place.
   const Wrap = cmp(function Wrap(_props, children) {
     each(children, { call: true })

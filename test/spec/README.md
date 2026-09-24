@@ -54,9 +54,10 @@ Three rules make a single expectation work in two languages:
   `[key, value]` pairs rather than an object — see the `omap` cases. This
   is the only form that can express ordering to both stacks.
 
-- **Keep string-index rows ASCII.** An astral character's surrogate
-  halves differ in corpus JSON between the stacks, even though the bytes
-  written to disk agree.
+- **Never index into an astral character.** Its surrogate halves differ
+  in corpus JSON between the stacks, even though the bytes written to
+  disk agree. A string holding one is fine, and an index past it counts
+  both halves, which is what the `*-string-utf16-*` rows pin.
 
 Error messages are worded differently by the two implementations, so
 `error` holds a short portable fragment both must contain, not a full

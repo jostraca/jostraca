@@ -60,6 +60,12 @@ getx-string-index	getx	[{"a":{"s":"xyz","arr":[10,20,30]},"list":[1,2,3,4,5],"":
 getx-string-index-oob	getx	[{"a":{"s":"xyz","arr":[10,20,30]},"list":[1,2,3,4,5],"":"emptykey","null":"NUL"},"a.s.3"]	null	
 getx-array-length	getx	[{"a":{"s":"xyz","arr":[10,20,30]},"list":[1,2,3,4,5],"":"emptykey","null":"NUL"},"a.arr.length"]	3	
 getx-top-array-length	getx	[{"a":{"s":"xyz","arr":[10,20,30]},"list":[1,2,3,4,5],"":"emptykey","null":"NUL"},"list.length"]	5	
+get-string-utf16-bmp	get	[{"s":"aé😀z"},"s.1"]	"é"	
+get-string-utf16-after-astral	get	[{"s":"aé😀z"},"s.4"]	"z"	
+get-string-utf16-length	get	[{"s":"aé😀z"},"s.length"]	5	
+getx-string-utf16-bmp	getx	[{"s":"aé😀z"},"s.1"]	"é"	
+getx-string-utf16-after-astral	getx	[{"s":"aé😀z"},"s.4"]	"z"	
+getx-string-utf16-length	getx	[{"s":"aé😀z"},"s.length"]	5	
 get-array-index-leading-zero	get	[{"a":{"s":"xyz","arr":[10,20,30]},"list":[1,2,3,4,5],"":"emptykey","null":"NUL"},"a.arr.01"]	null	
 get-array-index-plus	get	[{"a":{"s":"xyz","arr":[10,20,30]},"list":[1,2,3,4,5],"":"emptykey","null":"NUL"},"a.arr.+1"]	null	
 get-array-index-minus-zero	get	[{"a":{"s":"xyz","arr":[10,20,30]},"list":[1,2,3,4,5],"":"emptykey","null":"NUL"},"a.arr.-0"]	null	

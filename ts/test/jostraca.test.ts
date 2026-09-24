@@ -2308,6 +2308,32 @@ describe('components', () => {
   })
 
 
+  // A component's indent is the indent() helper's: a string pad is literal,
+  // `$`-patterns included, and a count that is negative, zero or not finite
+  // adds nothing, through Content, Line, Fragment and a ListItems binding.
+  // Go: the component_indent parity scenario.
+  test('component-indent', async () => {
+    const out = await gen({ '/tpl/f.txt': 'F1\nF2\n' }, () => Project({}, () => {
+      File({ name: 'a.txt' }, () => {
+        Content({ src: 'a\nb\n', indent: '$$ ' })
+        Line({ src: 'c', indent: '$& ' })
+        Fragment({ from: '/tpl/f.txt', indent: '$1|' })
+        Content({ src: 'd\n', indent: "$'" })
+        Content({ src: 'e\n', indent: '$`' })
+        Content({ src: 'g\nh\n', indent: -1 })
+        Line({ src: 'i', indent: -1 })
+        Fragment({ from: '/tpl/f.txt', indent: -1 })
+        Content({ src: 'j\n', indent: 2.7 })
+        Content({ src: 'k\n', indent: -0.5 })
+        List({ item: [{ n: 'x' }], indent: '$$ ', line: false },
+          ({ item, indent }: any) => Content({ src: item.n + '\n', indent }))
+      })
+    }))
+    expect(out['/out/a.txt']).equal('$$ a\n$$ b\n$& c\n$1|F1\n$1|F2\n$\'d\n$`e\n' +
+      'g\nh\ni\nF1\nF2\n  j\nk\n$$ x\n')
+  })
+
+
   // Fragment and CopyFiles refuse a wrongly typed prop when they are
   // called, before anything is written, whether the tree is code or data.
   // Content has no shape, so its indent is stringified. Go:
