@@ -530,3 +530,353 @@ static BINARY_EXTS: phf::Set<&'static str> = phf::phf_set! {
     "xlsm","xlsx","xlt","xltm","xltx","xm","xmind","xpi","xpm",
     "xwd","xz","z","zip","zipx"
 };
+
+// ---------------------------------------------------------------------------
+// Each / EachF / EachI / EachKV / EachKVRaw — mirrors go/util.go
+// ---------------------------------------------------------------------------
+
+/// Configures `each`. Mirrors Go `EachSpec`.
+#[derive(Default, Clone)]
+pub struct EachSpec {
+    /// If true, items are returned as-is (no `{val$, index$}` wrap).
+    pub raw: bool,
+    /// If true, suppress the `index$`/`key$` marker TS adds by default.
+    pub no_mark: bool,
+    /// Sort items by stringified value (slices) or key (maps).
+    pub sort: bool,
+}
+
+/// Iterates a `serde_json::Value` (array or object) and applies a transform.
+/// Mirrors Go `Each`.
+pub fn each(
+    subject: &serde_json::Value,
+    spec: EachSpec,
+    apply: Option<&dyn Fn(serde_json::Value) -> serde_json::Value>,
+) -> Vec<serde_json::Value> {
+    use serde_json::Value::*;
+    match subject {
+        Null => vec![],
+        Array(items) => {
+            let mut items: Vec<serde_json::Value> = items.clone();
+            if spec.sort {
+                items.sort_by(|a, b| {
+                    let sa = crate::util::spec_sprint(a);
+                    let sb = crate::util::spec_sprint(b);
+                    sa.cmp(&sb)
+                });
+            }
+            items.into_iter().enumerate().map(|(i, item)| {
+                let val = if !spec.raw {
+                    match item {
+                        Object(mut m) => {
+                            if !spec.no_mark {
+                                m.insert("index$".to_string(), Number(serde_json::Number::from(i)));
+                            }
+                            Object(m)
+                        }
+                        other => {
+                            let mut m = serde_json::Map::new();
+                            m.insert("val$".to_string(), other);
+                            m.insert("index$".to_string(), Number(serde_json::Number::from(i)));
+                            Object(m)
+                        }
+                    }
+                } else if !spec.no_mark {
+                    match item {
+                        Object(mut m) => {
+                            m.insert("index$".to_string(), Number(serde_json::Number::from(i)));
+                            Object(m)
+                        }
+                        other => other,
+                    }
+                } else {
+                    item
+                };
+                apply.map(|f| f(val.clone())).unwrap_or(val)
+            }).collect()
+        }
+        Object(map) => {
+            let mut keys: Vec<std::string::String> = map.keys().cloned().collect();
+            keys.sort();
+            keys.into_iter().map(|k| {
+                let v = map[&k].clone();
+                let val = if spec.raw {
+                    if !spec.no_mark {
+                        match v {
+                            Object(mut m) => {
+                                m.insert("key$".to_string(), serde_json::Value::String(k));
+                                Object(m)
+                            }
+                            other => other,
+                        }
+                    } else { v }
+                } else {
+                    match v {
+                        Object(mut m) => {
+                            if !spec.no_mark {
+                                m.insert("key$".to_string(), serde_json::Value::String(k));
+                            }
+                            Object(m)
+                        }
+                        other => {
+                            let mut m = serde_json::Map::new();
+                            m.insert("key$".to_string(), serde_json::Value::String(k));
+                            m.insert("val$".to_string(), other);
+                            Object(m)
+                        }
+                    }
+                };
+                apply.map(|f| f(val.clone())).unwrap_or(val)
+            }).collect()
+        }
+        _ => vec![],
+    }
+}
+
+/// Simple map variant: pure transform of each item, no wrapping. Mirrors Go `EachF`.
+pub fn each_f(
+    items: &serde_json::Value,
+    f: &dyn Fn(serde_json::Value) -> serde_json::Value,
+) -> Vec<serde_json::Value> {
+    each(items, EachSpec { raw: true, ..Default::default() }, Some(f))
+}
+
+/// Iterates a JSON array and calls `f(item, idx)`. Mirrors Go `EachI`.
+pub fn each_i(
+    items: &serde_json::Value,
+    f: &dyn Fn(serde_json::Value, usize) -> serde_json::Value,
+) -> Vec<serde_json::Value> {
+    match items {
+        serde_json::Value::Array(arr) => arr
+            .iter()
+            .enumerate()
+            .map(|(i, v)| f(v.clone(), i))
+            .collect(),
+        _ => vec![],
+    }
+}
+
+/// Iterates a JSON object sorted by key, calling `f(wrapped, key, idx)`.
+/// `wrapped` is `{key$, val$}`. Mirrors Go `EachKV`.
+pub fn each_kv(
+    m: &serde_json::Value,
+    f: &dyn Fn(serde_json::Value, &str, usize) -> serde_json::Value,
+) -> Vec<serde_json::Value> {
+    match m {
+        serde_json::Value::Object(map) => {
+            let mut keys: Vec<String> = map.keys().cloned().collect();
+            keys.sort();
+            keys.into_iter().enumerate().map(|(i, k)| {
+                let v = map[&k].clone();
+                let wrapped = serde_json::json!({"key$": k.clone(), "val$": v});
+                f(wrapped, &k, i)
+            }).collect()
+        }
+        _ => vec![],
+    }
+}
+
+/// Like `each_kv` but passes raw value (not wrapped). Mirrors Go `EachKVRaw`.
+pub fn each_kv_raw(
+    m: &serde_json::Value,
+    f: &dyn Fn(serde_json::Value, &str, usize) -> serde_json::Value,
+) -> Vec<serde_json::Value> {
+    match m {
+        serde_json::Value::Object(map) => {
+            let mut keys: Vec<String> = map.keys().cloned().collect();
+            keys.sort();
+            keys.into_iter().enumerate().map(|(i, k)| {
+                let v = map[&k].clone();
+                f(v, &k, i)
+            }).collect()
+        }
+        _ => vec![],
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Humanify — mirrors go/util.go Humanify / TS humanify
+// ---------------------------------------------------------------------------
+
+/// Formats a unix-millis timestamp. With no parts/terse flags returns the
+/// digit-stripped int64. With parts=true returns named fields.
+/// Mirrors Go `Humanify`.
+pub fn humanify(when: i64, parts: bool, terse: bool) -> serde_json::Value {
+    // Format as ISO string
+    let iso = {
+        use std::time::{Duration, UNIX_EPOCH};
+        let d = if when >= 0 {
+            UNIX_EPOCH + Duration::from_millis(when as u64)
+        } else {
+            UNIX_EPOCH - Duration::from_millis((-when) as u64)
+        };
+        let secs = d.duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+        let millis = (when.unsigned_abs() % 1000) as u32;
+        let (y, mo, dy, hh, mm, ss) = crate::diff::secs_to_ymd_hms_pub(secs);
+        format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:03}Z", y, mo, dy, hh, mm, ss, millis)
+    };
+
+    if parts {
+        // Split on -, :, T, ., Z
+        let splits: Vec<&str> = iso.split(|c| c == '-' || c == ':' || c == 'T' || c == '.' || c == 'Z')
+            .filter(|s| !s.is_empty())
+            .collect();
+        let to_i = |s: &str| -> i64 { s.parse().unwrap_or(0) };
+        if terse {
+            serde_json::json!({
+                "ty": to_i(splits.get(0).copied().unwrap_or("0")),
+                "tm": to_i(splits.get(1).copied().unwrap_or("0")),
+                "td": to_i(splits.get(2).copied().unwrap_or("0")),
+                "th": to_i(splits.get(3).copied().unwrap_or("0")),
+                "tn": to_i(splits.get(4).copied().unwrap_or("0")),
+                "ts": to_i(splits.get(5).copied().unwrap_or("0")),
+                "ti": to_i(splits.get(6).copied().unwrap_or("0")),
+            })
+        } else {
+            serde_json::json!({
+                "year":   to_i(splits.get(0).copied().unwrap_or("0")),
+                "month":  to_i(splits.get(1).copied().unwrap_or("0")),
+                "day":    to_i(splits.get(2).copied().unwrap_or("0")),
+                "hour":   to_i(splits.get(3).copied().unwrap_or("0")),
+                "minute": to_i(splits.get(4).copied().unwrap_or("0")),
+                "second": to_i(splits.get(5).copied().unwrap_or("0")),
+                "milli":  to_i(splits.get(6).copied().unwrap_or("0")),
+            })
+        }
+    } else {
+        // Strip non-digits, drop the last digit.
+        let digits: String = iso.chars().filter(|c| c.is_ascii_digit()).collect();
+        let s = if digits.len() > 0 { &digits[..digits.len()-1] } else { "" };
+        let n: i64 = s.parse().unwrap_or(0);
+        serde_json::Value::Number(serde_json::Number::from(n))
+    }
+}
+
+/// Returns the digit-stripped int64 form of a unix-ms timestamp. Mirrors Go `HumanifyDigits`.
+pub fn humanify_digits(when: i64) -> i64 {
+    match humanify(when, false, false) {
+        serde_json::Value::Number(n) => n.as_i64().unwrap_or(0),
+        _ => 0,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// CMap / VMap — mirrors go/util.go CMap / VMap
+// ---------------------------------------------------------------------------
+
+/// CMap sentinel values.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum CMapSentinel {
+    Copy,
+    Filter,
+    Key,
+}
+
+/// A CMap transform function.
+pub type CMapTransform = Box<dyn Fn(serde_json::Value, CMapCtx) -> serde_json::Value + Send + Sync>;
+
+/// Context passed to a CMap transform.
+pub struct CMapCtx {
+    pub s_key: String,
+    pub self_val: serde_json::Value,
+    pub key: String,
+    pub parent: serde_json::Value,
+}
+
+/// Per-spec-entry value: a sentinel, a transform, or a literal.
+pub enum CMapSpec {
+    Sentinel(CMapSentinel),
+    Transform(CMapTransform),
+    Literal(serde_json::Value),
+}
+
+fn cmap_apply(
+    spec: &CMapSpec,
+    self_val: &serde_json::Value,
+    key: &str,
+    sk: &str,
+    parent: &serde_json::Value,
+) -> Option<serde_json::Value> {
+    // get sub-key from self_val
+    let child_val = match self_val {
+        serde_json::Value::Object(m) => m.get(sk).cloned().unwrap_or(serde_json::Value::Null),
+        _ => serde_json::Value::Null,
+    };
+    match spec {
+        CMapSpec::Transform(f) => Some(f(child_val, CMapCtx {
+            s_key: sk.to_string(),
+            self_val: self_val.clone(),
+            key: key.to_string(),
+            parent: parent.clone(),
+        })),
+        CMapSpec::Sentinel(s) => match s {
+            CMapSentinel::Copy   => Some(child_val),
+            CMapSentinel::Key    => Some(serde_json::Value::String(key.to_string())),
+            CMapSentinel::Filter => None,
+        },
+        CMapSpec::Literal(v) => Some(v.clone()),
+    }
+}
+
+/// Projects an object's children through a spec map. Mirrors Go `CMap`.
+pub fn cmap(
+    o: &serde_json::Value,
+    p: &std::collections::BTreeMap<String, CMapSpec>,
+) -> serde_json::Value {
+    let map = match o {
+        serde_json::Value::Object(m) => m,
+        _ => return serde_json::Value::Object(serde_json::Map::new()),
+    };
+    let mut keys: Vec<&str> = map.keys().map(|s| s.as_str()).collect();
+    keys.sort_unstable();
+    let mut out = serde_json::Map::new();
+    for key in keys {
+        let child = &map[key];
+        let mut entry = serde_json::Map::new();
+        let mut drop = false;
+        let mut spec_keys: Vec<&str> = p.keys().map(|s| s.as_str()).collect();
+        spec_keys.sort_unstable();
+        for sk in spec_keys {
+            match cmap_apply(&p[sk], child, key, sk, o) {
+                None => { drop = true; break; }
+                Some(v) => { entry.insert(sk.to_string(), v); }
+            }
+        }
+        if !drop {
+            out.insert(key.to_string(), serde_json::Value::Object(entry));
+        }
+    }
+    serde_json::Value::Object(out)
+}
+
+/// Slice-output variant of `cmap`. Mirrors Go `VMap`.
+pub fn vmap(
+    o: &serde_json::Value,
+    p: &std::collections::BTreeMap<String, CMapSpec>,
+) -> Vec<serde_json::Value> {
+    let map = match o {
+        serde_json::Value::Object(m) => m,
+        _ => return vec![],
+    };
+    let mut keys: Vec<&str> = map.keys().map(|s| s.as_str()).collect();
+    keys.sort_unstable();
+    let mut out = Vec::new();
+    for key in keys {
+        let child = &map[key];
+        let mut entry = serde_json::Map::new();
+        let mut drop = false;
+        let mut spec_keys: Vec<&str> = p.keys().map(|s| s.as_str()).collect();
+        spec_keys.sort_unstable();
+        for sk in spec_keys {
+            match cmap_apply(&p[sk], child, key, sk, o) {
+                None => { drop = true; break; }
+                Some(v) => { entry.insert(sk.to_string(), v); }
+            }
+        }
+        if !drop {
+            out.push(serde_json::Value::Object(entry));
+        }
+    }
+    out
+}
+

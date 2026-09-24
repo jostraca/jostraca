@@ -203,7 +203,7 @@ mod spec_tests {
                             let mut spec = tmpl_mod::TemplateSpec::default();
                             if let Some(Value::Object(rep)) = raw.get("replace") {
                                 for (k, v) in rep {
-                                    spec.replace.insert(k.clone(), v.clone());
+                                    spec.replace.insert(k.clone(), tmpl_mod::ReplaceValue::Json(v.clone()));
                                 }
                             }
                             Some(spec)
@@ -213,7 +213,7 @@ mod spec_tests {
                 } else {
                     None
                 };
-                tmpl_mod::template(src, model, spec_opt.as_ref())
+                tmpl_mod::template(src, model, spec_opt)
                     .map(Value::String)
                     .map_err(|e| e)
             }
