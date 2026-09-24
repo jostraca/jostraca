@@ -509,8 +509,11 @@ is no sort-by-property in Go.
 
 **Language limits**
 
-- Go's `regexp` is RE2 and has no lookbehind, so a user-supplied regular expression
-  key containing `(?<=…)` is rejected at compile time.
+- Go's `regexp` is RE2, which has no look-around and no back-references.
+  A user-supplied regular expression key holding a lookahead or a
+  lookbehind (`(?=…)`, `(?!…)`, `(?<=…)`, `(?<!…)`) is rejected at compile
+  time with `ErrLookbehind`, whose message names look-around, and one
+  holding a back-reference fails to compile. TypeScript evaluates both.
 - A template value that is an integer wider than 2^53 keeps its exact
   value in Go and loses precision in TypeScript, where every number is a
   `float64`. Everything a `float64` holds exactly formats identically on
@@ -521,10 +524,11 @@ is no sort-by-property in Go.
   (`9999123123595999`). Outside the years 0000 to 9999 the JavaScript
   ISO year format differs, and beyond ±8.64e15 ms TypeScript throws a
   `RangeError` while Go formats.
-- The `GetX` `~` operator compiles its pattern with RE2, so a pattern RE2
-  rejects (a look-around assertion or a back-reference) is a non-match where JavaScript
-  would throw, and the two regular-expression dialects differ at their
-  edges.
+- The `GetX` `~` operator compiles its pattern with RE2. A pattern that
+  JavaScript evaluates and RE2 rejects, a look-around assertion or a
+  back-reference, never matches in Go, where TypeScript tests it. A
+  pattern invalid in both, such as `(`, throws in TypeScript and is a
+  silent non-match in Go. The two dialects also differ at their edges.
 - Go's Unicode tables and Node's ICU can differ by Unicode version for
   newly assigned characters, so a case helper can map one of those
   differently.

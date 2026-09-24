@@ -183,6 +183,10 @@ func TestTemplateLookaheadRejected(t *testing.T) {
 	if !errors.Is(err, ErrLookbehind) {
 		t.Errorf("err = %v, want ErrLookbehind (lookahead also rejected)", err)
 	}
+	// The message names look-around, not lookbehind, whichever it met.
+	if err == nil || err.Error() != "jostraca: look-around not supported (RE2): /a(?=b)/" {
+		t.Errorf("err = %v", err)
+	}
 }
 
 func TestTemplateCustomDelimiters(t *testing.T) {

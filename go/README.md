@@ -247,8 +247,9 @@ Use `$$path$$` for model substitution. The full surface (custom
 delimiters, regex replace keys, function-valued model refs, `#Tag` comment
 markers, eject regions, the streaming `Handle` callback, the
 `__JOSTRACA_REPLACE__` debug sentinel) matches the TS engine. RE2 caveats
-apply: no lookbehind/lookahead — violations are rejected at compile time
-with `ErrLookbehind`.
+apply: no look-around and no back-references. A regex replace key holding
+a lookahead or a lookbehind is rejected at compile time with
+`ErrLookbehind`, and one holding a back-reference fails to compile.
 
 ### Diff and merge
 
@@ -339,8 +340,10 @@ same logical input:
   `Line('')`.
 - `Control.Duplicate` is renamed to `Control.NoDuplicate` with inverted
   semantics; the TS default (duplicate baselines on) is Go's zero value.
-- RE2 (Go's `regexp`) has no lookbehind; user-supplied regex keys
-  containing `(?<=...)` etc. are rejected at compile time.
+- RE2 (Go's `regexp`) has no look-around and no back-references; a
+  user-supplied regex key holding `(?=...)`, `(?!...)`, `(?<=...)` or
+  `(?<!...)` is rejected at compile time with `ErrLookbehind`, and one
+  holding a back-reference fails to compile, where TS evaluates both.
 - `Indent` walks the string with a `strings.Builder` rather than using a
   lookbehind, which RE2 does not have. (This bullet used to say
   `strings.ReplaceAll`; the function's own godoc has said "a manual walk"
@@ -542,10 +545,11 @@ same logical input:
   (`9999123123595999`). Outside the years 0000..9999 the JavaScript ISO
   year format differs, and beyond ±8.64e15 ms TS throws a `RangeError`
   while Go formats.
-- The `GetX` `~` operator compiles its pattern with RE2, so a pattern RE2
-  rejects (a look-around assertion or a back-reference) is a non-match
-  where TS would throw, and the two regular-expression dialects differ
-  at their edges.
+- The `GetX` `~` operator compiles its pattern with RE2. A pattern that
+  JavaScript evaluates and RE2 rejects, a look-around assertion or a
+  back-reference, never matches in Go, where TS tests it. A pattern
+  invalid in both, such as `(`, throws in TS and is a silent non-match in
+  Go. The two regular-expression dialects also differ at their edges.
 - The case helpers (`Camelify`, `Snakify`, `Kebabify`, `Names`, `UCF`,
   `LCF`) use JavaScript's case mapping, but Go's Unicode tables and
   Node's ICU can differ by Unicode version for newly assigned

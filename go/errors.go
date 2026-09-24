@@ -15,10 +15,12 @@ var (
 	ErrMissingOp       = errors.New("missing op")
 	ErrInvalidPath     = errors.New("jostraca: invalid path")
 	ErrEmptyMatchRegex = errors.New("Regular expression matches empty string")
-	ErrLookbehind      = errors.New("jostraca: lookbehind not supported (RE2)")
-	ErrMergeConflict   = errors.New("jostraca: 3-way merge produced conflicts")
-	ErrNilRoot         = errors.New("jostraca: generate root callback is not a function")
-	ErrNameTraversal   = errors.New(`name must not contain a ".." path segment`)
+	// ErrLookbehind refuses any look-around in a regex replace key,
+	// lookahead included; RE2 has neither. The name predates that.
+	ErrLookbehind    = errors.New("jostraca: look-around not supported (RE2)")
+	ErrMergeConflict = errors.New("jostraca: 3-way merge produced conflicts")
+	ErrNilRoot       = errors.New("jostraca: generate root callback is not a function")
+	ErrNameTraversal = errors.New(`name must not contain a ".." path segment`)
 
 	// ErrInjectTargetMissing is returned when Inject names a file that does
 	// not exist. Inject rewrites a marked region of an existing file; it

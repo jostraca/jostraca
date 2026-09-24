@@ -46,6 +46,7 @@ inode
 interoperate
 JSONifies
 jsonic
+lookahead
 lookbehind
 metacharacters?
 misconfigure

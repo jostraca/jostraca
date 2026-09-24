@@ -534,7 +534,7 @@ var (
     ErrMissingOp        = errors.New("missing op")   // wrapped as `missing op: <kind>`, the kind named as its step does
     ErrInvalidPath      = errors.New("jostraca: invalid path")
     ErrEmptyMatchRegex  = errors.New("Regular expression matches empty string")   // TS's text; wrapped with the regex in TS's /(?<name>...)/ form
-    ErrLookbehind       = errors.New("jostraca: lookbehind not supported (RE2)")
+    ErrLookbehind       = errors.New("jostraca: look-around not supported (RE2)")   // lookahead too; the name predates that
     ErrMergeConflict    = errors.New("jostraca: 3-way merge produced conflicts")
     ErrNilRoot          = errors.New("jostraca: Generate root callback is nil")
 )
@@ -1877,7 +1877,7 @@ Go's `regexp` package is RE2: no backreferences, no lookahead, no lookbehind. Al
 - The `indent` lookbehind — replaced with `strings.ReplaceAll` (above).
 - User-supplied regex keys may contain `(?=...)` or `(?<=...)`. Detect at compile time and return `ErrLookbehind` (§4.6) with a clear message:
   ```
-  jostraca: lookbehind not supported (RE2): /(?<=foo)bar/
+  jostraca: look-around not supported (RE2): /(?<=foo)bar/
   ```
 
 The detection regex:
