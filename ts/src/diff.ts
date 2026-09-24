@@ -104,6 +104,9 @@ const LABEL_EXISTING = 'EXISTING'
 // this has an unresolved merge in it.
 const UNRESOLVED_MARK = MARK_END + LABEL_EXISTING + ':'
 
+// The largest epoch-ms magnitude a Date holds.
+const MAX_DATE_MS = 8.64e15
+
 
 // Whether text still holds an unresolved conflict from an earlier merge.
 // Keyed on the closing EXISTING marker alone: a half-resolved file, where
@@ -139,8 +142,13 @@ function hasConflicts(text: string, existingLabel?: string): boolean {
 }
 
 
+// Total, so a cosmetic label can never abort a generate: an out-of-range
+// value is clamped to the Date range, and one that is not a finite number
+// is the epoch. go/diff.go isoOf formats the same strings.
 function isoOf(when?: number): string {
-  return new Date(null == when ? 0 : when).toISOString()
+  const ms = ('number' === typeof when && isFinite(when)) ?
+    Math.max(-MAX_DATE_MS, Math.min(MAX_DATE_MS, Math.trunc(when))) : 0
+  return new Date(ms).toISOString()
 }
 
 
@@ -419,8 +427,6 @@ function merge(
     return { content: generated, conflict: false, outcome: 'clean' }
   }
 
-  const labels = labelsOf(spec, 'merge')
-
   // Never merge into an unresolved merge — that stacks conflict markers
   // inside conflict markers and is unreadable. Leave it for the user.
   // Pass the EXPLICIT custom label, not the formatted one: the formatted
@@ -428,6 +434,8 @@ function merge(
   if (hasConflicts(existing, spec?.labels?.existing)) {
     return { content: existing, conflict: false, outcome: 'unresolved' }
   }
+
+  const labels = labelsOf(spec, 'merge')
 
   const gl = lines(generated)
   const bl = lines(baseline)

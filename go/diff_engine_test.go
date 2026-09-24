@@ -295,6 +295,31 @@ func TestLabels(t *testing.T) {
 	eq(t, "both override e", l.Existing, "E")
 }
 
+// Twin of 'labels-extended-years-and-range' in ts/test/diff.test.ts; the
+// boundary rows in test/spec/diff.tsv hold both stacks to the same text.
+func TestLabelsExtendedYearsAndRange(t *testing.T) {
+	gen := func(when int64) string {
+		return strings.Split(Diff("X\n", "Y\n", DiffSpec{When: when}).Content, "\n")[5]
+	}
+
+	eq(t, "year 10000", gen(253402300800000),
+		">>>>>>> GENERATED: +010000-01-01T00:00:00.000Z/diff")
+	eq(t, "year -2", gen(-62198755200001),
+		">>>>>>> GENERATED: -000002-12-31T23:59:59.999Z/diff")
+
+	// Clamped to the Date range, as TS clamps rather than throwing.
+	eq(t, "over max", gen(8640000000000001),
+		">>>>>>> GENERATED: +275760-09-13T00:00:00.000Z/diff")
+	eq(t, "under min", gen(-8640000000000001),
+		">>>>>>> GENERATED: -271821-04-20T00:00:00.000Z/diff")
+
+	// The unresolved check runs before any label is formatted.
+	res := Merge("X\n", "A\n", "A\n>>>>>>> EXISTING: z\n", DiffSpec{When: 8640000000000001})
+	if res.Outcome != MergeUnresolved {
+		t.Errorf("outcome = %s, want unresolved", res.Outcome)
+	}
+}
+
 func TestHasConflicts(t *testing.T) {
 	if HasConflicts("plain\n") {
 		t.Error("plain text should not report conflicts")

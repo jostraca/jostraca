@@ -51,6 +51,9 @@ const FN: Record<string, (a: any[]) => any> = {
     : (Basic as any).names(a[0], a[1], a[2]),
   lines: (a) => (DiffUtil as any).lines(a[0]),
   lcs: (a) => (DiffUtil as any).lcs(a[0], a[1]),
+  merge: (a) => (DiffUtil as any).merge(a[0], a[1], a[2], a[3]),
+  diff: (a) => (DiffUtil as any).diff(a[0], a[1], a[2]),
+  hasConflicts: (a) => (DiffUtil as any).hasConflicts(a[0], a[1]),
 
   // Option validation. Jostraca() runs OptionsShape; ExistingShape runs
   // only inside generate, so a define-only generate follows.

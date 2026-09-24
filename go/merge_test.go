@@ -47,7 +47,7 @@ func TestSaveMergeModeLargeFile(t *testing.T) {
 	big := sb.String()
 	yes := true
 
-	text, res := largeFileRun(t, Existing{Txt: ExistingTxt{Merge: &yes}},
+	text, res := modeRun(t, Existing{Txt: ExistingTxt{Merge: &yes}}, 1735689600000, "big.txt",
 		[][2]string{{"head\n", ""}, {"head\n" + big, "head\nuser\n"}})
 	if strings.Join(res.Files.Merged, ",") != "/out/big.txt" ||
 		strings.Join(res.Files.Conflicted, ",") != "/out/big.txt" {

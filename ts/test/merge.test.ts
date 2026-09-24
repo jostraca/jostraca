@@ -742,31 +742,15 @@ ccc
       big += 'x' + i + '\n'
     }
 
-    const run = async (mode: string, steps: [string, string | null][]) => {
-      const mfs = memfs({})
-      const fs: any = mfs.fs
-      let res: any
-      for (const [gen, edit] of steps) {
-        if (null != edit) {
-          fs.writeFileSync('/out/big.txt', edit)
-        }
-        res = await Jostraca({ now: () => START_TIME }).generate({
-          fs: () => fs, folder: '/out', model: {},
-          existing: { txt: { [mode]: true } },
-        }, () => Project({ folder: '.' }, () => {
-          File({ name: 'big.txt' }, () => Content(gen))
-        }))
-      }
-      return { res, text: fs.readFileSync('/out/big.txt', 'utf8') }
-    }
-
-    const d = await run('diff', [[big + 'A\n', null], [big + 'GEN\n', big + 'USER\n']])
+    const d = await existingRun('diff', START_TIME, 'big.txt',
+      [[big + 'A\n', null], [big + 'GEN\n', big + 'USER\n']])
     expect(d.res.files.diffed).equal(['/out/big.txt'])
     expect(d.res.files.conflicted).equal(['/out/big.txt'])
     expect(d.text.startsWith(big + '<<<<<<< EXISTING: ')).true()
     expect(d.text.includes('\nUSER\n') && d.text.includes('\nGEN\n')).true()
 
-    const m = await run('merge', [['head\n', null], ['head\n' + big, 'head\nuser\n']])
+    const m = await existingRun('merge', START_TIME, 'big.txt',
+      [['head\n', null], ['head\n' + big, 'head\nuser\n']])
     expect(m.res.files.merged).equal(['/out/big.txt'])
     expect(m.res.files.conflicted).equal(['/out/big.txt'])
     expect(m.text.startsWith('head\n<<<<<<< GENERATED: ')).true()
@@ -774,7 +758,48 @@ ccc
   })
 
 
+  // A clock outside years 0000-9999 labels conflicts in the extended-year
+  // form. Twin of TestExtendedYearLabels in go/diff_test.go.
+  test('extended-year-labels', async () => {
+    const d = await existingRun('diff', 253402300800000, 'a.txt',
+      [['A\nB\n', null], ['A\nGEN\n', 'A\nUSER\n']])
+    const dl = '+010000-01-01T00:00:00.000Z/diff\n'
+    expect(d.text).equal('A\n' +
+      '<<<<<<< EXISTING: ' + dl + 'USER\n>>>>>>> EXISTING: ' + dl +
+      '<<<<<<< GENERATED: ' + dl + 'GEN\n>>>>>>> GENERATED: ' + dl)
+
+    const m = await existingRun('merge', -62198755200001, 'a.txt',
+      [['A\n', null], ['A\ngen\n', 'A\nuser\n']])
+    const ml = '-000002-12-31T23:59:59.999Z/merge\n'
+    expect(m.text).equal('A\n<<<<<<< GENERATED: ' + ml + 'gen\n=======\nuser\n' +
+      '>>>>>>> EXISTING: ' + ml)
+  })
+
+
 })
+
+
+// Generates one file into a fresh memfs per step under a fixed clock,
+// writing the step's user edit, when it has one, before its generate.
+async function existingRun(
+  mode: string, now: number, name: string, steps: [string, string | null][]
+) {
+  const mfs = memfs({})
+  const fs: any = mfs.fs
+  let res: any
+  for (const [gen, edit] of steps) {
+    if (null != edit) {
+      fs.writeFileSync('/out/' + name, edit)
+    }
+    res = await Jostraca({ now: () => now }).generate({
+      fs: () => fs, folder: '/out', model: {},
+      existing: { txt: { [mode]: true } },
+    }, () => Project({ folder: '.' }, () => {
+      File({ name }, () => Content(gen))
+    }))
+  }
+  return { res, text: fs.readFileSync('/out/' + name, 'utf8') }
+}
 
 
 const DATA_merge_basic_res0 = {

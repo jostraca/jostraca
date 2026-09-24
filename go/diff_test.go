@@ -48,7 +48,7 @@ func TestSaveDiffModeLargeFile(t *testing.T) {
 	big := sb.String()
 	yes := true
 
-	text, res := largeFileRun(t, Existing{Txt: ExistingTxt{Diff: &yes}},
+	text, res := modeRun(t, Existing{Txt: ExistingTxt{Diff: &yes}}, 1735689600000, "big.txt",
 		[][2]string{{big + "A\n", ""}, {big + "GEN\n", big + "USER\n"}})
 	if strings.Join(res.Files.Diffed, ",") != "/out/big.txt" ||
 		strings.Join(res.Files.Conflicted, ",") != "/out/big.txt" {
@@ -60,27 +60,46 @@ func TestSaveDiffModeLargeFile(t *testing.T) {
 	}
 }
 
-// largeFileRun generates big.txt once per step into a fresh MemFS, writing
-// the step's user edit, when there is one, before its generate.
-func largeFileRun(t *testing.T, ex Existing, steps [][2]string) (string, Result) {
+// modeRun generates one file into a fresh MemFS per step under a fixed
+// clock, writing the step's user edit, when it has one, before its generate.
+func modeRun(t *testing.T, ex Existing, now int64, name string, steps [][2]string) (string, Result) {
 	t.Helper()
 	mem := NewMemFS()
 	var res Result
 	for _, st := range steps {
 		if st[1] != "" {
-			_ = mem.WriteFile("/out/big.txt", []byte(st[1]))
+			_ = mem.WriteFile("/out/"+name, []byte(st[1]))
 		}
 		var err error
-		res, err = New(WithFS(mem), WithFolder("/out"), WithNow(func() int64 { return 1735689600000 })).
+		res, err = New(WithFS(mem), WithFolder("/out"), WithNow(func() int64 { return now })).
 			Generate(Options{Existing: ex}, func(j *J) {
 				j.Project(ProjectProps{}, func(j *J) {
-					j.File("big.txt", func(j *J) { j.Content(st[0]) })
+					j.File(name, func(j *J) { j.Content(st[0]) })
 				})
 			})
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
-	b, _ := mem.ReadFile("/out/big.txt")
+	b, _ := mem.ReadFile("/out/" + name)
 	return string(b), res
+}
+
+// A clock outside years 0000-9999 labels conflicts in the extended-year
+// form. Twin of 'extended-year-labels' in ts/test/merge.test.ts.
+func TestExtendedYearLabels(t *testing.T) {
+	yes := true
+
+	d, _ := modeRun(t, Existing{Txt: ExistingTxt{Diff: &yes}}, 253402300800000, "a.txt",
+		[][2]string{{"A\nB\n", ""}, {"A\nGEN\n", "A\nUSER\n"}})
+	dl := "+010000-01-01T00:00:00.000Z/diff\n"
+	eq(t, "diff", d, "A\n"+
+		"<<<<<<< EXISTING: "+dl+"USER\n>>>>>>> EXISTING: "+dl+
+		"<<<<<<< GENERATED: "+dl+"GEN\n>>>>>>> GENERATED: "+dl)
+
+	m, _ := modeRun(t, Existing{Txt: ExistingTxt{Merge: &yes}}, -62198755200001, "a.txt",
+		[][2]string{{"A\n", ""}, {"A\ngen\n", "A\nuser\n"}})
+	ml := "-000002-12-31T23:59:59.999Z/merge\n"
+	eq(t, "merge", m, "A\n<<<<<<< GENERATED: "+ml+"gen\n=======\nuser\n"+
+		">>>>>>> EXISTING: "+ml)
 }

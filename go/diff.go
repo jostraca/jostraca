@@ -1,6 +1,7 @@
 package jostraca
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"time"
@@ -156,8 +157,22 @@ func HasConflictsLabel(text, existingLabel string) bool {
 		strings.Contains(text, markEnd+existingLabel+"\n")
 }
 
+// maxDateMs is the largest epoch-ms magnitude an ECMAScript Date holds.
+const maxDateMs = 8640000000000000
+
+// isoOf formats as Date.prototype.toISOString, clamped to the Date range as
+// ts/src/diff.ts isoOf is. A year outside 0..9999 is signed and six digits,
+// which Go's layout cannot express.
 func isoOf(when int64) string {
-	return time.UnixMilli(when).UTC().Format("2006-01-02T15:04:05.000Z")
+	t := time.UnixMilli(min(max(when, -maxDateMs), maxDateMs)).UTC()
+	y := t.Year()
+	year := fmt.Sprintf("%04d", y)
+	if y < 0 {
+		year = fmt.Sprintf("-%06d", -y)
+	} else if 9999 < y {
+		year = fmt.Sprintf("+%06d", y)
+	}
+	return year + t.Format("-01-02T15:04:05.000Z")
 }
 
 func labelsOf(spec DiffSpec, defaultKind string) DiffLabels {

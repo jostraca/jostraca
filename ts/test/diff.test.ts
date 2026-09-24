@@ -272,6 +272,36 @@ describe('diff-engine', () => {
   })
 
 
+  // Twin of TestLabelsExtendedYearsAndRange in go/diff_engine_test.go; the
+  // boundary rows in test/spec/diff.tsv hold both stacks to the same text.
+  test('labels-extended-years-and-range', () => {
+    const gen = (when: any) =>
+      diff('X\n', 'Y\n', { when }).content.split('\n')[5]
+
+    expect(gen(253402300800000))
+      .equal('>>>>>>> GENERATED: +010000-01-01T00:00:00.000Z/diff')
+    expect(gen(-62198755200001))
+      .equal('>>>>>>> GENERATED: -000002-12-31T23:59:59.999Z/diff')
+
+    // Clamped to the Date range rather than throwing RangeError.
+    expect(gen(8640000000000001))
+      .equal('>>>>>>> GENERATED: +275760-09-13T00:00:00.000Z/diff')
+    expect(gen(-8640000000000001))
+      .equal('>>>>>>> GENERATED: -271821-04-20T00:00:00.000Z/diff')
+
+    // Not a finite number: the epoch, as for an unset when. TS only; Go's
+    // int64 cannot hold these.
+    for (const when of [NaN, Infinity, -Infinity, undefined, '5', null]) {
+      expect(gen(when)).equal('>>>>>>> GENERATED: 1970-01-01T00:00:00.000Z/diff')
+    }
+
+    // The unresolved check runs before any label is formatted.
+    const res = merge('X\n', 'A\n', 'A\n>>>>>>> EXISTING: z\n',
+      { when: 8640000000000001 })
+    expect(res.outcome).equal('unresolved')
+  })
+
+
   test('has-conflicts', () => {
     expect(hasConflicts('plain\n')).false()
     expect(hasConflicts('a\n>>>>>>> EXISTING: X/merge\n')).true()
