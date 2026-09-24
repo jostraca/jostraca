@@ -393,6 +393,12 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 	if j.st.err != nil {
 		return
 	}
+	// A Fragment the enclosing filter rejects is never called in TS, whose
+	// cmp() consults the filter before the component body runs its checks,
+	// so its From is not checked either.
+	if j.filteredKind(KindFragment, "") {
+		return
+	}
 	// Define-time validation: From must be a non-empty path that
 	// resolves on the FS. Mirrors TS FragmentShape's Check(From)
 	// at src/cmp/Fragment.ts:11-20.
@@ -419,9 +425,6 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 		Replace: p.Replace,
 		Path:    childPath(j.cur, ""),
 		Meta:    map[string]any{},
-	}
-	if j.filtered(n) {
-		return
 	}
 	if err := fragmentPropError(p); err != nil {
 		j.st.err = &NodeError{Step: "fragment", Err: err}
@@ -478,6 +481,10 @@ func (j *J) CopyFiles(p CopyFilesProps) {
 	if j.st.err != nil {
 		return
 	}
+	// Filtered before its checks, as FragmentP is.
+	if j.filteredKind(KindCopy, p.To) {
+		return
+	}
 	// Define-time validation matches TS CopyShape's Check(From)
 	// at src/cmp/Copy.ts:9-21.
 	if p.From == "" {
@@ -496,9 +503,6 @@ func (j *J) CopyFiles(p CopyFilesProps) {
 		Exclude: p.Exclude,
 		Path:    childPath(j.cur, p.To),
 		Meta:    map[string]any{},
-	}
-	if j.filtered(n) {
-		return
 	}
 	if err := copyFilesPropError(p); err != nil {
 		j.st.err = &NodeError{Step: "copy", Err: err}

@@ -814,6 +814,21 @@ describe('jostraca', () => {
     err = undefined
     await gen('/tmp/both.txt').catch((e: any) => err = e)
     expect(err).equal(undefined)
+
+    // A child the scan rejects is never called, so its own `from` is not
+    // checked: with no unnamed marker the refusal is the non-Slot one,
+    // whatever the child. Go: TestFragmentNonSlotChildWithoutDefaultSlot.
+    for (const child of [
+      () => Fragment({ from: '/tmp/missing.txt' }),
+      () => CopyFiles({ from: '/tmp/missing.txt' }),
+    ]) {
+      err = undefined
+      await Jostraca({}).generate({ fs: () => fs, folder: '/top' },
+        () => Project({}, () => File({ name: 'foo.txt' }, () =>
+          Fragment({ from: '/tmp/named.txt' }, child))))
+        .catch((e: any) => err = e)
+      expect(/no unnamed <\[SLOT\]> marker/.test(String(err?.message))).equal(true)
+    }
   })
 
 

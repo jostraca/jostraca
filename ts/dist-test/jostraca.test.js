@@ -666,6 +666,18 @@ const START_TIME = 1735689600000;
         err = undefined;
         await gen('/tmp/both.txt').catch((e) => err = e);
         (0, expect_1.expect)(err).equal(undefined);
+        // A child the scan rejects is never called, so its own `from` is not
+        // checked: with no unnamed marker the refusal is the non-Slot one,
+        // whatever the child. Go: TestFragmentNonSlotChildWithoutDefaultSlot.
+        for (const child of [
+            () => (0, __1.Fragment)({ from: '/tmp/missing.txt' }),
+            () => (0, __1.CopyFiles)({ from: '/tmp/missing.txt' }),
+        ]) {
+            err = undefined;
+            await (0, __1.Jostraca)({}).generate({ fs: () => fs, folder: '/top' }, () => (0, __1.Project)({}, () => (0, __1.File)({ name: 'foo.txt' }, () => (0, __1.Fragment)({ from: '/tmp/named.txt' }, child))))
+                .catch((e) => err = e);
+            (0, expect_1.expect)(/no unnamed <\[SLOT\]> marker/.test(String(err?.message))).equal(true);
+        }
     });
     (0, node_test_1.test)('inject', async () => {
         let nowI = 0;
