@@ -303,14 +303,17 @@ Four rules, all shared with TypeScript:
   `WithoutMem()` sets, turns it off for that call.
 - **`Result.Vol` and `Result.FS` are set exactly when `Mem` is on for
   the call**: `Vol` is the in-memory volume and `FS` the provider used.
-  A provider you supply, even a `MemFS`, gets neither.
+  With `Mem` off, a provider you supply, even a `MemFS`, gets neither.
+  One mix can mislead: with `New(WithMem())` and `Options{FS: x}` on the
+  call, `FS` is `x` and `Vol` is the global volume, which that call did
+  not write to.
 
 A `nil` value in `Vol` seeds an empty directory, the same convention
 `Result.Vol()` reports one with; an empty file is a non-nil empty slice.
 
 Supplying your own `MemFS` is still the right choice when a test wants
 to seed the filesystem by writing into it. Read the output from that
-`MemFS` directly, since `Result.Vol` is nil for a supplied provider:
+`MemFS` directly, since `Result.Vol` is nil when `Mem` is off:
 
 <!-- test: skip a Go sample; the explicit-provider route -->
 ```go
