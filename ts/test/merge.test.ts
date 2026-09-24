@@ -733,6 +733,47 @@ ccc
   })
 
 
+  // A region past about 125k lines used to reject the whole generate in TS.
+  // Twins: TestSaveDiffModeLargeFile in go/diff_test.go and
+  // TestSaveMergeModeLargeFile in go/merge_test.go.
+  test('large-file-diff-and-merge', async () => {
+    let big = ''
+    for (let i = 0; i < 130000; i++) {
+      big += 'x' + i + '\n'
+    }
+
+    const run = async (mode: string, steps: [string, string | null][]) => {
+      const mfs = memfs({})
+      const fs: any = mfs.fs
+      let res: any
+      for (const [gen, edit] of steps) {
+        if (null != edit) {
+          fs.writeFileSync('/out/big.txt', edit)
+        }
+        res = await Jostraca({ now: () => START_TIME }).generate({
+          fs: () => fs, folder: '/out', model: {},
+          existing: { txt: { [mode]: true } },
+        }, () => Project({ folder: '.' }, () => {
+          File({ name: 'big.txt' }, () => Content(gen))
+        }))
+      }
+      return { res, text: fs.readFileSync('/out/big.txt', 'utf8') }
+    }
+
+    const d = await run('diff', [[big + 'A\n', null], [big + 'GEN\n', big + 'USER\n']])
+    expect(d.res.files.diffed).equal(['/out/big.txt'])
+    expect(d.res.files.conflicted).equal(['/out/big.txt'])
+    expect(d.text.startsWith(big + '<<<<<<< EXISTING: ')).true()
+    expect(d.text.includes('\nUSER\n') && d.text.includes('\nGEN\n')).true()
+
+    const m = await run('merge', [['head\n', null], ['head\n' + big, 'head\nuser\n']])
+    expect(m.res.files.merged).equal(['/out/big.txt'])
+    expect(m.res.files.conflicted).equal(['/out/big.txt'])
+    expect(m.text.startsWith('head\n<<<<<<< GENERATED: ')).true()
+    expect(m.text.includes(big + '=======\nuser\n>>>>>>> EXISTING: ')).true()
+  })
+
+
 })
 
 

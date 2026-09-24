@@ -4,6 +4,7 @@
 // the other is exactly how the two stacks drifted apart before.
 
 import { test, describe } from 'node:test'
+import { createHash } from 'node:crypto'
 import { expect } from './expect'
 
 import { DiffUtil } from '../'
@@ -641,6 +642,42 @@ describe('diff-engine', () => {
     // The default sentinel still matches whatever timestamp follows.
     const dflt = merge('NEW\n', 'OLD\n', 'a\n>>>>>>> EXISTING: T/merge\n')
     expect(dflt.outcome).equal('unresolved')
+  })
+
+
+  // Regions and unchanged hunks past about 125k lines used to throw
+  // RangeError in TS. Lengths and digests are shared with
+  // TestLargeRegionsDoNotOverflow in go/diff_engine_test.go.
+  test('large-regions-do-not-overflow', () => {
+    const n = 200000
+    let big = ''
+    let other = ''
+    for (let i = 0; i < n; i++) {
+      big += 'x' + i + '\n'
+      other += 'y' + i + '\n'
+    }
+    const sha = (s: string) => createHash('sha256').update(s).digest('hex')
+
+    const shapes: [string, () => any, string, number, string][] = [
+      ['diff-same-hunk', () => diff(big + 'A\n', big + 'B\n', L),
+        'changed', 1488934,
+        '587be7b2d4bdcfd0ae57fba1f79691f9a6417a162f3f96a961cf0c26536e429b'],
+      ['merge-region', () => merge('head\n' + big, 'head\n', 'head\nuser\n', L),
+        'merged', 1488928,
+        '155c3e5904be5bbcc6832326f829de7185aa0ab2c18c8b4cbcc63cdc4fd0a989'],
+      ['merge-tail', () => merge(big, '', other, L),
+        'merged', 2977808,
+        '517c79d677a06d856a708162ddbb3464e5623880e03f36fed0dd0daff725c671'],
+      ['merge-existing-grows', () => merge('head\n', 'head\nz\n', 'head\n' + big, L),
+        'merged', 1488923,
+        '4b8d814bf4729e2274186dd99422f0b97c04277198b42e56ed920f6bd9e979a8'],
+    ]
+
+    for (const [name, run, outcome, length, digest] of shapes) {
+      const res = run()
+      expect([name, res.outcome, res.conflict, res.content.length, sha(res.content)])
+        .equal([name, outcome, true, length, digest])
+    }
   })
 
 })

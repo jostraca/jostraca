@@ -1,6 +1,7 @@
 package jostraca
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"math/rand"
 	"runtime"
@@ -721,6 +722,51 @@ func TestMergeLargeRepeatedVocabularyIsFast(t *testing.T) {
 	// asymmetric case — see TestMergeMemoryAsymmetric.
 	if allocMB > 64 {
 		t.Errorf("allocated %.1f MB at %d lines; looks like a full DP table", allocMB, n)
+	}
+}
+
+// Regions and unchanged hunks past about 125k lines used to throw RangeError
+// in TS. Lengths and digests are shared with 'large-regions-do-not-overflow'
+// in ts/test/diff.test.ts.
+func TestLargeRegionsDoNotOverflow(t *testing.T) {
+	var b, o strings.Builder
+	for i := 0; i < 200000; i++ {
+		fmt.Fprintf(&b, "x%d\n", i)
+		fmt.Fprintf(&o, "y%d\n", i)
+	}
+	big, other := b.String(), o.String()
+	L := DiffSpec{Labels: &DiffLabels{Generated: "G", Existing: "E"}}
+
+	for _, c := range []struct {
+		name    string
+		run     func() (string, bool, string)
+		outcome string
+		length  int
+		digest  string
+	}{
+		{"diff-same-hunk", func() (string, bool, string) {
+			r := Diff(big+"A\n", big+"B\n", L)
+			return string(r.Outcome), r.Conflict, r.Content
+		}, "changed", 1488934, "587be7b2d4bdcfd0ae57fba1f79691f9a6417a162f3f96a961cf0c26536e429b"},
+		{"merge-region", func() (string, bool, string) {
+			r := Merge("head\n"+big, "head\n", "head\nuser\n", L)
+			return string(r.Outcome), r.Conflict, r.Content
+		}, "merged", 1488928, "155c3e5904be5bbcc6832326f829de7185aa0ab2c18c8b4cbcc63cdc4fd0a989"},
+		{"merge-tail", func() (string, bool, string) {
+			r := Merge(big, "", other, L)
+			return string(r.Outcome), r.Conflict, r.Content
+		}, "merged", 2977808, "517c79d677a06d856a708162ddbb3464e5623880e03f36fed0dd0daff725c671"},
+		{"merge-existing-grows", func() (string, bool, string) {
+			r := Merge("head\n", "head\nz\n", "head\n"+big, L)
+			return string(r.Outcome), r.Conflict, r.Content
+		}, "merged", 1488923, "4b8d814bf4729e2274186dd99422f0b97c04277198b42e56ed920f6bd9e979a8"},
+	} {
+		outcome, conflict, content := c.run()
+		digest := fmt.Sprintf("%x", sha256.Sum256([]byte(content)))
+		if outcome != c.outcome || !conflict || len(content) != c.length || digest != c.digest {
+			t.Errorf("%s: outcome=%s conflict=%v len=%d sha256=%s", c.name, outcome, conflict,
+				len(content), digest)
+		}
 	}
 }
 

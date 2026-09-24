@@ -346,6 +346,15 @@ function sameLines(a: string[], b: string[]): boolean {
 }
 
 
+// Not `out.push(...xs)`: V8 bounds spread arguments by stack size, so a
+// region of about 125k lines threw RangeError where Go's append does not.
+function pushAll(out: string[], xs: string[]): void {
+  for (const x of xs) {
+    out.push(x)
+  }
+}
+
+
 // Whether the text accumulated so far ends with a newline, so a marker
 // always starts on its own line.
 //
@@ -364,13 +373,13 @@ function writeConflict(
   labels: DiffLabels,
 ): void {
   out.push(MARK_START + labels.generated + '\n')
-  out.push(...generated)
+  pushAll(out, generated)
   if (!endsWithNewline(out)) {
     out.push('\n')
   }
 
   out.push(MARK_MID)
-  out.push(...existing)
+  pushAll(out, existing)
   if (!endsWithNewline(out)) {
     out.push('\n')
   }
@@ -442,13 +451,13 @@ function merge(
       const eIns = el.slice(ei, eMap[bi])
 
       if (sameLines(gIns, eIns)) {
-        out.push(...gIns)
+        pushAll(out, gIns)
       }
       else if (0 === gIns.length) {
-        out.push(...eIns)
+        pushAll(out, eIns)
       }
       else if (0 === eIns.length) {
-        out.push(...gIns)
+        pushAll(out, gIns)
       }
       else {
         writeConflict(out, gIns, eIns, labels)
@@ -484,15 +493,15 @@ function merge(
 
     if (sameLines(bRegion, gRegion)) {
       // Only the user changed this region.
-      out.push(...eRegion)
+      pushAll(out, eRegion)
     }
     else if (sameLines(bRegion, eRegion)) {
       // Only the generator changed this region.
-      out.push(...gRegion)
+      pushAll(out, gRegion)
     }
     else if (sameLines(gRegion, eRegion)) {
       // Both made the same change.
-      out.push(...gRegion)
+      pushAll(out, gRegion)
     }
     else {
       writeConflict(out, gRegion, eRegion, labels)
@@ -516,13 +525,13 @@ function merge(
     const eTail = el.slice(ei)
 
     if (sameLines(gTail, eTail)) {
-      out.push(...gTail)
+      pushAll(out, gTail)
     }
     else if (0 === gTail.length) {
-      out.push(...eTail)
+      pushAll(out, eTail)
     }
     else if (0 === eTail.length) {
-      out.push(...gTail)
+      pushAll(out, gTail)
     }
     else {
       writeConflict(out, gTail, eTail, labels)
@@ -622,7 +631,7 @@ function diff(generated: string, existing: string, spec?: DiffSpec): DiffResult 
 
   for (const hunk of hunks(lines(generated), lines(existing))) {
     if (HUNK_SAME === hunk.kind) {
-      out.push(...hunk.generated)
+      pushAll(out, hunk.generated)
       continue
     }
     if (0 < hunk.existing.length) {
