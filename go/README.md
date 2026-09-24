@@ -413,6 +413,10 @@ same logical input:
   keeps the platform default (0666 less the umask). TS treats `mode: 0`
   as a real request and writes an unreadable `0o000` file. Same
   zero-value limitation as `Control` above.
+- A `Slot` with no name has `Name: ""`, so it fills a `<[SLOT:]>`
+  marker as TS's `Slot({name: ''})` does. TS's `Slot({})` has an
+  undefined name, drops its content, and blanks a `<[SLOT:undefined]>`
+  marker instead. Same zero-value limitation.
 - `TemplateSpec.Open`, `Close` and `Ref` use the default when empty,
   because Go cannot tell an empty string from an unset field. TS uses an
   explicit `''` as given. Pass the empty pattern `(?:)` for an empty

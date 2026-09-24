@@ -627,6 +627,10 @@ is no sort-by-property in Go.
 - `FileProps.Mode` of `0` means "unset", so the file keeps the platform
   default (0666 less the umask). TypeScript treats `mode: 0` as a
   request and writes an unreadable `0o000` file.
+- A `Slot` with no name has `Name: ""`, so it fills a `<[SLOT:]>` marker
+  as TypeScript's `Slot({name: ''})` does. TypeScript's `Slot({})` has an
+  undefined name, drops its content, and blanks a `<[SLOT:undefined]>`
+  marker instead.
 - `TemplateSpec.Open`, `Close` and `Ref` use the default when empty,
   because Go cannot tell an empty string from an unset field. TypeScript
   uses an explicit `''` as given. Pass the empty pattern `(?:)` for an
