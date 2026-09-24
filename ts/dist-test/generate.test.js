@@ -475,8 +475,10 @@ const tmpdir = () => Fs.mkdtempSync(Path.join(Os.tmpdir(), 'jostraca-generate-')
             const missing = await refusal(() => (0, __1.File)({ name: 'a.txt' }, () => (0, __1.Fragment)({})));
             Assert.equal(missing.message, 'Fragment: Validation failed for property "from" because the property is missing.');
             const frag = await refusal(() => (0, __1.File)({ name: 'a.txt' }, () => (0, __1.Fragment)({ from: 'nope.txt' })));
+            // A source path keeps its platform form, so shape shows the native join.
+            const shown = JSON.stringify(Path.join('/out', 'nope.txt')).slice(1, -1);
             Assert.ok(frag.message.startsWith('Fragment: Validation failed for property "from" ' +
-                'with string "/out/nope.txt" because check "From" failed (threw: '), frag.message);
+                'with string "' + shown + '" because check "From" failed (threw: '), frag.message);
             // shape clips the value at 111 UTF-16 code units, not bytes.
             for (const [from, shown] of [
                 ['/' + 'é'.repeat(80) + '.txt', '/' + 'é'.repeat(80) + '.txt'],

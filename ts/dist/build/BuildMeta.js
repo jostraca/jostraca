@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BuildMeta = void 0;
 const node_path_1 = __importDefault(require("node:path"));
+const FileHandler_1 = require("./FileHandler");
 const basic_1 = require("../util/basic");
 // Log non-fatal weirdness.
 const dlog = (0, basic_1.getdlog)('jostraca', __filename);
@@ -46,7 +47,7 @@ class BuildMeta {
         // save over previous
         saveMetaData(this.fh, this.next);
         if (false === this.fh.control.version) {
-            this.fh.saveFile(node_path_1.default.join(this.fh.folder, this.next.foldername, '.gitignore'), `
+            this.fh.saveFile((0, FileHandler_1.canonPath)(node_path_1.default.join(this.fh.folder, this.next.foldername, '.gitignore')), `
 ${this.next.filename}
 generated
 `);
@@ -58,7 +59,7 @@ exports.BuildMeta = BuildMeta;
 function loadMetaData(fh, bmeta) {
     // Full (folder-prefixed) path: the FileHandler FS methods use paths
     // directly and no longer re-join `this.folder`.
-    const metapath = node_path_1.default.join(fh.folder, bmeta.foldername, bmeta.filename);
+    const metapath = (0, FileHandler_1.canonPath)(node_path_1.default.join(fh.folder, bmeta.foldername, bmeta.filename));
     if (fh.existsFile(metapath)) {
         try {
             const json = fh.loadJSON(metapath);
@@ -95,7 +96,7 @@ function isPlainObject(v) {
 function saveMetaData(fh, bmeta) {
     // Full (folder-prefixed) path: the FileHandler FS methods use paths
     // directly and no longer re-join `this.folder`.
-    const metapath = node_path_1.default.join(fh.folder, bmeta.foldername, bmeta.filename);
+    const metapath = (0, FileHandler_1.canonPath)(node_path_1.default.join(fh.folder, bmeta.foldername, bmeta.filename));
     fh.saveJSON(metapath, bmeta);
 }
 //# sourceMappingURL=BuildMeta.js.map

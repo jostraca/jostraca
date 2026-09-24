@@ -1,7 +1,7 @@
 
 import Path from 'node:path'
 
-import { FileHandler } from './FileHandler'
+import { FileHandler, canonPath } from './FileHandler'
 
 import { humanify, getdlog } from '../util/basic'
 
@@ -82,7 +82,7 @@ class BuildMeta {
     saveMetaData(this.fh, this.next)
 
     if (false === this.fh.control.version) {
-      this.fh.saveFile(Path.join(this.fh.folder, this.next.foldername, '.gitignore'), `
+      this.fh.saveFile(canonPath(Path.join(this.fh.folder, this.next.foldername, '.gitignore')), `
 ${this.next.filename}
 generated
 `)
@@ -96,7 +96,7 @@ generated
 function loadMetaData(fh: FileHandler, bmeta: BuildMetaData) {
   // Full (folder-prefixed) path: the FileHandler FS methods use paths
   // directly and no longer re-join `this.folder`.
-  const metapath = Path.join(fh.folder, bmeta.foldername, bmeta.filename)
+  const metapath = canonPath(Path.join(fh.folder, bmeta.foldername, bmeta.filename))
   if (fh.existsFile(metapath)) {
     try {
       const json = fh.loadJSON(metapath)
@@ -139,7 +139,7 @@ function isPlainObject(v: any): boolean {
 function saveMetaData(fh: FileHandler, bmeta: BuildMetaData) {
   // Full (folder-prefixed) path: the FileHandler FS methods use paths
   // directly and no longer re-join `this.folder`.
-  const metapath = Path.join(fh.folder, bmeta.foldername, bmeta.filename)
+  const metapath = canonPath(Path.join(fh.folder, bmeta.foldername, bmeta.filename))
   fh.saveJSON(metapath, bmeta)
 }
 
