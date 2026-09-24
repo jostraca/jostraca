@@ -457,6 +457,44 @@ function metaOf(fs, path = META) {
             node_fs_1.default.rmSync(dir, { recursive: true, force: true });
         }
     });
+    // An output name ending in `/`, or an empty one, names a directory, and
+    // the path keeps its trailing slash as Path.normalize keeps it. No file
+    // is written there: the read or the write is refused, with this body
+    // before the host's own error text, and the tree stops where the refusal
+    // came. Twin of TestTrailingSlashOutputNames.
+    (0, node_test_1.test)('trailing-slash-output-names', async () => {
+        const cases = [
+            ['empty', () => {
+                    (0, __1.File)({ name: 'first.txt' }, () => (0, __1.Content)('F'));
+                    (0, __1.Folder)({ name: 'sub' }, () => (0, __1.File)({ name: '' }, () => (0, __1.Content)('X')));
+                }, 'file', 'FileHandler:loadFile: path=/out/sub/ err=',
+                ['/out/.jostraca/generated/first.txt', '/out/first.txt', '/out/sub']],
+            ['file', () => (0, __1.File)({ name: 'x/' }, () => (0, __1.Content)('X')),
+                'file', 'FileHandler:saveFile:FileOp:after:write: path=/out/x/:', []],
+            ['inject', () => (0, __1.Inject)({ name: 't.txt/' }, () => (0, __1.Content)('X')),
+                'inject', 'FileHandler:saveFile:write: path=/out/t.txt/:', []],
+            ['copy', () => (0, __1.Copy)({ from: '/src/one.txt', to: 'y/' }),
+                'copy', 'FileHandler:saveFile:Copy:copyFile:write: path=/out/y/:', []],
+        ];
+        for (const [name, def, step, body, wrote] of cases) {
+            const { fs, vol } = (0, memfs_1.memfs)({
+                '/src/one.txt': 'ONE\n',
+                '/out/t.txt': 'a\n#--START--#\nold\n#--END--#\n',
+            });
+            let err = null;
+            try {
+                await (0, __1.Jostraca)({ now: () => NOW, log: quiet })
+                    .generate({ fs: () => fs, folder: '/out' }, () => (0, __1.Project)({}, def));
+            }
+            catch (e) {
+                err = e;
+            }
+            (0, expect_1.expect)({ name, step: err?.step, body: String(err?.message).startsWith(body) })
+                .equal({ name, step, body: true });
+            (0, expect_1.expect)({ name, wrote: Object.keys(vol.toJSON()).filter((k) => k.startsWith('/out/') && '/out/t.txt' !== k).sort() })
+                .equal({ name, wrote });
+        }
+    });
     // A backslash in an output-path component is a separator on every
     // platform: the folded path is used for the directory, the read, the
     // write, the baseline, the meta key and the files lists, and no literal

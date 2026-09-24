@@ -261,7 +261,7 @@ File(props, children)
 
 | prop | type | default | effect |
 |---|---|---|---|
-| `name` | `string` |—| The filename. Slashes create nested directories. A `..` segment throws. Omitted, the file is literally called `undefined`. |
+| `name` | `string` |—| The filename. Slashes create nested directories. A `..` segment throws. Omitted, the file is literally called `undefined`. An empty name, or one ending in `/`, names a directory: nothing is written there, and the run fails. |
 | `exclude` | `boolean \| string \| (string\|RegExp)[]` |—| Skip the file, but **only when it already exists**. See below. |
 | `mode` | `number` | platform default | POSIX permission bits, re-applied after the atomic write-then-rename. |
 

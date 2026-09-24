@@ -2,8 +2,10 @@ package jostraca
 
 import (
 	"encoding/json"
+	"errors"
 	"math"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -725,6 +727,53 @@ func TestDuplicateSaveBookkeeping(t *testing.T) {
 		}
 		if got, _ := mem.ReadFile("/out/.jostraca/jostraca.meta.log"); string(got) != r.meta {
 			t.Errorf("%s: meta log\n%s\nwant\n%s", r.name, got, r.meta)
+		}
+	}
+}
+
+// An output name ending in `/`, or an empty one, names a directory, and the
+// path keeps its trailing slash as TS's Path.normalize keeps it. No file is
+// written there: the read or the write is refused, with TS's body before the
+// host's own error text, and the tree stops where the refusal came. Twin of
+// 'trailing-slash-output-names' in ts/test/filehandler.test.ts.
+func TestTrailingSlashOutputNames(t *testing.T) {
+	for _, c := range []struct {
+		name, step, body string
+		def              func(*J)
+		wrote            []string
+	}{
+		{"empty", "file", "FileHandler:loadFile: path=/out/sub/ err=", func(j *J) {
+			j.File("first.txt", func(j *J) { j.Content("F") })
+			j.Folder("sub", func(j *J) { j.File("", func(j *J) { j.Content("X") }) })
+		}, []string{"/out/.jostraca/generated/first.txt", "/out/first.txt", "/out/sub"}},
+		{"file", "file", "FileHandler:saveFile:FileOp:after:write: path=/out/x/:", func(j *J) {
+			j.File("x/", func(j *J) { j.Content("X") })
+		}, []string{}},
+		{"inject", "inject", "FileHandler:saveFile:write: path=/out/t.txt/:", func(j *J) {
+			j.Inject("t.txt/", func(j *J) { j.Content("X") })
+		}, []string{}},
+		{"copy", "copy", "FileHandler:saveFile:Copy:copyFile:write: path=/out/y/:", func(j *J) {
+			j.CopyFiles(CopyFilesProps{From: "/src/one.txt", To: "y/"})
+		}, []string{}},
+	} {
+		mem := NewMemFS()
+		_ = mem.WriteFile("/src/one.txt", []byte("ONE\n"))
+		_ = mem.WriteFile("/out/t.txt", []byte("a\n#--START--#\nold\n#--END--#\n"))
+		_, err := New(WithFS(mem), WithFolder("/out"), WithNow(func() int64 { return fhNow })).
+			Generate(Options{}, func(j *J) { j.Project(ProjectProps{}, c.def) })
+		var ne *NodeError
+		if !errors.As(err, &ne) || ne.Step != c.step || !strings.HasPrefix(ne.Err.Error(), c.body) {
+			t.Errorf("%s: err = %v, want step %s and body %s...", c.name, err, c.step, c.body)
+		}
+		wrote := []string{}
+		for k := range mem.Vol() {
+			if strings.HasPrefix(k, "/out/") && k != "/out/t.txt" {
+				wrote = append(wrote, k)
+			}
+		}
+		sort.Strings(wrote)
+		if strings.Join(wrote, ",") != strings.Join(c.wrote, ",") {
+			t.Errorf("%s: wrote %v, want %v", c.name, wrote, c.wrote)
 		}
 	}
 }

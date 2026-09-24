@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"syscall"
 )
 
 // fileHandler is the only place that touches the filesystem during the
@@ -147,9 +148,17 @@ func fwd(p string) string {
 }
 
 // canonOutPath is the one canonical form of an output path, TS's canonPath:
-// separators folded, `.` and `..` resolved.
+// separators folded, `.` and `..` resolved, and a trailing separator KEPT,
+// as Node's Path.normalize keeps it. A File, Inject or Copy name ending in
+// `/` names a directory, so TS refuses to write a file there; cleaning the
+// slash away wrote the file `x` for a File named `x/`.
 func canonOutPath(p string) string {
-	return path.Clean(fwd(p))
+	f := fwd(p)
+	c := path.Clean(f)
+	if strings.HasSuffix(f, "/") && !strings.HasSuffix(c, "/") {
+		c += "/"
+	}
+	return c
 }
 
 // wstrOf is TS's whence suffix: the whence and a colon, or nothing for an
@@ -743,8 +752,13 @@ func (fh *fileHandler) relative(p string) string {
 	return p
 }
 
+// ensureDirOf creates p's parent, which is Node's Path.dirname: a trailing
+// separator is not a path segment, so the parent of `a/x/` is `a`.
 func (fh *fileHandler) ensureDirOf(p string) error {
 	dir := path.Dir(p)
+	if trimmed := strings.TrimRight(p, "/"); trimmed != "" && trimmed != p {
+		dir = path.Dir(trimmed)
+	}
 	if dir == "" || dir == "." || dir == "/" {
 		return nil
 	}
@@ -874,6 +888,18 @@ func (fh *fileHandler) writeAtomicMode(p string, content []byte, mode fs.FileMod
 	// a truncating write, so the one path that was supposed to protect an
 	// occupied file was the path that destroyed it. Exhaustion is now an
 	// error, never a write.
+	// A target named `x/` puts its temp file INSIDE `x`, which a Node write
+	// and an OS write refuse unless `x` is a directory. MemFS creates
+	// missing parents, so it laid down the directory `x`, over a file of
+	// that name if there was one, and renamed the temp file onto it.
+	if dir := strings.TrimRight(p, "/"); dir != p && dir != "" {
+		if fi, err := fh.fs.Stat(dir); err != nil {
+			return &fs.PathError{Op: "open", Path: tmppathFor(p), Err: fs.ErrNotExist}
+		} else if !fi.IsDir {
+			return &fs.PathError{Op: "open", Path: tmppathFor(p), Err: syscall.ENOTDIR}
+		}
+	}
+
 	tmp := ""
 	var werr error
 	xfs, exclusive := fh.fs.(exclusiveFS)

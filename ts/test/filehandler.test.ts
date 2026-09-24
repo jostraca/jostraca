@@ -515,6 +515,47 @@ describe('filehandler', () => {
   })
 
 
+  // An output name ending in `/`, or an empty one, names a directory, and
+  // the path keeps its trailing slash as Path.normalize keeps it. No file
+  // is written there: the read or the write is refused, with this body
+  // before the host's own error text, and the tree stops where the refusal
+  // came. Twin of TestTrailingSlashOutputNames.
+  test('trailing-slash-output-names', async () => {
+    const cases: [string, () => any, string, string, string[]][] = [
+      ['empty', () => {
+        File({ name: 'first.txt' }, () => Content('F'))
+        Folder({ name: 'sub' }, () => File({ name: '' }, () => Content('X')))
+      }, 'file', 'FileHandler:loadFile: path=/out/sub/ err=',
+      ['/out/.jostraca/generated/first.txt', '/out/first.txt', '/out/sub']],
+      ['file', () => File({ name: 'x/' }, () => Content('X')),
+        'file', 'FileHandler:saveFile:FileOp:after:write: path=/out/x/:', []],
+      ['inject', () => Inject({ name: 't.txt/' }, () => Content('X')),
+        'inject', 'FileHandler:saveFile:write: path=/out/t.txt/:', []],
+      ['copy', () => Copy({ from: '/src/one.txt', to: 'y/' }),
+        'copy', 'FileHandler:saveFile:Copy:copyFile:write: path=/out/y/:', []],
+    ]
+    for (const [name, def, step, body, wrote] of cases) {
+      const { fs, vol } = memfs({
+        '/src/one.txt': 'ONE\n',
+        '/out/t.txt': 'a\n#--START--#\nold\n#--END--#\n',
+      })
+      let err: any = null
+      try {
+        await Jostraca({ now: () => NOW, log: quiet })
+          .generate({ fs: () => fs, folder: '/out' }, () => Project({}, def))
+      }
+      catch (e: any) {
+        err = e
+      }
+      expect({ name, step: err?.step, body: String(err?.message).startsWith(body) })
+        .equal({ name, step, body: true })
+      expect({ name, wrote: Object.keys(vol.toJSON()).filter((k) =>
+        k.startsWith('/out/') && '/out/t.txt' !== k).sort() })
+        .equal({ name, wrote })
+    }
+  })
+
+
   // A backslash in an output-path component is a separator on every
   // platform: the folded path is used for the directory, the read, the
   // write, the baseline, the meta key and the files lists, and no literal

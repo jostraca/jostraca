@@ -286,11 +286,10 @@ func fileBefore(n *Node, st *jstate, b *buildCtx) error {
 	} else {
 		raw = parent + "/" + n.Name
 	}
-	// path.Clean collapses // and resolves . / ..; matches TS's
-	// Path.normalize at src/build/FileHandler.ts:151. This lets
-	// Folder({name: '/code/js'}) compose with Project({folder: '/top/sdk'})
-	// into a clean /top/sdk/code/js path.
-	n.FullPath = path.Clean(fwd(raw))
+	// canonOutPath collapses // and resolves . / .., as TS's canonPath
+	// does. This lets Folder({name: '/code/js'}) compose with
+	// Project({folder: '/top/sdk'}) into a clean /top/sdk/code/js path.
+	n.FullPath = canonOutPath(raw)
 	_ = st
 
 	// TWO FILES AT ONE PATH IS REFUSED, not resolved. See claimFile.
