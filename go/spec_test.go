@@ -58,6 +58,49 @@ var specFns = map[string]func(a []any) (any, error){
 
 	"deep": func(a []any) (any, error) { return Deep(a[0], a[1:]...), nil },
 
+	// {mark, oval, sort}, booleans only: EachSpec holds their inverses,
+	// so an absent flag keeps TS's default.
+	"each": func(a []any) (any, error) {
+		spec := EachSpec{}
+		if 2 <= len(a) {
+			if raw, ok := a[1].(map[string]any); ok {
+				if v, ok := raw["mark"].(bool); ok {
+					spec.NoMark = !v
+				}
+				if v, ok := raw["oval"].(bool); ok {
+					spec.Raw = !v
+				}
+				if v, ok := raw["sort"].(bool); ok {
+					spec.Sort = v
+				}
+			}
+		}
+		return Each(a[0], spec, nil), nil
+	},
+
+	// '$COPY', '$KEY' and '$FILTER' stand for the sentinels.
+	"cmap": func(a []any) (any, error) {
+		o, _ := a[0].(map[string]any)
+		return CMap(o, specMapSpec(a[1])), nil
+	},
+	"vmap": func(a []any) (any, error) {
+		o, _ := a[0].(map[string]any)
+		return VMap(o, specMapSpec(a[1])), nil
+	},
+
+	// [when, {parts, terse}], when an integer number of milliseconds.
+	"humanify": func(a []any) (any, error) {
+		flags := HumanifyFlags{}
+		if 2 <= len(a) {
+			if raw, ok := a[1].(map[string]any); ok {
+				flags.Parts, _ = raw["parts"].(bool)
+				flags.Terse, _ = raw["terse"].(bool)
+			}
+		}
+		when, _ := a[0].(float64)
+		return Humanify(int64(when), flags), nil
+	},
+
 	"omap": func(a []any) (any, error) {
 		m, _ := a[0].(map[string]any)
 		return OMap(m), nil
@@ -82,6 +125,11 @@ var specFns = map[string]func(a []any) (any, error){
 			if ej, ok := raw["eject"].([]any); ok {
 				spec.Eject = ej
 			}
+			// Delimiters as well. An empty string means the default in
+			// Go (TS uses it as given), so rows keep them non-empty.
+			spec.Open, _ = raw["open"].(string)
+			spec.Close, _ = raw["close"].(string)
+			spec.Ref, _ = raw["ref"].(string)
 		}
 		return Template(specStr(a[0]), a[1], spec)
 	},
@@ -101,6 +149,24 @@ var specFns = map[string]func(a []any) (any, error){
 	"lcs": func(a []any) (any, error) {
 		return LCS(specStrs(a[0]), specStrs(a[1])), nil
 	},
+}
+
+func specMapSpec(v any) map[string]any {
+	p, _ := v.(map[string]any)
+	out := make(map[string]any, len(p))
+	for k, x := range p {
+		switch x {
+		case "$COPY":
+			out[k] = CMapCopy
+		case "$KEY":
+			out[k] = CMapKey
+		case "$FILTER":
+			out[k] = CMapFilter
+		default:
+			out[k] = x
+		}
+	}
+	return out
 }
 
 // specStr coerces a corpus cell to string. A JSON null reaches a string

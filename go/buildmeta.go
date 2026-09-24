@@ -227,9 +227,10 @@ func (bm *buildMeta) encode() []byte {
 	return buf.Bytes()
 }
 
+// jsonStr quotes s as JSON.stringify does; encoding/json would escape
+// '&', '<', '>' and U+2028/U+2029, which TS writes raw.
 func jsonStr(s string) string {
-	b, _ := json.Marshal(s)
-	return string(b)
+	return jsQuote(s)
 }
 
 func jsonNum[T int64 | int](n T) string {

@@ -1,7 +1,9 @@
 package jostraca
 
 import (
+	"encoding/json"
 	"errors"
+	"math"
 	"regexp"
 	"strings"
 	"testing"
@@ -404,5 +406,193 @@ func TestTemplateEjectIgnoresExtraMarkers(t *testing.T) {
 				t.Fatalf("got %q, want the source unchanged", out)
 			}
 		})
+	}
+}
+
+// Mirrors ts/test/jostraca.test.ts macro-own-properties-only: a macro that
+// names an Object.prototype member, or steps through a null, is an
+// unresolved path and is left in place.
+func TestMacroOwnPropertiesOnly(t *testing.T) {
+	mem := NewMemFS()
+	_, err := New(WithFS(mem), WithFolder("/out"), WithNow(func() int64 { return 1735689600000 })).
+		Generate(Options{Model: map[string]any{"a": map[string]any{"n": nil}}}, func(j *J) {
+			j.Project(ProjectProps{Folder: "."}, func(j *J) {
+				j.File("a.txt", func(j *J) {
+					j.Content("A$$toString$$B\n")
+					j.Content("C$$hasOwnProperty$$D$$a.n.x$$E\n")
+				})
+			})
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, _ := mem.ReadFile("/out/a.txt")
+	if want := "A$$toString$$B\nC$$hasOwnProperty$$D$$a.n.x$$E\n"; string(got) != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+// A $$ref$$ is a getx path, so the full getx grammar applies: space and
+// '.' separators, own-property steps such as length, and typed Go
+// containers, which are the same logical input as JSON objects and arrays.
+func TestTemplateRefIsGetx(t *testing.T) {
+	typed := map[string]any{
+		"a": map[string]string{"b": "x"},
+		"l": []string{"p", "q"},
+		"i": map[string]int{"n": 7},
+	}
+	got, err := Template("$$a.b$$ $$l.1$$ $$i.n$$ $$l.length$$", typed, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "x q 7 2"; got != want {
+		t.Errorf("typed containers: got %q, want %q", got, want)
+	}
+
+	if _, err := Template("$$1$$", map[int]string{1: "one"}, nil); err != nil {
+		t.Errorf("integer-keyed model: %v", err)
+	}
+	if got, _ := Template("$$1$$", map[float64]string{1: "one"}, nil); got != "$$1$$" {
+		t.Errorf("float-keyed model: got %q, want the macro unchanged", got)
+	}
+
+	mem := NewMemFS()
+	model := map[string]any{"a": map[string]any{"b": "AB"}, "list": []any{1.0, 2.0, 3.0}}
+	_, err = New(WithFS(mem), WithFolder("/out"), WithNow(func() int64 { return 1735689600000 })).
+		Generate(Options{Model: model}, func(j *J) {
+			j.Project(ProjectProps{Folder: "."}, func(j *J) {
+				j.File("a.txt", func(j *J) { j.Content("A=$$a b$$ L=$$list.length$$\n") })
+			})
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{"/out/a.txt", "/out/.jostraca/generated/a.txt"} {
+		body, _ := mem.ReadFile(p)
+		if want := "A=AB L=3\n"; string(body) != want {
+			t.Errorf("%s: got %q, want %q", p, body, want)
+		}
+	}
+}
+
+// The groups a replace function receives, as JSON with sorted keys.
+// ts/test/template.test.ts replace-function-groups asserts the same
+// strings: `$&`, then every J_N/J_T group that took part (an empty one
+// too) under its stripped name, `name` from a #Tag's identifier, and none
+// of the internal group names.
+func TestReplaceFunctionGroups(t *testing.T) {
+	groupsOf := func(src, key string) string {
+		var got map[string]string
+		_, err := Template(src, map[string]any{}, &TemplateSpec{Replace: map[string]any{
+			key: ReplaceFunc(func(g map[string]string, _ string) string { got = g; return "" }),
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var buf strings.Builder
+		enc := json.NewEncoder(&buf)
+		enc.SetEscapeHTML(false)
+		_ = enc.Encode(got)
+		return strings.TrimSuffix(buf.String(), "\n")
+	}
+	cases := []struct{ src, key, want string }{
+		{"  // #Foo\nrest", "#Foo", `{"$&":"  // #Foo\n","TAG":"Foo","indent":"  ","name":"Foo"}`},
+		{"  // #Bar-Name\nrest", "#Foo-Name", `{"$&":"  // #Bar-Name\n","Name":"Bar","TAG":"Name","indent":"  ","name":"Bar"}`},
+		{"aQb", "Q", `{"$&":"Q"}`},
+		{"axb", "/x(?<g>y?)/", `{"$&":"x","g":""}`},
+		{"ab", "/(?<p>a)(?<q>b)/", `{"$&":"ab","p":"a","q":"b"}`},
+	}
+	for _, c := range cases {
+		if got := groupsOf(c.src, c.key); got != c.want {
+			t.Errorf("%q over %q:\n got  %s\n want %s", c.key, c.src, got, c.want)
+		}
+	}
+}
+
+// A plain replace value formats as TS formats a function's return:
+// nil is empty, NaN prints, and a func() any returning nil yields "" (TS
+// ()=>null), where only an unresolved $$path$$ is left in place.
+func TestReplaceValueFormatting(t *testing.T) {
+	cases := []struct {
+		v    any
+		want string
+	}{
+		{math.NaN(), "aNaNb"},
+		{func() any { return nil }, "ab"},
+		{func() any { return math.NaN() }, "aNaNb"},
+		{int64(3), "a3b"},
+		{uint8(7), "a7b"},
+		{float32(0.1), "a0.1b"},
+		{[]string{"x"}, `a["x"]b`},
+	}
+	for _, c := range cases {
+		got, err := Template("aQb", nil, &TemplateSpec{Replace: map[string]any{"Q": c.v}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != c.want {
+			t.Errorf("Q=%#v: got %q, want %q", c.v, got, c.want)
+		}
+	}
+	if got, _ := Template("a$$q$$b", map[string]any{"q": math.NaN()}, nil); got != "a$$q$$b" {
+		t.Errorf("NaN model value: got %q, want the macro left in place", got)
+	}
+}
+
+// An empty Open, Close or Ref means the default in Go, where TS uses the
+// empty string as given. The Go spelling of TS's empty delimiter is the
+// empty pattern (?:), which yields the same regex.
+func TestTemplateEmptyDelimiters(t *testing.T) {
+	model := map[string]any{"name": "Foo"}
+	got, err := Template("$$name$$", model, &TemplateSpec{Open: "(?:)"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "$$Foo"; got != want {
+		t.Errorf("Open (?:): got %q, want %q (TS {open:''})", got, want)
+	}
+	got, _ = Template("$$name$$", model, &TemplateSpec{Open: ""})
+	if want := "Foo"; got != want {
+		t.Errorf("Open empty: got %q, want the default delimiters' %q", got, want)
+	}
+}
+
+// The same formatting for every component that takes a replace map:
+// Content, Fragment and a copied file. Mirrors ts/test/jostraca.test.ts
+// replace-values-format-in-components.
+func TestReplaceValuesFormatInComponents(t *testing.T) {
+	mem := NewMemFS()
+	_ = mem.WriteFile("/tpl/frag.txt", []byte("FOO and BAR\n"))
+	_ = mem.WriteFile("/tpl/copy.txt", []byte("copy FOO\n"))
+	_, err := New(WithFS(mem), WithFolder("/out"), WithNow(func() int64 { return 1735689600000 })).
+		Generate(Options{}, func(j *J) {
+			j.Project(ProjectProps{Folder: "."}, func(j *J) {
+				j.File("c.txt", func(j *J) {
+					j.ContentP(ContentProps{Src: "zero=FOO;", Replace: map[string]any{"FOO": 0.0}})
+					j.ContentP(ContentProps{Src: "false=FOO;", Replace: map[string]any{"FOO": false}})
+					j.ContentP(ContentProps{Src: "big=FOO;", Replace: map[string]any{"FOO": 1e6}})
+					j.ContentP(ContentProps{Src: "obj=FOO\n", Replace: map[string]any{
+						"FOO": map[string]any{"b": 1.0, "a": []any{2.0, "x"}}}})
+				})
+				j.File("f.txt", func(j *J) {
+					j.Fragment(FragmentProps{From: "/tpl/frag.txt", Replace: map[string]any{
+						"FOO": false, "BAR": 2.5e-8}}, nil)
+				})
+				j.CopyFiles(CopyFilesProps{From: "/tpl/copy.txt", Replace: map[string]any{"FOO": 123456789012.0}})
+			})
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{
+		"/out/c.txt":    "zero=0;false=false;big=1000000;obj={\"a\":[2,\"x\"],\"b\":1}\n",
+		"/out/f.txt":    "false and 2.5e-8\n",
+		"/out/copy.txt": "copy 123456789012\n",
+	}
+	for p, w := range want {
+		got, _ := mem.ReadFile(p)
+		if string(got) != w {
+			t.Errorf("%s: got %q, want %q", p, got, w)
+		}
 	}
 }

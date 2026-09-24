@@ -6,3 +6,5 @@ names-single	names	[{},"foo"]	{"name__orig":"foo","Name":"Foo","name_":"foo","na
 names-empty-name	names	[{},""]	{"name__orig":"","Name":"","name_":"","name-":"","name":"","NAME":""}	
 names-custom-prop	names	[{},"foo_bar","thing"]	{"thing__orig":"foo_bar","Thing":"FooBar","thing_":"foo_bar","thing-":"foo-bar","thing":"foo_bar","THING":"FOO_BAR"}	
 names-existing-base	names	[{"keep":1},"foo"]	{"keep":1,"name__orig":"foo","Name":"Foo","name_":"foo","name-":"foo","name":"foo","NAME":"FOO"}	
+names-empty-prop	names	[{},"foo_bar",""]	{"":"FOO_BAR","-":"foo-bar","_":"foo_bar","__orig":"foo_bar"}	
+names-sharp-s	names	[{},"stra\u00dfe"]	{"name__orig":"stra\u00dfe","Name":"Stra\u00dfe","name_":"stra\u00dfe","name-":"stra\u00dfe","name":"stra\u00dfe","NAME":"STRASSE"}	

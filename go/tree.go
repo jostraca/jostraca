@@ -53,7 +53,6 @@ import (
 	"io/fs"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -430,6 +429,9 @@ func init() {
 			j.LineP(contentProps(p))
 		},
 		"Fragment": func(j *J, p map[string]any, c []treeThunk) {
+			if j.refuseProps("Fragment", "fragment", p) {
+				return
+			}
 			j.FragmentP(FragmentProps{
 				From:    propString(p, "from"),
 				Indent:  p["indent"],
@@ -448,6 +450,9 @@ func init() {
 			}, runChildren(c, nil))
 		},
 		"CopyFiles": func(j *J, p map[string]any, _ []treeThunk) {
+			if j.refuseProps("CopyFiles", "copy", p) {
+				return
+			}
 			j.CopyFiles(CopyFilesProps{
 				From:    propString(p, "from"),
 				To:      propString(p, "to"),
@@ -498,45 +503,6 @@ func propSrc(p map[string]any) string {
 		return jsString(arg)
 	}
 	return propString(p, "src")
-}
-
-// jsString reproduces what JavaScript's `String(value)` gives for a
-// decoded JSON value, which is the conversion `Content` gets for free
-// when it concatenates a non-string `arg`. Arrays join their elements
-// with commas and any other object is `[object Object]`, both of which
-// are JavaScript's rules rather than anything chosen here.
-//
-// Written as String(value) rather than as the empty-string
-// concatenation on purpose. Two apostrophes in a row are the troff
-// convention for a closing quote, and gofmt's doc-comment formatter
-// rewrites them to a curly one: the lint gate then fails and the
-// sentence says something else than it did.
-func jsString(v any) string {
-	switch t := v.(type) {
-	case string:
-		return t
-	case bool:
-		if t {
-			return "true"
-		}
-		return "false"
-	case float64:
-		return strconv.FormatFloat(t, 'g', -1, 64)
-	case []any:
-		parts := make([]string, 0, len(t))
-		for _, el := range t {
-			if el == nil {
-				parts = append(parts, "")
-				continue
-			}
-			parts = append(parts, jsString(el))
-		}
-		return strings.Join(parts, ",")
-	case nil:
-		return ""
-	default:
-		return "[object Object]"
-	}
 }
 
 func contentProps(p map[string]any) ContentProps {

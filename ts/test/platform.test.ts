@@ -24,6 +24,7 @@ import { expect } from './expect'
 import Path from 'node:path'
 
 import { memfs, memClean } from '../dist/util/memfs'
+import { isbinext } from '../dist/util/basic'
 
 
 // Must stay identical to absBoundaryCases in go/platform_test.go.
@@ -44,6 +45,33 @@ const ABS_BOUNDARY: [string, boolean, boolean][] = [
   ['\\\\server\\s', false, true],  // UNC
   ['1:/x', false, false],          // digit is not a drive letter
   [':/x', false, false],           // empty drive letter
+]
+
+
+// Must stay identical to extBoundaryCases in go/platform_test.go: node's
+// path.extname on both platforms, which isbinext follows.
+const EXT_BOUNDARY: [string, string, string][] = [
+  // path, posix, win32
+  ["a.png", ".png", ".png"],
+  ["a.png/", ".png", ".png"],
+  ["a.png//", ".png", ".png"],
+  ["a/b.PNG/", ".PNG", ".PNG"],
+  ["/a.png/", ".png", ".png"],
+  ["x\\.png", ".png", ""],
+  ["x\\a.png", ".png", ".png"],
+  ["a.b\\c", ".b\\c", ""],
+  [".gitignore", "", ""],
+  ["..", "", ""],
+  ["a.", ".", "."],
+  ["C:a.png", ".png", ".png"],
+  ["C:.png", ".png", ""],
+  ["", "", ""],
+  ["/", "", ""],
+  ["a..png", ".png", ".png"],
+  [".a.png", ".png", ".png"],
+  ["a.png\\", ".png\\", ".png"],
+  [".png/", "", ""],
+  ["x/.png//", "", ""],
 ]
 
 
@@ -71,6 +99,22 @@ describe('platform', () => {
 
     expect(actual).equal(ABS_BOUNDARY.map(([path, posix, win32]) =>
       [path, windows ? win32 : posix]))
+  })
+
+
+  test('extname-boundary', async () => {
+    const actual = EXT_BOUNDARY.map(([path]) =>
+      [path, Path.posix.extname(path), Path.win32.extname(path)])
+    expect(actual).equal(EXT_BOUNDARY)
+  })
+
+
+  // isbinext follows the host's leg: a backslash is part of a POSIX name,
+  // so 'x\\.png' is a PNG there and a hidden '.png' file on Windows.
+  test('isbinext-dispatch', async () => {
+    const windows = 'win32' === process.platform
+    expect(isbinext('x\\.png')).equal(!windows)
+    expect(isbinext('a.png/')).equal(true)
   })
 
 

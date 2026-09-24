@@ -3,27 +3,33 @@ package jostraca
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"reflect"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
+	"unicode/utf8"
 )
 
-// EachSpec configures Each. Field semantics differ from TS in two
-// places (PORT_PLAN §14, Phase-4 BUILD_LOG):
+// EachSpec configures Each. The fields invert TS's flags so that the Go
+// zero value is TS's default (PORT_PLAN §14):
 //
-//	Raw    — if true, items are returned as-is (TS oval=false). If
-//	         false (default), scalar items are wrapped in {val$, index$}
-//	         or {key$, val$} matching TS's default oval=true behaviour;
-//	         items that are already map[string]any pass through and
-//	         only get the index$/key$ stamp.
-//	NoMark — if true, suppress the index$/key$ marker that TS adds by
-//	         default. Inverted from TS so Go zero value matches TS
-//	         default mark=true.
-//	Sort   — sort by stringified value (slices) or by key (maps).
+//	Raw    — TS oval:false. Items are returned as they are. Otherwise
+//	         (the default) a scalar item is wrapped as {val$} (slices) or
+//	         {key$, val$} (maps); anything object-like -- a map, slice,
+//	         array or struct -- passes through unwrapped, as a JS object
+//	         does.
+//	NoMark — TS mark:false: nothing is stamped. Otherwise index$ or key$
+//	         is written onto each map[string]any item, the only form Go can
+//	         stamp. TS also stamps an array item, as a property JSON never
+//	         shows; Go cannot.
+//	Sort   — TS sort:true. A slice sorts stably by String(item) in UTF-16
+//	         order, as JS's default sort does. A map (always iterated in
+//	         key order) sorts its entries by value when the first value is
+//	         not object-like.
 type EachSpec struct {
 	NoMark bool
 	Raw    bool
@@ -31,8 +37,8 @@ type EachSpec struct {
 	Args   any
 }
 
-// Each iterates a slice or map and applies a transform. Mirrors
-// src/util/basic.ts:7-107.
+// Each iterates a slice or map and applies a transform. Mirrors each in
+// ts/src/util/basic.ts.
 func Each(subject any, spec EachSpec, apply func(any) any) []any {
 	if subject == nil {
 		return []any{}
@@ -44,34 +50,19 @@ func Each(subject any, spec EachSpec, apply func(any) any) []any {
 		for i := 0; i < rv.Len(); i++ {
 			items[i] = rv.Index(i).Interface()
 		}
-		if spec.Sort {
+		if spec.Sort && len(items) > 1 {
 			sort.SliceStable(items, func(a, b int) bool {
-				return fmt.Sprint(items[a]) < fmt.Sprint(items[b])
+				return jsLess(jsString(items[a]), jsString(items[b]))
 			})
 		}
 		out := make([]any, 0, len(items))
 		for i, item := range items {
 			val := item
-			if !spec.Raw {
-				// TS basic.ts:39-49: when oval=true (default), object
-				// items pass through untouched; non-objects get wrapped
-				// as {val$: n}. Then mark=true (default) writes index$
-				// onto whichever object now sits in the slot.
-				if m, ok := item.(map[string]any); ok {
-					if !spec.NoMark {
-						m["index$"] = i
-					}
-					val = m
-				} else {
-					val = map[string]any{"val$": item, "index$": i}
-				}
-			} else if !spec.NoMark {
-				// Raw=true (oval=false) + mark=true: set index$ only on
-				// object items, leave scalars unchanged. Mirrors TS at
-				// basic.ts:47-49.
-				if m, ok := val.(map[string]any); ok {
-					m["index$"] = i
-				}
+			if !spec.Raw && !jsObjectLike(item) {
+				val = map[string]any{"val$": item}
+			}
+			if m, ok := val.(map[string]any); ok && m != nil && !spec.NoMark {
+				m["index$"] = i
 			}
 			if apply != nil {
 				val = apply(val)
@@ -79,43 +70,82 @@ func Each(subject any, spec EachSpec, apply func(any) any) []any {
 			out = append(out, val)
 		}
 		return out
+
 	case reflect.Map:
-		// Always sort by key for cross-stack determinism; spec.Sort
-		// remains for explicit-by-value sort which is unimplemented.
-		ks := sortedStringKeys(rv)
-		out := make([]any, 0, len(ks))
-		for _, k := range ks {
-			v := rv.MapIndex(reflect.ValueOf(k)).Interface()
-			var val any
-			if spec.Raw {
-				val = v
-				if !spec.NoMark {
-					if m, ok := val.(map[string]any); ok {
-						m["key$"] = k
-					}
-				}
-			} else {
-				// TS basic.ts:79-89: when oval=true and value is already
-				// an object, pass through and stamp key$ onto it. Only
-				// scalars get wrapped as {key$, val$}.
-				if m, ok := v.(map[string]any); ok {
-					if !spec.NoMark {
-						m["key$"] = k
-					}
-					val = m
-				} else {
-					val = map[string]any{"key$": k, "val$": v}
-				}
+		entries := sortedMapEntries(rv)
+		for i, e := range entries {
+			if !spec.Raw && !jsObjectLike(e.v) {
+				entries[i].v = map[string]any{"key$": e.k, "val$": e.v}
 			}
+			if m, ok := entries[i].v.(map[string]any); ok && m != nil && !spec.NoMark {
+				m["key$"] = e.k
+			}
+		}
+		if spec.Sort && len(entries) > 1 {
+			// TS sorts by the key$ property when the first value is an
+			// object (a no-op after the key sort), and by value otherwise.
+			byKey := jsObjectLike(entries[0].v)
+			pick := func(v any) any {
+				if !byKey {
+					return v
+				}
+				if p, ok := jsProp(v, "key$"); ok {
+					return p
+				}
+				return jsUndefined
+			}
+			sort.SliceStable(entries, func(a, b int) bool {
+				lt, undef := jsLessThan(pick(entries[a].v), pick(entries[b].v))
+				return lt && !undef
+			})
+		}
+		out := make([]any, 0, len(entries))
+		for _, e := range entries {
+			val := e.v
 			if apply != nil {
 				val = apply(val)
 			}
 			out = append(out, val)
 		}
 		return out
+
 	default:
 		return []any{}
 	}
+}
+
+type mapEntry struct {
+	k string
+	v any
+}
+
+// sortedMapEntries returns a map's entries in JavaScript key order. It
+// reads the values from the iterator, so a key type that is not a plain
+// string (a named string, an integer) cannot make MapIndex panic.
+func sortedMapEntries(rv reflect.Value) []mapEntry {
+	out := make([]mapEntry, 0, rv.Len())
+	iter := rv.MapRange()
+	for iter.Next() {
+		out = append(out, mapEntry{k: jsJSONMapKey(iter.Key()), v: iter.Value().Interface()})
+	}
+	sort.SliceStable(out, func(i, j int) bool { return jsLess(out[i].k, out[j].k) })
+	return out
+}
+
+// jsObjectLike is JS `null != v && 'object' === typeof v` for a Go value:
+// a map, slice, array, struct or non-nil pointer. A func is not, as a JS
+// function is not.
+func jsObjectLike(v any) bool {
+	if v == nil {
+		return false
+	}
+	switch reflect.ValueOf(v).Kind() {
+	case reflect.Map, reflect.Slice, reflect.Array, reflect.Struct:
+		return true
+	case reflect.Ptr, reflect.Interface:
+		return !reflect.ValueOf(v).IsNil()
+	}
+	return false
 }
 
 // EachF is the simplest narrower variant of Each: a pure transform of
@@ -166,7 +196,7 @@ func EachKV(m any, fn func(val any, key string, idx int) any) []any {
 	for _, k := range rv.MapKeys() {
 		keys = append(keys, fmt.Sprint(k.Interface()))
 	}
-	sort.Strings(keys)
+	sortJS(keys)
 	out := make([]any, 0, len(keys))
 	for i, k := range keys {
 		v := rv.MapIndex(reflect.ValueOf(k)).Interface()
@@ -190,7 +220,7 @@ func EachKVRaw(m any, fn func(val any, key string, idx int) any) []any {
 	for _, k := range rv.MapKeys() {
 		keys = append(keys, fmt.Sprint(k.Interface()))
 	}
-	sort.Strings(keys)
+	sortJS(keys)
 	out := make([]any, 0, len(keys))
 	for i, k := range keys {
 		v := rv.MapIndex(reflect.ValueOf(k)).Interface()
@@ -199,16 +229,23 @@ func EachKVRaw(m any, fn func(val any, key string, idx int) any) []any {
 	return out
 }
 
-// Get is a simple dot-path lookup over map[string]any/[]any-shaped data.
+// Get is a simple dot-path lookup, TS get: the path splits on '.', each
+// part is one jsProp step (so typed maps and slices, and a string's
+// length and indices, are traversed), and the walk stops at nil. The empty
+// path is the single key "".
 func Get(root any, path string) any {
-	if path == "" {
-		return nil
+	node := root
+	for _, p := range strings.Split(path, ".") {
+		if node == nil {
+			break
+		}
+		v, ok := jsProp(node, p)
+		if !ok {
+			return nil
+		}
+		node = v
 	}
-	v, ok := lookup(root, path)
-	if !ok {
-		return nil
-	}
-	return v
+	return node
 }
 
 // Camelify converts foo-bar / foo_bar / foo bar / FooBar variants to
@@ -220,11 +257,9 @@ func Camelify(input any) string {
 		if p == "" {
 			continue
 		}
-		runes := []rune(p)
-		// Preserve embedded uppercase when it matches camelCase transitions.
-		// "FooBar" → ["Foo", "Bar"] → "FooBar"; "fooBar" → ["foo", "Bar"] → "FooBar".
-		runes[0] = unicode.ToUpper(runes[0])
-		sb.WriteString(string(runes))
+		// Only the first character changes, so embedded uppercase stays:
+		// "FooBar" -> ["Foo", "Bar"] -> "FooBar".
+		sb.WriteString(UCF(p))
 	}
 	return sb.String()
 }
@@ -233,7 +268,7 @@ func Camelify(input any) string {
 func Snakify(input any) string {
 	parts := Partify(input)
 	for i, p := range parts {
-		parts[i] = strings.ToLower(p)
+		parts[i] = jsToLower(p)
 	}
 	return strings.Join(parts, "_")
 }
@@ -242,7 +277,7 @@ func Snakify(input any) string {
 func Kebabify(input any) string {
 	parts := Partify(input)
 	for i, p := range parts {
-		parts[i] = strings.ToLower(p)
+		parts[i] = jsToLower(p)
 	}
 	return strings.Join(parts, "-")
 }
@@ -405,45 +440,41 @@ func glueInitials(parts []string) []string {
 func isAsciiUpper(c byte) bool { return 'A' <= c && c <= 'Z' }
 func isAsciiLower(c byte) bool { return 'a' <= c && c <= 'z' }
 
-// specSprint stringifies a scalar the way TS `” + value` does, which
-// differs from fmt.Sprint for nil ('null', not '<nil>').
+// specSprint stringifies a scalar the way TS's empty-string concatenation
+// does, which is JavaScript's String(): nil is 'null', 1e6 is '1000000'
+// and a slice joins its elements.
 func specSprint(v any) string {
-	if v == nil {
-		return "null"
-	}
-	if s, ok := v.(string); ok {
-		return s
-	}
-	return fmt.Sprint(v)
+	return jsString(v)
 }
 
-// LCF lowercases the first rune. Stringifies non-string inputs to match
-// TS's coercion behaviour (lcf(null) → 'null', lcf(true) → 'true').
+// LCF lowercases the first character (code point), with JavaScript's
+// case mapping. Non-strings stringify as JavaScript's String() does
+// (lcf(null) is 'null', lcf(['a', 1]) is 'a,1').
 func LCF(s any) string {
-	str := fmt.Sprint(s)
-	if str == "<nil>" {
-		str = "null"
-	}
+	str := jsString(s)
 	if str == "" {
 		return ""
 	}
-	r := []rune(str)
-	r[0] = unicode.ToLower(r[0])
-	return string(r)
+	_, n := utf8.DecodeRuneInString(str)
+	return jsToLower(str[:n]) + str[n:]
 }
 
-// UCF uppercases the first rune. Like LCF, coerces non-string inputs.
+// UCF uppercases the first character (code point), with JavaScript's
+// case mapping, so a leading sharp s becomes 'SS'. Coerces non-strings as
+// LCF does.
 func UCF(s any) string {
-	str := fmt.Sprint(s)
-	if str == "<nil>" {
-		str = "null"
-	}
+	str := jsString(s)
 	if str == "" {
 		return ""
 	}
-	r := []rune(str)
-	r[0] = unicode.ToUpper(r[0])
-	return string(r)
+	if c := str[0]; c < utf8.RuneSelf {
+		if 'a' <= c && c <= 'z' {
+			return string(c-('a'-'A')) + str[1:]
+		}
+		return str
+	}
+	_, n := utf8.DecodeRuneInString(str)
+	return jsToUpper(str[:n]) + str[n:]
 }
 
 // EscRE returns s with regex special chars backslash-escaped.
@@ -477,8 +508,10 @@ func Names(base map[string]any, name string, prop ...string) map[string]any {
 	if base == nil {
 		base = map[string]any{}
 	}
+	// Only an omitted prop defaults: TS names(base, name, '') uses '' as
+	// the stem.
 	p := "name"
-	if len(prop) > 0 && prop[0] != "" {
+	if len(prop) > 0 {
 		p = prop[0]
 	}
 
@@ -486,8 +519,8 @@ func Names(base map[string]any, name string, prop ...string) map[string]any {
 	base[Camelify(p)] = Camelify(name)
 	base[Snakify(p)+"_"] = Snakify(name)
 	base[Kebabify(p)+"-"] = Kebabify(name)
-	base[strings.ToLower(p)] = strings.ToLower(name)
-	base[strings.ToUpper(p)] = strings.ToUpper(name)
+	base[jsToLower(p)] = jsToLower(name)
+	base[jsToUpper(p)] = jsToUpper(name)
 
 	return base
 }
@@ -512,23 +545,34 @@ func Indent(src string, ind any) string {
 		// through to the default of two spaces rather than meaning
 		// "no indent".
 		pad = "  "
-	case int:
-		if v <= 0 {
-			return src
-		}
-		pad = strings.Repeat(" ", v)
-	case float64:
-		// JSON and other dynamic sources hand over numbers as float64.
-		// TS switches on `'number' === typeof`, which covers both, so a
-		// float count must be a count here too and not stringify to pad.
-		if v <= 0 {
-			return src
-		}
-		pad = strings.Repeat(" ", int(v))
 	case string:
 		pad = v
 	default:
-		pad = fmt.Sprint(v)
+		// Every numeric kind is a count, as TS's `'number' === typeof`
+		// is: floor(n) spaces when n is finite and positive, and no pad
+		// otherwise. JSON hands over float64, and a Go caller may pass
+		// int64 or uint8, which used to stringify to a literal pad.
+		rv := reflect.ValueOf(v)
+		switch rv.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			if rv.Int() <= 0 {
+				return src
+			}
+			pad = strings.Repeat(" ", int(rv.Int()))
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+			if rv.Uint() == 0 {
+				return src
+			}
+			pad = strings.Repeat(" ", int(rv.Uint()))
+		case reflect.Float32, reflect.Float64:
+			f := rv.Float()
+			if math.IsNaN(f) || math.IsInf(f, 0) || f < 1 {
+				return src
+			}
+			pad = strings.Repeat(" ", int(math.Floor(f)))
+		default:
+			pad = jsString(v)
+		}
 	}
 	if pad == "" {
 		return src
@@ -554,28 +598,29 @@ func Indent(src string, ind any) string {
 	return b.String()
 }
 
-// sortedStringKeys returns the alphabetically sorted keys of a map[string]V
-// via reflection. Used everywhere we iterate user-facing maps so output
-// is deterministic regardless of Go's randomised map iteration. Mirrors
-// the sort applied to TS Object.entries() iteration in this codebase.
+// sortedStringKeys returns the keys of a map[string]V via reflection, in
+// JavaScript's string order (see jsLess). Used everywhere we iterate
+// user-facing maps so output is deterministic regardless of Go's
+// randomised map iteration. Mirrors the sort applied to TS
+// Object.entries() iteration in this codebase.
 func sortedStringKeys(rv reflect.Value) []string {
 	keys := rv.MapKeys()
 	out := make([]string, 0, len(keys))
 	for _, k := range keys {
 		out = append(out, fmt.Sprint(k.Interface()))
 	}
-	sort.Strings(out)
+	sortJS(out)
 	return out
 }
 
-// sortedKeys returns the alphabetically sorted keys of m. Convenience
-// for typed map[string]V iterations.
+// sortedKeys returns the keys of m in JavaScript's string order.
+// Convenience for typed map[string]V iterations.
 func sortedKeys[V any](m map[string]V) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
 		out = append(out, k)
 	}
-	sort.Strings(out)
+	sortJS(out)
 	return out
 }
 
@@ -748,25 +793,62 @@ func IsBinExt(path string) bool {
 	return ok
 }
 
-// nodeExt is Node's path.extname, which is not filepath.Ext: Node treats a
-// dot that begins the basename as a hidden-file marker rather than an
-// extension separator, so `.DS_Store` and `.gitignore` have NO extension
-// there, where filepath.Ext returns the whole name. TS is canonical, so
-// IsBinExt has to follow Node.
+// nodeExt is Node's path.extname on the running platform, which is not
+// filepath.Ext: trailing separators are ignored ('a.png/' is .png), and a
+// dot that begins the basename is a hidden-file marker rather than an
+// extension separator, so `.DS_Store` and `.gitignore` have NO extension.
+// On POSIX only '/' separates, so a backslash is an ordinary character;
+// on Windows both do. TS is canonical, so IsBinExt has to follow Node.
 func nodeExt(path string) string {
-	base := path
-	if i := strings.LastIndexAny(base, `/\`); 0 <= i {
-		base = base[i+1:]
+	return nodeExtOn(path, runtime.GOOS == "windows")
+}
+
+// nodeExtOn is Node's posix.extname, or its win32.extname when windows is
+// set, as a seam so both legs are testable on any host.
+func nodeExtOn(path string, windows bool) string {
+	isSep := func(c byte) bool { return c == '/' || (windows && c == '\\') }
+
+	start, startPart := 0, 0
+	// A drive letter prefix, so the separator after it is not mistaken
+	// for a trailing one.
+	if windows && len(path) >= 2 && path[1] == ':' &&
+		(('a' <= path[0] && path[0] <= 'z') || ('A' <= path[0] && path[0] <= 'Z')) {
+		start, startPart = 2, 2
 	}
 
-	dot := strings.LastIndex(base, ".")
+	startDot, end := -1, -1
+	matchedSlash := true
+	preDotState := 0
 
-	// No dot, or the only dot starts the name: no extension.
-	if dot <= 0 {
+	for i := len(path) - 1; i >= start; i-- {
+		c := path[i]
+		if isSep(c) {
+			if !matchedSlash {
+				startPart = i + 1
+				break
+			}
+			continue
+		}
+		if end == -1 {
+			matchedSlash = false
+			end = i + 1
+		}
+		if c == '.' {
+			if startDot == -1 {
+				startDot = i
+			} else if preDotState != 1 {
+				preDotState = 1
+			}
+		} else if startDot != -1 {
+			preDotState = -1
+		}
+	}
+
+	if startDot == -1 || end == -1 || preDotState == 0 ||
+		(preDotState == 1 && startDot == end-1 && startDot == startPart+1) {
 		return ""
 	}
-
-	return base[dot:]
+	return path[startDot:end]
 }
 
 // Deep returns a deep-merge of the given maps and slices, with right
@@ -780,23 +862,19 @@ func nodeExt(path string) string {
 func Deep(dst any, srcs ...any) any {
 	out := dst
 	for _, src := range srcs {
-		// A nil *source* is an absent argument and is skipped, matching
-		// TS's `undefined === over` check. A nil map value or slice
-		// element is different: that is a present key holding nil, and it
-		// overwrites the way TS's `null` does. Go has no separate
-		// `undefined`, so the two cases are told apart by position --
-		// here for arguments, in mergeOne for members.
-		if src == nil {
-			continue
-		}
+		// nil is TS null at every position: an argument replaces the
+		// accumulated base exactly as a member does. Only TS undefined is
+		// skipped, and Go spells that by not passing the argument. A
+		// typed nil map is still a map, and merges as an empty one.
 		out = mergeOne(out, src)
 	}
 	return out
 }
 
-// CMapSentinel is a marker for CMap/VMap special values. Pass
-// CMapCopy to copy a value verbatim, CMapFilter to drop the entry, or
-// CMapKey to substitute the source key.
+// CMapSentinel is a marker for CMap/VMap special values. Pass CMapCopy
+// to copy a value verbatim, CMapKey to substitute the source key, or
+// CMapFilter to keep the source value when it is truthy (in the JS sense)
+// and drop the whole entry when it is not. See also CMapFilterFn.
 type CMapSentinel int
 
 const (
@@ -866,22 +944,48 @@ func VMap(o map[string]any, p map[string]any) []any {
 	return out
 }
 
+// cmapApply projects one field. The child's field is an own-property
+// step, so a nil or scalar child projects nil. An absent field is nil
+// too: Go has no undefined, so JSON shows null where TS drops the key.
 func cmapApply(spec, self any, key, sk string, parent any) any {
+	v, _ := jsProp(self, sk)
 	if fn, ok := spec.(CMapTransform); ok {
-		v := getxIndex(self, sk)
 		return fn(v, CMapCtx{SKey: sk, Self: self, Key: key, Parent: parent})
 	}
 	if s, ok := spec.(CMapSentinel); ok {
 		switch s {
 		case CMapCopy:
-			return getxIndex(self, sk)
+			return v
 		case CMapKey:
 			return key
 		case CMapFilter:
+			if jsTruthy(v) {
+				return v
+			}
 			return CMapFilter
 		}
 	}
 	return spec
+}
+
+// CMapFilterFn is TS FILTER(fn): fn's result is written, except that an
+// array result [flag, value] drops the entry when flag is truthy and
+// writes value otherwise.
+func CMapFilterFn(fn func(val any, p CMapCtx) any) CMapTransform {
+	return func(val any, p CMapCtx) any {
+		r := fn(val, p)
+		arr, ok := r.([]any)
+		if !ok {
+			return r
+		}
+		if 0 < len(arr) && jsTruthy(arr[0]) {
+			return CMapFilter
+		}
+		if 1 < len(arr) {
+			return arr[1]
+		}
+		return nil
+	}
 }
 
 // OMap returns m's keys paired with their values, in the order TS `omap`
@@ -898,7 +1002,8 @@ func OMap(m map[string]any) [][2]any {
 
 // jsKeyOrder returns m's keys in the order a JavaScript object would
 // enumerate them after TS `omap` has rebuilt it: array-index-like keys
-// first in ascending numeric order, then the remaining keys sorted.
+// first in ascending numeric order, then the remaining keys in
+// JavaScript's string order (jsLess).
 //
 // TS `omap` sorts its entries before assigning them, so the string keys
 // come out sorted -- but assignment is to a plain object, and the JS
@@ -928,7 +1033,7 @@ func jsKeyOrder(m map[string]any) []string {
 		y, _ := strconv.ParseUint(idx[b], 10, 64)
 		return x < y
 	})
-	sort.Strings(rest)
+	sortJS(rest)
 
 	return append(idx, rest...)
 }
@@ -958,9 +1063,8 @@ func isArrayIndexKey(k string) bool {
 }
 
 func mergeOne(dst, src any) any {
-	// No `src == nil` short-circuit: reaching here means src is a member
-	// of a map or slice, so nil is a real value and wins, as TS `null`
-	// does. Absent arguments are filtered by Deep before this is called.
+	// No `src == nil` short-circuit: nil is a real value and wins, as TS
+	// `null` does, for an argument and a member alike.
 	if dst == nil {
 		return src
 	}

@@ -1,11 +1,10 @@
 package jostraca
 
 import (
-	"fmt"
 	"reflect"
 	"regexp"
-	"strconv"
 	"strings"
+	"sync"
 )
 
 // GetXPath is the narrower variant of GetX taking an explicit
@@ -22,10 +21,15 @@ func GetXS(root any, path string) any {
 	return GetX(root, path)
 }
 
-// GetX is the rich-path lookup ported from src/util/basic.ts:128-268.
+// GetX is the rich-path lookup ported from getx in ts/src/util/basic.ts.
 // Supports dot/space-separated navigation, ancestry (`:`), comparison
 // filters (`=`, `!=`, `<`, `<=`, `>`, `>=`, `==`, `~`), array filters
 // (`?`), array indexing, and quoted segments.
+//
+// Every step is jsProp: an own property of a map, a slice or a string.
+// As in TS, a key that is present with a nil value is not the same as an
+// absent one: the walk continues through a present nil, and only an
+// absent key is a miss.
 //
 // Returns nil for any miss or invalid path; otherwise the matched value.
 func GetX(root any, path any) any {
@@ -48,54 +52,60 @@ func GetX(root any, path any) any {
 	case []any:
 		tokens = make([]string, len(p))
 		for i, x := range p {
-			tokens[i] = fmt.Sprint(x)
+			tokens[i] = jsString(x)
 		}
 	default:
 		return nil
 	}
 
+	out := getxWalk(root, tokens)
+	if isUndefined(out) {
+		return nil
+	}
+	return out
+}
+
+// getxWalk is the token loop of TS getx. jsUndefined stands for TS's
+// undefined wherever the loop tells it apart from null.
+func getxWalk(root any, tokens []string) any {
 	var node any = root
-	var out any
+	var out any = jsUndefined
 	ancestry := false
 
-	for i := 0; i < len(tokens) && node != nil; i++ {
+	for i := 0; i < len(tokens) && !isUndefined(node); i++ {
 		t0 := tokens[i]
+		hasT1 := i+1 < len(tokens)
 		var t1 string
-		if i+1 < len(tokens) {
+		if hasT1 {
 			t1 = tokens[i+1]
 		}
 
 		if t1 != "" && getxIsCompareOp(t1) {
-			val := getxIndex(node, t0)
-			argRaw := ""
+			val := getxStep(node, t0)
+			var arg any = jsUndefined
 			if i+2 < len(tokens) {
-				argRaw = tokens[i+2]
+				arg = getxArg(tokens[i+2])
 			}
-			pass := getxCompare(val, t1, argRaw)
-			if pass {
+			if getxCompare(val, t1, arg) {
 				i += 2
 			} else {
-				node = nil
+				node = jsUndefined
 			}
-			if !(ancestry && node != nil) {
+			if !(ancestry && !isUndefined(node)) {
 				out = node
 			}
 			continue
 		}
 
-		if t1 == ":" {
-			// Look ahead: a colon followed by `=` is not an ancestry op.
-			next := ""
-			if i+2 < len(tokens) {
-				next = tokens[i+2]
-			}
-			if next != "=" {
+		if hasT1 && t1 == ":" {
+			// A colon followed by `=` is not an ancestry op.
+			if !(i+2 < len(tokens) && tokens[i+2] == "=") {
 				if !ancestry {
 					out = node
 				}
-				node = getxIndex(node, t0)
-				if node == nil {
-					out = nil
+				node = getxStep(node, t0)
+				if isUndefined(node) {
+					out = jsUndefined
 				}
 			}
 			ancestry = true
@@ -116,35 +126,27 @@ func GetX(root any, path any) any {
 			}
 			ftokens = ftokens[:j]
 
-			children := getxIterChildren(node)
-			var filtered []getxItem
-			for _, c := range children {
-				if GetX(c.v, ftokens) != nil {
-					filtered = append(filtered, c)
-				}
-			}
-			node = getxRebuild(node, filtered)
+			node = getxFilter(node, ftokens)
 			out = node
 			i += len(ftokens)
 			continue
 		}
 
-		if t1 != "" {
-			node = getxIndex(node, t0)
+		if hasT1 {
+			node = getxStep(node, t0)
 			if ancestry {
 				ancestry = false
-				if node == nil {
-					out = nil
-				} else {
-					node = out
+				if isUndefined(node) {
+					out = jsUndefined
 				}
+				node = out
 			}
 			continue
 		}
 
 		// Last token.
-		node = getxIndex(node, t0)
-		if !(ancestry && node != nil) {
+		node = getxStep(node, t0)
+		if !(ancestry && !isUndefined(node)) {
 			out = node
 		}
 	}
@@ -152,29 +154,107 @@ func GetX(root any, path any) any {
 	return out
 }
 
-// getxTokenize implements the regex-driven splitter from
-// src/util/basic.ts:120, dropping pure-whitespace and dot tokens and
-// stripping surrounding quotes from quoted segments.
-var getxTokenRE = regexp.MustCompile(`\s*("(\\.|[^"\\])*"|[\w\d_]+|\s+|[^\w\d_]+)\s*`)
+// getxStep is one step of the walk: jsUndefined for an absent key.
+func getxStep(node any, key string) any {
+	if v, ok := jsProp(node, key); ok {
+		return v
+	}
+	return jsUndefined
+}
 
+// jsSpaceClass is JavaScript's \s, which RE2's ASCII \s is not: it adds
+// \v, U+00A0, U+1680, U+2000..U+200A, U+2028, U+2029, U+202F, U+205F,
+// U+3000 and U+FEFF.
+const jsSpaceClass = `[\t\n\x0B\f\r \x{a0}\x{1680}\x{2000}-\x{200a}\x{2028}\x{2029}\x{202f}\x{205f}\x{3000}\x{feff}]`
+
+// getxTokenRE is GETX_TOKEN_RE from ts/src/util/basic.ts with JavaScript's
+// \s spelled out, and JavaScript's '.' (which excludes \r, U+2028 and
+// U+2029 as well as \n) in the quoted-string escape.
+var getxTokenRE = regexp.MustCompile(jsSpaceClass + `*("(\\[^\n\r\x{2028}\x{2029}]|[^"\\])*"|[\w\d_]+|` +
+	jsSpaceClass + `+|[^\w\d_]+)` + jsSpaceClass + `*`)
+
+var jsSpaceRE = regexp.MustCompile(jsSpaceClass)
+
+// getxTokenize splits a string path as TS getx does: a token that
+// CONTAINS whitespace or a '.' is dropped, so 'a. b', 'a.?b' and 'a.$'
+// all read as 'a b' or 'a', and quotes are stripped only from a token
+// matching ^"[^"]+"$.
 func getxTokenize(p string) []string {
+	if toks, ok := getxTokenizePlain(p); ok {
+		return toks
+	}
+	getxTokenCacheMu.Lock()
+	toks, ok := getxTokenCache[p]
+	getxTokenCacheMu.Unlock()
+	if ok {
+		return toks
+	}
+	toks = getxTokenizeRE(p)
+	getxTokenCacheMu.Lock()
+	if len(getxTokenCache) >= getxTokenCacheMax {
+		getxTokenCache = make(map[string][]string, getxTokenCacheMax)
+	}
+	getxTokenCache[p] = toks
+	getxTokenCacheMu.Unlock()
+	return toks
+}
+
+// Tokens are never mutated by the walk, so a cached slice can be shared.
+const getxTokenCacheMax = 1000
+
+var (
+	getxTokenCacheMu sync.Mutex
+	getxTokenCache   = make(map[string][]string, getxTokenCacheMax)
+)
+
+// getxTokenizePlain is the regex's answer for the common path made only of
+// ASCII word characters, '.' and ' ': every run of word characters is a
+// token, and every run of the other two is a dropped separator.
+func getxTokenizePlain(p string) ([]string, bool) {
+	out := []string{}
+	start := -1
+	for i := 0; i < len(p); i++ {
+		c := p[i]
+		switch {
+		case (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_':
+			if start < 0 {
+				start = i
+			}
+		case c == '.' || c == ' ':
+			if start >= 0 {
+				out = append(out, p[start:i])
+				start = -1
+			}
+		default:
+			return nil, false
+		}
+	}
+	if start >= 0 {
+		out = append(out, p[start:])
+	}
+	return out, true
+}
+
+func getxTokenizeRE(p string) []string {
 	out := []string{}
 	for _, m := range getxTokenRE.FindAllStringSubmatch(p, -1) {
 		tok := m[1]
-		if tok == "" {
+		if strings.Contains(tok, ".") || jsSpaceRE.MatchString(tok) {
 			continue
 		}
-		// Skip whitespace-only or dot-only tokens.
-		if strings.TrimSpace(tok) == "" || strings.Trim(tok, ".") == "" {
-			continue
-		}
-		// Strip surrounding quotes.
-		if len(tok) >= 2 && tok[0] == '"' && tok[len(tok)-1] == '"' {
-			tok = tok[1 : len(tok)-1]
-		}
-		out = append(out, tok)
+		out = append(out, jsUnquote(tok))
 	}
 	return out
+}
+
+// jsUnquote strips the quotes from a token matching ^"[^"]+"$, and returns
+// anything else unchanged.
+func jsUnquote(tok string) string {
+	if len(tok) >= 3 && tok[0] == '"' && tok[len(tok)-1] == '"' &&
+		!strings.Contains(tok[1:len(tok)-1], `"`) {
+		return tok[1 : len(tok)-1]
+	}
+	return tok
 }
 
 func getxIsCompareOp(t string) bool {
@@ -185,200 +265,117 @@ func getxIsCompareOp(t string) bool {
 	return false
 }
 
+// getxIsIdent is TS's filter-end test, /[\w\d_]+/ unanchored: the token
+// CONTAINS an ASCII word character, so 't-w' counts.
 func getxIsIdent(t string) bool {
-	if t == "" {
-		return false
-	}
-	for _, r := range t {
-		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
-			(r >= '0' && r <= '9') || r == '_') {
-			return false
+	for i := 0; i < len(t); i++ {
+		c := t[i]
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+			(c >= '0' && c <= '9') || c == '_' {
+			return true
 		}
-	}
-	return true
-}
-
-// getxIndex looks up key on node, treating maps as keyed and slices as
-// integer-indexed. Returns nil on miss.
-func getxIndex(node any, key string) any {
-	switch v := node.(type) {
-	case map[string]any:
-		if x, ok := v[key]; ok {
-			return x
-		}
-		return nil
-	case []any:
-		i, err := strconv.Atoi(key)
-		if err != nil || i < 0 || i >= len(v) {
-			return nil
-		}
-		return v[i]
-	}
-	rv := reflect.ValueOf(node)
-	switch rv.Kind() {
-	case reflect.Map:
-		x := rv.MapIndex(reflect.ValueOf(key))
-		if !x.IsValid() {
-			return nil
-		}
-		return x.Interface()
-	case reflect.Slice, reflect.Array:
-		i, err := strconv.Atoi(key)
-		if err != nil || i < 0 || i >= rv.Len() {
-			return nil
-		}
-		return rv.Index(i).Interface()
-	}
-	return nil
-}
-
-// getxCompare runs op on (val, argRaw). argRaw may be a literal string,
-// 'true'/'false', a numeric literal, or a quoted string.
-func getxCompare(val any, op, argRaw string) bool {
-	var arg any = argRaw
-	switch argRaw {
-	case "true":
-		arg = true
-	case "false":
-		arg = false
-	default:
-		if len(argRaw) >= 2 && argRaw[0] == '"' && argRaw[len(argRaw)-1] == '"' {
-			arg = argRaw[1 : len(argRaw)-1]
-		}
-	}
-	// Numeric coercion when both sides parse as numbers.
-	valS := fmt.Sprint(val)
-	argS := fmt.Sprint(arg)
-	vn, vErr := strconv.ParseFloat(valS, 64)
-	an, aErr := strconv.ParseFloat(argS, 64)
-	bothNum := vErr == nil && aErr == nil
-
-	// Ordering ops mirror JS `<`/`>`: when both operands are strings the
-	// comparison is lexicographic (type-based, so a string `"10"` is less than
-	// `"9"`); otherwise both sides are coerced to numbers and non-numeric
-	// operands never match. Keeps parity with src/util/basic.ts getx().
-	valStr, valIsStr := val.(string)
-	argStr, argIsStr := arg.(string)
-	bothStr := valIsStr && argIsStr
-
-	switch op {
-	case "<":
-		if bothStr {
-			return valStr < argStr
-		}
-		return bothNum && vn < an
-	case "<=":
-		if bothStr {
-			return valStr <= argStr
-		}
-		return bothNum && vn <= an
-	case ">":
-		if bothStr {
-			return valStr > argStr
-		}
-		return bothNum && vn > an
-	case ">=":
-		if bothStr {
-			return valStr >= argStr
-		}
-		return bothNum && vn >= an
-	case "=":
-		if bothNum {
-			return vn == an
-		}
-		return valS == argS
-	case "==":
-		return reflect.DeepEqual(val, arg)
-	case "!=":
-		if bothNum {
-			return vn != an
-		}
-		return valS != argS
-	case "~":
-		re, err := regexp.Compile(argS)
-		if err != nil {
-			return false
-		}
-		return re.MatchString(valS)
 	}
 	return false
 }
 
-// getxItem records a single child entry plus its origin key/index
-// for rebuilding maps and slices after filtering.
-type getxItem struct {
-	key string
-	idx int
-	v   any
+// getxArg coerces a comparison argument as TS does: only 'true' and
+// 'false' become booleans, and quotes come off ^"[^"]+"$. Nothing is
+// parsed as a number -- 'NaN', 'inf' and '1e1' stay strings.
+func getxArg(tok string) any {
+	switch tok {
+	case "true":
+		return true
+	case "false":
+		return false
+	}
+	return jsUnquote(tok)
 }
 
-func getxIterChildren(node any) []getxItem {
+// getxCompare applies op with JavaScript's semantics: '=' is ==, '==' is
+// ===, '!=' is !=, the orderings are JS relational comparison (strings by
+// UTF-16 code unit, anything else by ToNumber), and '~' is
+// String(val).match(RegExp(arg)). val and arg may be jsUndefined.
+//
+// '~' compiles with RE2, so a pattern RE2 rejects is a non-match where JS
+// would throw, and the two regex dialects differ at their edges.
+func getxCompare(val any, op string, arg any) bool {
+	switch op {
+	case "<":
+		lt, undef := jsLessThan(val, arg)
+		return !undef && lt
+	case ">":
+		lt, undef := jsLessThan(arg, val)
+		return !undef && lt
+	case "<=":
+		lt, undef := jsLessThan(arg, val)
+		return !undef && !lt
+	case ">=":
+		lt, undef := jsLessThan(val, arg)
+		return !undef && !lt
+	case "=":
+		return jsLooseEqual(val, arg)
+	case "==":
+		return jsStrictEqual(val, arg)
+	case "!=":
+		return !jsLooseEqual(val, arg)
+	case "~":
+		pattern := "(?:)"
+		if !isUndefined(arg) {
+			pattern = jsString(arg)
+		}
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			return false
+		}
+		return re.MatchString(jsString(val))
+	}
+	return false
+}
+
+// getxFilter keeps the RAW children of a map or slice for which the
+// filter path resolves to something other than nil, as TS getx '?' does:
+// a slice gives a []any in order, a map a map[string]any. Filtering
+// anything else is a miss.
+func getxFilter(node any, ftokens []string) any {
 	switch v := node.(type) {
 	case map[string]any:
-		keys := sortedKeys(v)
-		out := make([]getxItem, 0, len(keys))
-		for _, k := range keys {
-			out = append(out, getxItem{key: k, v: v[k]})
+		out := map[string]any{}
+		for k, c := range v {
+			if GetX(c, ftokens) != nil {
+				out[k] = c
+			}
 		}
 		return out
 	case []any:
-		out := make([]getxItem, len(v))
-		for i, x := range v {
-			out[i] = getxItem{idx: i, v: x}
+		out := make([]any, 0, len(v))
+		for _, c := range v {
+			if GetX(c, ftokens) != nil {
+				out = append(out, c)
+			}
 		}
 		return out
 	}
 	rv := reflect.ValueOf(node)
 	switch rv.Kind() {
 	case reflect.Map:
-		ks := sortedStringKeys(rv)
-		out := make([]getxItem, 0, len(ks))
-		for _, k := range ks {
-			v := rv.MapIndex(reflect.ValueOf(k)).Interface()
-			out = append(out, getxItem{key: k, v: v})
+		out := map[string]any{}
+		iter := rv.MapRange()
+		for iter.Next() {
+			c := iter.Value().Interface()
+			if GetX(c, ftokens) != nil {
+				out[jsJSONMapKey(iter.Key())] = c
+			}
 		}
 		return out
 	case reflect.Slice, reflect.Array:
-		out := make([]getxItem, rv.Len())
+		out := make([]any, 0, rv.Len())
 		for i := 0; i < rv.Len(); i++ {
-			out[i] = getxItem{idx: i, v: rv.Index(i).Interface()}
+			c := rv.Index(i).Interface()
+			if GetX(c, ftokens) != nil {
+				out = append(out, c)
+			}
 		}
 		return out
 	}
-	return nil
-}
-
-// getxRebuild reconstructs a container of the same kind as node from
-// the filtered items.
-func getxRebuild(node any, items []getxItem) any {
-	switch node.(type) {
-	case map[string]any:
-		out := map[string]any{}
-		for _, it := range items {
-			out[it.key] = it.v
-		}
-		return out
-	case []any:
-		out := make([]any, 0, len(items))
-		for _, it := range items {
-			out = append(out, it.v)
-		}
-		return out
-	}
-	rv := reflect.ValueOf(node)
-	switch rv.Kind() {
-	case reflect.Map:
-		out := map[string]any{}
-		for _, it := range items {
-			out[it.key] = it.v
-		}
-		return out
-	case reflect.Slice, reflect.Array:
-		out := make([]any, 0, len(items))
-		for _, it := range items {
-			out = append(out, it.v)
-		}
-		return out
-	}
-	return nil
+	return jsUndefined
 }

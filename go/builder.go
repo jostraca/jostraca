@@ -3,12 +3,24 @@ package jostraca
 import (
 	"fmt"
 	"io/fs"
-	"sort"
 )
 
 // fmtErrorf wraps fmt.Errorf so other files can use it without importing fmt.
 func fmtErrorf(format string, args ...any) error {
 	return fmt.Errorf(format, args...)
+}
+
+// mustBeInGenerate panics when a component is called on the *J that New
+// returned, which belongs to no Generate: it has no node to attach to, so a
+// File or a Content dereferenced nil and a Project built a tree that was
+// then thrown away. TS's cmp() throws the same text for a component called
+// outside generate(). A panic, because a component method has no error
+// return and this is a mistake in the calling code, not in its data.
+func (j *J) mustBeInGenerate(name string) {
+	if j.cur == nil {
+		panic(fmt.Sprintf("jostraca: component %s called outside Generate(); "+
+			"components can only be used inside the callback passed to Generate()", name))
+	}
 }
 
 // Builder methods on *J. Each follows the 5-step template from
@@ -31,6 +43,7 @@ type ProjectProps struct {
 // Project marks the root of an output tree. Folder is the destination
 // directory under Options.Folder.
 func (j *J) Project(p ProjectProps, body func(*J)) {
+	j.mustBeInGenerate("Project")
 	if j.st.err != nil {
 		return
 	}
@@ -48,6 +61,7 @@ func (j *J) Project(p ProjectProps, body func(*J)) {
 
 // Folder represents a sub-directory under the current project/folder.
 func (j *J) Folder(name string, body func(*J)) {
+	j.mustBeInGenerate("Folder")
 	if j.st.err != nil {
 		return
 	}
@@ -87,6 +101,7 @@ func (j *J) File(name string, body func(*J)) {
 }
 
 func (j *J) FileP(p FileProps, body func(*J)) {
+	j.mustBeInGenerate("File")
 	if j.st.err != nil {
 		return
 	}
@@ -147,6 +162,7 @@ func (j *J) Content(src string) {
 }
 
 func (j *J) ContentP(p ContentProps) {
+	j.mustBeInGenerate("Content")
 	if j.st.err != nil {
 		return
 	}
@@ -206,6 +222,7 @@ func (j *J) Line(src string) {
 // `Line("")` and `Line()` still write one newline, since there was
 // nothing to append to.
 func (j *J) LineP(p ContentProps) {
+	j.mustBeInGenerate("Line")
 	p.Src = p.Src + "\n"
 	j.ContentP(p)
 }
@@ -225,6 +242,7 @@ func (j *J) Slot(name string, body func(*J)) {
 }
 
 func (j *J) SlotP(p SlotProps, body func(*J)) {
+	j.mustBeInGenerate("Slot")
 	if j.st.err != nil {
 		return
 	}
@@ -247,10 +265,15 @@ func (j *J) SlotP(p SlotProps, body func(*J)) {
 // The node is why this is not simply `fn(j)`. Without one, a user component
 // used as a direct Fragment child was invisible to the filter, so its body
 // ran once per replay pass where TS ran it zero times, and the tree Go
-// assembled was flatter than TS's. KindNone carries no op and nodeText
-// walks straight through it, so nesting changes no output on its own. See
-// #29.
+// assembled was flatter than TS's. KindNone carries no op and the content
+// collectors walk straight through it, so nesting changes no output on its
+// own. See #29.
 func (j *J) Cmp(name string, fn func(*J)) {
+	if name == "" {
+		j.mustBeInGenerate("<anon>")
+	} else {
+		j.mustBeInGenerate(name)
+	}
 	if j.st.err != nil || fn == nil {
 		return
 	}
@@ -299,6 +322,7 @@ func (j *J) Inject(name string, body func(*J)) {
 }
 
 func (j *J) InjectP(p InjectProps, body func(*J)) {
+	j.mustBeInGenerate("Inject")
 	if j.st.err != nil {
 		return
 	}
@@ -362,6 +386,7 @@ func (j *J) Fragment(p FragmentProps, body func(*J)) {
 }
 
 func (j *J) FragmentP(p FragmentProps, body func(*J)) {
+	j.mustBeInGenerate("Fragment")
 	if j.st.err != nil {
 		return
 	}
@@ -392,15 +417,11 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 		Path:    childPath(j.cur, ""),
 		Meta:    map[string]any{},
 	}
-	// Eject rides on Meta, the way fragmentBody and slotNames already do.
-	// It used to be declared on FragmentProps and read by nothing at all, so
-	// a Fragment that trims to a region in TS emitted its whole source file
-	// here. Mirrors ts/src/cmp/Fragment.ts, which passes props.eject straight
-	// into template(). See docs/design/PARITY_PLAN.md 3.
-	if p.Eject != nil {
-		n.Meta["fragmentEject"] = p.Eject
-	}
 	if j.filtered(n) {
+		return
+	}
+	if err := fragmentPropError(p); err != nil {
+		j.st.err = &NodeError{Step: "fragment", Err: err}
 		return
 	}
 	if j.cur != nil {
@@ -409,45 +430,10 @@ func (j *J) FragmentP(p FragmentProps, body func(*J)) {
 	if j.st.root == nil {
 		j.st.root = n
 	}
-	if body == nil {
-		return
-	}
 
-	// Stash the body callback on the node so the Fragment op can replay
-	// it during build phase. Capture by closure since body is a Go func.
-	n.Meta["fragmentBody"] = body
-	// Eagerly walk once with a slot-name-collecting filter so
-	// Fragment can inject <[SLOT:name]> replace handlers before
-	// the build phase runs Template.
-	slotNames := map[string]struct{}{}
-	sawNonSlot := false
-	n.Filter = func(kind, name string) bool {
-		if kind == "slot" {
-			slotNames[name] = struct{}{}
-		} else {
-			sawNonSlot = true
-		}
-		return false
-	}
-	body(&J{st: j.st, cur: n})
-	n.Filter = nil
-
-	// Which children the scan REJECTED, recorded here because it can no
-	// longer be inferred from n.Children: nothing attaches during the scan
-	// now, so a Fragment's children are always empty at this point. TS
-	// tracks the same thing in a `sawnonslot` local, for the same reason.
-	if sawNonSlot {
-		n.Meta["fragmentSawNonSlot"] = true
-	}
-
-	// Stash the slot names so the op can build the right replace keys.
-	// Sorted for deterministic regex-build order across stacks.
-	names := make([]string, 0, len(slotNames))
-	for k := range slotNames {
-		names = append(names, k)
-	}
-	sort.Strings(names)
-	n.Meta["slotNames"] = names
+	// Rendered NOW, as TS renders it inside the component call. See
+	// fragment.go.
+	renderFragment(j.st, n, body, p.Eject)
 }
 
 // CopyFilesProps configures CopyFiles.
@@ -485,6 +471,7 @@ type CopyFilesProps struct {
 // source/dest; the heavy lifting (read, template, walk, write) happens
 // in CopyOp. `From` may name a single file or a whole directory tree.
 func (j *J) CopyFiles(p CopyFilesProps) {
+	j.mustBeInGenerate("CopyFiles")
 	if j.st.err != nil {
 		return
 	}
@@ -508,6 +495,10 @@ func (j *J) CopyFiles(p CopyFilesProps) {
 		Meta:    map[string]any{},
 	}
 	if j.filtered(n) {
+		return
+	}
+	if err := copyFilesPropError(p); err != nil {
+		j.st.err = &NodeError{Step: "copy", Err: err}
 		return
 	}
 	if j.cur != nil {
@@ -617,6 +608,7 @@ func (j *J) ListItems(items any, body func(j *J, it ListItemProps)) {
 }
 
 func (j *J) ListItemsP(p ListItemsProps, body func(j *J, it ListItemProps)) {
+	j.mustBeInGenerate("ListItems")
 	if j.st.err != nil || body == nil {
 		return
 	}

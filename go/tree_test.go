@@ -401,7 +401,9 @@ func TestCmpTreeRawIsSafeOnEveryComponent(t *testing.T) {
 		t.Fatalf("a component joined the registry: give it a node below: %v", names)
 	}
 
-	// One node per component, each in a place its op accepts.
+	// One node per component, each in a place its op accepts. The Inject
+	// is a sibling of the Project, so it edits a file at the output root:
+	// a Project's folder does not outlive its subtree (#26).
 	const src = `[
 	  {"cmp":"Project","props":{"folder":"sdk"},"children":[
 	    {"cmp":"Folder","props":{"name":"f"},"children":[
@@ -430,9 +432,9 @@ func TestCmpTreeRawIsSafeOnEveryComponent(t *testing.T) {
 	}
 
 	seed := map[string][]byte{
-		"/frag.txt":           []byte("HEADER\n<[SLOT]>\nFOOTER\n"),
-		"/src/copied.txt":     []byte("COPIED\n"),
-		"/top/sdk/inject.txt": []byte("A\n#--START--#\n\n#--END--#\nB\n"),
+		"/frag.txt":       []byte("HEADER\n<[SLOT]>\nFOOTER\n"),
+		"/src/copied.txt": []byte("COPIED\n"),
+		"/top/inject.txt": []byte("A\n#--START--#\n\n#--END--#\nB\n"),
 	}
 	res, err := New(WithMem(), WithVol(seed), WithFolder("/top"),
 		WithNow(func() int64 { return 1 })).Generate(Options{}, root)
@@ -445,7 +447,7 @@ func TestCmpTreeRawIsSafeOnEveryComponent(t *testing.T) {
 	if got := string(vol["/top/sdk/f/x.txt"]); got != "cl\nHEADER\n\nFOOTER\ni\nCOPIED\n" {
 		t.Fatalf("x.txt: %q", got)
 	}
-	if got := string(vol["/top/sdk/inject.txt"]); got != "A\n#--START--#\nINJECTED\n\n#--END--#\nB\n" {
+	if got := string(vol["/top/inject.txt"]); got != "A\n#--START--#\nINJECTED\n\n#--END--#\nB\n" {
 		t.Fatalf("inject.txt: %q", got)
 	}
 }
@@ -591,5 +593,81 @@ func TestCmpTreeIsNotScribbledOn(t *testing.T) {
 	after, _ = json.Marshal(tree)
 	if string(before) != string(after) {
 		t.Fatalf("a second run scribbled on the tree:\n %s", after)
+	}
+}
+
+// A data tree is held to the same prop TYPES as the typed API: TS's
+// FragmentShape and CopyFilesShape refuse these when the component runs,
+// so a tree refused there is refused here, before anything is written.
+// Before, a non-string `from` or `to` read as "" and a non-object `replace`
+// as nil, and the wrongly typed `exclude` and `indent` went through.
+func TestCmpTreeClosedPropTypes(t *testing.T) {
+	frag := func(props string) string {
+		return `[{"cmp":"Project","children":[{"cmp":"File","props":{"name":"b.txt"},` +
+			`"children":[{"cmp":"Fragment","props":` + props + `}]}]}]`
+	}
+	cpy := func(props string) string {
+		return `[{"cmp":"Project","children":[{"cmp":"File","props":{"name":"first.txt"},` +
+			`"children":[{"cmp":"Content","props":{"src":"first"}}]},` +
+			`{"cmp":"CopyFiles","props":` + props + `}]}]`
+	}
+	seed := map[string][]byte{
+		"/tm/model.txt":  []byte("M=$$name$$\n"),
+		"/tm/tree/a.txt": []byte("A\n"),
+	}
+	run := func(t *testing.T, src string) (map[string][]byte, error) {
+		m := NewMemFS()
+		for p, b := range seed {
+			if err := m.WriteFile(p, b); err != nil {
+				t.Fatal(err)
+			}
+		}
+		_, err := New(WithFS(m), WithFolder("/out"),
+			WithNow(func() int64 { return 1 })).Generate(Options{}, treeRoot(t, src))
+		return m.Vol(), err
+	}
+
+	for _, c := range []struct{ src, want string }{
+		{cpy(`{"from":"/tm/tree","exclude":{"a":1}}`),
+			`CopyFiles: Value "{a:1}" for property "exclude" does not satisfy one of`},
+		{cpy(`{"from":"/tm/tree","exclude":5}`), `Value "5" for property "exclude"`},
+		{cpy(`{"from":"/tm/tree","exclude":null}`), `Value "null" for property "exclude"`},
+		{cpy(`{"from":"/tm/tree","to":5}`),
+			`CopyFiles: Validation failed for property "to" with number "5" because the number is not of type string.`},
+		{cpy(`{"from":"/tm/tree","to":null}`), `property "to" with value "null"`},
+		{cpy(`{"from":"/tm/tree","replace":"x"}`),
+			`property "replace" with string "x" because the string is not of type object`},
+		{cpy(`{"from":5}`), `property "from" with number "5"`},
+		{frag(`{"from":"/tm/model.txt","indent":[">"]}`),
+			`Fragment: Value "[>]" for property "indent" does not satisfy one of: String, Number`},
+		{frag(`{"from":"/tm/model.txt","indent":true}`), `Value "true" for property "indent"`},
+		{frag(`{"from":"/tm/model.txt","replace":"x"}`),
+			`Fragment: Validation failed for property "replace" with string "x"`},
+		{frag(`{"from":"/tm/model.txt","replace":[]}`), `"replace" with array "[]"`},
+		{frag(`{"from":"/tm/model.txt","eject":null}`), `property "eject" with value "null"`},
+		{frag(`{"from":5}`), `property "from" with number "5"`},
+	} {
+		vol, err := run(t, c.src)
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s\n  err = %v\n  want it to contain %s", c.src, err, c.want)
+			continue
+		}
+		for k := range vol {
+			if strings.HasPrefix(k, "/out") {
+				t.Errorf("%s: written before the refusal: %s", c.src, k)
+			}
+		}
+	}
+
+	// The engine's own bindings pass: a Fragment under ListItems inherits
+	// an unset indent and the per-item replace map.
+	vol, err := run(t, `[{"cmp":"Project","children":[{"cmp":"File","props":{"name":"l.txt"},`+
+		`"children":[{"cmp":"ListItems","props":{"item":[{"n":1}],"line":false},`+
+		`"children":[{"cmp":"Fragment","props":{"from":"/tm/model.txt"}}]}]}]}]`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(vol["/out/l.txt"]); got != "M=$$name$$\n" {
+		t.Errorf("l.txt = %q", got)
 	}
 }

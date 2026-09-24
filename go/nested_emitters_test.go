@@ -186,3 +186,97 @@ func TestBinaryCopyInsideFileSplicesBytes(t *testing.T) {
 		t.Errorf("/out/i.png: got %v, want %v", m.Vol()["/out/i.png"], raw)
 	}
 }
+
+// nestedGenModel is nestedGen with a model.
+func nestedGenModel(t *testing.T, seed map[string]string, model map[string]any,
+	body func(*J)) map[string]string {
+	t.Helper()
+	m := NewMemFS()
+	keys := make([]string, 0, len(seed))
+	for k := range seed {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		if err := m.WriteFile(k, []byte(seed[k])); err != nil {
+			t.Fatal(err)
+		}
+	}
+	j := New(WithFS(m), WithFolder("/out"), WithModel(model),
+		WithNow(func() int64 { return 1735689600000 }))
+	if _, err := j.Generate(Options{}, func(j *J) {
+		j.Project(ProjectProps{}, body)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	return nestedVol(m)
+}
+
+// A File nested in a File, directly or through a Folder, is written to its
+// own path, and the outer File keeps all of its own content, before and
+// after it. Go collected from the tree and was right throughout; TS left
+// the inner File current and lost the outer file's trailing content, and
+// moved to save and restore it. Mirrors 'file-inside-file' in the
+// `components` block of ts/test/jostraca.test.ts.
+func TestFileInsideFile(t *testing.T) {
+	out := nestedGen(t, nil, func(j *J) {
+		j.File("outer.txt", func(j *J) {
+			j.Content("1")
+			j.File("inner.txt", func(j *J) { j.Content("2") })
+			j.Content("3")
+		})
+		j.File("outer2.txt", func(j *J) {
+			j.Content("1")
+			j.Folder("sub", func(j *J) {
+				j.File("inner.txt", func(j *J) { j.Content("2") })
+			})
+			j.Content("3")
+		})
+	})
+	want := map[string]string{
+		"/out/outer.txt":     "13",
+		"/out/inner.txt":     "2",
+		"/out/outer2.txt":    "13",
+		"/out/sub/inner.txt": "2",
+	}
+	if !reflect.DeepEqual(out, want) {
+		t.Errorf("got %q\nwant %q", out, want)
+	}
+
+	files, written := projectScopeGen(t, "/out", func(j *J) {
+		j.Project(ProjectProps{}, func(j *J) {
+			j.File("outer.txt", func(j *J) {
+				j.Content("1")
+				j.File("inner.txt", func(j *J) { j.Content("2") })
+				j.Content("3")
+			})
+		})
+	})
+	expectFiles(t, files, []string{"/out/inner.txt", "/out/outer.txt"})
+	expectFiles(t, written, []string{"/out/inner.txt", "/out/outer.txt"})
+}
+
+// A single-file text CopyFiles inside a File splices exactly the text it
+// writes to its own target, `replace` included. Go templated once with the
+// copy's Replace and used that text for both; TS left `replace` off the
+// splice and moved to match. Mirrors 'copy-inside-file-replace' in
+// ts/test/jostraca.test.ts. (The Inject variant there is fh-inject-children's
+// in Go: injectAfter does not collect a CopyFiles child yet.)
+func TestCopyInsideFileReplace(t *testing.T) {
+	out := nestedGenModel(t, map[string]string{
+		"/tm/single.txt": "single $$name$$ FOO\n",
+	}, map[string]any{"name": "World"}, func(j *J) {
+		j.File("host.txt", func(j *J) {
+			j.Content("pre\n")
+			j.CopyFiles(CopyFilesProps{From: "/tm/single.txt", To: "spliced.txt",
+				Replace: map[string]any{"FOO": "bar"}})
+			j.Content("post\n")
+		})
+	})
+	if got := out["/out/spliced.txt"]; got != "single World bar\n" {
+		t.Errorf("spliced.txt: %q", got)
+	}
+	if got := out["/out/host.txt"]; got != "pre\nsingle World bar\npost\n" {
+		t.Errorf("host.txt: %q", got)
+	}
+}

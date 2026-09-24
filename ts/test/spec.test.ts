@@ -45,6 +45,15 @@ const FN: Record<string, (a: any[]) => any> = {
   getx: (a) => (Basic as any).getx(a[0], a[1]),
   deep: (a) => (Basic as any).deep(...a),
   omap: (a) => Object.entries((Basic as any).omap(a[0])),
+  // Flags are booleans only; Go's EachSpec holds their inverses.
+  // Projection values '$COPY', '$KEY' and '$FILTER' stand for the
+  // sentinels, which JSON cannot carry.
+  cmap: (a) => (Basic as any).cmap(a[0], mapSpec(a[1], (Basic as any).cmap)),
+  vmap: (a) => (Basic as any).vmap(a[0], mapSpec(a[1], (Basic as any).vmap)),
+  humanify: (a) => (Basic as any).humanify(a[0], a[1]),
+  each: (a) => 1 === a.length
+    ? (Basic as any).each(a[0])
+    : (Basic as any).each(a[0], a[1]),
   template: (a) => (Basic as any).template(a[0], a[1], a[2]),
   names: (a) => 2 === a.length
     ? (Basic as any).names(a[0], a[1])
@@ -66,6 +75,16 @@ const FN: Record<string, (a: any[]) => any> = {
 
   // cmpTree refuses a malformed tree when it builds the callback.
   cmptree: (a) => (cmpTree(a[0]), 'ok'),
+}
+
+
+function mapSpec(p: any, fn: any): any {
+  const S: any = { $COPY: fn.COPY, $KEY: fn.KEY, $FILTER: fn.FILTER }
+  const out: any = {}
+  for (const [k, v] of Object.entries(p)) {
+    out[k] = 'string' === typeof v && S[v] ? S[v] : v
+  }
+  return out
 }
 
 

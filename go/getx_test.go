@@ -1,6 +1,7 @@
 package jostraca
 
 import (
+	"math"
 	"reflect"
 	"testing"
 )
@@ -310,5 +311,34 @@ func TestGetXFilterChain(t *testing.T) {
 	// x=1 x returns x's value when x equals 1.
 	if v := GetX(map[string]any{"x": 1}, "x=1 x"); v != 1 {
 		t.Errorf("x=1 x = %v", v)
+	}
+}
+
+// StringToNumber, which getx's '=' and orderings rely on: JavaScript
+// accepts radix literals and surrounding JS whitespace, and rejects Go
+// spellings that strconv.ParseFloat would take.
+func TestJSStringToNumber(t *testing.T) {
+	nan := math.NaN()
+	cases := []struct {
+		in   string
+		want float64
+	}{
+		{"", 0}, {"  ", 0}, {"\u00a0 12 \ufeff", 12}, {"1.", 1}, {".5", 0.5},
+		{"-1e3", -1000}, {"0x10", 16}, {"0X1f", 31}, {"0o17", 15}, {"0b101", 5},
+		{"Infinity", math.Inf(1)}, {"-Infinity", math.Inf(-1)},
+		{"inf", nan}, {"NaN", nan}, {"1_000", nan}, {"0x1p-2", nan},
+		{"-0x10", nan}, {"1e", nan}, {".", nan}, {"12px", nan},
+	}
+	for _, c := range cases {
+		got := jsStringToNumber(c.in)
+		if math.IsNaN(c.want) {
+			if !math.IsNaN(got) {
+				t.Errorf("jsStringToNumber(%q) = %v, want NaN", c.in, got)
+			}
+			continue
+		}
+		if got != c.want {
+			t.Errorf("jsStringToNumber(%q) = %v, want %v", c.in, got, c.want)
+		}
 	}
 }

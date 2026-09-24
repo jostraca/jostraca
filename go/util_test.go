@@ -1,6 +1,7 @@
 package jostraca
 
 import (
+	"math"
 	"reflect"
 	"regexp"
 	"testing"
@@ -629,14 +630,26 @@ func TestDeepSliceTopLevel(t *testing.T) {
 // The nil-as-member vs nil-as-argument split, which is how a language
 // with no `undefined` reproduces TS's null/undefined distinction.
 func TestDeepNilSemantics(t *testing.T) {
-	// A nil argument is absent and is skipped.
+	// A nil argument is TS null: it replaces the base, as TS
+	// deep({a:1}, null) is null. Only an argument not passed at all is
+	// TS undefined.
 	got := Deep(map[string]any{"a": 1}, nil)
-	if !reflect.DeepEqual(got, map[string]any{"a": 1}) {
-		t.Errorf("nil arg: got %v, want map[a:1]", got)
+	if got != nil {
+		t.Errorf("nil arg: got %v, want nil", got)
 	}
 	got = Deep(map[string]any{"a": 1}, nil, map[string]any{"b": 2})
-	if !reflect.DeepEqual(got, map[string]any{"a": 1, "b": 2}) {
-		t.Errorf("nil arg between sources: got %v", got)
+	if !reflect.DeepEqual(got, map[string]any{"b": 2}) {
+		t.Errorf("nil arg between sources: got %v, want map[b:2]", got)
+	}
+	got = Deep(map[string]any{"a": 1})
+	if !reflect.DeepEqual(got, map[string]any{"a": 1}) {
+		t.Errorf("no sources: got %v, want map[a:1]", got)
+	}
+
+	// A typed nil map is still a map, and merges as an empty one.
+	got = Deep(map[string]any{"a": 1}, map[string]any(nil))
+	if !reflect.DeepEqual(got, map[string]any{"a": 1}) {
+		t.Errorf("typed nil map arg: got %v, want map[a:1]", got)
 	}
 
 	// A nil map value is present and overwrites, as TS `null` does.
@@ -745,5 +758,191 @@ func TestDeepTypedSliceReplaces(t *testing.T) {
 	want := map[string]any{"a": []string{"z"}}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Deep got %v, want %v", got, want)
+	}
+}
+
+// JavaScript compares strings by UTF-16 code unit. That is code-point
+// order everywhere except where a supplementary-plane character (a
+// surrogate pair) meets one in U+E000..U+FFFF, which is exactly where
+// UTF-8 byte order disagrees.
+func TestJSLess(t *testing.T) {
+	cases := []struct {
+		a, b string
+		want bool
+	}{
+		{"\U0001F600", "\uff5a", true},
+		{"\uff5a", "\U0001F600", false},
+		{"\u00e9", "\uff5a", true},
+		{"\u00e9", "\U0001F600", true},
+		{"a", "b", true},
+		{"B", "a", true},
+		{"10", "9", true},
+		{"_", "a", true},
+		{"a", "ab", true},
+		{"ab", "a", false},
+		{"", "a", true},
+		{"a", "a", false},
+		{"", "", false},
+		{"\U0001F600", "\U0001F601", true},
+		{"\U00010000", "\ud7ff", false},
+	}
+	for _, c := range cases {
+		if got := jsLess(c.a, c.b); got != c.want {
+			t.Errorf("jsLess(%q, %q) = %v, want %v", c.a, c.b, got, c.want)
+		}
+	}
+
+	keys := []string{"\uff5a", "\U0001F600", "\u00e9", "a", "Z"}
+	sortJS(keys)
+	want := []string{"Z", "a", "\u00e9", "\U0001F600", "\uff5a"}
+	if !reflect.DeepEqual(keys, want) {
+		t.Errorf("sortJS = %q, want %q", keys, want)
+	}
+}
+
+// A typed Go container is the same logical input as a JSON object or
+// array, so Get and GetX step through it as TS steps through its one
+// object type. A map with non-string keys resolves a canonical decimal
+// key when its keys are integers, and is otherwise absent -- never a
+// reflect panic.
+func TestGetTypedContainers(t *testing.T) {
+	m := map[string]any{
+		"a": map[string]string{"b": "x"},
+		"l": []string{"p", "q"},
+		"i": map[string]int{"n": 7},
+	}
+	for _, get := range []func(any, string) any{
+		Get, func(r any, p string) any { return GetX(r, p) },
+	} {
+		if got := get(m, "a.b"); got != "x" {
+			t.Errorf("a.b = %v, want x", got)
+		}
+		if got := get(m, "l.1"); got != "q" {
+			t.Errorf("l.1 = %v, want q", got)
+		}
+		if got := get(m, "i.n"); got != 7 {
+			t.Errorf("i.n = %v, want 7", got)
+		}
+		if got := get(m, "l.length"); got != 2 {
+			t.Errorf("l.length = %v, want 2", got)
+		}
+	}
+
+	ik := map[string]any{"k": map[int]string{1: "one", -2: "neg"}}
+	if got := Get(ik, "k.1"); got != "one" {
+		t.Errorf("k.1 = %v, want one", got)
+	}
+	if got := Get(ik, "k.-2"); got != "neg" {
+		t.Errorf("k.-2 = %v, want neg", got)
+	}
+	for _, p := range []string{"k.01", "k.+1", "k.x"} {
+		if got := Get(ik, p); got != nil {
+			t.Errorf("%s = %v, want nil", p, got)
+		}
+	}
+	fk := map[string]any{"k": map[float64]string{1: "one"}, "u": map[uint8]string{1: "u"}}
+	if got := Get(fk, "k.1"); got != nil {
+		t.Errorf("float-keyed k.1 = %v, want nil", got)
+	}
+	if got := Get(fk, "u.1"); got != "u" {
+		t.Errorf("u.1 = %v, want u", got)
+	}
+	if got := Get(fk, "u.300"); got != nil {
+		t.Errorf("u.300 = %v, want nil (overflows uint8)", got)
+	}
+
+	type named string
+	nk := map[named]int{"z": 26}
+	if got := Get(map[string]any{"n": nk}, "n.z"); got != 26 {
+		t.Errorf("named-key n.z = %v, want 26", got)
+	}
+}
+
+// Mirrors ts/test/utility.test.ts cmap-filter: CMapFilterFn is TS
+// FILTER(fn), and a bare CMapFilter keeps a truthy field.
+func TestCMapFilterFn(t *testing.T) {
+	src := map[string]any{
+		"a": map[string]any{"x": 1.0},
+		"b": map[string]any{"x": 2.0},
+		"c": map[string]any{"x": 3.0},
+	}
+	flag := CMapFilterFn(func(v any, _ CMapCtx) any {
+		return []any{v == 2.0, v.(float64) * 10}
+	})
+	got := CMap(src, map[string]any{"x": flag, "k": CMapKey})
+	want := map[string]any{
+		"a": map[string]any{"k": "a", "x": 10.0},
+		"c": map[string]any{"k": "c", "x": 30.0},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("CMap FILTER(fn) = %v, want %v", got, want)
+	}
+	gotV := VMap(src, map[string]any{"x": flag, "k": CMapKey})
+	wantV := []any{want["a"], want["c"]}
+	if !reflect.DeepEqual(gotV, wantV) {
+		t.Errorf("VMap FILTER(fn) = %v, want %v", gotV, wantV)
+	}
+
+	plain := CMap(src, map[string]any{"x": CMapFilterFn(func(v any, _ CMapCtx) any {
+		return v.(float64) + 1
+	})})
+	if !reflect.DeepEqual(plain["b"], map[string]any{"x": 3.0}) || len(plain) != 3 {
+		t.Errorf("CMap FILTER(fn) non-array = %v", plain)
+	}
+
+	drop := CMap(src, map[string]any{"x": CMapTransform(func(v any, _ CMapCtx) any {
+		if v == 2.0 {
+			return CMapFilter
+		}
+		return v
+	})})
+	if _, ok := drop["b"]; ok || len(drop) != 2 {
+		t.Errorf("a transform returning CMapFilter should drop: %v", drop)
+	}
+
+	truthy := CMap(map[string]any{
+		"z": map[string]any{"x": 0.0}, "e": map[string]any{"x": ""},
+		"n": map[string]any{"x": nil}, "o": map[string]any{"x": map[string]any{}},
+		"s": map[string]any{"x": "s"}, "m": nil,
+	}, map[string]any{"x": CMapFilter})
+	if len(truthy) != 2 || truthy["o"] == nil || truthy["s"] == nil {
+		t.Errorf("bare CMapFilter keeps only truthy fields: %v", truthy)
+	}
+}
+
+// Past year 9007 the digit form exceeds 2^53. Go's int64 is exact where
+// TS's number rounds (ts/test/utility.test.ts pins 9999123123596000), and
+// beyond the Date range TS throws where Go formats. Documented, not
+// aligned: emulating the rounding would degrade the exact side.
+func TestHumanifyRangeTail(t *testing.T) {
+	if got := HumanifyDigits(253402300799999); got != 9999123123595999 {
+		t.Errorf("HumanifyDigits(253402300799999) = %d, want 9999123123595999", got)
+	}
+	if got := HumanifyDigits(0); got != 1970010100000000 {
+		t.Errorf("HumanifyDigits(0) = %d, want 1970010100000000", got)
+	}
+}
+
+// Every numeric kind is a count, and a count that is not finite and
+// positive adds nothing -- never a strings.Repeat panic. Mirrors
+// ts/test/utility.test.ts indent-counts.
+func TestIndentNonFiniteAndTyped(t *testing.T) {
+	cases := []struct {
+		ind  any
+		want string
+	}{
+		{math.NaN(), "a"},
+		{math.Inf(1), "a"},
+		{math.Inf(-1), "a"},
+		{int64(3), "   a"},
+		{uint8(2), "  a"},
+		{int32(-1), "a"},
+		{float32(2.9), "  a"},
+		{"$$", "$$a"},
+	}
+	for _, c := range cases {
+		if got := Indent("a", c.ind); got != c.want {
+			t.Errorf("Indent(a, %#v) = %q, want %q", c.ind, got, c.want)
+		}
 	}
 }

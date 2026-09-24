@@ -5,7 +5,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -398,7 +397,7 @@ func (m *MemFS) ReadDir(p string) ([]DirEntry, error) {
 	for n := range seen {
 		names = append(names, n)
 	}
-	sort.Strings(names)
+	sortJS(names)
 	out := make([]DirEntry, 0, len(names))
 	for _, n := range names {
 		out = append(out, seen[n])
