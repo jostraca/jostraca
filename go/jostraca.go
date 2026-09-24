@@ -42,7 +42,8 @@ type jstate struct {
 
 // New constructs a builder seeded with global options. Component methods
 // must only be called on the *J passed into a Generate callback, not on
-// this top-level value.
+// this top-level value; calling one panics with a message naming the
+// component.
 func New(opts ...Option) *J {
 	o := applyOptions(opts)
 	st := newJstateFromOptions(o)
