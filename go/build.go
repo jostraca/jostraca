@@ -333,45 +333,28 @@ func (b *buildCtx) claimFile(fullpath, where string) error {
 	return nil
 }
 
-// collectInPlace appends the in-place content of `parent`'s children, in
-// source order, for the kinds `want` accepts.
+// collectInPlace appends, in source order, the text a File, an Inject or a
+// Fragment takes from its children: the Content of each Content, Fragment,
+// Inject and Copy child.
 //
-// KindNone is walked THROUGH rather than skipped. A user component wraps its
-// children in one (see Cmp in builder.go, mirroring TS's cmp()), and in TS
-// the nesting is invisible at this point because Content pushes into the
-// ambient current-file buffer at whatever depth it sits. Go collects from the
-// tree instead, so this walk has to do what TS's ambient buffer did for free
-// -- otherwise wrapping content in a user component emitted nothing at all.
-// See #29.
-//
-// KindSlot is walked through the same way. A Slot outside a Fragment is
-// transparent in TS: its children render in place in the enclosing File or
-// Inject. Inside a Fragment the replay renders it, and the walk never
-// reaches it from here because a Fragment contributes its rendered Content.
-func collectInPlace(sb *strings.Builder, parent *Node, want func(Kind) bool) {
+// Go collects from the tree where TS pushes into an ambient current-file
+// buffer, so the walk has to pass through every node that never becomes
+// the current file in TS: a user component's KindNone node (#29), a Folder,
+// a Project, and a Slot outside a Fragment, whose children render in place.
+// A File, an Inject and a directory copy write their own targets. Inside a
+// Fragment the replay renders a Slot, and a Fragment contributes its
+// rendered Content, so the walk never reaches that Slot from here.
+func collectInPlace(sb *strings.Builder, parent *Node) {
 	for _, c := range parent.Children {
-		if c.Kind == KindNone || c.Kind == KindSlot {
-			collectInPlace(sb, c, want)
-			continue
-		}
-		if want(c.Kind) {
+		switch c.Kind {
+		case KindNone, KindSlot, KindFolder, KindProject:
+			collectInPlace(sb, c)
+		case KindContent, KindFragment, KindInject, KindCopy:
 			for _, s := range c.Content {
 				sb.WriteString(s)
 			}
 		}
 	}
-}
-
-// inPlaceKind is the set of kinds whose Content a File or an Inject
-// splices into its body, in source order. One predicate for both, because
-// an Inject's children build the injected region exactly as they would
-// build a File.
-func inPlaceKind(k Kind) bool {
-	switch k {
-	case KindContent, KindFragment, KindInject, KindCopy:
-		return true
-	}
-	return false
 }
 
 func fileAfter(n *Node, st *jstate, b *buildCtx) error {
@@ -380,7 +363,7 @@ func fileAfter(n *Node, st *jstate, b *buildCtx) error {
 	// the parent file's stream at the position where the child sat in source
 	// order.
 	var sb strings.Builder
-	collectInPlace(&sb, n, inPlaceKind)
+	collectInPlace(&sb, n)
 	body := sb.String()
 	n.Content = []string{body}
 
@@ -753,7 +736,7 @@ func injectAfter(n *Node, _ *jstate, b *buildCtx) error {
 		return nil
 	}
 	var sb strings.Builder
-	collectInPlace(&sb, n, inPlaceKind)
+	collectInPlace(&sb, n)
 	body := sb.String()
 
 	// Inject rewrites a region of an existing file; a missing target is a
@@ -843,7 +826,7 @@ func fragmentBefore(n *Node, _ *jstate, b *buildCtx) error {
 // now, so a CopyFiles or a nested Fragment contributes its text here.
 func fragmentAfter(n *Node, _ *jstate, _ *buildCtx) error {
 	var sb strings.Builder
-	collectFragment(&sb, n)
+	collectInPlace(&sb, n)
 	rendered := sb.String()
 	if n.Indent != nil {
 		rendered = Indent(rendered, n.Indent)

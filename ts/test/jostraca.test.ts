@@ -2186,6 +2186,66 @@ describe('components', () => {
   })
 
 
+  // A Folder or a Project inside a File never becomes the current file, so
+  // what its children emit lands in the File, in source order, and the
+  // directories are still made. A File or an Inject in there writes its own
+  // target. Go: TestFolderAndProjectInsideFile.
+  test('folder-and-project-inside-file', async () => {
+    const out = await gen({
+      '/src/c.txt': 'C$$name$$\n',
+      '/tm/f.txt': '[F<[SLOT]>]\n',
+      '/out/inj.txt': 'h\n#--START--#\nold\n#--END--#\nt\n',
+    }, () => Project({}, () => {
+      File({ name: 'f.txt' }, () => {
+        Content('1'); Folder({ name: 'd' }, () => Content('x')); Content('2')
+      })
+      File({ name: 'g.txt' }, () => {
+        Content('1'); Project({ folder: 'p' }, () => Content('y')); Content('2')
+      })
+      File({ name: 'h.txt' }, () => {
+        Content('1')
+        Folder({ name: 'e' }, () => Copy({ from: '/src/c.txt', to: 'c2.txt' }))
+        Content('2')
+      })
+      File({ name: 'i.txt' }, () => {
+        Content('1')
+        Folder({ name: 'k' }, () =>
+          Folder({ name: 'l' }, () => Fragment({ from: '/tm/f.txt' }, () => Content('S'))))
+        Content('2')
+      })
+      File({ name: 'j.txt' }, () => {
+        Content('1')
+        Folder({ name: 'm' }, () => {
+          File({ name: 'inner.txt' }, () => Content('I'))
+          Content('z')
+        })
+        Content('2')
+      })
+      File({ name: 'n.txt' }, () => {
+        Content('1')
+        Folder({ name: '.' }, () => Inject({ name: 'inj.txt' }, () => Content('NEW')))
+        Content('2')
+      })
+    }), { model: { name: 'N' } })
+    expect(out).equal({
+      '/src/c.txt': 'C$$name$$\n',
+      '/tm/f.txt': '[F<[SLOT]>]\n',
+      '/out/d': null,
+      '/out/p': null,
+      '/out/k/l': null,
+      '/out/f.txt': '1x2',
+      '/out/g.txt': '1y2',
+      '/out/e/c2.txt': 'CN\n',
+      '/out/h.txt': '1CN\n2',
+      '/out/i.txt': '1[FS]\n2',
+      '/out/m/inner.txt': 'I',
+      '/out/j.txt': '1z2',
+      '/out/inj.txt': 'h\n#--START--#\nNEW\n#--END--#\nt\n',
+      '/out/n.txt': '12',
+    })
+  })
+
+
   // The global exclude window compares WHOLE milliseconds: an output file is
   // left alone when floor(mtimeMs) > last. A write inside the millisecond
   // `last` names is not newer than the build. Real filesystem, because the

@@ -3,6 +3,7 @@ package jostraca
 import (
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -254,6 +255,103 @@ func TestFileInsideFile(t *testing.T) {
 	})
 	expectFiles(t, files, []string{"/out/inner.txt", "/out/outer.txt"})
 	expectFiles(t, written, []string{"/out/inner.txt", "/out/outer.txt"})
+}
+
+// A Folder or a Project inside a File never becomes the current file in
+// TS, so what its children emit lands in the File, in source order, and the
+// directories are still made. A File or an Inject in there writes its own
+// target. Go's collector walked only KindNone and KindSlot, so the text
+// inside a Folder or a Project was dropped. Mirrors
+// 'folder-and-project-inside-file' in ts/test/jostraca.test.ts.
+func TestFolderAndProjectInsideFile(t *testing.T) {
+	m := NewMemFS()
+	for _, kv := range [][2]string{
+		{"/src/c.txt", "C$$name$$\n"},
+		{"/tm/f.txt", "[F<[SLOT]>]\n"},
+		{"/out/inj.txt", "h\n#--START--#\nold\n#--END--#\nt\n"},
+	} {
+		if err := m.WriteFile(kv[0], []byte(kv[1])); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err := New(WithFS(m), WithFolder("/out"), WithModel(map[string]any{"name": "N"}),
+		WithNow(func() int64 { return 1735689600000 })).
+		Generate(Options{}, func(j *J) {
+			j.Project(ProjectProps{}, func(j *J) {
+				j.File("f.txt", func(j *J) {
+					j.Content("1")
+					j.Folder("d", func(j *J) { j.Content("x") })
+					j.Content("2")
+				})
+				j.File("g.txt", func(j *J) {
+					j.Content("1")
+					j.Project(ProjectProps{Folder: "p"}, func(j *J) { j.Content("y") })
+					j.Content("2")
+				})
+				j.File("h.txt", func(j *J) {
+					j.Content("1")
+					j.Folder("e", func(j *J) { j.Copy(CopyProps{From: "/src/c.txt", To: "c2.txt"}) })
+					j.Content("2")
+				})
+				j.File("i.txt", func(j *J) {
+					j.Content("1")
+					j.Folder("k", func(j *J) {
+						j.Folder("l", func(j *J) {
+							j.Fragment(FragmentProps{From: "/tm/f.txt"}, func(j *J) { j.Content("S") })
+						})
+					})
+					j.Content("2")
+				})
+				j.File("j.txt", func(j *J) {
+					j.Content("1")
+					j.Folder("m", func(j *J) {
+						j.File("inner.txt", func(j *J) { j.Content("I") })
+						j.Content("z")
+					})
+					j.Content("2")
+				})
+				j.File("n.txt", func(j *J) {
+					j.Content("1")
+					j.Folder(".", func(j *J) {
+						j.Inject("inj.txt", func(j *J) { j.Content("NEW") })
+					})
+					j.Content("2")
+				})
+			})
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]any{}
+	for k, v := range m.Vol() {
+		if strings.HasPrefix(k, "/out/.jostraca") {
+			continue
+		}
+		if v == nil {
+			got[k] = nil
+		} else {
+			got[k] = string(v)
+		}
+	}
+	want := map[string]any{
+		"/src/c.txt":       "C$$name$$\n",
+		"/tm/f.txt":        "[F<[SLOT]>]\n",
+		"/out/d":           nil,
+		"/out/p":           nil,
+		"/out/k/l":         nil,
+		"/out/f.txt":       "1x2",
+		"/out/g.txt":       "1y2",
+		"/out/e/c2.txt":    "CN\n",
+		"/out/h.txt":       "1CN\n2",
+		"/out/i.txt":       "1[FS]\n2",
+		"/out/m/inner.txt": "I",
+		"/out/j.txt":       "1z2",
+		"/out/inj.txt":     "h\n#--START--#\nNEW\n#--END--#\nt\n",
+		"/out/n.txt":       "12",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
 }
 
 // A single-file text CopyFiles inside a File splices exactly the text it

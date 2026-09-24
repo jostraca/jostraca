@@ -1,7 +1,5 @@
 package jostraca
 
-import "strings"
-
 // A Fragment RENDERS WHEN IT IS CALLED, in the define phase, as it does in
 // ts/src/cmp/Fragment.ts. The source is read, the body is scanned for slot
 // names, and the template runs with the slot and replace handlers replaying
@@ -139,23 +137,5 @@ func renderFragment(st *jstate, n *Node, body func(*J), eject any) {
 				"silently discarded. Add an unnamed <[SLOT]> marker to the "+
 				"fragment source, or wrap the children in a named Slot.",
 			n.From)}
-	}
-}
-
-// collectFragment appends the text of a rendered Fragment's children in
-// source order. A Slot hands its buffer to the enclosing one in TS, and a
-// user component's KindNone node, a Folder and a Project never become the
-// current file at all, so all four are walked through. A File, an Inject
-// and a directory copy write their own targets.
-func collectFragment(sb *strings.Builder, parent *Node) {
-	for _, c := range parent.Children {
-		switch c.Kind {
-		case KindNone, KindSlot, KindFolder, KindProject:
-			collectFragment(sb, c)
-		case KindContent, KindFragment, KindInject, KindCopy:
-			for _, s := range c.Content {
-				sb.WriteString(s)
-			}
-		}
 	}
 }
