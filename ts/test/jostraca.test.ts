@@ -2313,8 +2313,9 @@ describe('components', () => {
         cmp(() => Project({ folder: '.' }, () =>
           File({ name: 'a.txt' }, () => Content(src)))))
 
+    // utimes takes float seconds, so an exact millisecond can land just under it.
     try {
-      for (const [delta, kept] of [[0.5, false], [0.999, false], [1, true]] as const) {
+      for (const [delta, kept] of [[0.5, false], [0.999, false], [1.5, true]] as const) {
         await run(T0, 'A\n', false)
         Fs.writeFileSync(p, 'U\n')
         Fs.utimesSync(p, (T0 + delta) / 1000, (T0 + delta) / 1000)

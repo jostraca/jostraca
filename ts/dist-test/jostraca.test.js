@@ -1886,8 +1886,9 @@ const START_TIME = 1735689600000;
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'jostraca-excl-'));
         const p = Path.join(dir, 'a.txt');
         const run = (now, src, exclude) => (0, __1.Jostraca)({ now: () => now }).generate({ fs: () => Fs, folder: dir, exclude }, (0, __1.cmp)(() => (0, __1.Project)({ folder: '.' }, () => (0, __1.File)({ name: 'a.txt' }, () => (0, __1.Content)(src)))));
+        // utimes takes float seconds, so an exact millisecond can land just under it.
         try {
-            for (const [delta, kept] of [[0.5, false], [0.999, false], [1, true]]) {
+            for (const [delta, kept] of [[0.5, false], [0.999, false], [1.5, true]]) {
                 await run(T0, 'A\n', false);
                 Fs.writeFileSync(p, 'U\n');
                 Fs.utimesSync(p, (T0 + delta) / 1000, (T0 + delta) / 1000);
