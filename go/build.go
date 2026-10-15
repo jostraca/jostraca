@@ -470,6 +470,14 @@ func copyBefore(n *Node, st *jstate, b *buildCtx) error {
 	dest = dest + "/" + name
 	dest = canonOutPath(dest)
 
+	// The source-relative path of a single file is its own name. An
+	// excluded file is neither written nor spliced into the enclosing
+	// file, and its source is not read. Mirrors ts/src/op/CopyOp.ts.
+	if copyExcluded(pathBase(from), n.Exclude) {
+		n.After = &AfterRef{Kind: "excluded"}
+		return nil
+	}
+
 	body, err := b.fh.fs.ReadFile(from)
 	if err != nil {
 		return err
@@ -677,6 +685,12 @@ func shouldIgnoreCopyPath(name, rel string, exclude any, ignores []*regexp.Regex
 	if rel == "" {
 		rel = name
 	}
+	return copyExcluded(rel, exclude)
+}
+
+// copyExcluded reports whether a Copy `exclude` names the source-relative
+// path rel. A boolean is not a path matcher and matches nothing.
+func copyExcluded(rel string, exclude any) bool {
 	// A []string or []*regexp.Regexp is the same list a []any is. The
 	// shape check accepts all three, so the walk has to honour all three.
 	if list, ok := propList(exclude); ok {
@@ -691,7 +705,7 @@ func shouldIgnoreCopyPath(name, rel string, exclude any, ignores []*regexp.Regex
 	case *regexp.Regexp:
 		// A scalar RegExp is as live as one inside a list; it used to fall
 		// through and exclude nothing. Mirrors the RegExp arm of
-		// `state.excludes` in ts/src/op/CopyOp.ts.
+		// `excludesOf` in ts/src/op/CopyOp.ts.
 		if v != nil && v.MatchString(rel) {
 			return true
 		}

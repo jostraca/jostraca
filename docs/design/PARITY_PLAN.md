@@ -34,7 +34,7 @@ the commit that made it is still in the log.
 | 2.1 | `error` field never populated | **done** | runners now compare the tree on error rows; two more both-fail scenarios added, one with a non-empty partial tree |
 | 2.2 | directory-only state invisible | **fixed, holds** | `Vol()` returns nil for an empty dir; dry run creates none; TS materialises the `Folder` |
 | 2.3 | caller-side state | **done** | getx stamp swept; `Hunks` copies its suffixes; `generate` validates a copy of the caller's options |
-| 2.4 | shared bugs invisible by construction | **unchanged, by design** | #32 still live and still byte-identical across stacks; #26 fixed in both (2026-09-24) |
+| 2.4 | shared bugs invisible by construction | **unchanged, by design** | #26 fixed in both (2026-09-24); #32 fixed in both (2026-10-15) and its corpus rows regenerated |
 | 3 | Go panic on nil-body Fragment | **fixed, holds** | no panic; emits `"A\n\nB\n"` |
 | 3 | Fragment `eject` never read in Go | **fixed, holds** | Go `"KEEP\n"` == TS `"KEEP\n"` on the same source |
 | 3 | chmod comparison narrower than chmod | **fixed, holds** | compares `chmodBits`, not `Perm()` |
@@ -124,7 +124,7 @@ rather than taken:
 | options surface | global `control` discarded (§1.1) | resolved |
 | | TS mutates the caller's options object | resolved |
 | | `WithMem`/`WithVol` inert (#37) | resolved |
-| | `Copy.exclude`, single-file (#32) | **live** (shared) |
+| | `Copy.exclude`, single-file (#32) | resolved (decided: a single-file Copy honours `exclude`; `exclude: true` still matches nothing) |
 | | `mergeOptions` drops `Cmp`/`Name` | **live** (deviation) |
 | | per-call `Control` cannot clear a global | **live** (deviation) |
 | parity machinery + docs | directory-only state (§2.2) | resolved |
@@ -541,6 +541,12 @@ records #32's behaviour as expected output, so the suite still defends the bug �
 by design, and worth re-reading as a decision rather than rediscovering as a
 surprise.
 
+**[2026-10-15]** #32 was decided and fixed in TS, then Go and Rust: a
+single-file Copy matches `exclude` against the source file's name, and an
+excluded file is neither written nor spliced. The `file` rows of
+`copy_exclude_corpus` were regenerated, so the corpus now defends the decided
+behaviour rather than the bug.
+
 ---
 
 ## 3. The filed list, re-probed
@@ -569,7 +575,7 @@ measured here rather than trusted.
 | #27 | txt/bin chosen by different criteria | **fixed in code, issue still open.** `save` classifies by destination extension now (`ts/src/build/FileHandler.ts:290-291`, with the reasoning at `:278-289` naming this exact scenario), so both stacks give an ASCII-holding `a.png` to `existing.bin`. Measured both ways round. Close the issue. |
 | #29 | Fragment filter skipped for non-Slot children | **live, and worse than filed** — see below |
 | #30 | Buffer compared against string | **fixed**; `sameContent` compares bytes, and `binary_copy_identical_no_backup` pins it. The fix changed no existing corpus row, which is why the pin was added |
-| #32 | `exclude` ignored for a single-file `Copy` | live, identical on both sides, and still frozen as expected output by the corpus |
+| #32 | `exclude` ignored for a single-file `Copy` | live, identical on both sides, and still frozen as expected output by the corpus. **Fixed in all three stacks, 2026-10-15**: the owner decided a single-file Copy honours `exclude`, matched against the source file's name, and `exclude: true` keeps matching nothing. The five `file` rows of `copy_exclude_corpus` that name `a.txt` now record no copy. |
 | #37 | `WithMem`/`WithVol` inert | live; writes to the real filesystem, returns `Vol` nil and no error |
 
 **#29 needs its issue updated, not just its fix.** It is filed as a side-effect

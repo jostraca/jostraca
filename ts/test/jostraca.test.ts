@@ -1609,6 +1609,44 @@ describe('nested-emitters', () => {
   })
 
 
+  // A single-file Copy matches `exclude` against the file's own name, the
+  // path it has relative to its directory, as a directory Copy would. An
+  // excluded file is neither written nor spliced. A boolean matches
+  // nothing, as it does on a directory Copy.
+  test('copy-single-file-exclude', async () => {
+    const run = (exclude: any) => gen({ '/tm/h.txt': 'HELLO\n' }, () => {
+      Project({}, () => {
+        File({ name: 'a.txt' }, () => {
+          Content('BEFORE\n')
+          Copy({ from: '/tm/h.txt', to: 'out.txt', exclude })
+          Content('AFTER\n')
+        })
+      })
+    })
+
+    const skipped = {
+      '/tm/h.txt': 'HELLO\n',
+      '/out/a.txt': 'BEFORE\nAFTER\n',
+    }
+    const copied = {
+      '/tm/h.txt': 'HELLO\n',
+      '/out/out.txt': 'HELLO\n',
+      '/out/a.txt': 'BEFORE\nHELLO\nAFTER\n',
+    }
+
+    expect(await run('h.txt')).equal(skipped)
+    expect(await run(['x.txt', 'h.txt'])).equal(skipped)
+    expect(await run(/^h\./)).equal(skipped)
+    expect(await run([/\.txt$/])).equal(skipped)
+
+    expect(await run(true)).equal(copied)
+    expect(await run(false)).equal(copied)
+    expect(await run([])).equal(copied)
+    expect(await run('out.txt')).equal(copied)
+    expect(await run('tm/h.txt')).equal(copied)
+  })
+
+
   test('inject-inside-file', async () => {
     const out = await gen({
       '/tm/x': '',

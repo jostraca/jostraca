@@ -1280,6 +1280,39 @@ const START_TIME = 1735689600000;
             '/out/a.txt': 'BEFORE\nHELLO\nAFTER\n',
         });
     });
+    // A single-file Copy matches `exclude` against the file's own name, the
+    // path it has relative to its directory, as a directory Copy would. An
+    // excluded file is neither written nor spliced. A boolean matches
+    // nothing, as it does on a directory Copy.
+    (0, node_test_1.test)('copy-single-file-exclude', async () => {
+        const run = (exclude) => gen({ '/tm/h.txt': 'HELLO\n' }, () => {
+            (0, __1.Project)({}, () => {
+                (0, __1.File)({ name: 'a.txt' }, () => {
+                    (0, __1.Content)('BEFORE\n');
+                    (0, __1.Copy)({ from: '/tm/h.txt', to: 'out.txt', exclude });
+                    (0, __1.Content)('AFTER\n');
+                });
+            });
+        });
+        const skipped = {
+            '/tm/h.txt': 'HELLO\n',
+            '/out/a.txt': 'BEFORE\nAFTER\n',
+        };
+        const copied = {
+            '/tm/h.txt': 'HELLO\n',
+            '/out/out.txt': 'HELLO\n',
+            '/out/a.txt': 'BEFORE\nHELLO\nAFTER\n',
+        };
+        (0, expect_1.expect)(await run('h.txt')).equal(skipped);
+        (0, expect_1.expect)(await run(['x.txt', 'h.txt'])).equal(skipped);
+        (0, expect_1.expect)(await run(/^h\./)).equal(skipped);
+        (0, expect_1.expect)(await run([/\.txt$/])).equal(skipped);
+        (0, expect_1.expect)(await run(true)).equal(copied);
+        (0, expect_1.expect)(await run(false)).equal(copied);
+        (0, expect_1.expect)(await run([])).equal(copied);
+        (0, expect_1.expect)(await run('out.txt')).equal(copied);
+        (0, expect_1.expect)(await run('tm/h.txt')).equal(copied);
+    });
     (0, node_test_1.test)('inject-inside-file', async () => {
         const out = await gen({
             '/tm/x': '',

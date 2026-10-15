@@ -680,7 +680,7 @@ called.
 |---|---|---|---|
 | `from` | `string`, required |—| Source file or directory. It is stat'd in the define phase and must exist. A relative `from` resolves against the **process working directory**—unlike `Fragment`, it is not joined to the output folder. |
 | `to` | non-empty `string` | source basename | For a file, the output name; for a directory, an output subfolder. May contain `/`. A `..` segment throws. |
-| `exclude` | `boolean \| string \| RegExp \| (string\|RegExp)[]` |—| Paths relative to the copied source root. A boolean is accepted and does nothing. |
+| `exclude` | `boolean \| string \| RegExp \| (string\|RegExp)[]` |—| Paths relative to the copied source root; for a single file, its name. A boolean is accepted and does nothing. |
 | `replace` | `Record<string, any>` |—| Custom replacements, applied to text files, including the text a single-file copy splices into an enclosing `File` or `Inject`. |
 
 ### Text or binary
@@ -713,6 +713,11 @@ the copied source root**, however deep in the output tree the `Copy`
 sits. String entries are compared exactly, so `'./a.txt'` does not
 match `a.txt`. Regular expressions have their `lastIndex` reset before
 each test, so a `/g` flag is not stateful.
+
+A single-file `Copy` compares `exclude` against the source file's name,
+the path it would have in a copy of its directory. A match copies
+nothing: the file is not read or written, and no text is spliced into an
+enclosing `File` or `Inject`.
 
 A symlink that re-enters an active ancestor directory is skipped and
 logged. The backstop is a depth cap of 64.

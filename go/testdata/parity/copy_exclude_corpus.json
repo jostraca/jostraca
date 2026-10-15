@@ -3735,10 +3735,8 @@
         "/src/note.txt~": "BACKUP\n",
         "/src/off.txt-jostraca-off": "OFF\n",
         "/out/app/marker.txt": "MARKER\n",
-        "/out/app/a.txt": "ROOT-A V\n",
         "/out/.jostraca/generated/app/marker.txt": "MARKER\n",
-        "/out/.jostraca/generated/app/a.txt": "ROOT-A V\n",
-        "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/marker.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/marker.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/a.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/marker.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/marker.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
         "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
       },
       "error": false
@@ -3898,10 +3896,8 @@
         "/src/note.txt~": "BACKUP\n",
         "/src/off.txt-jostraca-off": "OFF\n",
         "/out/app/marker.txt": "MARKER\n",
-        "/out/app/a.txt": "ROOT-A V\n",
         "/out/.jostraca/generated/app/marker.txt": "MARKER\n",
-        "/out/.jostraca/generated/app/a.txt": "ROOT-A V\n",
-        "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/marker.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/marker.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/a.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/marker.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/marker.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
         "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
       },
       "error": false
@@ -3978,10 +3974,8 @@
         "/src/note.txt~": "BACKUP\n",
         "/src/off.txt-jostraca-off": "OFF\n",
         "/out/app/marker.txt": "MARKER\n",
-        "/out/app/a.txt": "ROOT-A V\n",
         "/out/.jostraca/generated/app/marker.txt": "MARKER\n",
-        "/out/.jostraca/generated/app/a.txt": "ROOT-A V\n",
-        "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/marker.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/marker.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/a.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/marker.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/marker.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
         "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
       },
       "error": false
@@ -4054,10 +4048,8 @@
         "/src/note.txt~": "BACKUP\n",
         "/src/off.txt-jostraca-off": "OFF\n",
         "/out/app/marker.txt": "MARKER\n",
-        "/out/app/a.txt": "ROOT-A V\n",
         "/out/.jostraca/generated/app/marker.txt": "MARKER\n",
-        "/out/.jostraca/generated/app/a.txt": "ROOT-A V\n",
-        "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/marker.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/marker.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/a.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/marker.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/marker.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
         "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
       },
       "error": false
@@ -4126,10 +4118,8 @@
         "/src/note.txt~": "BACKUP\n",
         "/src/off.txt-jostraca-off": "OFF\n",
         "/out/app/marker.txt": "MARKER\n",
-        "/out/app/a.txt": "ROOT-A V\n",
         "/out/.jostraca/generated/app/marker.txt": "MARKER\n",
-        "/out/.jostraca/generated/app/a.txt": "ROOT-A V\n",
-        "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/marker.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/marker.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    },\n    \"app/a.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/a.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+        "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/marker.txt\": {\n      \"action\": \"write\",\n      \"path\": \"app/marker.txt\",\n      \"exists\": false,\n      \"actions\": [\n        \"write\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
         "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
       },
       "error": false

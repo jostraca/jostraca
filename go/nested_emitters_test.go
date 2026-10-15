@@ -2,6 +2,7 @@ package jostraca
 
 import (
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -75,6 +76,54 @@ func TestCopyInsideFile(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("copy inside file:\n got: %v\nwant: %v", got, want)
+	}
+}
+
+// A single-file Copy matches Exclude against the file's own name, the path
+// it has relative to its directory, as a directory Copy would. An excluded
+// file is neither written nor spliced. A boolean matches nothing, as it does
+// on a directory Copy. Mirrors copy-single-file-exclude in
+// ts/test/jostraca.test.ts.
+func TestCopySingleFileExclude(t *testing.T) {
+	run := func(exclude any) map[string]string {
+		return nestedGen(t, map[string]string{"/tm/h.txt": "HELLO\n"}, func(j *J) {
+			j.File("a.txt", func(j *J) {
+				j.Content("BEFORE\n")
+				j.Copy(CopyProps{From: "/tm/h.txt", To: "out.txt", Exclude: exclude})
+				j.Content("AFTER\n")
+			})
+		})
+	}
+
+	skipped := map[string]string{
+		"/tm/h.txt":  "HELLO\n",
+		"/out/a.txt": "BEFORE\nAFTER\n",
+	}
+	copied := map[string]string{
+		"/tm/h.txt":    "HELLO\n",
+		"/out/out.txt": "HELLO\n",
+		"/out/a.txt":   "BEFORE\nHELLO\nAFTER\n",
+	}
+
+	cases := []struct {
+		name    string
+		exclude any
+		want    map[string]string
+	}{
+		{"scalar", "h.txt", skipped},
+		{"list", []any{"x.txt", "h.txt"}, skipped},
+		{"regexp", regexp.MustCompile(`^h\.`), skipped},
+		{"regexp-list", []any{regexp.MustCompile(`\.txt$`)}, skipped},
+		{"true", true, copied},
+		{"false", false, copied},
+		{"empty", []any{}, copied},
+		{"to-name", "out.txt", copied},
+		{"source-path", "tm/h.txt", copied},
+	}
+	for _, c := range cases {
+		if got := run(c.exclude); !reflect.DeepEqual(got, c.want) {
+			t.Errorf("%s:\n got: %v\nwant: %v", c.name, got, c.want)
+		}
 	}
 }
 

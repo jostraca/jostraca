@@ -89,7 +89,7 @@ const PLACEMENTS = [
   { key: 'top', place: 'top' },        // Copy directly under Project
   { key: 'nested', place: 'nested' },  // Copy one Folder deep  <- V2
   { key: 'to', place: 'to' },          // Copy with a `to` subfolder
-  { key: 'file', place: 'file' },      // Copy of a single FILE, not a tree
+  { key: 'file', place: 'file' },      // Copy of a single FILE; exclude matches its name
 ]
 
 // Exclude values. `enc` is the wire form the Go runner decodes:

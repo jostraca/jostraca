@@ -213,6 +213,14 @@ fn copy_before(n: &mut Node, st: &mut JState, b: &mut BuildCtx) -> Result<(), St
     };
     let dest = fwd(&dest);
 
+    // The source-relative path of a single file is its own name. An
+    // excluded file is neither written nor spliced into the enclosing
+    // file, and its source is not read. Mirrors ts/src/op/CopyOp.ts.
+    if copy_excluded(path_base(&from), &n.exclude) {
+        n.after = Some(AfterRef { kind: "excluded".to_string() });
+        return Ok(());
+    }
+
     let body = fh.fs.read_file(&from)?;
     let is_bin = is_bin_ext(&from) || is_bin_content(&body);
 
@@ -372,6 +380,12 @@ fn should_ignore_copy_path(
         if re.is_match(name) { return true; }
     }
     let rel = if rel.is_empty() { name } else { rel };
+    copy_excluded(rel, exclude)
+}
+
+/// Whether a Copy `exclude` names the source-relative path `rel`. A boolean
+/// is not a path matcher and matches nothing.
+fn copy_excluded(rel: &str, exclude: &Option<serde_json::Value>) -> bool {
     match exclude {
         None => false,
         Some(serde_json::Value::Null) => false,

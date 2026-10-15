@@ -48,6 +48,16 @@ const CopyOp = {
       node.meta.copy_file = buildctx.current.file
 
       FileOp.before(node, ctx$, buildctx)
+
+      // The source-relative path of a single file is its own name. An
+      // excluded file is neither written nor spliced into the enclosing
+      // file, and its source is not read.
+      if (excluded(Path.basename(from), excludesOf(node.exclude))) {
+        node.after = node.after || {}
+        node.after.kind = 'excluded'
+        return
+      }
+
       const topath = node.path
 
       // `node` carries the copy's `replace`, which processTemplate reads.
@@ -127,12 +137,7 @@ const CopyOp = {
       node,
       // Real directory paths already entered, for symlink-cycle detection.
       visited: new Set<string>(),
-      // `'string' === node.exclude` compared the value against the literal
-      // text "string", so a string exclude never matched.
-      excludes: 'string' === typeof node.exclude ? [node.exclude] :
-        node.exclude instanceof RegExp ? [node.exclude] :
-          Array.isArray(node.exclude) ? node.exclude :
-            []
+      excludes: excludesOf(node.exclude),
     }
 
     // node.name carries the Copy `to` prop.
@@ -142,6 +147,9 @@ const CopyOp = {
     if ('file' === kind) {
       copyFile(frompath, topath, state, buildctx, fs)
       // FileOp.after(node, ctx$, buildctx)
+    }
+    else if ('excluded' === kind) {
+      return
     }
     else if ('copy' === kind) {
       // Seed the walk with an EMPTY path, so a Copy `exclude` names paths
@@ -387,6 +395,17 @@ function excludeFile(fs: any, state: any, nodepath: string[], name: string, topa
   }
 
   return exclude
+}
+
+
+// A boolean exclude is not a path matcher, and matches nothing.
+// `'string' === node.exclude` once compared the value against the literal
+// text "string", so a string exclude never matched.
+function excludesOf(exclude: any): (string | RegExp)[] {
+  return 'string' === typeof exclude ? [exclude] :
+    exclude instanceof RegExp ? [exclude] :
+      Array.isArray(exclude) ? exclude :
+        []
 }
 
 
