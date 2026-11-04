@@ -235,6 +235,7 @@ declare const ExistingShape: {
             present: boolean;
             diff: boolean;
             merge: boolean;
+            conflict: "fail" | "markers";
         };
         bin: {
             write: boolean;
@@ -248,6 +249,7 @@ declare const ExistingShape: {
             present: boolean;
             diff: boolean;
             merge: boolean;
+            conflict: "fail" | "markers";
         };
         bin: {
             write: boolean;
@@ -261,6 +263,7 @@ declare const ExistingShape: {
             present: boolean;
             diff: boolean;
             merge: boolean;
+            conflict: "fail" | "markers";
         };
         bin: {
             write: boolean;
@@ -275,6 +278,7 @@ declare const ExistingShape: {
             present: boolean;
             diff: boolean;
             merge: boolean;
+            conflict: "fail" | "markers";
         };
         bin: {
             write: boolean;
@@ -292,6 +296,9 @@ declare const ExistingShape: {
             readonly present: false;
             readonly diff: false;
             readonly merge: false;
+            readonly conflict: import("shape").Node<{
+                readonly literal$: "fail" | "markers";
+            }>;
         };
         readonly bin: {
             readonly write: true;

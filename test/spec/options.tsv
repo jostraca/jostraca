@@ -18,6 +18,11 @@ options-existing-txt-number	options	[{"existing":{"txt":5}}]	-	Jostraca Options:
 options-existing-txt-write-string	options	[{"existing":{"txt":{"write":"yes"}}}]	-	Jostraca Options (`existing` property): Validation failed for property "txt.write" with string "yes" because the string is not of type boolean.
 options-existing-txt-unknown	options	[{"existing":{"txt":{"bogus":1}}}]	-	Jostraca Options (`existing` property): Validation failed for property "txt" with object "{bogus:1}" because the property "bogus" is not allowed.
 options-existing-bin-diff	options	[{"existing":{"bin":{"diff":true}}}]	-	Jostraca Options (`existing` property): Validation failed for property "bin" with object "{diff:true}" because the property "diff" is not allowed.
+options-existing-txt-conflict-fail	options	[{"existing":{"txt":{"merge":true,"conflict":"fail"}}}]	"ok"	
+options-existing-txt-conflict-markers	options	[{"existing":{"txt":{"conflict":"markers"}}}]	"ok"	
+options-existing-txt-conflict-unknown	options	[{"existing":{"txt":{"conflict":"skip"}}}]	-	Jostraca Options (`existing` property): Value "skip" for property "txt.conflict" must be exactly one of: markers, fail
+options-existing-txt-conflict-number	options	[{"existing":{"txt":{"conflict":5}}}]	-	Jostraca Options (`existing` property): Value "5" for property "txt.conflict" must be exactly one of: markers, fail
+options-existing-bin-conflict	options	[{"existing":{"bin":{"conflict":"fail"}}}]	-	Jostraca Options (`existing` property): Validation failed for property "bin" with object "{conflict:fail}" because the property "conflict" is not allowed.
 options-folder-empty	options	[{"folder":""}]	-	Jostraca Options: Validation failed for property "folder" with string "" because an empty string is not allowed.
 options-folder-number	options	[{"folder":1}]	-	Jostraca Options: Validation failed for property "folder" with number "1" because the number is not of type string.
 options-debug-boolean	options	[{"debug":true}]	-	Jostraca Options: Validation failed for property "debug" with boolean "true" because the boolean is not of type string.

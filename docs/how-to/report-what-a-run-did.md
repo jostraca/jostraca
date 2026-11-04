@@ -62,8 +62,9 @@ Each array answers a different question:
 | `presented` | a `.new` sidecar was written |
 | `diffed` | the file was rewritten as a two-way diff |
 | `merged` | the file went through the merge engine: rewritten with the three-way result, or, when it still holds the markers of an earlier merge, left untouched and also listed in `conflicted` |
-| `conflicted` | the file carries conflict markers after the run |
+| `conflicted` | the file carries conflict markers after the run, or, under `conflict: 'fail'`, was left as it was because its merge conflicted |
 | `unchanged` | the bytes were already correct, so nothing was rewritten |
+| `unmerged` | merge was on and the file had no baseline to merge against, so it was overwritten, or left alone under `write: false` |
 
 `unchanged` is the one people miss. A byte-identical rewrite would bump
 the mtime and re-trigger every watcher downstream, so Jostraca skips it

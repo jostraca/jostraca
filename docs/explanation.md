@@ -181,7 +181,26 @@ in the base is somebody's edit, and anything the generator changed since
 the base is the generator's. Both are applied. Where they touch the same
 lines, conflict markers go in and the file is reported in
 `result.files.conflicted`, because guessing there would be worse than
-stopping.
+stopping. With `conflict: 'fail'` nothing goes in, and the run fails
+instead.
+
+That makes the base a claim about the file: the generate the file was
+last reconciled with. A base that runs ahead of the file is worse than
+no base, because the merge then reads the generator's own older lines
+as the user's edits and keeps them, without a conflict to say so. So
+the base moves only when a generate lands in the file. A file that was
+skipped, protected, given a `.new` sidecar, left holding the markers
+of an earlier merge, or refused by `conflict: 'fail'` keeps the base it
+had.
+
+A checkout can still put the file behind its base, because the base is
+git-ignored and the file is not. For the commonest case, a file nobody
+edited, Jostraca recognises the bytes as one of the file's own earlier
+generates and takes the new one whole. A file edited on an older branch
+cannot be recognised that way, which is the case for committing the
+base (see the next section). And a file with no base at all is never
+merged against a guess: it is listed as `unmerged`, then overwritten,
+left alone or failed, as the options say.
 
 Choosing the previous generate rather than, say, an empty file is what
 makes hand edits survivable. It also means the promise is narrower
@@ -252,9 +271,10 @@ It is gitignored by default, and that default is the arguable one. The
 case for ignoring it is that it is derived state whose only reader is
 the next run, and a diff of it on every commit is noise. The case
 against is that a colleague who clones the repository and regenerates
-has no base, so their first merge degrades to a two-way comparison.
-`control.version: true` switches it, and which one is right depends on
-whether your generator runs on one machine or many.
+has no base, so every file they have edited lands in `unmerged`, and that a
+checkout moves the file without moving its base. `control.version:
+true` switches it, and which one is right depends on whether your
+generator runs on one machine or many.
 
 ## Two implementations
 

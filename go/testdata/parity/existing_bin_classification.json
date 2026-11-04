@@ -44,7 +44,8 @@
     "conflicted": [
       "/out/p/readme.txt"
     ],
-    "unchanged": []
+    "unchanged": [],
+    "unmerged": []
   },
   "audit": [
     [

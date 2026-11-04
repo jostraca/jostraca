@@ -1241,6 +1241,9 @@ var phaseShapedCorpora = map[string]struct{}{
 	"audit_rerun":         {}, // covered by TestParityRuns
 	"audit_nested":        {}, // covered by TestParityRuns
 	"merge_unresolved":    {}, // covered by TestParityRuns
+	"merge_conflict_fail": {}, // covered by TestParityRuns
+	"merge_earlier":       {}, // covered by TestParityRuns
+	"merge_hold":          {}, // covered by TestParityRuns
 	"diff_corpus":         {}, // covered by TestDiffCorpusMatchesTS
 	"template_corpus":     {}, // covered by TestTemplateCorpusMatchesTS
 	"scenario_corpus":     {}, // covered by TestScenarioCorpusMatchesTS
@@ -1443,6 +1446,73 @@ var parityRuns = map[string][]parityStep{
 			{opts: opts, root: parityOne("a.txt", "A\ngen2\n")},
 		}
 	}(),
+	"merge_conflict_fail": func() []parityStep {
+		merge := true
+		opts := Options{Existing: Existing{Txt: ExistingTxt{Merge: &merge}}}
+		fail := Options{Existing: Existing{Txt: ExistingTxt{Merge: &merge, Conflict: ConflictFail}}}
+		three := func(a, b, c string) func(*J) {
+			return func(j *J) {
+				j.Project(ProjectProps{Folder: "app"}, func(j *J) {
+					j.File("a.txt", func(j *J) { j.Content(a) })
+					j.File("b.txt", func(j *J) { j.Content(b) })
+					if c != "" {
+						j.File("c.txt", func(j *J) { j.Content(c) })
+					}
+				})
+			}
+		}
+		return []parityStep{
+			{opts: opts, root: three("A\nB\nC\n", "b\n", "")},
+			{edit: func(m *MemFS) {
+				_ = m.WriteFile("/out/app/a.txt", []byte("A\nUSER\nC\n"))
+				_ = m.WriteFile("/out/app/c.txt", []byte("EDIT\n"))
+			}},
+			{opts: fail, root: three("A\nGEN\nC\n", "b2\n", "c\n")},
+			{edit: func(m *MemFS) { _ = m.WriteFile("/out/app/a.txt", []byte("A\nGEN\nC\n")) }},
+			{edit: func(m *MemFS) {
+				_ = m.WriteFile("/out/app/b.txt", []byte("<<<<<<< EXISTING: X/merge\nU\n"+
+					"=======\nb2\n>>>>>>> GENERATED: X/merge\n"))
+			}},
+			{opts: fail, root: three("A\nGEN\nC\n", "b3\n", "")},
+			{edit: func(m *MemFS) { _ = m.WriteFile("/out/app/b.txt", []byte("b2\n")) }},
+			{opts: fail, root: three("A\nGEN\nC\n", "b3\n", "")},
+		}
+	}(),
+	"merge_earlier": func() []parityStep {
+		merge := true
+		opts := Options{Existing: Existing{Txt: ExistingTxt{Merge: &merge}}}
+		return []parityStep{
+			{opts: opts, root: parityOne("a.txt", "A\nB\nC\n")},
+			{opts: opts, root: parityOne("a.txt", "A\nB2\nC\n")},
+			{edit: func(m *MemFS) { _ = m.WriteFile("/out/app/a.txt", []byte("A\nB\nC\n")) }},
+			{opts: opts, root: parityOne("a.txt", "A\nB2\nC\nD\n")},
+			{edit: func(m *MemFS) {
+				_ = m.Remove("/out/.jostraca/generated/app/a.txt")
+				_ = m.WriteFile("/out/app/a.txt", []byte("A\nB2\nC\n"))
+			}},
+			{opts: opts, root: parityOne("a.txt", "A\nB3\nC\nD\n")},
+			{edit: func(m *MemFS) { _ = m.WriteFile("/out/app/a.txt", []byte("A\nB3\nC\nD\nUSER\n")) }},
+			{opts: opts, root: parityOne("a.txt", "A\nB4\nC\nD\n")},
+		}
+	}(),
+	"merge_hold": func() []parityStep {
+		yes, no := true, false
+		merge := Options{Existing: Existing{Txt: ExistingTxt{Merge: &yes}}}
+		mergeNoWrite := Options{Existing: Existing{Txt: ExistingTxt{Merge: &yes, Write: &no}}}
+		return []parityStep{
+			{opts: merge, root: parityOne("a.txt", "A\n")},
+			{edit: func(m *MemFS) { _ = m.WriteFile("/out/app/a.txt", []byte("A\nJOSTRACA_PROTECT\n")) }},
+			{opts: merge, root: parityOne("a.txt", "B\n")},
+			{edit: func(m *MemFS) { _ = m.WriteFile("/out/app/a.txt", []byte("A\n")) }},
+			{opts: Options{Existing: Existing{Txt: ExistingTxt{Write: &no}}}, root: parityOne("a.txt", "C\n")},
+			{opts: Options{Existing: Existing{Txt: ExistingTxt{Write: &no, Present: &yes}}},
+				root: parityOne("a.txt", "D\n")},
+			{edit: func(m *MemFS) { _ = m.Remove("/out/.jostraca/generated/app/a.txt") }},
+			{opts: mergeNoWrite, root: parityOne("a.txt", "E\n")},
+			{opts: mergeNoWrite, root: parityOne("a.txt", "E\n")},
+			{opts: merge, root: parityOne("a.txt", "F\n")},
+		}
+	}(),
 }
 
 func TestParityRuns(t *testing.T) {
@@ -1454,8 +1524,9 @@ func TestParityRuns(t *testing.T) {
 			}
 			var want struct {
 				Runs []struct {
-					Files Files `json:"files"`
-					Audit []any `json:"audit"`
+					Files Files  `json:"files"`
+					Audit []any  `json:"audit"`
+					Error string `json:"error"`
 				} `json:"runs"`
 				Vol map[string]corpusBytes `json:"vol"`
 			}
@@ -1471,11 +1542,18 @@ func TestParityRuns(t *testing.T) {
 				}
 				res, err := New(WithFS(mem), WithFolder("/out"),
 					WithNow(func() int64 { return frozenNow })).Generate(st.opts, st.root)
-				if err != nil {
-					t.Fatal(err)
-				}
 				if i >= len(want.Runs) {
 					t.Fatalf("more generates than TS recorded")
+				}
+				// A run TS recorded as failing fails here with the same text,
+				// and the Result beside the error is held to TS's too.
+				if want.Runs[i].Error != "" {
+					var mce *MergeConflictError
+					if !errors.As(err, &mce) || err.Error() != want.Runs[i].Error {
+						t.Fatalf("run %d: error %v, TS: %s", i, err, want.Runs[i].Error)
+					}
+				} else if err != nil {
+					t.Fatal(err)
 				}
 				assertFiles(t, res.Files, want.Runs[i].Files)
 				assertAudit(t, res.Audit(), want.Runs[i].Audit)

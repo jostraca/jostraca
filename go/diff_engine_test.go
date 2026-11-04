@@ -311,7 +311,7 @@ func TestEmptyKindAndLabelsAreUnset(t *testing.T) {
 	}
 	res := Merge("X\n", "A\n", "A\n>>>>>>> \n", DiffSpec{Labels: &DiffLabels{Existing: ""}})
 	if res.Outcome != MergeMerged || !strings.HasSuffix(res.Content,
-		">>>>>>> \n>>>>>>> EXISTING: 1970-01-01T00:00:00.000Z/merge\n") {
+		"A\n>>>>>>> \n=======\nX\n>>>>>>> GENERATED: 1970-01-01T00:00:00.000Z/merge\n") {
 		t.Errorf("merge = %s %q", res.Outcome, res.Content)
 	}
 }
@@ -341,22 +341,38 @@ func TestLabelsExtendedYearsAndRange(t *testing.T) {
 	}
 }
 
+// Twin of 'has-conflicts' in ts/test/diff.test.ts.
 func TestHasConflicts(t *testing.T) {
-	if HasConflicts("plain\n") {
-		t.Error("plain text should not report conflicts")
+	for _, c := range []struct {
+		name   string
+		text   string
+		labels DiffLabels
+		want   bool
+	}{
+		{"plain", "plain\n", DiffLabels{}, false},
+		// A conflict as a merge writes it, and as one before 0.41 did.
+		{"current order", "<<<<<<< EXISTING: X/merge\na\n=======\nb\n" +
+			">>>>>>> GENERATED: X/merge\n", DiffLabels{}, true},
+		{"older order", "a\n>>>>>>> EXISTING: X/merge\n", DiffLabels{}, true},
+		// Half-resolved, whichever marker was removed: still unresolved, so
+		// it must not be re-merged.
+		{"closing generated", "a\n=======\nb\n>>>>>>> GENERATED: X/merge\n", DiffLabels{}, true},
+		{"opening existing", "<<<<<<< EXISTING: X/merge\na\n=======\nb\n", DiffLabels{}, true},
+		{"closing existing", "a\n=======\nb\n>>>>>>> EXISTING: X/merge\n", DiffLabels{}, true},
+		// Diff markers are jostraca's markers too, on either side.
+		{"diff block", "<<<<<<< GENERATED: X/diff\na\n>>>>>>> GENERATED: X/diff\n", DiffLabels{}, true},
+		// A marker counts only at the start of a line.
+		{"mid line", "quoted <<<<<<< EXISTING: X/merge\n", DiffLabels{}, false},
+		// Custom labels, on either side.
+		{"custom generated", "a\n>>>>>>> G\n", DiffLabels{Generated: "G"}, true},
+		{"custom existing", "<<<<<<< E\na\n", DiffLabels{Existing: "E"}, true},
+	} {
+		if got := HasConflictsLabels(c.text, c.labels); got != c.want {
+			t.Errorf("%s: HasConflictsLabels = %v, want %v", c.name, got, c.want)
+		}
 	}
-	if !HasConflicts("a\n>>>>>>> EXISTING: X/merge\n") {
-		t.Error("closing EXISTING marker should report a conflict")
-	}
-	// Half-resolved: the opening marker was removed but not the closing one.
-	// Still unresolved, so it must not be re-merged.
-	if !HasConflicts("a\n=======\nb\n>>>>>>> EXISTING: X/merge\n") {
-		t.Error("half-resolved file should still report a conflict")
-	}
-	// A GENERATED marker alone is what a diff render emits, not an
-	// unresolved merge.
-	if HasConflicts("<<<<<<< GENERATED: X/diff\na\n>>>>>>> GENERATED: X/diff\n") {
-		t.Error("diff markers are not an unresolved merge")
+	if !HasConflictsLabel("<<<<<<< E\na\n", "E") || HasConflictsLabel("a\n>>>>>>> G\n", "E") {
+		t.Error("a string label is the existing label alone")
 	}
 }
 
@@ -430,7 +446,7 @@ func TestMergeConflict(t *testing.T) {
 	if !res.Conflict || res.Outcome != MergeMerged {
 		t.Fatalf("expected a merged conflict, got %+v", res)
 	}
-	eq(t, "content", res.Content, "a\n<<<<<<< G\nNEW\n=======\nUSER\n>>>>>>> E\nc\n")
+	eq(t, "content", res.Content, "a\n<<<<<<< E\nUSER\n=======\nNEW\n>>>>>>> G\nc\n")
 }
 
 // Insertions in front of a shared anchor line.
@@ -456,7 +472,7 @@ func TestMergeInsertionsBeforeAnchor(t *testing.T) {
 	if !res.Conflict {
 		t.Errorf("expected conflict, got %q", res.Content)
 	}
-	eq(t, "conflicting inserts", res.Content, "<<<<<<< G\nX\n=======\nY\n>>>>>>> E\nanchor\n")
+	eq(t, "conflicting inserts", res.Content, "<<<<<<< E\nY\n=======\nX\n>>>>>>> G\nanchor\n")
 }
 
 // Appends after the last shared line exercise the tail branch.
@@ -483,7 +499,7 @@ func TestMergeTail(t *testing.T) {
 	if !res.Conflict {
 		t.Errorf("expected conflict, got %q", res.Content)
 	}
-	eq(t, "conflicting appends", res.Content, "a\n<<<<<<< G\nX\n=======\nY\n>>>>>>> E\n")
+	eq(t, "conflicting appends", res.Content, "a\n<<<<<<< E\nY\n=======\nX\n>>>>>>> G\n")
 }
 
 // An empty baseline has no anchors at all, so the whole thing is one region.
@@ -493,7 +509,7 @@ func TestMergeEmptyBaseline(t *testing.T) {
 	if !res.Conflict {
 		t.Errorf("expected conflict, got %q", res.Content)
 	}
-	eq(t, "content", res.Content, "<<<<<<< G\nX\n=======\nY\n>>>>>>> E\n")
+	eq(t, "content", res.Content, "<<<<<<< E\nY\n=======\nX\n>>>>>>> G\n")
 }
 
 // A conflicting region whose last line has no trailing newline: the closing
@@ -501,7 +517,7 @@ func TestMergeEmptyBaseline(t *testing.T) {
 func TestMergeConflictWithoutTrailingNewline(t *testing.T) {
 	L := DiffSpec{Labels: &DiffLabels{Generated: "G", Existing: "E"}}
 	res := Merge("X", "", "Y", L)
-	eq(t, "content", res.Content, "<<<<<<< G\nX\n=======\nY\n>>>>>>> E\n")
+	eq(t, "content", res.Content, "<<<<<<< E\nY\n=======\nX\n>>>>>>> G\n")
 }
 
 // A deletion by the user, in a region the generator did not touch, must
@@ -579,7 +595,7 @@ func TestMergeConflictAlwaysMarked(t *testing.T) {
 		if !res.Conflict {
 			continue
 		}
-		for _, want := range []string{"<<<<<<< G\n", "=======\n", ">>>>>>> E\n"} {
+		for _, want := range []string{"<<<<<<< E\n", "=======\n", ">>>>>>> G\n"} {
 			if !strings.Contains(res.Content, want) {
 				t.Fatalf("conflict missing %q\n out=%q", want, res.Content)
 			}
@@ -790,7 +806,7 @@ func TestLargeRegionsDoNotOverflow(t *testing.T) {
 		}
 	}
 	const (
-		s1 = "d062790b21f6b3c2541c4dadd78cb4ce982cddde3d4b3872af398ecd703c033a"
+		s1 = "1f4ccb7888d87fb2fd02ac8a578b7725196df8005cb927dbb6f91008b68e70f6"
 		s2 = "fb1363f2a2c668d0daae627b7f603a599eff8b4bf034b4005978ae27a5475d2f"
 		s3 = "3786ede66f5c65bab821eb7dcb1d5b56d3d0f2ae0349fe6adcc3e93b4b1e4586"
 	)
@@ -808,11 +824,11 @@ func TestLargeRegionsDoNotOverflow(t *testing.T) {
 			return string(r.Outcome), r.Conflict, r.Content
 		}, "changed", true, 1488934, "587be7b2d4bdcfd0ae57fba1f79691f9a6417a162f3f96a961cf0c26536e429b"},
 		{"merge-region", merge("head\n"+big, "head\n", "head\nuser\n"),
-			"merged", true, 1488928, "155c3e5904be5bbcc6832326f829de7185aa0ab2c18c8b4cbcc63cdc4fd0a989"},
+			"merged", true, 1488928, "706a9905edefd6ea6550d1f83f52da6a8b2cb636528c50cbc8d53e68a74d50fc"},
 		{"merge-tail", merge(big, "", other),
-			"merged", true, 2977808, "517c79d677a06d856a708162ddbb3464e5623880e03f36fed0dd0daff725c671"},
+			"merged", true, 2977808, "3b993454d073c8c6aea359efd84937fc308c42e98245fa116c790c09418efbcf"},
 		{"merge-existing-grows", merge("head\n", "head\nz\n", "head\n"+big),
-			"merged", true, 1488923, "4b8d814bf4729e2274186dd99422f0b97c04277198b42e56ed920f6bd9e979a8"},
+			"merged", true, 1488923, "ac62bdd391c5a3f501fb92e6568b403ac1c671534c9c190e0a42a3f9477b5114"},
 
 		// The merge's three copy paths, each carrying one big run with no
 		// conflict or the same run on both sides: an anchor, a region and
@@ -830,7 +846,7 @@ func TestLargeRegionsDoNotOverflow(t *testing.T) {
 		{"region-both", merge("a\n"+big+"b\nG\n", "a\nX\nb\nc\n", "a\n"+big+"b\nE\n"),
 			"merged", true, 1488926, s1},
 		{"tail-both", merge("G\na\n"+big, "a\n", "E\na\n"+big),
-			"merged", true, 1488924, "20c311d84dad6acb7f4c8ce8e58328b5daa6b8510b046e707f6d6739efa8fc39"},
+			"merged", true, 1488924, "5d5925260799bc7ae55ad4fa50ea10b1e497555f10637818eb19007a17ef9fc6"},
 		{"tail-existing", merge("G\na\n", "a\n", "a\n"+big),
 			"merged", false, 1488894, "265226e32a1d87ec609b5c96c9ea5d4fa1e09960ca7fe8e249b6424ba9d5b29c"},
 		{"tail-generated", merge("a\n"+big, "a\n", "E\na\n"),

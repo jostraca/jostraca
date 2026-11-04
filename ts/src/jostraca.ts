@@ -8,7 +8,7 @@ import * as Fs from 'node:fs'
 
 import { AsyncLocalStorage } from 'node:async_hooks'
 
-import { Shape, Skip, One, Child, Empty, Nullable, Fault, Check } from 'shape'
+import { Shape, Skip, One, Child, Empty, Nullable, Fault, Check, Default, Exact } from 'shape'
 
 import { memfs as MemFs } from './util/memfs'
 
@@ -214,6 +214,9 @@ const ExistingShape = Shape({
     present: false, // Present the new file using .new. name annotation.
     diff: false, // Annotated 2-way diff of new generate and existing file.
     merge: false, // Annotated 3-way merge of new generate and existing file.
+    // What a merge that cannot land does: write the conflict markers into
+    // the file, or leave the file as it is and fail the run.
+    conflict: Default('markers', Exact('markers', 'fail')),
   },
   bin: {
     write: true, // Overwrite existing files (unless present=true).
@@ -318,6 +321,31 @@ const CONTROL_DEFAULTS = {
   dryrun: false,
   duplicate: true,
   version: false,
+}
+
+
+// The words a merge failure gives each reason.
+const MERGE_FAILURE_REASON: Record<string, string> = {
+  conflict: 'conflict',
+  unresolved: 'unresolved conflict markers',
+  nobase: 'no baseline',
+}
+
+
+// What `existing.txt.conflict: 'fail'` raises. Every file named was left
+// as it was, with its baseline where it was, so the same run fails the
+// same way until the conflicts are dealt with. `conflicts` lists them and
+// `result` is the run's own result. Go's MergeConflictError carries the
+// same text.
+function mergeConflictError(
+  failures: { path: string, reason: string }[],
+  result: JostracaResult
+): Error {
+  const err: any = new Error('jostraca: 3-way merge produced conflicts, left unchanged: ' +
+    failures.map((f) => f.path + ' (' + MERGE_FAILURE_REASON[f.reason] + ')').join(', '))
+  err.conflicts = failures.map((f) => ({ ...f }))
+  err.result = result
+  return err
 }
 
 
@@ -487,6 +515,13 @@ function Jostraca(gopts_in?: JostracaOptions | {}) {
           log.debug({ point: 'jostraca-warning', dlogentry, note: String(dlogentry) })
         }
       }
+
+      // Raised once the build is done, so every other file is already
+      // written and the meta log records the run.
+      if (0 < buildctx.fh.failures.length) {
+        throw mergeConflictError(buildctx.fh.failures, res)
+      }
+
       return res
     })
   }

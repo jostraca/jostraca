@@ -15,11 +15,16 @@ func init() {
 			"outcome": string(r.Outcome)}, nil
 	}
 	specFns["hasConflicts"] = func(a []any) (any, error) {
-		label := ""
 		if 1 < len(a) {
-			label = specStr(a[1])
+			if lb, ok := a[1].(map[string]any); ok {
+				return HasConflictsLabels(specStr(a[0]), DiffLabels{
+					Generated: specStr(lb["generated"]),
+					Existing:  specStr(lb["existing"]),
+				}), nil
+			}
+			return HasConflictsLabel(specStr(a[0]), specStr(a[1])), nil
 		}
-		return HasConflictsLabel(specStr(a[0]), label), nil
+		return HasConflicts(specStr(a[0])), nil
 	}
 }
 

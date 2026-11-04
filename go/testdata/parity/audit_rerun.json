@@ -12,7 +12,8 @@
         "diffed": [],
         "merged": [],
         "conflicted": [],
-        "unchanged": []
+        "unchanged": [],
+        "unmerged": []
       },
       "audit": [
         [
@@ -127,7 +128,8 @@
         ],
         "unchanged": [
           "/out/app/sub/b.txt"
-        ]
+        ],
+        "unmerged": []
       },
       "audit": [
         [
@@ -288,7 +290,7 @@
             "path": "/out/.jostraca/jostraca.meta.log",
             "when": 1735689600000,
             "existed": true,
-            "size": 670
+            "size": 790
           }
         ],
         [
@@ -296,7 +298,7 @@
           {
             "path": "/out/.jostraca/jostraca.meta.log",
             "when": 1735689600000,
-            "size": 670
+            "size": 790
           }
         ],
         [
@@ -320,7 +322,8 @@
         "diffed": [],
         "merged": [],
         "conflicted": [],
-        "unchanged": []
+        "unchanged": [],
+        "unmerged": []
       },
       "audit": [
         [
@@ -336,7 +339,7 @@
           {
             "path": "/out/.jostraca/jostraca.meta.log",
             "when": 1735689600000,
-            "size": 670
+            "size": 790
           }
         ],
         [
@@ -344,7 +347,7 @@
           {
             "path": "/out/.jostraca/jostraca.meta.log",
             "when": 1735689600000,
-            "size": 670
+            "size": 790
           }
         ],
         [
@@ -459,7 +462,8 @@
         ],
         "unchanged": [
           "/out/app/sub/b.txt"
-        ]
+        ],
+        "unmerged": []
       },
       "audit": [
         [
@@ -589,7 +593,7 @@
     }
   ],
   "vol": {
-    "/out/app/a.txt": "L1\n<<<<<<< EXISTING: 2025-01-01T00:00:00.000Z/diff\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\nG\n=======\nU\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/diff\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/diff\nG3\n>>>>>>> GENERATED: 2025-01-01T00:00:00.000Z/diff\nL3\n",
+    "/out/app/a.txt": "L1\n<<<<<<< EXISTING: 2025-01-01T00:00:00.000Z/diff\n<<<<<<< EXISTING: 2025-01-01T00:00:00.000Z/merge\nU\n=======\nG\n>>>>>>> GENERATED: 2025-01-01T00:00:00.000Z/merge\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/diff\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/diff\nG3\n>>>>>>> GENERATED: 2025-01-01T00:00:00.000Z/diff\nL3\n",
     "/out/app/sub/b.txt": "B\n",
     "/out/app/a.old.txt": "L1\nU\nL3\n",
     "/out/app/a.new.txt": "L1\nG2\nL3\n",

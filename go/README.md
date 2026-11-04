@@ -237,9 +237,14 @@ type Result struct {
 
 // Every category is non-nil, and the JSON keys are the TS ones.
 type Files struct {
-    Preserved, Written, Presented, Diffed, Merged, Conflicted, Unchanged []string
+    Preserved, Written, Presented, Diffed, Merged, Conflicted, Unchanged, Unmerged []string
 }
 ```
+
+With `Existing.Txt.Conflict` set to `ConflictFail`, a merge that cannot
+land leaves its file as it was, and `Generate` returns the `Result` with
+a `*MergeConflictError` that wraps `ErrMergeConflict` and lists each file
+in `Conflicts`.
 
 ### Template surface
 
@@ -253,7 +258,8 @@ a lookahead or a lookbehind is rejected at compile time with
 
 ### Diff and merge
 
-`Diff`, `Merge`, `HasConflicts`, `Lines`, `LCS`, `AlignLCS`, and `Hunks` in
+`Diff`, `Merge`, `HasConflicts`, `HasConflictsLabel`, `HasConflictsLabels`,
+`Lines`, `LCS`, `AlignLCS`, and `Hunks` in
 `diff.go` are jostraca's own engine, mirroring `ts/src/diff.ts`
 function-for-function so both stacks produce byte-identical output. The Go
 shape uses `DiffSpec{When, Last, Kind, Labels}` in place of the options
@@ -262,8 +268,8 @@ extended years included, and an empty `Kind` or label means the default
 in both stacks. `testdata/parity/diff_corpus.json` records TS's exact
 output for 1,190 merge/diff cases; `TestDiffCorpusMatchesTS` replays
 them through Go and asserts byte equality. `test/spec/diff.tsv` runs
-`Merge`, `Diff` and `HasConflictsLabel` through both stacks for the
-label rules. Both stacks hold `diff.go`/`diff.ts` at 100%
+`Merge`, `Diff` and `HasConflicts` through both stacks for the label and
+marker rules. Both stacks hold `diff.go`/`diff.ts` at 100%
 coverage, gated by `./check_diff_coverage.sh` and `npm run
 test-diff-coverage`.
 

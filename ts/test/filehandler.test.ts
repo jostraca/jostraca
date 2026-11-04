@@ -680,7 +680,7 @@ describe('filehandler', () => {
       expect({ last, merged: res.files.merged, conflicted: res.files.conflicted })
         .equal({ last, merged: ['/out/a.txt'], conflicted: ['/out/a.txt'] })
       const text = fs.readFileSync('/out/a.txt', 'utf8')
-      expect({ last, label: text.includes('>>>>>>> EXISTING: 1969-12-31T23:59:59.999Z/merge') })
+      expect({ last, label: text.includes('<<<<<<< EXISTING: 1969-12-31T23:59:59.999Z/merge') })
         .equal({ last, label: true })
     }
   })
@@ -769,7 +769,9 @@ describe('filehandler', () => {
   // The merge engine decides the outcome. A clean merge over a file whose
   // generated text contains the marker sentinel is written; a file still
   // holding an earlier merge's markers is left byte-for-byte untouched, a
-  // requested mode still applied, and reported merged AND conflicted.
+  // requested mode still applied, and reported merged AND conflicted. Its
+  // baseline stays at the generate the markers came from, which is what
+  // the user resolves against.
   test('merge-marker-files', async () => {
     const merge = { txt: { merge: true } }
 
@@ -828,7 +830,7 @@ describe('filehandler', () => {
           expect(Fs.statSync(a).mode & 0o777).equal(mode)
         }
         expect(Fs.readFileSync(Path.join(out, '.jostraca', 'generated', 'a.txt'), 'utf8'))
-          .equal('A\ngen2\n')
+          .equal('A\ngen\n')
       }
 
       // (5) diff-mode markers followed by a merge run.

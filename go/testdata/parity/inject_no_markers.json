@@ -14,7 +14,8 @@
     "conflicted": [],
     "unchanged": [
       "/out/app/foo.txt"
-    ]
+    ],
+    "unmerged": []
   },
   "audit": [
     [

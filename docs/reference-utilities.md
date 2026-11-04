@@ -619,8 +619,8 @@ existing-file modes. `go/diff.go` mirrors it closely: the 1200-case
 corpus in `go/testdata/parity/diff_corpus.json` holds the two stacks to
 the same output, and the rows in `test/spec/diff.tsv` hold them to the
 same labels. The one difference is in shape: `hasConflicts` is one
-function in TypeScript and two in Go, `HasConflicts` and
-`HasConflictsLabel`.
+function in TypeScript and three in Go, `HasConflicts`,
+`HasConflictsLabel` and `HasConflictsLabels`.
 
 ### `DiffUtil.merge(generated, baseline, existing, spec?)`
 
@@ -635,11 +635,25 @@ was taken, so a caller need not re-derive it:
 |---|---|---|
 | `same` | the file on disk already equals the new generate | `existing` |
 | `clean` | the file is untouched since the last generate | `generated` |
-| `unresolved` | the file still holds markers from an earlier merge | `existing`, untouched |
+| `unresolved` | the file still holds conflict markers | `existing`, untouched |
 | `merged` | a real three-way merge ran | the merged text |
 
 The first three are fast paths, each semantically identical to running
 the full merge and each skipping the quadratic core.
+
+A conflict is written existing side first, as git writes one, so an
+editor's "accept current" keeps the existing lines:
+
+<!-- test: skip the marker layout, quoted for shape; merge output is pinned by test/spec/diff.tsv -->
+```text
+<<<<<<< EXISTING: <last>/merge
+the lines on disk
+=======
+the lines just generated
+>>>>>>> GENERATED: <when>/merge
+```
+
+Before 0.41 the generated side came first.
 
 `spec` takes `when`, `last` and `kind` for the marker labels, or
 `labels` to override either side outright. `kind` defaults to `merge`
@@ -673,20 +687,22 @@ The two marker layouts differ, and the difference is not cosmetic—see
 [the options reference](reference-options.md#each-mode) for both,
 generated from real runs.
 
-### `DiffUtil.hasConflicts(text, existingLabel?)`
+### `DiffUtil.hasConflicts(text, labels?)`
 
-Whether the text still holds an unresolved conflict. Keyed on the
-closing `EXISTING` marker alone, so a half-resolved file (opening
-marker removed, closing one left) still counts.
+Whether the text still holds an unresolved conflict. Any one marker
+line counts, opening or closing, on either side, in the current order
+or the one before 0.41, and from `diff` as well as `merge`. So a
+half-resolved file still counts whichever marker was removed. A marker
+counts only at the start of a line.
 
 The second argument is easy to miss, and missing it costs you the
-check. Without it the check matches only the default
-`>>>>>>> EXISTING:` sentinel, so a
-conflict written under a custom `labels.existing` is not recognised,
-and the next merge nests a fresh set of markers inside the old ones.
-Pass the same `existingLabel` you passed to `merge`. An empty
-`existingLabel` is the same as none: only the default sentinel is
-checked, so a bare `>>>>>>> ` line is not a conflict.
+check. Without it the check matches only the default `EXISTING:` and
+`GENERATED:` markers, so a conflict written under custom labels is not
+recognised, and the next merge nests a fresh set of markers inside the
+old ones. Pass the same `labels` you passed to `merge`; a string is
+taken as the existing label alone. A custom label matches only as a
+whole marker line, and an empty one is the same as none, so a bare
+`>>>>>>> ` line is not a conflict.
 
 ### Primitives
 
@@ -711,10 +727,9 @@ exception: `Hunk`, the element type `hunks` returns, is not exported.
   in it, and the cost then grows with the square of the file. Measured
   on this engine, the gap between the two reaches three orders of
   magnitude before 10 000 lines.
-- **A `diff` render blocks a later `merge`.** The closing marker of a
-  deletion block is `>>>>>>> EXISTING: <timestamp>/diff`, which carries
-  the same sentinel an unresolved merge does. Point `merge` at that
-  file and it reports `unresolved` and declines to touch it. Clear the
+- **A `diff` render blocks a later `merge`.** Its blocks open and
+  close on the same markers a merge conflict uses, so `merge` pointed
+  at that file reports `unresolved` and declines to touch it. Clear the
   diff markers by hand before switching a file between the two modes.
 - Conflict markers always start their own line, including when the last
   line of a region has no trailing newline.

@@ -211,9 +211,9 @@ describe('control', () => {
       const r = await run({ txt: { merge: true } }, { txt: { preserve: true } },
         'L1\nL2\nL3\n', 'L1\nUSER\nL3\n', 'L1\nGEN\nL3\n')
       expect(r.text).equal('L1\n' +
-        '<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\n' +
-        'GEN\n=======\nUSER\n' +
-        '>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n' +
+        '<<<<<<< EXISTING: 2025-01-01T00:00:00.000Z/merge\n' +
+        'USER\n=======\nGEN\n' +
+        '>>>>>>> GENERATED: 2025-01-01T00:00:00.000Z/merge\n' +
         'L3\n')
       expect(r.files.merged).equal(['/out/a.txt'])
       expect(r.files.conflicted).equal(['/out/a.txt'])

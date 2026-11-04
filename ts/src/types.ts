@@ -76,6 +76,7 @@ type JostracaResult = {
     merged: string[],
     conflicted: string[],
     unchanged: string[],
+    unmerged: string[],
   }
   audit: () => Audit[]
 

@@ -22,7 +22,8 @@
     "conflicted": [
       "/out/app/a.txt"
     ],
-    "unchanged": []
+    "unchanged": [],
+    "unmerged": []
   },
   "audit": [
     [

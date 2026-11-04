@@ -3,6 +3,7 @@ package jostraca
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -43,6 +44,9 @@ type fileHandler struct {
 
 	// filelogged holds, per files kind, the paths already listed.
 	filelogged map[string]map[string]struct{}
+
+	// failures are the files a ConflictFail merge left as they were.
+	failures []MergeConflict
 }
 
 const protectMarker = "JOSTRACA_PROTECT"
@@ -61,6 +65,19 @@ var mergeWhy = map[MergeOutcome]string{
 	MergeMerged:     "merge-run-0",
 }
 
+// fingerprintHistory is how many of a file's generates its meta entry
+// remembers, newest last.
+//
+// MUST match FINGERPRINT_HISTORY in ts/src/build/FileHandler.ts.
+const fingerprintHistory = 8
+
+// fingerprint is a generate's fingerprint: the first 16 hex digits of its
+// SHA-256, which is plenty to tell one file's generates apart.
+func fingerprint(b []byte) string {
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:])[:16]
+}
+
 // modeBits collapses the per-file mode booleans for one save call.
 type modeBits struct {
 	write    bool
@@ -68,6 +85,9 @@ type modeBits struct {
 	present  bool
 	diff     bool
 	merge    bool
+
+	// conflictFail is a text option: Existing.Bin has no merge.
+	conflictFail bool
 }
 
 func boolOr(p *bool, def bool) bool {
@@ -85,6 +105,8 @@ func (fh *fileHandler) modesFor(isText bool) modeBits {
 			present:  boolOr(fh.existing.Txt.Present, false),
 			diff:     boolOr(fh.existing.Txt.Diff, false),
 			merge:    boolOr(fh.existing.Txt.Merge, false),
+
+			conflictFail: fh.existing.Txt.Conflict == ConflictFail,
 		}
 	}
 	return modeBits{
@@ -246,6 +268,11 @@ func (fh *fileHandler) saveAs(
 	unchanged := false
 	final := false
 
+	// landed says the file now holds this generate: written, already equal,
+	// merged (markers and all) or diffed. Only then does the baseline move
+	// on to it. Mirrors `landed` in TS save().
+	landed := false
+
 	if exists {
 		why = append(why, "exists-0")
 
@@ -258,6 +285,9 @@ func (fh *fileHandler) saveAs(
 		protect := bytes.Contains(existing, []byte(protectMarker))
 		meta.Protect = protect
 		unchanged = bytes.Equal(existing, content)
+
+		// Equal bytes hold the generate whatever the mode does with them.
+		landed = unchanged
 
 		if modes.preserve {
 			why = append(why, "preserve-0")
@@ -306,6 +336,7 @@ func (fh *fileHandler) saveAs(
 					if err := fh.saveFile(p, []byte(rendered), mode, whence+"diff"); err != nil {
 						return err
 					}
+					landed = true
 					fh.filelog("diffed", p)
 					meta.Conflict = rendered != string(content)
 					if meta.Conflict {
@@ -321,11 +352,14 @@ func (fh *fileHandler) saveAs(
 						why = append(why, "chmod-0")
 					}
 					fh.filelog("unchanged", p)
+					landed = true
 				}
 			} else if modes.merge {
 				why = append(why, "merge-0")
 				if !unchanged {
 					why = append(why, "content-3")
+					var baseline []byte
+					hasBase := false
 					if fh.control.Duplicate() {
 						why = append(why, "duplicate-0")
 						dpath := path.Join(fh.duplicateFolder, rpath)
@@ -333,15 +367,41 @@ func (fh *fileHandler) saveAs(
 						if err != nil {
 							return err
 						}
-						// No baseline: fall through to the write check, as TS
-						// does.
 						if has {
 							why = append(why, "dupexists-0")
-							write = false
-							if err := fh.saveMerge(p, content, existing, dpath, whence, mode, meta, &why); err != nil {
+							if baseline, err = fh.loadFile(dpath, ""); err != nil {
 								return err
 							}
-							record("merge")
+							hasBase = true
+						}
+					}
+
+					// A file that is byte for byte one of its own earlier
+					// generates holds nobody's edit, whatever the baseline
+					// says: a checkout put an older generate back while the
+					// git-ignored baseline stayed ahead. Mirrors TS save().
+					earlier := (!hasBase || !bytes.Equal(baseline, existing)) &&
+						hasFingerprint(fh.bmeta.priorFingerprints(rpath), fingerprint(existing))
+
+					if hasBase || earlier {
+						write = false
+						merged, err := fh.saveMerge(p, content, existing, baseline, earlier,
+							whence, mode, meta, &why, modes.conflictFail)
+						if err != nil {
+							return err
+						}
+						landed = merged
+						record("merge")
+					} else {
+						// Nothing to merge against, so the file cannot be told
+						// apart from an edit. It is listed: `write` overwrites it,
+						// no `write` leaves it, and ConflictFail fails the run.
+						why = append(why, "merge-nobase-0")
+						fh.filelog("unmerged", p)
+						if modes.conflictFail {
+							why = append(why, "conflict-fail-0")
+							write = false
+							fh.failures = append(fh.failures, MergeConflict{Path: p, Reason: "nobase"})
 						}
 					}
 				} else {
@@ -353,6 +413,7 @@ func (fh *fileHandler) saveAs(
 						why = append(why, "chmod-0")
 					}
 					fh.filelog("unchanged", p)
+					landed = true
 				}
 			}
 		}
@@ -379,6 +440,7 @@ func (fh *fileHandler) saveAs(
 		meta.Actions = append(meta.Actions, "write")
 		fh.whenify(meta)
 		final = true
+		landed = true
 	} else if len(meta.Actions) == 0 {
 		// A protected or write-disabled file is not "preserved" or
 		// "unchanged"; it simply was not acted on.
@@ -394,8 +456,12 @@ func (fh *fileHandler) saveAs(
 		// Only inside the output folder, and never the meta log itself.
 		if within && path.Base(p) != metaFilename {
 			why = append(why, "within-0")
-			if err := fh.writeDuplicate(rpath, content); err != nil {
-				return err
+			if landed {
+				if err := fh.writeDuplicate(rpath, content); err != nil {
+					return err
+				}
+			} else {
+				why = append(why, "hold-0")
 			}
 		}
 	}
@@ -406,8 +472,46 @@ func (fh *fileHandler) saveAs(
 		fh.decision(dtag, meta, why, p)
 	}
 
+	// The generates that landed, newest last, so a later merge can tell an
+	// earlier one put back from an edit. Recorded after every decision
+	// record, so the audit never carries them.
+	if modes.merge {
+		prior := fh.bmeta.priorFingerprints(rpath)
+		if landed {
+			prior = withFingerprint(prior, fingerprint(content))
+		}
+		meta.Fingerprints = prior
+		meta.HasFingerprints = true
+	}
+
 	fh.bmeta.add(meta)
 	return nil
+}
+
+// hasFingerprint reports whether fp is among fps.
+func hasFingerprint(fps []string, fp string) bool {
+	for _, f := range fps {
+		if f == fp {
+			return true
+		}
+	}
+	return false
+}
+
+// withFingerprint is fps with fp moved or added to the end, keeping the
+// newest fingerprintHistory.
+func withFingerprint(fps []string, fp string) []string {
+	out := make([]string, 0, len(fps)+1)
+	for _, f := range fps {
+		if f != fp {
+			out = append(out, f)
+		}
+	}
+	out = append(out, fp)
+	if len(out) > fingerprintHistory {
+		out = out[len(out)-fingerprintHistory:]
+	}
+	return out
 }
 
 func pick(b bool, yes, no string) string {
@@ -475,44 +579,59 @@ func (fh *fileHandler) withinFolder(p string) bool {
 	return p == fh.folder || strings.HasPrefix(p, fh.folder+"/")
 }
 
-// saveMerge runs a 3-way merge using the duplicate-folder baseline at
-// dpath as the common ancestor. The caller only dispatches here when the
-// baseline exists.
+// saveMerge runs a 3-way merge using the duplicate-folder baseline as the
+// common ancestor, or, for a file that is one of its own earlier generates,
+// takes the generate whole. It reports whether the generate landed.
 //
 // The diff engine decides the outcome; this never pre-empts it. A file
-// still holding an earlier merge's markers (MergeUnresolved) is left
-// byte-for-byte untouched, a requested mode still applied, and reported
-// merged AND conflicted, as TS does. A clean merge over a file whose
-// generated text happens to contain the marker sentinel is written.
+// still holding markers (MergeUnresolved) is left byte-for-byte untouched,
+// a requested mode still applied, and reported merged AND conflicted, as TS
+// does. Under conflictFail a conflict or unresolved file is left as it was
+// and recorded as a failure. A clean merge over a file whose generated text
+// happens to contain the marker sentinel is written.
 func (fh *fileHandler) saveMerge(
-	p string, content, existing []byte, dpath, whence string, mode fs.FileMode,
-	meta *metaEntry, why *[]string,
-) error {
-	baseline, err := fh.loadFile(dpath, "")
-	if err != nil {
-		return err
+	p string, content, existing, baseline []byte, earlier bool, whence string,
+	mode fs.FileMode, meta *metaEntry, why *[]string, conflictFail bool,
+) (bool, error) {
+	var res MergeResult
+	if earlier {
+		*why = append(*why, "merge-earlier-0")
+		res = MergeResult{Content: string(content), Outcome: MergeClean}
+	} else {
+		res = Merge(string(content), string(baseline), string(existing), DiffSpec{
+			When: fh.when,
+			Last: fh.bmeta.last(),
+			Kind: "merge",
+		})
+		*why = append(*why, mergeWhy[res.Outcome])
 	}
-	res := Merge(string(content), string(baseline), string(existing), DiffSpec{
-		When: fh.when,
-		Last: fh.bmeta.last(),
-		Kind: "merge",
-	})
-	*why = append(*why, mergeWhy[res.Outcome])
 
 	unresolved := res.Outcome == MergeUnresolved
-	if unresolved {
+	conflict := res.Conflict || unresolved
+	landed := false
+	if conflict && conflictFail {
+		*why = append(*why, "conflict-fail-0")
+		reason := "conflict"
+		if unresolved {
+			reason = "unresolved"
+		}
+		fh.failures = append(fh.failures, MergeConflict{Path: p, Reason: reason})
+	} else if unresolved {
 		if fh.chmodUnchanged(p, mode) {
 			*why = append(*why, "chmod-0")
 		}
-	} else if err := fh.saveFile(p, []byte(res.Content), mode, whence+"merge"); err != nil {
-		return err
+	} else {
+		if err := fh.saveFile(p, []byte(res.Content), mode, whence+"merge"); err != nil {
+			return false, err
+		}
+		landed = true
 	}
 	fh.filelog("merged", p)
-	meta.Conflict = res.Conflict || unresolved
+	meta.Conflict = conflict
 	if meta.Conflict {
 		fh.filelog("conflicted", p)
 	}
-	return nil
+	return landed, nil
 }
 
 // The low-level methods below are TS's FileHandler methods of the same
@@ -981,8 +1100,8 @@ func (fh *fileHandler) removeTemp(tmp string) {
 // <folder>/.jostraca/generated.
 //
 // The baseline is what makes edit-preserving merges possible: if it is
-// missing on the next run, save() takes the no-baseline path and
-// overwrites the user's edits with generated content. A failure here must
+// missing on the next run, save() takes the no-baseline path, and with
+// `write` on overwrites the user's edits with generated content. A failure here must
 // therefore surface rather than be discarded — a silent failure now is
 // data loss on the next run, with nothing in the audit trail connecting
 // the two.
@@ -1037,6 +1156,8 @@ func (fh *fileHandler) filelog(kind, p string) {
 		slot = &fh.files.Conflicted
 	case "unchanged":
 		slot = &fh.files.Unchanged
+	case "unmerged":
+		slot = &fh.files.Unmerged
 	default:
 		fh.st.warn(fhDlog, "filelog", "invalid kind: "+kind)
 		return

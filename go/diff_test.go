@@ -100,6 +100,6 @@ func TestExtendedYearLabels(t *testing.T) {
 	m, _ := modeRun(t, Existing{Txt: ExistingTxt{Merge: &yes}}, -62198755200001, "a.txt",
 		[][2]string{{"A\n", ""}, {"A\ngen\n", "A\nuser\n"}})
 	ml := "-000002-12-31T23:59:59.999Z/merge\n"
-	eq(t, "merge", m, "A\n<<<<<<< GENERATED: "+ml+"gen\n=======\nuser\n"+
-		">>>>>>> EXISTING: "+ml)
+	eq(t, "merge", m, "A\n<<<<<<< EXISTING: "+ml+"user\n=======\ngen\n"+
+		">>>>>>> GENERATED: "+ml)
 }

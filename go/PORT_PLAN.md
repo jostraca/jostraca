@@ -1255,6 +1255,8 @@ Mirrors `ExistingShape` at `src/jostraca.ts:156-172`. Only the *first* applicabl
 
 Equality short-circuit: when new content equals existing, the file is recorded in `Files.Unchanged` and nothing is written. Matches TS behaviour at `FileHandler.save`.
 
+Since 0.41 (both stacks): a merge conflict is written existing side first (issue #79); the baseline is refreshed only when the generate lands in the file (`landed` in `saveAs`), so a skip, protect, present, unresolved or failed save adds `hold-0` and keeps it; a file whose bytes match one of the meta entry's `fingerprints` takes the generate whole (`merge-earlier-0`); a differing file with no baseline is listed in `Files.Unmerged` (`merge-nobase-0`); and `ExistingTxt.Conflict == ConflictFail` leaves a conflicting, unresolved or baseline-less file as it was and returns `*MergeConflictError` after the build. `docs/reference-options.md` is the normative statement.
+
 `JOSTRACA_PROTECT` sentinel: if the *existing* file contains the literal `# JOSTRACA_PROTECT` (or a comment-flavour equivalent), `save` no-ops and the path is added to `Files.Preserved`. Constant `protectMarker = "JOSTRACA_PROTECT"`. This implements the README "Protected Files" guarantee.
 
 Binary vs text routing: `isbinext(path)` (§10) decides which `Existing.{Txt,Bin}` modes apply. Binary files do not support `diff` or `merge` regardless of options.

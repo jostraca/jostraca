@@ -1,5 +1,6 @@
 
 import Path from 'node:path'
+import { createHash } from 'node:crypto'
 
 import * as DiffUtil from '../diff'
 // import Os from 'node:os'
@@ -67,6 +68,17 @@ const MERGE_WHY: Record<string, string> = {
   merged: 'merge-run-0',
 }
 
+// How many of a file's generates its meta entry remembers, newest last.
+//
+// MUST match fingerprintHistory in go/filehandler.go.
+const FINGERPRINT_HISTORY = 8
+
+// Why a `conflict: 'fail'` merge left a file as it was.
+type MergeFailure = {
+  path: string
+  reason: 'conflict' | 'unresolved' | 'nobase'
+}
+
 // Suffix for the sibling temp file used by the atomic write-then-rename.
 const TMP_SUFFIX = '.jostraca-tmp'
 
@@ -111,6 +123,14 @@ function sameContent(a: string | Buffer, b: string | Buffer): boolean {
 }
 
 
+// A generate's fingerprint: the first 16 hex digits of its SHA-256, which
+// is plenty to tell one file's generates apart. A string is hashed as its
+// UTF-8 bytes, the bytes save writes.
+function fingerprint(content: string | Buffer): string {
+  return createHash('sha256').update(content).digest('hex').substring(0, 16)
+}
+
+
 class FileHandler {
 
   when: number
@@ -129,6 +149,7 @@ class FileHandler {
   last: () => number
   addmeta: (file: string, meta: any) => void
   metafile: () => string
+  prevmeta: (rpath: string) => any
   files: {
     preserved: string[]
     written: string[]
@@ -137,7 +158,9 @@ class FileHandler {
     merged: string[]
     conflicted: string[]
     unchanged: string[]
+    unmerged: string[]
   }
+  failures: MergeFailure[]
   createdDirs: Set<string>
   savedPaths: Set<string>
   filelogged: Record<string, Set<string>>
@@ -171,7 +194,9 @@ class FileHandler {
       merged: [],
       conflicted: [],
       unchanged: [],
+      unmerged: [],
     }
+    this.failures = []
 
     this.createdDirs = new Set()
     this.savedPaths = new Set()
@@ -182,6 +207,10 @@ class FileHandler {
     this.last = () => bctx.bmeta.prev.last
     this.addmeta = bctx.addmeta.bind(bctx)
     this.metafile = () => bctx.bmeta.next.filename
+    this.prevmeta = (rpath: string) => {
+      const files = bctx.bmeta.prev.files
+      return Object.prototype.hasOwnProperty.call(files, rpath) ? files[rpath] : undefined
+    }
 
     if (!this.fs().existsSync) {
       throw new Error(CN + ' Invalid file system provider: ' + this.fs())
@@ -339,6 +368,9 @@ class FileHandler {
     const isTextFile = null == isText ? !isbinext(path) : isText
     const existing = isTextFile ? this.existing.txt : this.existing.bin
 
+    // `conflict` is a text option: `existing.bin` has no merge.
+    const failOnConflict = 'fail' === existing.conflict
+
     const withinFolder = this.withinFolder(path)
 
     const rpath = this.relative(path, FN + wstr)
@@ -376,6 +408,15 @@ class FileHandler {
     // Whether the save ends in a write or skip record.
     let final = false
 
+    // Whether the file now holds this generate: written, already equal,
+    // merged (markers and all) or diffed. Only then does the baseline move
+    // on to it. A file that was skipped, protected, presented, left with
+    // an earlier merge's markers, or refused by `conflict: 'fail'` still
+    // derives from the previous generate, and a baseline moved past it
+    // made the next merge read the generator's own older lines as the
+    // user's edits and keep them.
+    let landed = false
+
     if (exists) {
       why.push('exists-0')
       // The existing file is handled as BYTES, text included, as Go does.
@@ -390,6 +431,9 @@ class FileHandler {
       meta.protect = protect
 
       unchanged = sameContent(currentContent, newContentSource)
+
+      // Equal bytes hold the generate whatever the mode does with them.
+      landed = unchanged
 
       if (existing.preserve) {
         why.push('preserve-0')
@@ -455,6 +499,7 @@ class FileHandler {
 
             this.saveFile(path, Buffer.from(diffContent, 'latin1'),
               modeopts(), whence + meta.action)
+            landed = true
 
             // this.files.diffed.push(path)
             this.filelog('diffed', path)
@@ -480,6 +525,7 @@ class FileHandler {
             }
             // this.files.unchanged.push(path)
             this.filelog('unchanged', path)
+            landed = true
           }
         }
         else if (existing.merge) {
@@ -487,6 +533,8 @@ class FileHandler {
 
           if (!unchanged) {
             why.push('content-3')
+
+            let baseline: Buffer | undefined
 
             if (this.control.duplicate) {
               why.push('duplicate-0')
@@ -496,51 +544,83 @@ class FileHandler {
 
               if (this.existsFile(dpath)) {
                 why.push('dupexists-0')
+                baseline = this.loadFile(dpath, { encoding: null }) as Buffer
+              }
+            }
 
-                write = false
-                meta.action = 'merge'
+            // A file that is byte for byte one of its own earlier generates
+            // holds nobody's edit, whatever the baseline says. A checkout
+            // or a branch switch puts an older generate back while the
+            // baseline, which git ignores, stays where the last run left
+            // it, and merging against that baseline kept the older lines
+            // as if the user had written them.
+            const earlier =
+              (null == baseline || !sameContent(baseline, currentContent)) &&
+              this.priorFingerprints(rpath).includes(fingerprint(currentContent))
 
-                const prevGenContent = this.loadFile(dpath, { encoding: null }) as Buffer
+            if (null != baseline || earlier) {
+              write = false
+              meta.action = 'merge'
 
-                const mergeres = this.merge(
-                  latin1(newContentSource),      // generated
-                  latin1(prevGenContent),        // baseline (last generate)
-                  latin1(currentContent),        // existing (on disk)
+              const mergeres = earlier ?
+                this.earlier(newContentSource, why) :
+                this.merge(
+                  latin1(newContentSource),       // generated
+                  latin1(baseline as Buffer),     // baseline (last generate)
+                  latin1(currentContent),         // existing (on disk)
                   why
                 )
-                const diffcontent = mergeres.content
+              const diffcontent = mergeres.content
 
-                // A file still holding an earlier merge's markers is left
-                // byte-for-byte untouched, and reported conflicted: it
-                // still carries markers, and the documented guard on
-                // files.conflicted must not pass over it. Rewriting it
-                // bumped the mtime for nothing.
-                const unresolved = 'unresolved' === mergeres.outcome
-                const conflict = mergeres.conflict || unresolved
+              // A file still holding an earlier merge's markers is left
+              // byte-for-byte untouched, and reported conflicted: it
+              // still carries markers, and the documented guard on
+              // files.conflicted must not pass over it. Rewriting it
+              // bumped the mtime for nothing.
+              const unresolved = 'unresolved' === mergeres.outcome
+              const conflict = mergeres.conflict || unresolved
 
-                if (unresolved) {
-                  if (this.chmodUnchanged(path, mode)) {
-                    why.push('chmod-0')
-                  }
+              if (conflict && failOnConflict) {
+                why.push('conflict-fail-0')
+                this.failures.push({ path, reason: unresolved ? 'unresolved' : 'conflict' })
+              }
+              else if (unresolved) {
+                if (this.chmodUnchanged(path, mode)) {
+                  why.push('chmod-0')
                 }
-                else {
-                  this.saveFile(path, Buffer.from(diffcontent, 'latin1'),
-                    modeopts(), whence + meta.action)
-                }
+              }
+              else {
+                this.saveFile(path, Buffer.from(diffcontent, 'latin1'),
+                  modeopts(), whence + meta.action)
+                landed = true
+              }
 
-                // this.files.merged.push(path)
-                this.filelog('merged', path)
+              // this.files.merged.push(path)
+              this.filelog('merged', path)
 
-                if (conflict) {
-                  // this.files.conflicted.push(path)
-                  this.filelog('conflicted', path)
-                }
+              if (conflict) {
+                // this.files.conflicted.push(path)
+                this.filelog('conflicted', path)
+              }
 
-                whenify(meta, this.now())
-                meta.actions.push(meta.action)
-                meta.conflict = conflict
+              whenify(meta, this.now())
+              meta.actions.push(meta.action)
+              meta.conflict = conflict
 
-                this.decision(CN + FN + wstr, meta, why, path)
+              this.decision(CN + FN + wstr, meta, why, path)
+            }
+            else {
+              // Nothing to merge against, so the file cannot be told apart
+              // from an edit. It is listed rather than passed over: `write`
+              // overwrites it and no `write` leaves it, as before, and
+              // `conflict: 'fail'` leaves it and fails the run.
+              why.push('merge-nobase-0')
+              this.filelog('unmerged', path)
+
+              if (failOnConflict) {
+                why.push('conflict-fail-0')
+                write = false
+                this.failures.push({ path, reason: 'nobase' })
               }
             }
           }
@@ -555,6 +635,7 @@ class FileHandler {
             }
             // this.files.unchanged.push(path)
             this.filelog('unchanged', path)
+            landed = true
           }
         }
       }
@@ -594,6 +675,7 @@ class FileHandler {
       meta.actions.push(meta.action)
       whenify(meta, this.now())
       final = true
+      landed = true
     }
     else if (0 === meta.actions.length) {
       why.push('skip-0')
@@ -609,12 +691,17 @@ class FileHandler {
       if (withinFolder && (Path.basename(path) !== this.metafile())) {
         why.push('within-0')
 
-        const dfolder = this.duplicateFolder()
-        const dpath = fwd(Path.join(dfolder, rpath))
+        if (landed) {
+          const dfolder = this.duplicateFolder()
+          const dpath = fwd(Path.join(dfolder, rpath))
 
-        if (!this.control.dryrun) {
-          this.ensureDir(fwd(Path.dirname(dpath)))
-          this.writeFileAtomic(dpath, newContentSource, { flush: true })
+          if (!this.control.dryrun) {
+            this.ensureDir(fwd(Path.dirname(dpath)))
+            this.writeFileAtomic(dpath, newContentSource, { flush: true })
+          }
+        }
+        else {
+          why.push('hold-0')
         }
       }
     }
@@ -625,7 +712,45 @@ class FileHandler {
       this.decision(CN + FN + wstr, meta, why, path)
     }
 
+    // The generates that landed, newest last, so a later merge can tell
+    // an earlier one put back from an edit. Recorded after every decision
+    // record, so the audit never carries them.
+    if (existing.merge) {
+      const prior = this.priorFingerprints(rpath)
+      if (landed) {
+        const fp = fingerprint(newContentSource)
+        meta.fingerprints = [...prior.filter((f: string) => f !== fp), fp]
+          .slice(-FINGERPRINT_HISTORY)
+      }
+      else {
+        meta.fingerprints = prior
+      }
+    }
+
     this.addmeta(path, meta)
+  }
+
+
+  // The fingerprints the previous run recorded for a file. A hand-edited
+  // log can hold anything there, and anything but a fingerprint is
+  // dropped.
+  private priorFingerprints(rpath: string): string[] {
+    const prior = this.prevmeta(rpath)?.fingerprints
+    return Array.isArray(prior) ?
+      prior.filter((f: any) => 'string' === typeof f && /^[0-9a-f]{16}$/.test(f)) :
+      []
+  }
+
+
+  // The merge result for a file that is one of its own earlier generates:
+  // the new generate, taken whole, as for an untouched file.
+  private earlier(generated: string | Buffer, why: string[]): {
+    content: string,
+    conflict: boolean,
+    outcome: string,
+  } {
+    why.push('merge-earlier-0')
+    return { content: latin1(generated), conflict: false, outcome: 'clean' }
   }
 
 

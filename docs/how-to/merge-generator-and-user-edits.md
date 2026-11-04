@@ -41,20 +41,43 @@ DEBUG=1
 ```
 
 Where both sides changed the same region, conflict markers go in rather
-than a guess, and the path is reported in `result.files.conflicted`.
-Check that array and fail the run if it is non-empty; a conflicted file
-is not a finished file.
+than a guess, existing side first as git writes them, and the path is
+reported in `result.files.conflicted`. Check that array and fail the
+run if it is non-empty; a conflicted file is not a finished file.
 
-Three things will stop a merge, and all of them fall back to a plain
-overwrite with no error:
+To have Jostraca fail the run instead, set `conflict: 'fail'`:
 
-- **`control.duplicate: false`.** No baseline is kept, so there is
-  nothing to merge against.
-- **A file that is new.** There is no previous generate.
-- **An output path outside the output folder.** No baseline is kept for
-  it.
+<!-- test: skip an option fragment; the full run is in the options reference -->
+```js
+existing: { txt: { merge: true, conflict: 'fail' } }
+```
 
-If merge silently overwrote something, that list is where to look.
+A file the merge cannot land is then left as it was, every other file
+is written, and `generate` rejects with an error naming each file. That
+suits a build or CI job, where markers in a file are worse than a
+failed run. The
+[options reference](../reference-options.md#conflict-fail) has the
+whole run.
+
+A merge needs the previous generate as its base, kept under
+`.jostraca/generated/`. A file that differs from the generate and has
+no base cannot be told apart from an edit, so it is listed in
+`result.files.unmerged` and overwritten, or left alone with
+`write: false`, or fails the run under `conflict: 'fail'`. There is no
+base when:
+
+- **`control.duplicate: false`.** No baseline is kept.
+- **The repository was cloned, or `.jostraca/` removed, since the last
+  generate.** The baseline is git-ignored by default;
+  `control.version: true` commits it.
+- **The output path is outside the output folder.** No baseline is kept
+  for it.
+
+If a merge overwrote something, `unmerged` is where to look.
+
+A checkout or a branch switch that puts an older generate back is
+handled: a file whose bytes match one of its earlier generates takes the
+new generate whole, rather than having the older lines kept as edits.
 
 A merge honours a deletion. If the user removed a region your generator
 did not touch, the region stays gone—the deletion is the only intent

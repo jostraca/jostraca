@@ -276,6 +276,7 @@ func TestFilesListsAreEmptyNotNil(t *testing.T) {
 			"preserved": f.Preserved, "written": f.Written,
 			"presented": f.Presented, "diffed": f.Diffed, "merged": f.Merged,
 			"conflicted": f.Conflicted, "unchanged": f.Unchanged,
+			"unmerged": f.Unmerged,
 		} {
 			if l == nil {
 				t.Errorf("%s: %s is nil", name, cat)
@@ -289,7 +290,7 @@ func TestFilesListsAreEmptyNotNil(t *testing.T) {
 			t.Errorf("%s: %s", name, b)
 		}
 		if name == "basic" && string(b) != `{"preserved":[],"written":["/out/p/a.txt"],`+
-			`"presented":[],"diffed":[],"merged":[],"conflicted":[],"unchanged":[]}` {
+			`"presented":[],"diffed":[],"merged":[],"conflicted":[],"unchanged":[],"unmerged":[]}` {
 			t.Errorf("basic: %s", b)
 		}
 	}

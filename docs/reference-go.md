@@ -365,13 +365,18 @@ The `existing` flags are pointers (`*bool`) so that "unset" and
 "explicitly false" stay distinguishable through the option merge:
 
 ```
-type ExistingTxt struct { Write, Preserve, Present, Diff, Merge *bool }
+type ExistingTxt struct {
+	Write, Preserve, Present, Diff, Merge *bool
+	Conflict string // ConflictMarkers ("markers", also ""), or ConflictFail ("fail")
+}
 type ExistingBin struct { Write, Preserve, Present *bool }
 ```
 
 A per-call `Existing` overlays the global one flag by flag: a `nil`
 per-call pointer inherits the global flag, and a non-`nil` one replaces
-it, including an explicit `false`.
+it, including an explicit `false`. A non-empty per-call `Conflict`
+replaces the global one, and any value but the two is refused with the
+TypeScript message.
 
 ## The result
 
@@ -385,7 +390,7 @@ type Result struct {
 }
 
 type Files struct {
-	Preserved, Written, Presented, Diffed, Merged, Conflicted, Unchanged []string
+	Preserved, Written, Presented, Diffed, Merged, Conflicted, Unchanged, Unmerged []string
 }
 ```
 
@@ -393,6 +398,21 @@ Every `Files` category is a list, empty rather than `nil`, on every run
 including a define-only or empty one, and `Files` carries TypeScript's
 lowercase JSON keys, so `json.Marshal(res.Files)` has the TypeScript
 shape.
+
+Under `Conflict: ConflictFail`, a merge that cannot land returns the
+`Result` together with a `*MergeConflictError`. It wraps
+`ErrMergeConflict`, its text is the TypeScript message, and its
+`Conflicts` field lists each `MergeConflict{Path, Reason}`, the
+TypeScript error's `conflicts`:
+
+```
+var mce *jostraca.MergeConflictError
+if errors.As(err, &mce) {
+	for _, c := range mce.Conflicts {
+		fmt.Println(c.Path, c.Reason) // reason: conflict, unresolved or nobase
+	}
+}
+```
 
 `Audit` is `[]AuditEntry`, each `{Tag string; Data map[string]any}`, with
 the tags, fields and order of the TypeScript
@@ -427,7 +447,7 @@ cannot overload:
 | `cmap` / `vmap` | `CMap`, `VMap` |
 | `DiffUtil.merge` | `Merge(generated, baseline, existing, DiffSpec) MergeResult` |
 | `DiffUtil.diff` | `Diff(generated, existing, DiffSpec) DiffResult` |
-| `DiffUtil.hasConflicts` | `HasConflicts`, `HasConflictsLabel` |
+| `DiffUtil.hasConflicts` | `HasConflicts`, `HasConflictsLabel` (a string), `HasConflictsLabels` (labels) |
 | `DiffUtil.lines` / `lcs` / `alignLcs` / `hunks` | `Lines`, `LCS`, `AlignLCS`, `Hunks` |
 
 `OMap` returns an ordered pair list rather than a map, because a Go map

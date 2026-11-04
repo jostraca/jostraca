@@ -1462,6 +1462,64 @@ async function main() {
     [mergeOpts, one('A\ngen2\n')],
   ])
 
+  // `conflict: 'fail'`: a conflict, unresolved markers and a missing
+  // baseline each leave their file as it was, the rest are written, and
+  // the run fails. Resolving the conflict by hand lets it through.
+  const three = (a, b, c) => () => Project({ folder: 'app' }, () => {
+    File({ name: 'a.txt' }, () => Content(a))
+    File({ name: 'b.txt' }, () => Content(b))
+    if (null != c) {
+      File({ name: 'c.txt' }, () => Content(c))
+    }
+  })
+  const failOpts = { existing: { txt: { merge: true, conflict: 'fail' } } }
+  await snapshotRuns('merge_conflict_fail', [
+    [mergeOpts, three('A\nB\nC\n', 'b\n')],
+    (fs) => {
+      fs.writeFileSync('/out/app/a.txt', 'A\nUSER\nC\n')
+      fs.writeFileSync('/out/app/c.txt', 'EDIT\n')
+    },
+    [failOpts, three('A\nGEN\nC\n', 'b2\n', 'c\n')],
+    (fs) => fs.writeFileSync('/out/app/a.txt', 'A\nGEN\nC\n'),
+    (fs) => fs.writeFileSync('/out/app/b.txt', '<<<<<<< EXISTING: X/merge\nU\n' +
+      '=======\nb2\n>>>>>>> GENERATED: X/merge\n'),
+    [failOpts, three('A\nGEN\nC\n', 'b3\n')],
+    (fs) => fs.writeFileSync('/out/app/b.txt', 'b2\n'),
+    [failOpts, three('A\nGEN\nC\n', 'b3\n')],
+  ])
+
+  // A file put back to one of its earlier generates takes the new one,
+  // with the baseline ahead of it or gone; an edit still merges.
+  await snapshotRuns('merge_earlier', [
+    [mergeOpts, one('A\nB\nC\n')],
+    [mergeOpts, one('A\nB2\nC\n')],
+    (fs) => fs.writeFileSync('/out/app/a.txt', 'A\nB\nC\n'),
+    [mergeOpts, one('A\nB2\nC\nD\n')],
+    (fs) => {
+      fs.unlinkSync('/out/.jostraca/generated/app/a.txt')
+      fs.writeFileSync('/out/app/a.txt', 'A\nB2\nC\n')
+    },
+    [mergeOpts, one('A\nB3\nC\nD\n')],
+    (fs) => fs.writeFileSync('/out/app/a.txt', 'A\nB3\nC\nD\nUSER\n'),
+    [mergeOpts, one('A\nB4\nC\nD\n')],
+  ])
+
+  // The baseline holds when the generate does not land: protected, write
+  // off, a sidecar, and a file with no baseline under write off, which
+  // stays unmerged.
+  await snapshotRuns('merge_hold', [
+    [mergeOpts, one('A\n')],
+    (fs) => fs.writeFileSync('/out/app/a.txt', 'A\nJOSTRACA_PROTECT\n'),
+    [mergeOpts, one('B\n')],
+    (fs) => fs.writeFileSync('/out/app/a.txt', 'A\n'),
+    [{ existing: { txt: { write: false } } }, one('C\n')],
+    [{ existing: { txt: { write: false, present: true } } }, one('D\n')],
+    (fs) => fs.unlinkSync('/out/.jostraca/generated/app/a.txt'),
+    [{ existing: { txt: { merge: true, write: false } } }, one('E\n')],
+    [{ existing: { txt: { merge: true, write: false } } }, one('E\n')],
+    [mergeOpts, one('F\n')],
+  ])
+
   // The audit trail, pinned whole: the low-level calls with their whence
   // tags, and each save's decision record with its breadcrumbs.
   const auditTree = (a, b) => () => Project({ folder: 'app' }, () => {
@@ -1518,10 +1576,20 @@ async function snapshotRuns(name, steps) {
       continue
     }
     const [opts, root] = step
-    const res = await Jostraca({}).generate(Object.assign({
-      fs: () => mfs.fs, folder: '/out', now: () => FROZEN_NOW,
-    }, opts), root)
-    runs.push({ files: res.files, audit: auditOf(res) })
+    // A run that fails (`conflict: 'fail'`) records its error, and the
+    // result the error carries, so Go is held to both.
+    try {
+      const res = await Jostraca({}).generate(Object.assign({
+        fs: () => mfs.fs, folder: '/out', now: () => FROZEN_NOW,
+      }, opts), root)
+      runs.push({ files: res.files, audit: auditOf(res) })
+    }
+    catch (err) {
+      if (null == err.result) {
+        throw err
+      }
+      runs.push({ files: err.result.files, audit: auditOf(err.result), error: bodyOf(err) })
+    }
   }
   fs.writeFileSync(
     path.join(outDir, name + '.json'),
@@ -1705,8 +1773,8 @@ async function snapshotMergeUpdate(name) {
 async function snapshotMergeNoBaseline(name) {
   // No baseline in /out/.jostraca/generated, but the target file already
   // exists (e.g. user authored it before adopting jostraca). Merge mode
-  // on this state should leave the file untouched and seed the duplicate
-  // folder with the new content.
+  // cannot merge it, so `write`, on by default, overwrites it, and the
+  // baseline is seeded from the generate that landed.
   const j = Jostraca({})
   const root = () => Project({ folder: 'sdk' }, () => {
     File({ name: 'foo.txt' }, () => Content('GEN\n'))
