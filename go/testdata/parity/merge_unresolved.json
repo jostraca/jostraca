@@ -11,7 +11,8 @@
         "diffed": [],
         "merged": [],
         "conflicted": [],
-        "unchanged": []
+        "unchanged": [],
+        "unmerged": []
       },
       "audit": [
         [
@@ -92,7 +93,8 @@
         "conflicted": [
           "/out/app/a.txt"
         ],
-        "unchanged": []
+        "unchanged": [],
+        "unmerged": []
       },
       "audit": [
         [
@@ -184,7 +186,7 @@
             "path": "/out/.jostraca/jostraca.meta.log",
             "when": 1735689600000,
             "existed": true,
-            "size": 390
+            "size": 450
           }
         ],
         [
@@ -192,7 +194,7 @@
           {
             "path": "/out/.jostraca/jostraca.meta.log",
             "when": 1735689600000,
-            "size": 390
+            "size": 450
           }
         ],
         [
@@ -218,7 +220,8 @@
         "conflicted": [
           "/out/app/a.txt"
         ],
-        "unchanged": []
+        "unchanged": [],
+        "unmerged": []
       },
       "audit": [
         [
@@ -234,7 +237,7 @@
           {
             "path": "/out/.jostraca/jostraca.meta.log",
             "when": 1735689600000,
-            "size": 390
+            "size": 450
           }
         ],
         [
@@ -242,7 +245,7 @@
           {
             "path": "/out/.jostraca/jostraca.meta.log",
             "when": 1735689600000,
-            "size": 390
+            "size": 450
           }
         ],
         [
@@ -301,7 +304,7 @@
             "path": "/out/.jostraca/jostraca.meta.log",
             "when": 1735689600000,
             "existed": true,
-            "size": 390
+            "size": 450
           }
         ],
         [
@@ -309,7 +312,7 @@
           {
             "path": "/out/.jostraca/jostraca.meta.log",
             "when": 1735689600000,
-            "size": 390
+            "size": 450
           }
         ],
         [
@@ -325,9 +328,9 @@
     }
   ],
   "vol": {
-    "/out/app/a.txt": "A\n<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\ngen\n=======\nuser\n>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n",
-    "/out/.jostraca/generated/app/a.txt": "A\ngen2\n",
-    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"app/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/app/a.txt": "A\n<<<<<<< EXISTING: 2025-01-01T00:00:00.000Z/merge\nuser\n=======\ngen\n>>>>>>> GENERATED: 2025-01-01T00:00:00.000Z/merge\n",
+    "/out/.jostraca/generated/app/a.txt": "A\ngen\n",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/a.txt\": {\n      \"action\": \"merge\",\n      \"path\": \"app/a.txt\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": true,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000,\n      \"fingerprints\": [\n        \"bc30b0ea74d02871\"\n      ]\n    }\n  }\n}",
     "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
   }
 }

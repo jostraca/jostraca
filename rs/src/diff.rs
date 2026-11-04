@@ -84,29 +84,54 @@ const MARK_END:   &str = ">>>>>>> ";
 const LABEL_GENERATED: &str = "GENERATED";
 const LABEL_EXISTING:  &str = "EXISTING";
 
-/// The canonical unresolved-conflict sentinel: the closing marker for the
-/// EXISTING side. A file still holding this has an unresolved merge in it.
-const UNRESOLVED_MARK: &str = ">>>>>>> EXISTING:";
+/// The default marker lines, as prefixes, so they match whatever timestamp
+/// follows. A merge conflict opens on EXISTING and closes on GENERATED, one
+/// written before 0.41 the other way round, and a diff block opens and
+/// closes on one side. Mirrors Go `defaultMarks`.
+const DEFAULT_MARKS: [&str; 4] = [
+    "<<<<<<< EXISTING:",
+    ">>>>>>> EXISTING:",
+    "<<<<<<< GENERATED:",
+    ">>>>>>> GENERATED:",
+];
 
-/// Reports whether `text` still holds an unresolved conflict from an earlier
-/// merge. Mirrors Go `HasConflicts`.
-pub fn has_conflicts(text: &str) -> bool {
-    has_conflicts_label(text, "")
+/// Whether `mark` starts a line of `text`: a marker is only ever written at
+/// the start of one.
+fn has_line(text: &str, mark: &str) -> bool {
+    text.starts_with(mark) || text.contains(&format!("\n{}", mark))
 }
 
-/// `has_conflicts` with an explicitly-supplied custom existing-label taken
+/// Reports whether `text` still holds an unresolved conflict: any one marker
+/// line, whichever the user removed. Mirrors Go `HasConflicts`.
+pub fn has_conflicts(text: &str) -> bool {
+    has_conflicts_labels(text, "", "")
+}
+
+/// `has_conflicts` with an explicitly-supplied custom existing label taken
 /// into account. Mirrors Go `HasConflictsLabel`.
 pub fn has_conflicts_label(text: &str, existing_label: &str) -> bool {
-    if text.contains(UNRESOLVED_MARK) {
-        return true;
-    }
-    !existing_label.is_empty()
-        && text.contains(&format!("{}{}\n", MARK_END, existing_label))
+    has_conflicts_labels(text, existing_label, "")
 }
 
-// Go exports these as HasConflicts / HasConflictsLabel; keep both spellings.
+/// `has_conflicts` with the custom labels passed to `merge` taken into
+/// account, each matched only as a whole marker line. Mirrors Go
+/// `HasConflictsLabels`.
+pub fn has_conflicts_labels(text: &str, existing_label: &str, generated_label: &str) -> bool {
+    if DEFAULT_MARKS.iter().any(|mark| has_line(text, mark)) {
+        return true;
+    }
+    [existing_label, generated_label].iter().any(|label| {
+        !label.is_empty()
+            && (has_line(text, &format!("{}{}\n", MARK_START, label))
+                || has_line(text, &format!("{}{}\n", MARK_END, label)))
+    })
+}
+
+// Go exports these as HasConflicts / HasConflictsLabel / HasConflictsLabels;
+// keep both spellings.
 pub use has_conflicts as HasConflicts;
 pub use has_conflicts_label as HasConflictsLabel;
+pub use has_conflicts_labels as HasConflictsLabels;
 
 fn iso_of(when: i64) -> String {
     // Format epoch-ms as ISO 8601 UTC: 2006-01-02T15:04:05.000Z
@@ -325,15 +350,16 @@ fn write_conflict(
     existing: &[String],
     labels: &DiffLabels,
 ) {
-    out.push(format!("{}{}\n", MARK_START, labels.generated));
-    out.extend_from_slice(generated);
-    if !ends_with_newline(out) { out.push("\n".to_string()); }
-
-    out.push(MARK_MID.to_string());
+    // The existing side first, as git writes a conflict (issue #79).
+    out.push(format!("{}{}\n", MARK_START, labels.existing));
     out.extend_from_slice(existing);
     if !ends_with_newline(out) { out.push("\n".to_string()); }
 
-    out.push(format!("{}{}\n", MARK_END, labels.existing));
+    out.push(MARK_MID.to_string());
+    out.extend_from_slice(generated);
+    if !ends_with_newline(out) { out.push("\n".to_string()); }
+
+    out.push(format!("{}{}\n", MARK_END, labels.generated));
 }
 
 // ─── Three-way merge ──────────────────────────────────────────────────────────
@@ -349,7 +375,8 @@ pub fn merge(generated: &str, baseline: &str, existing: &str, spec: DiffSpec) ->
         return MergeResult { content: generated.to_string(), conflict: false, outcome: MergeOutcome::Clean };
     }
     let custom_existing = spec.labels.as_ref().map(|l| l.existing.as_str()).unwrap_or("");
-    if has_conflicts_label(existing, custom_existing) {
+    let custom_generated = spec.labels.as_ref().map(|l| l.generated.as_str()).unwrap_or("");
+    if has_conflicts_labels(existing, custom_existing, custom_generated) {
         return MergeResult { content: existing.to_string(), conflict: false, outcome: MergeOutcome::Unresolved };
     }
 

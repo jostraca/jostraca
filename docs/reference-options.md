@@ -123,9 +123,10 @@ in force, so a call that asks for `version: true` under a global
     preserved,   // paths that got a .old backup
     presented,   // paths that got a .new sidecar
     diffed,      // paths rewritten as a two-way diff
-    merged,      // paths rewritten by three-way merge
-    conflicted,  // of those, the ones carrying conflict markers
+    merged,      // paths that went through the three-way merge
+    conflicted,  // of those, the ones whose merge conflicted
     unchanged,   // byte-identical, so not rewritten
+    unmerged,    // merge was on and there was no baseline to merge against
   },
   audit,      // () => [tag, data][]
   vol,        // () => Volume  -- only when mem is on for the call
@@ -144,6 +145,12 @@ byte-identical rewrite would bump the mtime and re-trigger every
 watcher downstream, so Jostraca skips it and records the path here
 instead of in `written`. An explicit `File` `mode` is still applied.
 
+`files.conflicted` lists a merged file that carries conflict markers
+after the run, and under [`conflict: 'fail'`](#conflict-fail) a merged
+file left as it was because its merge conflicted. `files.unmerged`
+lists a file `merge` could not merge for want of a baseline; see
+[Merge needs a baseline](#merge-needs-a-baseline).
+
 `vol()` and `fs()` are present exactly when `mem` is on for the call:
 `vol()` is the in-memory volume and `fs()` the provider the run
 actually used. A provider you supply yourself, even an in-memory one,
@@ -157,12 +164,14 @@ Two independent sets, chosen by the file's **extension**:
 
 ```
 existing: {
-  txt: { write, preserve, present, diff, merge },
+  txt: { write, preserve, present, diff, merge, conflict },
   bin: { write, preserve, present },
 }
 ```
 
-`bin` has no `diff` and no `merge`; passing either throws.
+`bin` has no `diff`, no `merge` and no `conflict`; passing any of them
+throws. `conflict` is `'markers'` (the default) or `'fail'`, and only a
+merge reads it.
 
 The extension decides first, by membership of the
 [`isbinext`](reference-utilities.md#isbinext-and-isbincontent) list, and content
@@ -188,8 +197,11 @@ guessable:
 5. `diff` **else if** `merge`—so **`diff` wins; they never both
    run.** `diff` also forces the write off.
 6. Write, or record that the content was unchanged.
-7. Refresh the merge baseline under `.jostraca/generated/`, in every
-   mode including a skip.
+7. Refresh the merge baseline under `.jostraca/generated/`, when the
+   file now holds the new generate: written, already equal, merged
+   (markers included) or diffed. A skip, a protected file, a `.new`
+   sidecar, an unresolved file and a file `conflict: 'fail'` left as it
+   was all keep the baseline they had.
 
 ### Each mode
 
@@ -312,9 +324,11 @@ A diffed file whose content differs is always reported in
 `files.conflicted` as well as `files.diffed`.
 
 **`merge: true`** performs a three-way merge against the previous
-generate. Where both sides changed the same region, markers go in—
-**generated side first, with a `=======` separator**, which is the
-opposite arrangement from the two-way diff:
+generate. Where both sides changed the same region, markers go in,
+**existing side first, with a `=======` separator**, as git writes a
+conflict: the file on disk is the current change and the generate is
+the incoming one, so an editor's "accept current" keeps the user's
+lines. The two-way diff also puts the existing side first:
 
 <!-- test: scenario existing-merge -->
 
@@ -342,13 +356,16 @@ The merged `a.txt`:
 <!-- test: file out/a.txt -->
 ```text
 line1
-<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge
-CHANGED
-=======
+<<<<<<< EXISTING: 2025-01-01T00:00:00.000Z/merge
 USER
->>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge
+=======
+CHANGED
+>>>>>>> GENERATED: 2025-01-01T00:00:00.000Z/merge
 line3
 ```
+
+Before 0.41 the generated side came first. A file still holding markers
+in that order is recognised as unresolved all the same.
 
 The two timestamps come from different clocks: the generated label is
 this run's `now()`, the existing label is the **previous** run's
@@ -357,25 +374,107 @@ completion time. With no previous run that is `-1`, which renders as
 epoch-millisecond value within the JavaScript `Date` range counts as no
 previous run.
 
-A file that still holds the markers of an earlier merge is left
-byte-for-byte untouched: the engine will not nest a second merge inside
-the first. It is not rewritten, so its mtime does not move, though a
-requested `mode` is still applied. It is reported in both `merged` and
-`conflicted`, because it still carries markers, and the
-`.jostraca/generated` baseline is refreshed to the new generate. A clean
-merge over a file the user never edited is written even when the
-generated text itself contains a marker line.
+A file that still holds markers is left byte-for-byte untouched: the
+engine will not nest a second merge inside the first. Any marker line
+counts, opening or closing, from a merge or from `diff`, as long as it
+starts a line. The file is not rewritten, so its mtime does not move,
+though a requested `mode` is still applied. It is reported in both
+`merged` and `conflicted`, because it still carries markers, and its
+`.jostraca/generated` baseline stays at the generate the markers came
+from, which is the one the user resolves against. A clean merge over a
+file the user never edited is written even when the generated text
+itself contains a marker line.
 
-### Merge needs a baseline, and degrades silently without one
+### A file that is an earlier generate
 
-The merge ancestor is the copy under `.jostraca/generated/`. Where
-there is no such copy the merge cannot run, and the file is
-**overwritten** instead—no error, no warning. That happens when:
+A file whose bytes are one of its own earlier generates holds nobody's
+edit, so it takes the new generate whole, whatever the baseline says.
+That is the state a `git checkout` or a branch switch leaves: the file
+goes back to an older generate while the baseline, which git ignores,
+stays where the last run left it. A merge against that baseline would
+keep the older lines as if the user had written them.
+
+The meta log keeps the fingerprints for this, the last eight generates
+that landed in each file, so it works only for generates this checkout
+made. The file is reported in `merged`, and its decision record carries
+`merge-earlier-0`.
+
+### Merge needs a baseline
+
+The merge ancestor is the copy under `.jostraca/generated/`. A file
+that exists and differs from the generate, where there is no such copy
+and its bytes match no fingerprint, cannot be told apart from an edit,
+so it is not merged. It is listed in `files.unmerged`, its decision record carries
+`merge-nobase-0`, and then:
+
+- with `write` on, the default, it is **overwritten**;
+- with `write: false` it is left as it is, and it has no baseline until
+  a generate lands in it, so it is listed on every run until then;
+- under `conflict: 'fail'` it is left as it is, and the run fails.
+
+There is no such copy when:
 
 - `control.duplicate` is `false`, so no baseline is ever written;
-- the file is new, so there is no previous generate;
+- the repository was cloned, or `.jostraca/` was removed, since the last
+  generate;
 - the output path escapes the output folder, so no baseline was kept
   for it.
+
+A file that does not exist yet is written, as in every mode.
+
+### `conflict: 'fail'`
+
+**`conflict: 'fail'`** keeps a merge from writing markers. A file the
+merge cannot land is left as it was, with its baseline, and the run
+fails once every other file is written and the meta log is saved:
+
+<!-- test: scenario existing-conflict-fail -->
+
+<!-- test: run -->
+```js
+import { writeFileSync } from 'node:fs'
+import { Jostraca, Project, File, Content } from 'jostraca'
+
+const run = (body, conflict) => Jostraca({
+  existing: { txt: { merge: true, conflict } },
+}).generate({ folder: './out' }, () => {
+  Project({}, () => File({ name: 'a.txt' }, () => Content(body)))
+})
+
+await run('line1\nline2\nline3\n', 'fail')
+writeFileSync('./out/a.txt', 'line1\nUSER\nline3\n')
+
+try {
+  await run('line1\nCHANGED\nline3\n', 'fail')
+}
+catch (err) {
+  console.log(err.message)
+  console.log(JSON.stringify(err.conflicts))
+  console.log(JSON.stringify(err.result.files.conflicted))
+}
+```
+
+<!-- test: log -->
+```text
+jostraca: 3-way merge produced conflicts, left unchanged: out/a.txt (conflict)
+[{"path":"out/a.txt","reason":"conflict"}]
+["out/a.txt"]
+```
+
+`a.txt` still holds `USER`. Three things fail a run this way, each named
+in the message:
+
+| reason | the file |
+|---|---|
+| `conflict` | both sides changed the same region |
+| `unresolved` | still holds markers |
+| `nobase` | has no baseline to merge against |
+
+The error's `conflicts` lists each file and reason, and `result` is the
+run's result. The same run fails the same way until the files are dealt
+with: fold the incoming change into the file by hand, or run once with
+the default `conflict: 'markers'` to have the markers written for an
+editor to resolve.
 
 ### `.old` and `.new` naming
 
@@ -394,7 +493,8 @@ file.
 A protected file is never overwritten. `preserve` takes no backup,
 `diff` and `merge` do not run, and the file is recorded as skipped with
 `protect: true`, appearing in none of the `files` arrays. The merge
-baseline is still refreshed.
+baseline stays where it was, so a merge after the marker is removed
+runs against the generate the file was taken over from.
 
 **One exception.** `present` still fires: the protect test guards the
 `write` arm, and the `present` arm does not repeat it. So with
@@ -422,13 +522,19 @@ The decision tree, the audit and the `files` arrays all report what
 `.jostraca` folder.
 
 **`duplicate`** writes a copy of each generated file to
-`.jostraca/generated/<relative path>` after every save. That copy is
-the merge ancestor, so turning this off disables `merge` (see earlier).
-It is skipped for a path that resolves outside the output folder.
+`.jostraca/generated/<relative path>` after every save that lands the
+generate in the file (see [the flag order](#the-order-the-flags-are-checked)).
+That copy is the merge ancestor, so turning this off disables `merge`,
+and every differing file is listed in
+[`files.unmerged`](#merge-needs-a-baseline). It is
+skipped for a path that resolves outside the output folder.
 
 **`version`** does exactly one thing: when `false`, `.jostraca/.gitignore`
 is written. With `true` it is not written, and an existing one is left
-alone. The meta log and `generated/` are written either way.
+alone. The meta log and `generated/` are written either way. Committing
+them makes the baseline move with a checkout, so a clone has one and a
+file edited on an older branch still merges against the generate it was
+edited from.
 
 ## In-memory generation
 
@@ -522,7 +628,12 @@ The `jostraca.meta.log` it wrote, in full:
 
 `action` is the last action taken; `actions` is the ordered list.
 Observed values: `write`, `preserve`, `present`, `diff`, `merge`,
-`skip`. `hlast` and `hwhen` are the ISO timestamp with the non-digits
+`skip`. Under `merge`, an entry also carries `fingerprints`, last: the
+first 16 hex digits of the SHA-256 of each of the last eight generates
+that landed in the file, newest last. Each appears once. It is how
+[an earlier generate](#a-file-that-is-an-earlier-generate) is
+recognised, and an entry that is not a fingerprint is dropped on
+reading. `hlast` and `hwhen` are the ISO timestamp with the non-digits
 stripped and the last digit dropped, as a number. A clock of `() => 0`
 is the epoch, not the wall clock, so it gives `1970010100000000` and a
 byte-stable meta log.
@@ -664,7 +775,8 @@ folder-prefixed or absolute. The meta log's own read and write, and the
 `why`, and it is a snapshot: `actions` and `why` are as they stood when
 the record was pushed, so a preserve record's `actions` is
 `[preserve]`. The write or skip record is pushed last and carries the
-baseline breadcrumbs (`duplicate-1 within-0`). A `build: false` run, or
+baseline breadcrumbs (`duplicate-1 within-0`), with `hold-0` after them
+when the baseline was not moved. A `build: false` run, or
 one whose define phase produced nothing, still reports one entry: the
 meta log's `existsFile`.
 
@@ -679,12 +791,19 @@ and for a protected file:
 
 <!-- test: skip an audit breadcrumb quoted for shape; the trails are pinned by ts/test suites -->
 ```text
-start<Wx> exists-0 skip-0 duplicate-1 within-0
+start<Wx> exists-0 skip-0 duplicate-1 within-0 hold-0
 ```
 
 Note the missing `not-protect-1` in the second: protection
-short-circuits the whole diff and merge stage. `start<W...>` marks a
-target that already exists, and `w` a new one.
+short-circuits the whole diff and merge stage, and `hold-0` keeps the
+baseline where it was. `start<W...>` marks a target that already
+exists, and `w` a new one.
+
+A merge adds the breadcrumb of its outcome: `merge-same-0`,
+`merge-clean-0`, `merge-unresolved-0` or `merge-run-0` from the
+engine, `merge-earlier-0` for an earlier generate, or `merge-nobase-0`
+for a file with no baseline. `conflict-fail-0` follows when
+`conflict: 'fail'` left the file as it was.
 
 Errors are tagged with an `ERROR:` prefix and carry `err`. The
 duplicate-baseline write does not appear in the audit at all; it

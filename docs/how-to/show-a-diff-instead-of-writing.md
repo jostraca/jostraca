@@ -48,11 +48,11 @@ PORT=9090
 HOST=localhost
 ```
 
-Two details that differ from the merge markers, and from the git
-convention they resemble:
+Two details that set these markers apart:
 
-- **The existing side comes first**, and there is **no `=======`
-  separator**. Each side gets its own opening and closing marker.
+- **The existing side comes first**, as in a merge, but there is **no
+  `=======` separator**. Each side gets its own opening and closing
+  marker, so an editor does not read the file as a conflict.
 - **`diff` beats `write`.** It forces the write off, so you do not need
   `write: false` the way `present` does.
 

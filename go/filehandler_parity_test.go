@@ -583,7 +583,7 @@ func TestMetaLastType(t *testing.T) {
 			t.Errorf("last=%s: merged=%v conflicted=%v", last, res.Files.Merged, res.Files.Conflicted)
 		}
 		got, _ := mem.ReadFile("/out/a.txt")
-		if !strings.Contains(string(got), ">>>>>>> EXISTING: 1969-12-31T23:59:59.999Z/merge") {
+		if !strings.Contains(string(got), "<<<<<<< EXISTING: 1969-12-31T23:59:59.999Z/merge") {
 			t.Errorf("last=%s: a.txt = %q", last, got)
 		}
 	}

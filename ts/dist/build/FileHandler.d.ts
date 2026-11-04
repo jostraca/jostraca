@@ -2,6 +2,10 @@ import { BuildContext } from './BuildContext';
 import { FST, Audit } from '../types';
 declare function canonPath(path: string): string;
 declare function canonFolder(folder: string): string;
+type MergeFailure = {
+    path: string;
+    reason: 'conflict' | 'unresolved' | 'nobase';
+};
 declare class FileHandler {
     when: number;
     fs: () => FST;
@@ -22,6 +26,7 @@ declare class FileHandler {
     last: () => number;
     addmeta: (file: string, meta: any) => void;
     metafile: () => string;
+    prevmeta: (rpath: string) => any;
     files: {
         preserved: string[];
         written: string[];
@@ -30,7 +35,9 @@ declare class FileHandler {
         merged: string[];
         conflicted: string[];
         unchanged: string[];
+        unmerged: string[];
     };
+    failures: MergeFailure[];
     createdDirs: Set<string>;
     savedPaths: Set<string>;
     filelogged: Record<string, Set<string>>;
@@ -46,6 +53,8 @@ declare class FileHandler {
     withinFolder(path: string): boolean;
     saveBinary(path: string, newContentSource: string | Buffer, whence?: string): void;
     save(path: string, newContentSource: string | Buffer, write?: boolean | string, whence?: string, mode?: number, isText?: boolean): void;
+    private priorFingerprints;
+    private earlier;
     private decision;
     copy(frompath: string, topath: string, write?: boolean | string, whence?: string): void;
     merge(generated: string, baseline: string, existing: string, why: string[]): {

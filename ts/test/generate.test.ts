@@ -145,7 +145,7 @@ describe('generate', () => {
     test('files-lists-are-always-lists', async () => {
       const EMPTY = {
         preserved: [], written: [], presented: [], diffed: [],
-        merged: [], conflicted: [], unchanged: [],
+        merged: [], conflicted: [], unchanged: [], unmerged: [],
       }
       const j = Jostraca({ mem: true, folder: '/out', now: () => START_TIME })
       Assert.deepEqual((await j.generate({ build: false }, root)).files, EMPTY)

@@ -99,9 +99,9 @@ func TestGlobalMergeWithPerCallPreserveMerges(t *testing.T) {
 		"L1\nL2\nL3\n", "L1\nUSER\nL3\n", "L1\nGEN\nL3\n")
 
 	existingWant(t, "text", r.text, "L1\n"+
-		"<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\n"+
-		"GEN\n=======\nUSER\n"+
-		">>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n"+
+		"<<<<<<< EXISTING: 2025-01-01T00:00:00.000Z/merge\n"+
+		"USER\n=======\nGEN\n"+
+		">>>>>>> GENERATED: 2025-01-01T00:00:00.000Z/merge\n"+
 		"L3\n")
 	existingWant(t, "merged", r.files.Merged, []string{"/out/a.txt"})
 	existingWant(t, "conflicted", r.files.Conflicted, []string{"/out/a.txt"})

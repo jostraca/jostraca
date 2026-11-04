@@ -143,7 +143,7 @@ const tmpdir = () => Fs.mkdtempSync(Path.join(Os.tmpdir(), 'jostraca-generate-')
         (0, node_test_1.test)('files-lists-are-always-lists', async () => {
             const EMPTY = {
                 preserved: [], written: [], presented: [], diffed: [],
-                merged: [], conflicted: [], unchanged: [],
+                merged: [], conflicted: [], unchanged: [], unmerged: [],
             };
             const j = (0, __1.Jostraca)({ mem: true, folder: '/out', now: () => START_TIME });
             Assert.deepEqual((await j.generate({ build: false }, root)).files, EMPTY);

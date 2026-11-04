@@ -1,6 +1,7 @@
 package jostraca
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -155,13 +156,14 @@ type Files struct {
 	Merged     []string `json:"merged"`
 	Conflicted []string `json:"conflicted"`
 	Unchanged  []string `json:"unchanged"`
+	Unmerged   []string `json:"unmerged"`
 }
 
 // listed returns f with every nil category replaced by an empty list.
 func (f Files) listed() Files {
 	for _, l := range []*[]string{
 		&f.Preserved, &f.Written, &f.Presented, &f.Diffed,
-		&f.Merged, &f.Conflicted, &f.Unchanged,
+		&f.Merged, &f.Conflicted, &f.Unchanged, &f.Unmerged,
 	} {
 		if *l == nil {
 			*l = []string{}
@@ -202,6 +204,10 @@ func (j *J) generate(
 	merged := mergeOptions(j.st.opts, opts)
 	if force != nil {
 		force(&merged)
+	}
+	if c := merged.Existing.Txt.Conflict; c != "" && c != ConflictMarkers && c != ConflictFail {
+		return Result{}, fmt.Errorf("Jostraca Options (`existing` property): Value \"%s\" "+
+			"for property \"txt.conflict\" must be exactly one of: markers, fail", c)
 	}
 
 	// The in-memory volume, when mem is on for THIS call. A GLOBAL volume
@@ -284,5 +290,13 @@ func (j *J) generate(
 	// Only after a run that succeeded, as in TS: a refused run returns its
 	// error and replays nothing.
 	st.replayWarnings()
+
+	// Once the build is done, so every other file is already written and
+	// the meta log records the run, as TS throws after its build.
+	if doBuild && len(b.fh.failures) > 0 {
+		return res, &MergeConflictError{
+			Conflicts: append([]MergeConflict(nil), b.fh.failures...),
+		}
+	}
 	return res, nil
 }

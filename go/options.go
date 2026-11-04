@@ -48,7 +48,19 @@ type ExistingTxt struct {
 	Present  *bool
 	Diff     *bool
 	Merge    *bool
+
+	// Conflict is what a merge that cannot land does: ConflictMarkers (the
+	// default, also "") writes the conflict markers into the file, and
+	// ConflictFail leaves the file as it is and fails the run with a
+	// *MergeConflictError.
+	Conflict string
 }
+
+// The values of ExistingTxt.Conflict.
+const (
+	ConflictMarkers = "markers"
+	ConflictFail    = "fail"
+)
 
 type ExistingBin struct {
 	Write    *bool
@@ -295,6 +307,7 @@ var existingSchema = shape.MustShape(map[string]any{
 		"present":  false,
 		"diff":     false,
 		"merge":    false,
+		"conflict": shape.Default(ConflictMarkers, shape.Exact(ConflictMarkers, ConflictFail)),
 	},
 	"bin": map[string]any{
 		"write":    true,
@@ -401,6 +414,9 @@ func decodeExisting(m map[string]any) Existing {
 			Present:  boolPtrField(t, "present"),
 			Diff:     boolPtrField(t, "diff"),
 			Merge:    boolPtrField(t, "merge"),
+		}
+		if c, ok := t["conflict"].(string); ok {
+			ex.Txt.Conflict = c
 		}
 	}
 	if b, ok := m["bin"].(map[string]any); ok {
@@ -550,12 +566,16 @@ func mergeOptions(global, call Options) Options {
 			Present:  overBool(global.Existing.Txt.Present, call.Existing.Txt.Present),
 			Diff:     overBool(global.Existing.Txt.Diff, call.Existing.Txt.Diff),
 			Merge:    overBool(global.Existing.Txt.Merge, call.Existing.Txt.Merge),
+			Conflict: global.Existing.Txt.Conflict,
 		},
 		Bin: ExistingBin{
 			Write:    overBool(global.Existing.Bin.Write, call.Existing.Bin.Write),
 			Preserve: overBool(global.Existing.Bin.Preserve, call.Existing.Bin.Preserve),
 			Present:  overBool(global.Existing.Bin.Present, call.Existing.Bin.Present),
 		},
+	}
+	if call.Existing.Txt.Conflict != "" {
+		out.Existing.Txt.Conflict = call.Existing.Txt.Conflict
 	}
 	// Control merges PER FIELD, as TS's `deep({}, CONTROL_DEFAULTS,
 	// gOpts.control, opts.control)` does: a per-call Control that sets one

@@ -13,8 +13,9 @@ import (
 // The merge engine decides the outcome. A clean merge over a file whose
 // generated text contains the marker sentinel is written; a file still
 // holding an earlier merge's markers is left byte-for-byte untouched, a
-// requested mode still applied, and reported merged AND conflicted. Twin
-// of 'merge-marker-files' in ts/test/filehandler.test.ts.
+// requested mode still applied, and reported merged AND conflicted. Its
+// baseline stays at the generate the markers came from. Twin of
+// 'merge-marker-files' in ts/test/filehandler.test.ts.
 func TestMergeMarkerFiles(t *testing.T) {
 	yes := true
 	merge := Existing{Txt: ExistingTxt{Merge: &yes}}
@@ -121,7 +122,7 @@ func TestMergeMarkerFiles(t *testing.T) {
 				t.Errorf("%s: mode %o, want %o", c.name, fi.Mode().Perm(), c.mode)
 			}
 		}
-		if b, _ := os.ReadFile(out + "/.jostraca/generated/a.txt"); string(b) != "A\ngen2\n" {
+		if b, _ := os.ReadFile(out + "/.jostraca/generated/a.txt"); string(b) != "A\ngen\n" {
 			t.Errorf("%s: baseline = %q", c.name, b)
 		}
 	}

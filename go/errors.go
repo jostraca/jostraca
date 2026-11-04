@@ -35,6 +35,41 @@ var (
 		"two File components resolve to the same output path")
 )
 
+// MergeConflict is one file a ConflictFail merge left as it was, and why:
+// "conflict" (both sides changed one region), "unresolved" (the file still
+// holds markers) or "nobase" (no baseline to merge against).
+type MergeConflict struct {
+	Path   string `json:"path"`
+	Reason string `json:"reason"`
+}
+
+// mergeConflictReason is the wording each reason takes in the message,
+// MERGE_FAILURE_REASON in ts/src/jostraca.ts.
+var mergeConflictReason = map[string]string{
+	"conflict":   "conflict",
+	"unresolved": "unresolved conflict markers",
+	"nobase":     "no baseline",
+}
+
+// MergeConflictError is what Generate returns, beside the run's Result,
+// when Existing.Txt.Conflict is ConflictFail and a merge could not land.
+// Every file named was left as it was, with its baseline, so the same run
+// fails the same way until the conflicts are dealt with. It wraps
+// ErrMergeConflict, and its text is TS's.
+type MergeConflictError struct {
+	Conflicts []MergeConflict
+}
+
+func (e *MergeConflictError) Error() string {
+	parts := make([]string, len(e.Conflicts))
+	for i, c := range e.Conflicts {
+		parts[i] = c.Path + " (" + mergeConflictReason[c.Reason] + ")"
+	}
+	return ErrMergeConflict.Error() + ", left unchanged: " + strings.Join(parts, ", ")
+}
+
+func (e *MergeConflictError) Unwrap() error { return ErrMergeConflict }
+
 // fromMissingErr and fromCheckErr are the texts TypeScript's shape gives a
 // Fragment or CopyFiles `from` that is absent or fails its check. What
 // follows "threw:" is the filesystem's own error, so it is the host's

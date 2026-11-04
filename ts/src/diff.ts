@@ -100,45 +100,62 @@ const MARK_END = '>>>>>>> '
 const LABEL_GENERATED = 'GENERATED'
 const LABEL_EXISTING = 'EXISTING'
 
-// The end-of-conflict marker for the EXISTING side. A file still holding
-// this has an unresolved merge in it.
-const UNRESOLVED_MARK = MARK_END + LABEL_EXISTING + ':'
+// The default marker lines, as prefixes, so they match whatever timestamp
+// follows. Both sides open and close a block somewhere: a merge conflict
+// opens on EXISTING and closes on GENERATED, a conflict written before
+// 0.41 the other way round, and a diff block opens and closes on one side.
+const DEFAULT_MARKS = [
+  MARK_START + LABEL_EXISTING + ':',
+  MARK_END + LABEL_EXISTING + ':',
+  MARK_START + LABEL_GENERATED + ':',
+  MARK_END + LABEL_GENERATED + ':',
+]
 
 // The largest epoch-ms magnitude a Date holds.
 const MAX_DATE_MS = 8.64e15
 
 
+// Whether `mark` starts a line of `text`. Every marker is written at the
+// start of a line, so a marker-like run in the middle of one is content.
+function hasLine(text: string, mark: string): boolean {
+  return text.startsWith(mark) || text.includes('\n' + mark)
+}
+
+
 // Whether text still holds an unresolved conflict from an earlier merge.
-// Keyed on the closing EXISTING marker alone: a half-resolved file, where
-// the opening marker was removed but the closing one was not, must still
-// count as unresolved rather than being re-merged.
 //
-// The `existingLabel` argument matters when the caller supplied a custom
-// one: `writeConflict` emits `>>>>>>> ` + whatever label was configured, so
-// a file conflicted under `labels.existing = 'E'` does not contain the
-// default sentinel at all. Without it, merge's unresolved guard did not
-// fire and the markers nested one level deeper on every run — exactly what
-// the guard exists to prevent.
+// Any one marker line is enough. A half-resolved file, where one marker
+// was removed and another was not, must still count as unresolved rather
+// than being re-merged, whichever marker the user removed.
 //
-// Detection only holds when the SAME existing label is used across runs. A
-// caller that changes its labels between generations cannot expect an older
-// conflict to be recognised, and the default is unchanged for callers that
-// never set one.
-function hasConflicts(text: string, existingLabel?: string): boolean {
-  // The default sentinel is a PREFIX (`>>>>>>> EXISTING:`), so it matches
-  // whatever timestamp follows. Checking the fully-formatted label instead
-  // would only match a conflict written in the same millisecond.
-  if (text.includes(UNRESOLVED_MARK)) {
+// `labels` matters when the caller supplied custom ones: `writeConflict`
+// emits whatever label was configured, so a file conflicted under
+// `labels.existing = 'E'` does not contain the default sentinel at all.
+// Without them, merge's unresolved guard did not fire and the markers
+// nested one level deeper on every run — exactly what the guard exists to
+// prevent. A string is the existing label alone, the form this took when
+// only the existing label closed a conflict.
+//
+// Detection only holds when the SAME labels are used across runs. A caller
+// that changes its labels between generations cannot expect an older
+// conflict to be recognised; the defaults are always recognised.
+function hasConflicts(text: string, labels?: string | DiffLabels): boolean {
+  if (DEFAULT_MARKS.some((mark) => hasLine(text, mark))) {
     return true
   }
+
+  const custom = 'string' === typeof labels ? [labels] :
+    [labels?.existing, labels?.generated]
+
   // Match the COMPLETE emitted marker, including its newline. A bare
   // substring check on `MARK_END + label` treats a custom label as a
   // prefix, so label `E` matched an ordinary line `>>>>>>> Example` and
   // merge returned `unresolved` — silently suppressing a legitimate
   // regeneration over a marker the engine never emitted. writeConflict
   // always appends '\n', so the newline is safe to require.
-  return null != existingLabel && '' !== existingLabel &&
-    text.includes(MARK_END + existingLabel + '\n')
+  return custom.some((label) => null != label && '' !== label &&
+    (hasLine(text, MARK_START + label + '\n') ||
+      hasLine(text, MARK_END + label + '\n')))
 }
 
 
@@ -376,25 +393,29 @@ function endsWithNewline(parts: string[]): boolean {
 }
 
 
+// The existing side first, as git writes a conflict: the file on disk is
+// the current change and the generate is the incoming one, so an editor's
+// "accept current" keeps the user's lines (issue #79). The two-way diff
+// already put the existing side first.
 function writeConflict(
   out: string[],
   generated: string[],
   existing: string[],
   labels: DiffLabels,
 ): void {
-  out.push(MARK_START + labels.generated + '\n')
-  pushAll(out, generated)
-  if (!endsWithNewline(out)) {
-    out.push('\n')
-  }
-
-  out.push(MARK_MID)
+  out.push(MARK_START + labels.existing + '\n')
   pushAll(out, existing)
   if (!endsWithNewline(out)) {
     out.push('\n')
   }
 
-  out.push(MARK_END + labels.existing + '\n')
+  out.push(MARK_MID)
+  pushAll(out, generated)
+  if (!endsWithNewline(out)) {
+    out.push('\n')
+  }
+
+  out.push(MARK_END + labels.generated + '\n')
 }
 
 
@@ -431,9 +452,9 @@ function merge(
 
   // Never merge into an unresolved merge — that stacks conflict markers
   // inside conflict markers and is unreadable. Leave it for the user.
-  // Pass the EXPLICIT custom label, not the formatted one: the formatted
+  // Pass the EXPLICIT custom labels, not the formatted ones: a formatted
   // default carries a timestamp and would never match an older conflict.
-  if (hasConflicts(existing, spec?.labels?.existing)) {
+  if (hasConflicts(existing, spec?.labels)) {
     return { content: existing, conflict: false, outcome: 'unresolved' }
   }
 

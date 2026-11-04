@@ -261,14 +261,15 @@ describe('diff-engine', () => {
     res = merge('X\n', '', 'Y\n')
     expect(res.content.includes('GENERATED: ')).true()
 
-    // Each label overridable independently.
+    // Each label overridable independently. The existing side opens the
+    // conflict and the generated side closes it.
     res = merge('X\n', '', 'Y\n', { labels: { generated: 'G' } })
-    expect(res.content.includes(MARK_START + 'G\n')).true()
-    expect(res.content.includes(MARK_END + 'EXISTING: ')).true()
+    expect(res.content.includes(MARK_END + 'G\n')).true()
+    expect(res.content.includes(MARK_START + 'EXISTING: ')).true()
 
     res = merge('X\n', '', 'Y\n', { labels: { existing: 'E' } })
-    expect(res.content.includes(MARK_END + 'E\n')).true()
-    expect(res.content.includes(MARK_START + 'GENERATED: ')).true()
+    expect(res.content.includes(MARK_START + 'E\n')).true()
+    expect(res.content.includes(MARK_END + 'GENERATED: ')).true()
   })
 
 
@@ -284,7 +285,7 @@ describe('diff-engine', () => {
     expect(hasConflicts('a\n>>>>>>> \nb', '')).false()
     const res = merge('X\n', 'A\n', 'A\n>>>>>>> \n', { labels: { existing: '' } })
     expect(res.outcome).equal('merged')
-    expect(res.content.endsWith('>>>>>>> \n>>>>>>> EXISTING: ' +
+    expect(res.content.endsWith('A\n>>>>>>> \n=======\nX\n>>>>>>> GENERATED: ' +
       '1970-01-01T00:00:00.000Z/merge\n')).true()
   })
 
@@ -321,13 +322,31 @@ describe('diff-engine', () => {
 
   test('has-conflicts', () => {
     expect(hasConflicts('plain\n')).false()
+
+    // A conflict as a merge writes it, and as one before 0.41 did.
+    expect(hasConflicts('<<<<<<< EXISTING: X/merge\na\n=======\nb\n' +
+      '>>>>>>> GENERATED: X/merge\n')).true()
     expect(hasConflicts('a\n>>>>>>> EXISTING: X/merge\n')).true()
-    // Half-resolved: opening marker gone, closing one left. Still
-    // unresolved, so it must not be re-merged.
+
+    // Half-resolved, whichever marker was removed: still unresolved, so it
+    // must not be re-merged.
+    expect(hasConflicts('a\n=======\nb\n>>>>>>> GENERATED: X/merge\n')).true()
+    expect(hasConflicts('<<<<<<< EXISTING: X/merge\na\n=======\nb\n')).true()
     expect(hasConflicts('a\n=======\nb\n>>>>>>> EXISTING: X/merge\n')).true()
-    // Diff markers are not an unresolved merge.
+
+    // Diff markers are jostraca's markers too, on either side, so a file
+    // still holding them is not merged into.
     expect(hasConflicts(
-      '<<<<<<< GENERATED: X/diff\na\n>>>>>>> GENERATED: X/diff\n')).false()
+      '<<<<<<< GENERATED: X/diff\na\n>>>>>>> GENERATED: X/diff\n')).true()
+
+    // A marker counts only at the start of a line.
+    expect(hasConflicts('quoted <<<<<<< EXISTING: X/merge\n')).false()
+
+    // Custom labels, on either side, as a string or as labels.
+    expect(hasConflicts('a\n>>>>>>> G\n', { generated: 'G' })).true()
+    expect(hasConflicts('<<<<<<< E\na\n', { existing: 'E' })).true()
+    expect(hasConflicts('<<<<<<< E\na\n', 'E')).true()
+    expect(hasConflicts('a\n>>>>>>> G\n', 'E')).false()
   })
 
 
@@ -394,7 +413,7 @@ describe('diff-engine', () => {
     expect(res.conflict).true()
     expect(res.outcome).equal('merged')
     expect(res.content).equal(
-      'a\n' + MARK_START + 'G\nNEW\n' + MARK_MID + 'USER\n' + MARK_END + 'E\nc\n')
+      'a\n' + MARK_START + 'E\nUSER\n' + MARK_MID + 'NEW\n' + MARK_END + 'G\nc\n')
   })
 
 
@@ -415,7 +434,7 @@ describe('diff-engine', () => {
     const res = merge('X\nanchor\n', 'anchor\n', 'Y\nanchor\n', L)
     expect(res.conflict).true()
     expect(res.content).equal(
-      MARK_START + 'G\nX\n' + MARK_MID + 'Y\n' + MARK_END + 'E\nanchor\n')
+      MARK_START + 'E\nY\n' + MARK_MID + 'X\n' + MARK_END + 'G\nanchor\n')
   })
 
 
@@ -430,7 +449,7 @@ describe('diff-engine', () => {
     const res = merge('a\nX\n', 'a\n', 'a\nY\n', L)
     expect(res.conflict).true()
     expect(res.content).equal(
-      'a\n' + MARK_START + 'G\nX\n' + MARK_MID + 'Y\n' + MARK_END + 'E\n')
+      'a\n' + MARK_START + 'E\nY\n' + MARK_MID + 'X\n' + MARK_END + 'G\n')
   })
 
 
@@ -440,7 +459,7 @@ describe('diff-engine', () => {
     const res = merge('X\n', '', 'Y\n', L)
     expect(res.conflict).true()
     expect(res.content).equal(
-      MARK_START + 'G\nX\n' + MARK_MID + 'Y\n' + MARK_END + 'E\n')
+      MARK_START + 'E\nY\n' + MARK_MID + 'X\n' + MARK_END + 'G\n')
   })
 
 
@@ -449,7 +468,7 @@ describe('diff-engine', () => {
   test('merge-conflict-without-trailing-newline', () => {
     const res = merge('X', '', 'Y', L)
     expect(res.content).equal(
-      MARK_START + 'G\nX\n' + MARK_MID + 'Y\n' + MARK_END + 'E\n')
+      MARK_START + 'E\nY\n' + MARK_MID + 'X\n' + MARK_END + 'G\n')
   })
 
 
@@ -517,7 +536,7 @@ describe('diff-engine', () => {
       if (!res.conflict) {
         continue
       }
-      for (const want of [MARK_START + 'G\n', MARK_MID, MARK_END + 'E\n']) {
+      for (const want of [MARK_START + 'E\n', MARK_MID, MARK_END + 'G\n']) {
         expect(res.content.includes(want)).true()
       }
     }
@@ -705,7 +724,7 @@ describe('diff-engine', () => {
     }
     const sha = (s: string) => createHash('sha256').update(s).digest('hex')
 
-    const S1 = 'd062790b21f6b3c2541c4dadd78cb4ce982cddde3d4b3872af398ecd703c033a'
+    const S1 = '1f4ccb7888d87fb2fd02ac8a578b7725196df8005cb927dbb6f91008b68e70f6'
     const S2 = 'fb1363f2a2c668d0daae627b7f603a599eff8b4bf034b4005978ae27a5475d2f'
     const S3 = '3786ede66f5c65bab821eb7dcb1d5b56d3d0f2ae0349fe6adcc3e93b4b1e4586'
 
@@ -715,13 +734,13 @@ describe('diff-engine', () => {
         '587be7b2d4bdcfd0ae57fba1f79691f9a6417a162f3f96a961cf0c26536e429b'],
       ['merge-region', () => merge('head\n' + big, 'head\n', 'head\nuser\n', L),
         'merged', true, 1488928,
-        '155c3e5904be5bbcc6832326f829de7185aa0ab2c18c8b4cbcc63cdc4fd0a989'],
+        '706a9905edefd6ea6550d1f83f52da6a8b2cb636528c50cbc8d53e68a74d50fc'],
       ['merge-tail', () => merge(big, '', other, L),
         'merged', true, 2977808,
-        '517c79d677a06d856a708162ddbb3464e5623880e03f36fed0dd0daff725c671'],
+        '3b993454d073c8c6aea359efd84937fc308c42e98245fa116c790c09418efbcf'],
       ['merge-existing-grows', () => merge('head\n', 'head\nz\n', 'head\n' + big, L),
         'merged', true, 1488923,
-        '4b8d814bf4729e2274186dd99422f0b97c04277198b42e56ed920f6bd9e979a8'],
+        'ac62bdd391c5a3f501fb92e6568b403ac1c671534c9c190e0a42a3f9477b5114'],
 
       // The merge's three copy paths, each carrying one big run with no
       // conflict or the same run on both sides: an anchor (S1-S3), a
@@ -740,7 +759,7 @@ describe('diff-engine', () => {
         'merged', true, 1488926, S1],
       ['tail-both', () => merge('G\na\n' + big, 'a\n', 'E\na\n' + big, L),
         'merged', true, 1488924,
-        '20c311d84dad6acb7f4c8ce8e58328b5daa6b8510b046e707f6d6739efa8fc39'],
+        '5d5925260799bc7ae55ad4fa50ea10b1e497555f10637818eb19007a17ef9fc6'],
       ['tail-existing', () => merge('G\na\n', 'a\n', 'a\n' + big, L),
         'merged', false, 1488894,
         '265226e32a1d87ec609b5c96c9ea5d4fa1e09960ca7fe8e249b6424ba9d5b29c'],

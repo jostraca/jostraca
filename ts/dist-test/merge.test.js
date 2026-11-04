@@ -149,7 +149,10 @@ const START_TIME = 1735689600000;
                 '      "protect": false,\n' +
                 '      "conflict": false,\n' +
                 '      "when": 1735689840000,\n' +
-                '      "hwhen": 2025010100040000\n' +
+                '      "hwhen": 2025010100040000,\n' +
+                '      "fingerprints": [\n' +
+                '        "7def7aeae28bab3c"\n' +
+                '      ]\n' +
                 '    }\n' +
                 '  }\n' +
                 '}',
@@ -190,7 +193,11 @@ const START_TIME = 1735689600000;
                 '      "protect": false,\n' +
                 '      "conflict": false,\n' +
                 '      "when": 1735690620000,\n' +
-                '      "hwhen": 2025010100170000\n' +
+                '      "hwhen": 2025010100170000,\n' +
+                '      "fingerprints": [\n' +
+                '        "7def7aeae28bab3c",\n' +
+                '        "3e8421dd5f67dc6e"\n' +
+                '      ]\n' +
                 '    }\n' +
                 '  }\n' +
                 '}',
@@ -231,7 +238,11 @@ const START_TIME = 1735689600000;
                 '      "protect": false,\n' +
                 '      "conflict": false,\n' +
                 '      "when": 1735691220000,\n' +
-                '      "hwhen": 2025010100270000\n' +
+                '      "hwhen": 2025010100270000,\n' +
+                '      "fingerprints": [\n' +
+                '        "7def7aeae28bab3c",\n' +
+                '        "3e8421dd5f67dc6e"\n' +
+                '      ]\n' +
                 '    }\n' +
                 '  }\n' +
                 '}',
@@ -270,7 +281,11 @@ const START_TIME = 1735689600000;
                 '      "protect": false,\n' +
                 '      "conflict": false,\n' +
                 '      "when": 1735692000000,\n' +
-                '      "hwhen": 2025010100400000\n' +
+                '      "hwhen": 2025010100400000,\n' +
+                '      "fingerprints": [\n' +
+                '        "7def7aeae28bab3c",\n' +
+                '        "3e8421dd5f67dc6e"\n' +
+                '      ]\n' +
                 '    }\n' +
                 '  }\n' +
                 '}',
@@ -291,11 +306,11 @@ const START_TIME = 1735689600000;
             }
         });
         (0, expect_1.expect)(vol.toJSON()).equal({
-            '/top/sdk/code/js/foo.js': '<<<<<<< GENERATED: 2025-01-01T00:45:00.000Z/merge\n' +
-                '// foo:2\n' +
-                '=======\n' +
+            '/top/sdk/code/js/foo.js': '<<<<<<< EXISTING: 2025-01-01T00:41:00.000Z/merge\n' +
                 '// FOO:a\n' +
-                '>>>>>>> EXISTING: 2025-01-01T00:41:00.000Z/merge\n' +
+                '=======\n' +
+                '// foo:2\n' +
+                '>>>>>>> GENERATED: 2025-01-01T00:45:00.000Z/merge\n' +
                 '',
             '/top/.jostraca/generated/sdk/code/js/foo.js': '// foo:2\n',
             '/top/.jostraca/jostraca.meta.log': '{\n' +
@@ -314,7 +329,12 @@ const START_TIME = 1735689600000;
                 '      "protect": false,\n' +
                 '      "conflict": true,\n' +
                 '      "when": 1735692780000,\n' +
-                '      "hwhen": 2025010100530000\n' +
+                '      "hwhen": 2025010100530000,\n' +
+                '      "fingerprints": [\n' +
+                '        "7def7aeae28bab3c",\n' +
+                '        "3e8421dd5f67dc6e",\n' +
+                '        "04d865f5ade8d739"\n' +
+                '      ]\n' +
                 '    }\n' +
                 '  }\n' +
                 '}',
@@ -353,7 +373,12 @@ const START_TIME = 1735689600000;
                 '      "protect": false,\n' +
                 '      "conflict": false,\n' +
                 '      "when": 1735693560000,\n' +
-                '      "hwhen": 2025010101060000\n' +
+                '      "hwhen": 2025010101060000,\n' +
+                '      "fingerprints": [\n' +
+                '        "7def7aeae28bab3c",\n' +
+                '        "3e8421dd5f67dc6e",\n' +
+                '        "04d865f5ade8d739"\n' +
+                '      ]\n' +
                 '    }\n' +
                 '  }\n' +
                 '}',
@@ -391,7 +416,12 @@ const START_TIME = 1735689600000;
                 '      "protect": false,\n' +
                 '      "conflict": false,\n' +
                 '      "when": 1735694340000,\n' +
-                '      "hwhen": 2025010101190000\n' +
+                '      "hwhen": 2025010101190000,\n' +
+                '      "fingerprints": [\n' +
+                '        "7def7aeae28bab3c",\n' +
+                '        "3e8421dd5f67dc6e",\n' +
+                '        "04d865f5ade8d739"\n' +
+                '      ]\n' +
                 '    }\n' +
                 '  }\n' +
                 '}',
@@ -412,11 +442,11 @@ const START_TIME = 1735689600000;
             }
         });
         (0, expect_1.expect)(vol.toJSON()).equal({
-            '/top/sdk/code/js/foo.js': '<<<<<<< GENERATED: 2025-01-01T01:24:00.000Z/merge\n' +
-                '// foo:3\n' +
-                '=======\n' +
+            '/top/sdk/code/js/foo.js': '<<<<<<< EXISTING: 2025-01-01T01:20:00.000Z/merge\n' +
                 '// FOO:2\n' +
-                '>>>>>>> EXISTING: 2025-01-01T01:20:00.000Z/merge\n' +
+                '=======\n' +
+                '// foo:3\n' +
+                '>>>>>>> GENERATED: 2025-01-01T01:24:00.000Z/merge\n' +
                 '',
             '/top/.jostraca/generated/sdk/code/js/foo.js': '// foo:3\n',
             '/top/.jostraca/jostraca.meta.log': '{\n' +
@@ -435,7 +465,13 @@ const START_TIME = 1735689600000;
                 '      "protect": false,\n' +
                 '      "conflict": true,\n' +
                 '      "when": 1735695120000,\n' +
-                '      "hwhen": 2025010101320000\n' +
+                '      "hwhen": 2025010101320000,\n' +
+                '      "fingerprints": [\n' +
+                '        "7def7aeae28bab3c",\n' +
+                '        "3e8421dd5f67dc6e",\n' +
+                '        "04d865f5ade8d739",\n' +
+                '        "102c02afe57df8ad"\n' +
+                '      ]\n' +
                 '    }\n' +
                 '  }\n' +
                 '}',
@@ -474,7 +510,13 @@ const START_TIME = 1735689600000;
                 '      "protect": false,\n' +
                 '      "conflict": false,\n' +
                 '      "when": 1735695900000,\n' +
-                '      "hwhen": 2025010101450000\n' +
+                '      "hwhen": 2025010101450000,\n' +
+                '      "fingerprints": [\n' +
+                '        "7def7aeae28bab3c",\n' +
+                '        "3e8421dd5f67dc6e",\n' +
+                '        "04d865f5ade8d739",\n' +
+                '        "102c02afe57df8ad"\n' +
+                '      ]\n' +
                 '    }\n' +
                 '  }\n' +
                 '}',
@@ -495,12 +537,12 @@ const START_TIME = 1735689600000;
             }
         });
         (0, expect_1.expect)(vol.toJSON()).equal({
-            '/top/sdk/code/js/foo.js': '<<<<<<< GENERATED: 2025-01-01T01:50:00.000Z/merge\n' +
-                '// foo:4\n' +
-                '=======\n' +
+            '/top/sdk/code/js/foo.js': '<<<<<<< EXISTING: 2025-01-01T01:46:00.000Z/merge\n' +
                 '// foo:3\n' +
                 '// BAR:b\n' +
-                '>>>>>>> EXISTING: 2025-01-01T01:46:00.000Z/merge\n' +
+                '=======\n' +
+                '// foo:4\n' +
+                '>>>>>>> GENERATED: 2025-01-01T01:50:00.000Z/merge\n' +
                 '',
             '/top/.jostraca/generated/sdk/code/js/foo.js': '// foo:4\n',
             '/top/.jostraca/jostraca.meta.log': '{\n' +
@@ -519,7 +561,14 @@ const START_TIME = 1735689600000;
                 '      "protect": false,\n' +
                 '      "conflict": true,\n' +
                 '      "when": 1735696680000,\n' +
-                '      "hwhen": 2025010101580000\n' +
+                '      "hwhen": 2025010101580000,\n' +
+                '      "fingerprints": [\n' +
+                '        "7def7aeae28bab3c",\n' +
+                '        "3e8421dd5f67dc6e",\n' +
+                '        "04d865f5ade8d739",\n' +
+                '        "102c02afe57df8ad",\n' +
+                '        "738f6737b210368e"\n' +
+                '      ]\n' +
                 '    }\n' +
                 '  }\n' +
                 '}',
@@ -576,11 +625,11 @@ const START_TIME = 1735689600000;
         // console.log(res)
         // console.log(vol.toJSON())
         (0, expect_1.expect)(vol.toJSON()['/foo.txt']).equal(`aaa
-<<<<<<< GENERATED: 2025-01-01T00:58:00.000Z/merge
-ccc
-=======
+<<<<<<< EXISTING: 2025-01-01T00:54:00.000Z/merge
 bbb
->>>>>>> EXISTING: 2025-01-01T00:54:00.000Z/merge
+=======
+ccc
+>>>>>>> GENERATED: 2025-01-01T00:58:00.000Z/merge
 `);
         // console.log('%%% G-6 %%%')
         fs.writeFileSync('/foo.txt', 'aaa\nbbb\nccc\n', { encoding: 'utf8' });
@@ -594,24 +643,24 @@ bbb
         // console.log(res)
         // console.log(vol.toJSON())
         (0, expect_1.expect)(vol.toJSON()['/foo.txt']).equal(`aaa
-<<<<<<< GENERATED: 2025-01-01T01:24:00.000Z/merge
-ddd
-=======
+<<<<<<< EXISTING: 2025-01-01T01:20:00.000Z/merge
 bbb
 ccc
->>>>>>> EXISTING: 2025-01-01T01:20:00.000Z/merge
+=======
+ddd
+>>>>>>> GENERATED: 2025-01-01T01:24:00.000Z/merge
 `);
         // console.log('%%% G-8 %%%')
         res = await jostraca.generate(jopts, root);
         // console.log(res)
         // console.log(vol.toJSON())
         (0, expect_1.expect)(vol.toJSON()['/foo.txt']).equal(`aaa
-<<<<<<< GENERATED: 2025-01-01T01:24:00.000Z/merge
-ddd
-=======
+<<<<<<< EXISTING: 2025-01-01T01:20:00.000Z/merge
 bbb
 ccc
->>>>>>> EXISTING: 2025-01-01T01:20:00.000Z/merge
+=======
+ddd
+>>>>>>> GENERATED: 2025-01-01T01:24:00.000Z/merge
 `);
         // console.log('%%% G-9 %%%')
         model.foo = 'aaa\neee\n';
@@ -619,12 +668,12 @@ ccc
         // console.log(res)
         // console.log(vol.toJSON())
         (0, expect_1.expect)(vol.toJSON()['/foo.txt']).equal(`aaa
-<<<<<<< GENERATED: 2025-01-01T01:24:00.000Z/merge
-ddd
-=======
+<<<<<<< EXISTING: 2025-01-01T01:20:00.000Z/merge
 bbb
 ccc
->>>>>>> EXISTING: 2025-01-01T01:20:00.000Z/merge
+=======
+ddd
+>>>>>>> GENERATED: 2025-01-01T01:24:00.000Z/merge
 `);
     });
     // A region past about 125k lines used to reject the whole generate in TS.
@@ -643,8 +692,8 @@ ccc
         const m = await existingRun('merge', START_TIME, 'big.txt', [['head\n', null], ['head\n' + big, 'head\nuser\n']]);
         (0, expect_1.expect)(m.res.files.merged).equal(['/out/big.txt']);
         (0, expect_1.expect)(m.res.files.conflicted).equal(['/out/big.txt']);
-        (0, expect_1.expect)(m.text.startsWith('head\n<<<<<<< GENERATED: ')).true();
-        (0, expect_1.expect)(m.text.includes(big + '=======\nuser\n>>>>>>> EXISTING: ')).true();
+        (0, expect_1.expect)(m.text.startsWith('head\n<<<<<<< EXISTING: ')).true();
+        (0, expect_1.expect)(m.text.includes('\nuser\n=======\n' + big + '>>>>>>> GENERATED: ')).true();
     });
     // A clock outside years 0000-9999 labels conflicts in the extended-year
     // form. Twin of TestExtendedYearLabels in go/diff_test.go.
@@ -656,8 +705,8 @@ ccc
             '<<<<<<< GENERATED: ' + dl + 'GEN\n>>>>>>> GENERATED: ' + dl);
         const m = await existingRun('merge', -62198755200001, 'a.txt', [['A\n', null], ['A\ngen\n', 'A\nuser\n']]);
         const ml = '-000002-12-31T23:59:59.999Z/merge\n';
-        (0, expect_1.expect)(m.text).equal('A\n<<<<<<< GENERATED: ' + ml + 'gen\n=======\nuser\n' +
-            '>>>>>>> EXISTING: ' + ml);
+        (0, expect_1.expect)(m.text).equal('A\n<<<<<<< EXISTING: ' + ml + 'user\n=======\ngen\n' +
+            '>>>>>>> GENERATED: ' + ml);
     });
 });
 // Generates one file into a fresh memfs per step under a fixed clock,
@@ -782,11 +831,11 @@ const DATA_merge_basic_vol1 = {
     '/top/sdk/js/foo.js': '// custom-foo:1\n// FOO\n// added1\n',
     '/top/sdk/js/bar.js': '// custom-bar\n' +
         '// BAR\n' +
-        '<<<<<<< GENERATED: 2025-01-01T00:13:00.000Z/merge\n' +
-        '// gen-extra1\n' +
-        '=======\n' +
+        '<<<<<<< EXISTING: 2025-01-01T00:09:00.000Z/merge\n' +
         '// added1\n' +
-        '>>>>>>> EXISTING: 2025-01-01T00:09:00.000Z/merge\n',
+        '=======\n' +
+        '// gen-extra1\n' +
+        '>>>>>>> GENERATED: 2025-01-01T00:13:00.000Z/merge\n',
     '/top/sdk/go/zed.go': '// custom-zed:1\n// EXTRA1',
     '/top/.jostraca/generated/sdk/js/foo.js': '// custom-foo:1\n// FOO\n',
     '/top/.jostraca/generated/sdk/js/bar.js': '// custom-bar\n// BAR\n// gen-extra1\n',
@@ -807,7 +856,10 @@ const DATA_merge_basic_vol1 = {
         '      "protect": false,\n' +
         '      "conflict": false,\n' +
         '      "when": 1735690860000,\n' +
-        '      "hwhen": 2025010100210000\n' +
+        '      "hwhen": 2025010100210000,\n' +
+        '      "fingerprints": [\n' +
+        '        "79424a7f5a09eb1f"\n' +
+        '      ]\n' +
         '    },\n' +
         '    "sdk/js/bar.js": {\n' +
         '      "action": "merge",\n' +
@@ -819,7 +871,10 @@ const DATA_merge_basic_vol1 = {
         '      "protect": false,\n' +
         '      "conflict": true,\n' +
         '      "when": 1735691160000,\n' +
-        '      "hwhen": 2025010100260000\n' +
+        '      "hwhen": 2025010100260000,\n' +
+        '      "fingerprints": [\n' +
+        '        "c3b8c312259bbd4a"\n' +
+        '      ]\n' +
         '    },\n' +
         '    "sdk/go/zed.go": {\n' +
         '      "action": "merge",\n' +
@@ -831,7 +886,10 @@ const DATA_merge_basic_vol1 = {
         '      "protect": false,\n' +
         '      "conflict": false,\n' +
         '      "when": 1735691460000,\n' +
-        '      "hwhen": 2025010100310000\n' +
+        '      "hwhen": 2025010100310000,\n' +
+        '      "fingerprints": [\n' +
+        '        "a189dad4a6c63553"\n' +
+        '      ]\n' +
         '    }\n' +
         '  }\n' +
         '}',
@@ -861,7 +919,10 @@ const DATA_merge_basic_vol2 = {
         '      "protect": false,\n' +
         '      "conflict": false,\n' +
         '      "when": 1735692240000,\n' +
-        '      "hwhen": 2025010100440000\n' +
+        '      "hwhen": 2025010100440000,\n' +
+        '      "fingerprints": [\n' +
+        '        "79424a7f5a09eb1f"\n' +
+        '      ]\n' +
         '    },\n' +
         '    "sdk/js/bar.js": {\n' +
         '      "action": "merge",\n' +
@@ -873,7 +934,10 @@ const DATA_merge_basic_vol2 = {
         '      "protect": false,\n' +
         '      "conflict": false,\n' +
         '      "when": 1735692540000,\n' +
-        '      "hwhen": 2025010100490000\n' +
+        '      "hwhen": 2025010100490000,\n' +
+        '      "fingerprints": [\n' +
+        '        "c3b8c312259bbd4a"\n' +
+        '      ]\n' +
         '    },\n' +
         '    "sdk/go/zed.go": {\n' +
         '      "action": "skip",\n' +
@@ -885,7 +949,10 @@ const DATA_merge_basic_vol2 = {
         '      "protect": false,\n' +
         '      "conflict": false,\n' +
         '      "when": 1735692660000,\n' +
-        '      "hwhen": 2025010100510000\n' +
+        '      "hwhen": 2025010100510000,\n' +
+        '      "fingerprints": [\n' +
+        '        "a189dad4a6c63553"\n' +
+        '      ]\n' +
         '    }\n' +
         '  }\n' +
         '}',

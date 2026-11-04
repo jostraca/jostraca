@@ -643,6 +643,34 @@ decision this document does not make on its own.
 All three were done together, since anyone opening these files to fix one is
 looking straight at the others.
 
+**[2026-11-04, v0.41.0]** The merge was made safe to rely on, in TS and then
+Go, with every parity file regenerated and replayed by Go byte for byte:
+
+- a conflict is written existing side first (#79), and any marker line, in
+  either order, counts as unresolved;
+- the baseline moves only when the generate lands (`hold-0` otherwise),
+  which removes the staleness a skip, protect, present, unresolved or failed
+  save used to cause;
+- a file that is one of its earlier generates (meta `fingerprints`) takes the
+  new one whole (`merge-earlier-0`);
+- a differing file with no baseline is listed in `files.unmerged`
+  (`merge-nobase-0`);
+- `existing.txt.conflict: 'fail'` leaves such files as they were and fails
+  the run after the build.
+
+New parity runs: `merge_conflict_fail`, `merge_earlier`, `merge_hold`.
+
+**The Rust port has the diff-engine half only.** `rs/src/diff.rs` writes the
+new order and detects markers as TS does, and `rs/tests/spec_test.rs` now
+dispatches `merge`, `diff` and `hasConflicts`, which it did not before: every
+`diff.tsv` row passes except the eight extended-year label rows, an older gap
+in its `iso_of` that the corpus could not reach until now. The FileHandler
+half is not ported. `rs/src/filehandler.rs` still refreshes the baseline on
+every save, records no fingerprints, has no `unmerged` list, and rejects the
+`conflict` option, so the five `conflict` rows of `options.tsv` fail there.
+Porting it needs SHA-256, which the crate does not have; a dependency for it
+needs its ADR first, or a hand-written digest.
+
 ---
 
 ## 5. What not to do

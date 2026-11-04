@@ -147,6 +147,27 @@ mod spec_tests {
         }
     }
 
+    fn str_at(a: &[Value], i: usize) -> &str {
+        a.get(i).and_then(Value::as_str).unwrap_or("")
+    }
+
+    // The optional spec argument of merge and diff, as Go's specDiffSpec
+    // decodes it: labels present in the JSON give Some(labels).
+    fn diff_spec(a: &[Value], i: usize) -> diff::DiffSpec {
+        let m = a.get(i).and_then(Value::as_object);
+        let num = |k: &str| m.and_then(|m| m.get(k)).and_then(Value::as_f64).unwrap_or(0.0) as i64;
+        let text = |v: Option<&Value>| v.and_then(Value::as_str).unwrap_or("").to_string();
+        diff::DiffSpec {
+            when: num("when"),
+            last: num("last"),
+            kind: text(m.and_then(|m| m.get("kind"))),
+            labels: m.and_then(|m| m.get("labels")).and_then(Value::as_object).map(|lb| diff::DiffLabels {
+                generated: text(lb.get("generated")),
+                existing: text(lb.get("existing")),
+            }),
+        }
+    }
+
     fn dispatch(case: &SpecCase) -> Result<Value, String> {
         let a = &case.args;
         match case.fn_name.as_str() {
@@ -229,6 +250,26 @@ mod spec_tests {
                 Ok(Value::Object(result))
             }
 
+            "merge" => {
+                let r = diff::merge(str_at(a, 0), str_at(a, 1), str_at(a, 2), diff_spec(a, 3));
+                Ok(serde_json::json!({"content": r.content, "conflict": r.conflict,
+                    "outcome": r.outcome.to_string()}))
+            }
+
+            "diff" => {
+                let r = diff::diff(str_at(a, 0), str_at(a, 1), diff_spec(a, 2));
+                Ok(serde_json::json!({"content": r.content, "conflict": r.conflict,
+                    "outcome": r.outcome.to_string()}))
+            }
+
+            "hasConflicts" => Ok(Value::Bool(match a.get(1) {
+                Some(Value::Object(lb)) => diff::has_conflicts_labels(str_at(a, 0),
+                    lb.get("existing").and_then(Value::as_str).unwrap_or(""),
+                    lb.get("generated").and_then(Value::as_str).unwrap_or("")),
+                Some(v) => diff::has_conflicts_label(str_at(a, 0), v.as_str().unwrap_or("")),
+                None => diff::has_conflicts(str_at(a, 0)),
+            })),
+
             "lines" => {
                 let text = a[0].as_str().unwrap_or("");
                 let ls: Vec<Value> = diff::lines(text).into_iter().map(Value::String).collect();
@@ -282,6 +323,7 @@ mod spec_tests {
                     | "template"
                     | "names"
                     | "lines" | "lcs"
+                    | "merge" | "diff" | "hasConflicts"
             );
             if !known {
                 missing.insert(c.fn_name.clone());

@@ -118,43 +118,70 @@ const (
 	labelExisting  = "EXISTING"
 )
 
-// unresolvedMark is the closing marker for the EXISTING side. A file still
-// holding this has an unresolved merge in it.
-const unresolvedMark = markEnd + labelExisting + ":"
+// defaultMarks are the default marker lines, as prefixes, so they match
+// whatever timestamp follows. Both sides open and close a block somewhere:
+// a merge conflict opens on EXISTING and closes on GENERATED, a conflict
+// written before 0.41 the other way round, and a diff block opens and
+// closes on one side. Mirrors DEFAULT_MARKS in ts/src/diff.ts.
+var defaultMarks = []string{
+	markStart + labelExisting + ":",
+	markEnd + labelExisting + ":",
+	markStart + labelGenerated + ":",
+	markEnd + labelGenerated + ":",
+}
 
-// HasConflicts reports whether text still holds an unresolved conflict from
-// an earlier merge.
+// hasLine reports whether mark starts a line of text. Every marker is
+// written at the start of a line, so a marker-like run in the middle of
+// one is content.
+func hasLine(text, mark string) bool {
+	return strings.HasPrefix(text, mark) || strings.Contains(text, "\n"+mark)
+}
+
+// HasConflicts reports whether text still holds an unresolved conflict.
 //
-// Keyed on the closing EXISTING marker alone: a half-resolved file, where
-// the opening marker was removed but the closing one was not, must still
-// count as unresolved rather than being re-merged.
+// Any one marker line is enough. A half-resolved file, where one marker
+// was removed and another was not, must still count as unresolved rather
+// than being re-merged, whichever marker the user removed.
 func HasConflicts(text string) bool {
-	return HasConflictsLabel(text, "")
+	return HasConflictsLabels(text, DiffLabels{})
 }
 
 // HasConflictsLabel is HasConflicts with an explicitly-supplied custom
-// existing-label taken into account.
-//
-// writeConflict emits markEnd + whatever label was configured, so a file
-// conflicted under DiffLabels{Existing: "E"} contains no default sentinel
-// at all. Without this, Merge's unresolved guard did not fire and the
-// markers nested one level deeper on every run — exactly what the guard
-// exists to prevent.
-//
-// The default sentinel is a PREFIX (">>>>>>> EXISTING:") so it matches
-// whatever timestamp follows; the formatted default label would only match
-// a conflict written in the same millisecond, which is why the caller
-// passes the EXPLICIT label or nothing. Mirrors ts/src/diff.ts.
+// existing label taken into account, the form TS's hasConflicts takes for a
+// string argument.
 func HasConflictsLabel(text, existingLabel string) bool {
-	if strings.Contains(text, unresolvedMark) {
-		return true
+	return HasConflictsLabels(text, DiffLabels{Existing: existingLabel})
+}
+
+// HasConflictsLabels is HasConflicts with the custom labels passed to Merge
+// taken into account.
+//
+// writeConflict emits whatever labels were configured, so a file conflicted
+// under DiffLabels{Existing: "E"} contains no default sentinel at all.
+// Without them, Merge's unresolved guard did not fire and the markers nested
+// one level deeper on every run — exactly what the guard exists to prevent.
+//
+// The defaults are always recognised, as prefixes; the formatted default
+// label would only match a conflict written in the same millisecond, which
+// is why the caller passes the EXPLICIT labels or none. Mirrors
+// ts/src/diff.ts.
+func HasConflictsLabels(text string, labels DiffLabels) bool {
+	for _, mark := range defaultMarks {
+		if hasLine(text, mark) {
+			return true
+		}
 	}
 	// Match the COMPLETE emitted marker, including its newline — a bare
 	// substring check treats a custom label as a prefix, so label "E"
 	// matched an ordinary line ">>>>>>> Example". writeConflict always
 	// appends "\n", so requiring it is safe.
-	return existingLabel != "" &&
-		strings.Contains(text, markEnd+existingLabel+"\n")
+	for _, label := range []string{labels.Existing, labels.Generated} {
+		if label != "" && (hasLine(text, markStart+label+"\n") ||
+			hasLine(text, markEnd+label+"\n")) {
+			return true
+		}
+	}
+	return false
 }
 
 // maxDateMs is the largest epoch-ms magnitude an ECMAScript Date holds.
@@ -387,20 +414,23 @@ func endsWithNewline(out []string) bool {
 	return strings.HasSuffix(last, "\n")
 }
 
+// writeConflict puts the existing side first, as git writes a conflict: the
+// file on disk is the current change and the generate is the incoming one,
+// so an editor's "accept current" keeps the user's lines (issue #79).
 func writeConflict(out, generated, existing []string, labels DiffLabels) []string {
-	out = append(out, markStart+labels.Generated+"\n")
-	out = append(out, generated...)
-	if !endsWithNewline(out) {
-		out = append(out, "\n")
-	}
-
-	out = append(out, markMid)
+	out = append(out, markStart+labels.Existing+"\n")
 	out = append(out, existing...)
 	if !endsWithNewline(out) {
 		out = append(out, "\n")
 	}
 
-	return append(out, markEnd+labels.Existing+"\n")
+	out = append(out, markMid)
+	out = append(out, generated...)
+	if !endsWithNewline(out) {
+		out = append(out, "\n")
+	}
+
+	return append(out, markEnd+labels.Generated+"\n")
 }
 
 // --- Three-way merge ------------------------------------------------------
@@ -431,13 +461,13 @@ func Merge(generated, baseline, existing string, spec DiffSpec) MergeResult {
 
 	// Never merge into an unresolved merge — that stacks conflict markers
 	// inside conflict markers and is unreadable. Leave it for the user.
-	// Pass the EXPLICIT custom label, not the formatted one: the formatted
+	// Pass the EXPLICIT custom labels, not the formatted ones: a formatted
 	// default carries a timestamp and would never match an older conflict.
-	customExisting := ""
+	custom := DiffLabels{}
 	if spec.Labels != nil {
-		customExisting = spec.Labels.Existing
+		custom = *spec.Labels
 	}
-	if HasConflictsLabel(existing, customExisting) {
+	if HasConflictsLabels(existing, custom) {
 		return MergeResult{Content: existing, Outcome: MergeUnresolved}
 	}
 

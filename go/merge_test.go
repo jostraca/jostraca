@@ -53,8 +53,8 @@ func TestSaveMergeModeLargeFile(t *testing.T) {
 		strings.Join(res.Files.Conflicted, ",") != "/out/big.txt" {
 		t.Errorf("merged=%v conflicted=%v", res.Files.Merged, res.Files.Conflicted)
 	}
-	if !strings.HasPrefix(text, "head\n<<<<<<< GENERATED: ") ||
-		!strings.Contains(text, big+"=======\nuser\n>>>>>>> EXISTING: ") {
+	if !strings.HasPrefix(text, "head\n<<<<<<< EXISTING: ") ||
+		!strings.Contains(text, "\nuser\n=======\n"+big+">>>>>>> GENERATED: ") {
 		t.Errorf("big.txt tail = %q", text[len(text)-200:])
 	}
 }

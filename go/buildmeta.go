@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"path"
+	"regexp"
 	"sort"
 )
 
@@ -36,6 +37,11 @@ type metaEntry struct {
 	Protect  bool
 	Conflict bool
 	When     int64
+
+	// Fingerprints are written, last, only under merge, as TS sets the key
+	// only then. HasFingerprints says the key is present, empty or not.
+	Fingerprints    []string
+	HasFingerprints bool
 }
 
 // newBuildMeta loads the previous meta log, as TS's BuildMeta
@@ -107,6 +113,28 @@ func (bm *buildMeta) load() error {
 	}
 	bm.prev = prev
 	return nil
+}
+
+// fingerprintPattern is the form of a fingerprint in the meta log.
+var fingerprintPattern = regexp.MustCompile(`^[0-9a-f]{16}$`)
+
+// priorFingerprints are the fingerprints the previous run recorded for a
+// file. A hand-edited log can hold anything there, and anything but a
+// fingerprint is dropped. Mirrors priorFingerprints in TS's FileHandler.
+func (bm *buildMeta) priorFingerprints(rpath string) []string {
+	out := []string{}
+	if bm == nil || bm.prev == nil {
+		return out
+	}
+	files, _ := bm.prev["files"].(map[string]any)
+	entry, _ := files[rpath].(map[string]any)
+	list, _ := entry["fingerprints"].([]any)
+	for _, f := range list {
+		if s, ok := f.(string); ok && fingerprintPattern.MatchString(s) {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 // metaDlog records non-fatal meta-log weirdness.
@@ -204,6 +232,12 @@ func (bm *buildMeta) encode() []byte {
 				{"conflict", jsonBool(e.Conflict)},
 				{"when", jsonNum(e.When)},
 				{"hwhen", jsonNum(hwhen)},
+			}
+			if e.HasFingerprints {
+				fields = append(fields, struct {
+					k string
+					v string
+				}{"fingerprints", jsonStrSlice(e.Fingerprints)})
 			}
 			for j, f := range fields {
 				buf.WriteString("      ")

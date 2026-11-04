@@ -11,7 +11,8 @@
         "diffed": [],
         "merged": [],
         "conflicted": [],
-        "unchanged": []
+        "unchanged": [],
+        "unmerged": []
       },
       "audit": [
         [
@@ -58,7 +59,7 @@
             "path": "/out/.jostraca/jostraca.meta.log",
             "when": 1735689600000,
             "existed": false,
-            "size": 394
+            "size": 454
           }
         ],
         [
@@ -66,7 +67,7 @@
           {
             "path": "/out/.jostraca/jostraca.meta.log",
             "when": 1735689600000,
-            "size": 394
+            "size": 454
           }
         ],
         [
@@ -90,7 +91,8 @@
           "/out/app/doc.md"
         ],
         "conflicted": [],
-        "unchanged": []
+        "unchanged": [],
+        "unmerged": []
       },
       "audit": [
         [
@@ -106,7 +108,7 @@
           {
             "path": "/out/.jostraca/jostraca.meta.log",
             "when": 1735689600000,
-            "size": 394
+            "size": 454
           }
         ],
         [
@@ -114,7 +116,7 @@
           {
             "path": "/out/.jostraca/jostraca.meta.log",
             "when": 1735689600000,
-            "size": 394
+            "size": 454
           }
         ],
         [
@@ -182,7 +184,7 @@
             "path": "/out/.jostraca/jostraca.meta.log",
             "when": 1735689600000,
             "existed": true,
-            "size": 393
+            "size": 481
           }
         ],
         [
@@ -190,7 +192,7 @@
           {
             "path": "/out/.jostraca/jostraca.meta.log",
             "when": 1735689600000,
-            "size": 393
+            "size": 481
           }
         ],
         [
@@ -214,7 +216,8 @@
           "/out/app/doc.md"
         ],
         "conflicted": [],
-        "unchanged": []
+        "unchanged": [],
+        "unmerged": []
       },
       "audit": [
         [
@@ -230,7 +233,7 @@
           {
             "path": "/out/.jostraca/jostraca.meta.log",
             "when": 1735689600000,
-            "size": 393
+            "size": 481
           }
         ],
         [
@@ -238,7 +241,7 @@
           {
             "path": "/out/.jostraca/jostraca.meta.log",
             "when": 1735689600000,
-            "size": 393
+            "size": 481
           }
         ],
         [
@@ -306,7 +309,7 @@
             "path": "/out/.jostraca/jostraca.meta.log",
             "when": 1735689600000,
             "existed": true,
-            "size": 393
+            "size": 509
           }
         ],
         [
@@ -314,7 +317,7 @@
           {
             "path": "/out/.jostraca/jostraca.meta.log",
             "when": 1735689600000,
-            "size": 393
+            "size": 509
           }
         ],
         [
@@ -332,7 +335,7 @@
   "vol": {
     "/out/app/doc.md": "How a conflict looks:\n>>>>>>> EXISTING: 2020-01-01T00:00:00.000Z/merge\nv3\n",
     "/out/.jostraca/generated/app/doc.md": "How a conflict looks:\n>>>>>>> EXISTING: 2020-01-01T00:00:00.000Z/merge\nv3\n",
-    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/doc.md\": {\n      \"action\": \"merge\",\n      \"path\": \"app/doc.md\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000\n    }\n  }\n}",
+    "/out/.jostraca/jostraca.meta.log": "{\n  \"foldername\": \".jostraca\",\n  \"filename\": \"jostraca.meta.log\",\n  \"last\": 1735689600000,\n  \"hlast\": 2025010100000000,\n  \"files\": {\n    \"app/doc.md\": {\n      \"action\": \"merge\",\n      \"path\": \"app/doc.md\",\n      \"exists\": true,\n      \"actions\": [\n        \"merge\"\n      ],\n      \"protect\": false,\n      \"conflict\": false,\n      \"when\": 1735689600000,\n      \"hwhen\": 2025010100000000,\n      \"fingerprints\": [\n        \"a70b63068e130e6e\",\n        \"a4ed06a1597688aa\",\n        \"1d75bb0ff9559a27\"\n      ]\n    }\n  }\n}",
     "/out/.jostraca/.gitignore": "\njostraca.meta.log\ngenerated\n"
   }
 }

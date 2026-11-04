@@ -198,9 +198,9 @@ const START_TIME = 1735689600000;
         (0, node_test_1.test)('global-merge-with-per-call-preserve-merges', async () => {
             const r = await run({ txt: { merge: true } }, { txt: { preserve: true } }, 'L1\nL2\nL3\n', 'L1\nUSER\nL3\n', 'L1\nGEN\nL3\n');
             (0, expect_1.expect)(r.text).equal('L1\n' +
-                '<<<<<<< GENERATED: 2025-01-01T00:00:00.000Z/merge\n' +
-                'GEN\n=======\nUSER\n' +
-                '>>>>>>> EXISTING: 2025-01-01T00:00:00.000Z/merge\n' +
+                '<<<<<<< EXISTING: 2025-01-01T00:00:00.000Z/merge\n' +
+                'USER\n=======\nGEN\n' +
+                '>>>>>>> GENERATED: 2025-01-01T00:00:00.000Z/merge\n' +
                 'L3\n');
             (0, expect_1.expect)(r.files.merged).equal(['/out/a.txt']);
             (0, expect_1.expect)(r.files.conflicted).equal(['/out/a.txt']);

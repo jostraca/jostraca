@@ -25,7 +25,8 @@
     "conflicted": [],
     "unchanged": [
       "/out/app/mod.wasm"
-    ]
+    ],
+    "unmerged": []
   },
   "audit": [
     [
