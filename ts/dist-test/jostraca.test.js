@@ -1967,8 +1967,8 @@ const START_TIME = 1735689600000;
             Assert.match(err.message, want);
             (0, expect_1.expect)(noOutput(vol)).equal([]);
         };
-        await refused(() => (0, __1.CopyFiles)({ from: '/tm/tree', to: 'n', exclude: 5 }), /Value "5" for property "exclude" does not satisfy one of: Boolean, String, RegExp/);
-        await refused(() => (0, __1.File)({ name: 'b.txt' }, () => (0, __1.Fragment)({ from: '/tm/model.txt', indent: true })), /Fragment: Value "true" for property "indent" does not satisfy one of: String, Number/);
+        await refused(() => (0, __1.CopyFiles)({ from: '/tm/tree', to: 'n', exclude: 5 }), /Value "5" for property "exclude" satisfies 0 of: Boolean, String, RegExp/);
+        await refused(() => (0, __1.File)({ name: 'b.txt' }, () => (0, __1.Fragment)({ from: '/tm/model.txt', indent: true })), /Fragment: Value "true" for property "indent" satisfies 0 of: String, Number/);
         const tree = (node) => () => (0, __1.cmpTree)([node])();
         await refused(tree({ cmp: 'CopyFiles', props: { from: '/tm/tree', exclude: { a: 1 } } }), /Value "\{a:1\}" for property "exclude"/);
         await refused(tree({ cmp: 'CopyFiles', props: { from: '/tm/tree', to: 5 } }), /property "to" with number "5" because the number is not of type string/);
@@ -1978,7 +1978,7 @@ const START_TIME = 1735689600000;
         }), /Value "\[>\]" for property "indent"/);
         // A null indent is a value, refused, whether the node states it or a
         // ListItems binds it; an unset one binds nothing, and passes.
-        const NULL_INDENT = /Fragment: Value "null" for property "indent" does not satisfy one of: String, Number/;
+        const NULL_INDENT = /Fragment: Value "null" for property "indent" satisfies 0 of: String, Number/;
         const listed = (listProps, fragProps) => tree({
             cmp: 'File', props: { name: 'l.txt' },
             children: [{

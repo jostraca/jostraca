@@ -267,8 +267,8 @@ var optionsSchema = shape.MustShape(map[string]any{
 			"suffix": shape.Skip(shape.String),
 		},
 		"exclude": shape.Skip(shape.Fault(
-			`Value "$VALUE" for property "$PATH" does not satisfy one of: `+
-				`String, RegExp, ["One(String,)"]`,
+			`Value "$VALUE" for property "$PATH" satisfies 0 of: `+
+				`String, RegExp, ["Nof(1,String,)"]; the count must be 1.`,
 			shape.Check(isNameExclude))),
 	},
 	"meta": map[string]any{},
@@ -284,11 +284,11 @@ var optionsSchema = shape.MustShape(map[string]any{
 	"build":    shape.Skip(shape.Boolean),
 	"mem":      shape.Skip(shape.Boolean),
 	"vol": shape.Skip(shape.Child(shape.Fault(
-		`Value "$VALUE" for property "$PATH" does not satisfy one of: String, Buffer, null`,
+		`Value "$VALUE" for property "$PATH" satisfies 0 of: String, Buffer, null; the count must be 1.`,
 		shape.Check(isVolSeed)), map[string]any{})),
 	"cmp": map[string]any{
 		"Copy": map[string]any{"ignore": []any{shape.Fault(
-			`Value "$VALUE" for property "$PATH" does not satisfy one of: String, RegExp`,
+			`Value "$VALUE" for property "$PATH" satisfies 0 of: String, RegExp; the count must be 1.`,
 			shape.Check(isIgnoreEntry))}},
 	},
 	"control": map[string]any{

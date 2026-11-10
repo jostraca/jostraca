@@ -5,7 +5,7 @@ import type { Node } from '../jostraca'
 
 import { cmp, template, each, escre, Content } from '../jostraca'
 
-import { Shape, One, Optional, Check, Empty, Skip } from 'shape'
+import { Shape, Nof, Optional, Check, Empty, Skip } from 'shape'
 
 import { decodeText } from '../util/bytes'
 
@@ -68,9 +68,9 @@ const From = (from: any, _: any, s: any) => s.ctx.fs().statSync(from)
 const FragmentSpec = {
   ctx$: Object,
   from: Check(From).String() as unknown as string,
-  indent: Optional(One(Empty(String), Number)),
+  indent: Optional(Nof(1, Empty(String), Number)),
   replace: {} as any,
-  eject: Optional([One(String, RegExp)]) as unknown as any[],
+  eject: Optional([Nof(1, String, RegExp)]) as unknown as any[],
   item: Skip() as any,
 }
 

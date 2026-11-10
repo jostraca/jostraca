@@ -14,7 +14,7 @@
     "/tm/c.txt": "copied $$name$$\n"
   },
   "error": true,
-  "errorBody": "Fragment: Value \"true\" for property \"indent\" does not satisfy one of: String, Number",
+  "errorBody": "Fragment: Value \"true\" for property \"indent\" satisfies 0 of: String, Number; the count must be 1.",
   "files": null,
   "audit": null,
   "vol": {

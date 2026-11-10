@@ -45,6 +45,6 @@
     "typescript": "7.0.2"
   },
   "peerDependencies": {
-    "shape": ">=11"
+    "shape": ">=12"
   }
 }

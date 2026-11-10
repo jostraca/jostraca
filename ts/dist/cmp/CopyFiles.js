@@ -24,7 +24,7 @@ const CopyFilesSpec = {
     // File (which shape-validates nothing) and the Go port. The
     // Boolean-or-Array-only spelling made the scalar arm of `state.excludes`
     // in CopyOp unreachable.
-    exclude: (0, shape_1.Optional)((0, shape_1.One)(Boolean, String, RegExp, [(0, shape_1.One)(String, RegExp)])),
+    exclude: (0, shape_1.Optional)((0, shape_1.Nof)(1, Boolean, String, RegExp, [(0, shape_1.Nof)(1, String, RegExp)])),
     // Bindings, accepted and not read. NOT a copy-time indent: nothing on
     // either side indents a copied file, and the Go port's vestigial
     // `Indent` field was removed rather than kept as a promise.

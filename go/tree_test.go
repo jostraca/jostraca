@@ -616,7 +616,7 @@ func TestCmpTreeClosedPropTypes(t *testing.T) {
 			`"children":[{"cmp":"ListItems","props":{"item":[{"n":1}],"line":false` + listProps + `},` +
 			`"children":[{"cmp":"Fragment","props":{"from":"/tm/model.txt"` + fragProps + `}}]}]}]}]`
 	}
-	const nullIndent = `Fragment: Value "null" for property "indent" does not satisfy one of: String, Number`
+	const nullIndent = `Fragment: Value "null" for property "indent" satisfies 0 of: String, Number; the count must be 1.`
 	seed := map[string][]byte{
 		"/tm/model.txt":  []byte("M=$$name$$\n"),
 		"/tm/tree/a.txt": []byte("A\n"),
@@ -635,7 +635,7 @@ func TestCmpTreeClosedPropTypes(t *testing.T) {
 
 	for _, c := range []struct{ src, want string }{
 		{cpy(`{"from":"/tm/tree","exclude":{"a":1}}`),
-			`CopyFiles: Value "{a:1}" for property "exclude" does not satisfy one of`},
+			`CopyFiles: Value "{a:1}" for property "exclude" satisfies 0 of`},
 		{cpy(`{"from":"/tm/tree","exclude":5}`), `Value "5" for property "exclude"`},
 		{cpy(`{"from":"/tm/tree","exclude":null}`), `Value "null" for property "exclude"`},
 		{cpy(`{"from":"/tm/tree","to":5}`),
@@ -645,7 +645,7 @@ func TestCmpTreeClosedPropTypes(t *testing.T) {
 			`property "replace" with string "x" because the string is not of type object`},
 		{cpy(`{"from":5}`), `property "from" with number "5"`},
 		{frag(`{"from":"/tm/model.txt","indent":[">"]}`),
-			`Fragment: Value "[>]" for property "indent" does not satisfy one of: String, Number`},
+			`Fragment: Value "[>]" for property "indent" satisfies 0 of: String, Number; the count must be 1.`},
 		{frag(`{"from":"/tm/model.txt","indent":true}`), `Value "true" for property "indent"`},
 		{frag(`{"from":"/tm/model.txt","replace":"x"}`),
 			`Fragment: Validation failed for property "replace" with string "x"`},

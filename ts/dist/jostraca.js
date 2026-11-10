@@ -142,7 +142,7 @@ const OptionsShape = (0, shape_1.Shape)({
             suffix: (0, shape_1.Skip)(String), // Prefix for all output folder names
         },
         // Files excluded from prefixing and suffixing
-        exclude: (0, shape_1.Skip)((0, shape_1.One)(String, RegExp, [(0, shape_1.One)(String, RegExp)]))
+        exclude: (0, shape_1.Skip)((0, shape_1.Nof)(1, String, RegExp, [(0, shape_1.Nof)(1, String, RegExp)]))
     },
     meta: {}, // Provide meta data to the generation process. Default: `{}`
     fs: (0, shape_1.Skip)(Function), // File system API. Default: `node:fs`.
@@ -161,13 +161,13 @@ const OptionsShape = (0, shape_1.Shape)({
     // directory (null), the memfs seed convention. Anything else was seeded
     // as its String() form: `5` became a file holding "5", an object
     // "[object Object]".
-    vol: (0, shape_1.Skip)((0, shape_1.Child)((0, shape_1.One)((0, shape_1.Empty)(String), Buffer, null), {})),
+    vol: (0, shape_1.Skip)((0, shape_1.Child)((0, shape_1.Nof)(1, (0, shape_1.Empty)(String), Buffer, null), {})),
     // Component specific options. A string `ignore` entry is a regular
     // expression source, the one form JSON configuration can carry; any
     // other entry failed only when a Copy walk reached it.
     cmp: {
         Copy: {
-            ignore: [(0, shape_1.One)(String, RegExp)]
+            ignore: [(0, shape_1.Nof)(1, String, RegExp)]
         }
     },
     // Each key is Skip so that shape does NOT inject a default here. A literal
