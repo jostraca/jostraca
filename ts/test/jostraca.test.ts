@@ -2406,10 +2406,10 @@ describe('components', () => {
     }
 
     await refused(() => CopyFiles({ from: '/tm/tree', to: 'n', exclude: 5 as any }),
-      /Value "5" for property "exclude" does not satisfy one of: Boolean, String, RegExp/)
+      /Value "5" for property "exclude" satisfies 0 of: Boolean, String, RegExp/)
     await refused(() => File({ name: 'b.txt' }, () =>
       Fragment({ from: '/tm/model.txt', indent: true as any })),
-      /Fragment: Value "true" for property "indent" does not satisfy one of: String, Number/)
+      /Fragment: Value "true" for property "indent" satisfies 0 of: String, Number/)
 
     const tree = (node: any) => () => cmpTree([node])()
     await refused(tree({ cmp: 'CopyFiles', props: { from: '/tm/tree', exclude: { a: 1 } } }),
@@ -2424,7 +2424,7 @@ describe('components', () => {
     // A null indent is a value, refused, whether the node states it or a
     // ListItems binds it; an unset one binds nothing, and passes.
     const NULL_INDENT =
-      /Fragment: Value "null" for property "indent" does not satisfy one of: String, Number/
+      /Fragment: Value "null" for property "indent" satisfies 0 of: String, Number/
     const listed = (listProps: any, fragProps: any) => tree({
       cmp: 'File', props: { name: 'l.txt' },
       children: [{

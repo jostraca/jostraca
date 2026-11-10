@@ -51,7 +51,7 @@ type TemplateSpec struct {
 var defaultMacroRE = regexp.MustCompile(`\$\$([^$]+)\$\$`)
 
 // eject is declared as a REPEATED-element array (one element spec), not a
-// fixed two-element tuple, matching TS's `Optional([One(String, RegExp)])`
+// fixed two-element tuple, matching TS's `Optional([Nof(1, String, RegExp)])`
 // in cmp/Fragment.ts. The tuple form broke under shape v0.5.0, which no
 // longer suppresses element validation when an Optional array is absent:
 // a spec with no eject reported both tuple slots missing. The repeated

@@ -134,8 +134,8 @@ func TestClosedShapePropTypes(t *testing.T) {
 	}{
 		{"copy exclude number", func(j *J) {
 			j.CopyFiles(CopyFilesProps{From: "/tm/tree", To: "n", Exclude: 5})
-		}, `CopyFiles: Value "5" for property "exclude" does not satisfy one of: ` +
-			`Boolean, String, RegExp, ["One(String,)"]`},
+		}, `CopyFiles: Value "5" for property "exclude" satisfies 0 of: ` +
+			`Boolean, String, RegExp, ["Nof(1,String,)"]; the count must be 1.`},
 		{"copy exclude object", func(j *J) {
 			j.CopyFiles(CopyFilesProps{From: "/tm/tree", Exclude: map[string]any{"a": 1}})
 		}, `Value "{a:1}" for property "exclude"`},
@@ -149,7 +149,7 @@ func TestClosedShapePropTypes(t *testing.T) {
 			j.File("b.txt", func(j *J) {
 				j.Fragment(FragmentProps{From: "/tm/model.txt", Indent: true}, nil)
 			})
-		}, `Fragment: Value "true" for property "indent" does not satisfy one of: String, Number`},
+		}, `Fragment: Value "true" for property "indent" satisfies 0 of: String, Number; the count must be 1.`},
 		{"fragment indent list", func(j *J) {
 			j.File("b.txt", func(j *J) {
 				j.Fragment(FragmentProps{From: "/tm/model.txt", Indent: []any{">"}}, nil)
@@ -159,7 +159,7 @@ func TestClosedShapePropTypes(t *testing.T) {
 			j.File("b.txt", func(j *J) {
 				j.Fragment(FragmentProps{From: "/tm/model.txt", Eject: []any{1, 2}}, nil)
 			})
-		}, `Value "1" for property "eject.0" does not satisfy one of: String, RegExp`},
+		}, `Value "1" for property "eject.0" satisfies 0 of: String, RegExp; the count must be 1.`},
 		{"fragment eject string", func(j *J) {
 			j.File("b.txt", func(j *J) {
 				j.Fragment(FragmentProps{From: "/tm/model.txt", Eject: "x"}, nil)

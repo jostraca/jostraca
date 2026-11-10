@@ -3,7 +3,7 @@ import type { Node } from '../jostraca'
 
 import { cmp } from '../jostraca'
 
-import { Shape, One, Optional, Check, Skip } from 'shape'
+import { Shape, Nof, Optional, Check, Skip } from 'shape'
 
 
 /**
@@ -69,7 +69,7 @@ const CopyFilesSpec = {
   // File (which shape-validates nothing) and the Go port. The
   // Boolean-or-Array-only spelling made the scalar arm of `state.excludes`
   // in CopyOp unreachable.
-  exclude: Optional(One(Boolean, String, RegExp, [One(String, RegExp)])) as unknown as any,
+  exclude: Optional(Nof(1, Boolean, String, RegExp, [Nof(1, String, RegExp)])) as unknown as any,
 
   // Bindings, accepted and not read. NOT a copy-time indent: nothing on
   // either side indents a copied file, and the Go port's vestigial

@@ -32,9 +32,9 @@ const From = (from, _, s) => s.ctx.fs().statSync(from);
 const FragmentSpec = {
     ctx$: Object,
     from: (0, shape_1.Check)(From).String(),
-    indent: (0, shape_1.Optional)((0, shape_1.One)((0, shape_1.Empty)(String), Number)),
+    indent: (0, shape_1.Optional)((0, shape_1.Nof)(1, (0, shape_1.Empty)(String), Number)),
     replace: {},
-    eject: (0, shape_1.Optional)([(0, shape_1.One)(String, RegExp)]),
+    eject: (0, shape_1.Optional)([(0, shape_1.Nof)(1, String, RegExp)]),
     item: (0, shape_1.Skip)(),
 };
 // The props a data node may state: the closed set less the context the

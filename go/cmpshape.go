@@ -21,10 +21,10 @@ import (
 // Content({indent: true}) writes "true" as a prefix in both ports.
 
 const (
-	faultIndent  = `Value "$VALUE" for property "$PATH" does not satisfy one of: String, Number`
-	faultEject   = `Value "$VALUE" for property "$PATH" does not satisfy one of: String, RegExp`
-	faultExclude = `Value "$VALUE" for property "$PATH" does not satisfy one of: ` +
-		`Boolean, String, RegExp, ["One(String,)"]`
+	faultIndent  = `Value "$VALUE" for property "$PATH" satisfies 0 of: String, Number; the count must be 1.`
+	faultEject   = `Value "$VALUE" for property "$PATH" satisfies 0 of: String, RegExp; the count must be 1.`
+	faultExclude = `Value "$VALUE" for property "$PATH" satisfies 0 of: ` +
+		`Boolean, String, RegExp, ["Nof(1,String,)"]; the count must be 1.`
 )
 
 var fragmentPropShape = shape.MustShape(map[string]any{
@@ -43,7 +43,7 @@ var copyFilesPropShape = shape.MustShape(map[string]any{
 	"exclude": shape.Skip(shape.Fault(faultExclude, shape.Check(isCopyExcludeProp))),
 })
 
-// isIndentProp is TS's One(Empty(String), Number), which refuses null. The
+// isIndentProp is TS's Nof(1, Empty(String), Number), which refuses null. The
 // typed API passes an unset Indent as no key at all (fragmentPropError), as
 // the tree does (an unset ListItems indent binds nothing).
 func isIndentProp(v any, _ *shape.Update, _ *shape.State) bool {
@@ -61,7 +61,7 @@ func isIndentProp(v any, _ *shape.Update, _ *shape.State) bool {
 	return false
 }
 
-// isMarkerProp is TS's One(String, RegExp): shape's String refuses "".
+// isMarkerProp is TS's Nof(1, String, RegExp): shape's String refuses "".
 func isMarkerProp(v any, _ *shape.Update, _ *shape.State) bool {
 	switch x := v.(type) {
 	case string:
@@ -72,7 +72,7 @@ func isMarkerProp(v any, _ *shape.Update, _ *shape.State) bool {
 	return false
 }
 
-// isCopyExcludeProp is TS's One(Boolean, String, RegExp, [One(String, RegExp)]).
+// isCopyExcludeProp is TS's Nof(1, Boolean, String, RegExp, [Nof(1, String, RegExp)]).
 func isCopyExcludeProp(v any, u *shape.Update, s *shape.State) bool {
 	if _, ok := v.(bool); ok {
 		return true

@@ -65,11 +65,11 @@ nothing arrives behind it:
 
 | | version | size | transitive |
 |---|---|---|---|
-| TypeScript, peer `>=11` | 11.4.1 | 12 files, 709 KB unpacked | none |
-| Go | v0.5.3 | 23 files, 8,814 non-test lines | none |
+| TypeScript, peer `>=12` | 12.0.0 | 12 files, 725 KB unpacked | none |
+| Go | v0.6.0 | 23 files, 9,078 non-test lines | none |
 
 Four TypeScript files import it (`jostraca.ts`, `cmp/Fragment.ts`,
-`cmp/Copy.ts`, `util/point.ts`); Go uses one three-line schema in
+`cmp/CopyFiles.ts`, `util/point.ts`); Go uses one three-line schema in
 `template.go`.
 
 **It stays, on both sides, because it is controlled by the same author as this
@@ -99,13 +99,13 @@ not control, that sandbox is the exit—cheap, and rehearsed once, which is
 what makes accepting the dependency reasonable rather than merely convenient.
 
 Consequences: the consumer-facing tree stays at one package, so
-"dependency-free" is not a claim this project can make. The `>=11` peer range
+"dependency-free" is not a claim this project can make. The `>=12` peer range
 stays loose, and that is only tolerable because of this decision; the floor
-moves when a release requires it, as it did from `>=10` in 0.36.0. Both stacks
-must track `shape` releases together, because a divergence in what each side
-pins is a parity risk of its own—the v0.1.3 to v0.5.0 jump in 0.36.0 changed
-how an absent `Optional` array validates and forced the eject schema to be
-rewritten.
+moves when a release requires it, as it did from `>=10` in 0.36.0 and from
+`>=11` in 0.42.0. Both stacks must track `shape` releases together, because a
+divergence in what each side pins is a parity risk of its own—the v0.1.3 to
+v0.5.0 jump in 0.36.0 changed how an absent `Optional` array validates and
+forced the eject schema to be rewritten.
 
 Sizes are re-measured on each bump rather than carried forward, and the
 0.5.0 to 0.5.1 patch is why that is worth doing: measured the same way
@@ -122,3 +122,15 @@ non-test lines in Go. The file counts and the transitive column are
 unchanged, which is the part that matters to 0001. That release also
 lowered `engines.node` from `>=24` to `>=20`, which is what let the website
 track a current generator again.
+
+The 12.0.0 and v0.6.0 bump in 0.42.0 is the kind a release requires. shape
+12 removed `One`, which jostraca called, and replaced it with `Nof`, so
+0.41.0 and earlier fail to load beside it. The loose range is what let 12.0.0
+reach their installs. `Nof(1, …)` counts the branches a value satisfies,
+where `One` took the first that matched. No two of jostraca's branches
+accept the same value, so the same values pass and only the text of a
+refusal changes: `satisfies 0 of: String, Number; the count must be 1.`,
+where it read `does not satisfy one of: String, Number`. Measured the same
+way, the npm tarball went from 709 to 725 KB unpacked and the Go source from
+8,814 to 9,078 non-test lines; the file counts and the transitive column are
+unchanged.

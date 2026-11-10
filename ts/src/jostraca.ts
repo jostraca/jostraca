@@ -8,7 +8,7 @@ import * as Fs from 'node:fs'
 
 import { AsyncLocalStorage } from 'node:async_hooks'
 
-import { Shape, Skip, One, Child, Empty, Nullable, Fault, Check, Default, Exact } from 'shape'
+import { Shape, Skip, Nof, Child, Empty, Nullable, Fault, Check, Default, Exact } from 'shape'
 
 import { memfs as MemFs } from './util/memfs'
 
@@ -150,7 +150,7 @@ const OptionsShape = Shape({
       suffix: Skip(String), // Prefix for all output folder names
     },
     // Files excluded from prefixing and suffixing
-    exclude: Skip(One(String, RegExp, [One(String, RegExp)]))
+    exclude: Skip(Nof(1, String, RegExp, [Nof(1, String, RegExp)]))
   },
 
   meta: {} as any, // Provide meta data to the generation process. Default: `{}`
@@ -176,14 +176,14 @@ const OptionsShape = Shape({
   // directory (null), the memfs seed convention. Anything else was seeded
   // as its String() form: `5` became a file holding "5", an object
   // "[object Object]".
-  vol: Skip(Child(One(Empty(String), Buffer, null), {})),
+  vol: Skip(Child(Nof(1, Empty(String), Buffer, null), {})),
 
   // Component specific options. A string `ignore` entry is a regular
   // expression source, the one form JSON configuration can carry; any
   // other entry failed only when a Copy walk reached it.
   cmp: {
     Copy: {
-      ignore: [One(String, RegExp)] as any[]
+      ignore: [Nof(1, String, RegExp)] as any[]
     }
   },
 
